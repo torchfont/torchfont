@@ -1,6 +1,5 @@
 # Custom ignore rules
 data/
-.pnpm-store/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
