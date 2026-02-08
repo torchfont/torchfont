@@ -1,17 +1,17 @@
 [tools]
 uv = "latest"
 rust = { version = "stable", profile = "default", components = "rust-src" }
+npm = "latest"
 node = "lts"
-pnpm = "latest"
 
 [tasks.setup]
-run = ["mise install", { tasks = ["setup-uv", "setup-pnpm"] }]
+run = ["mise install", { tasks = ["setup-uv", "setup-npm"] }]
 
 [tasks.setup-uv]
 run = "mise exec -- uv sync"
 
-[tasks.setup-pnpm]
-run = "mise exec -- pnpm install"
+[tasks.setup-npm]
+run = "mise exec -- npm install"
 
 [tasks.format]
 run = ["mise exec -- uv run ruff format", "mise exec -- cargo fmt --all"]
