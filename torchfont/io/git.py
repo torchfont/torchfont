@@ -93,7 +93,17 @@ def ensure_repo(
         repo = pygit2.init_repository(str(path), origin_url=url)
 
     with Progress() as progress:
-        if download:
+        # Shallow fetch cannot efficiently re-download a commit hash that
+        # the server does not advertise as a ref.  When the requested ref
+        # already resolves locally to a direct OID (i.e. not a named
+        # branch/tag), we skip the network round-trip entirely.
+        try:
+            _, reference = repo.resolve_refish(ref)
+            need_fetch = download and reference is not None
+        except KeyError:
+            need_fetch = download
+
+        if need_fetch:
             callbacks = _RemoteCallbacks(progress)
             repo.remotes["origin"].fetch([ref], depth=1, callbacks=callbacks)
             fetch_head = repo.lookup_reference("FETCH_HEAD")
