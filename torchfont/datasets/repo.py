@@ -31,7 +31,7 @@ from torchfont.io.git import ensure_repo
 class FontRepo(FontFolder):
     """Font dataset that synchronizes glyphs from a shallow Git clone.
 
-    The clone fetches the requested reference at depth one, while
+    The clone fetches the requested reference at configurable depth, while
     :paramref:`patterns` restricts which fonts are indexed from the working
     tree.
 
@@ -51,13 +51,16 @@ class FontRepo(FontFolder):
         codepoint_filter: Sequence[SupportsIndex] | None = None,
         transform: (Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None) = None,
         download: bool = False,
+        depth: int = 1,
     ) -> None:
         """Clone and index a Git repository of fonts.
 
         Args:
             root (Path | str): Local directory that contains the Git working tree.
             url (str): Remote origin URL for the repository.
-            ref (str): Git reference (branch, tag, or commit hash) to synchronize.
+            ref (str): Git reference to synchronize. With ``download=True``,
+                pass a concrete branch reference (for example ``main`` or
+                ``refs/heads/main``) or explicit ``refs/...`` path.
             patterns (Sequence[str]): Glob-style patterns applied when walking
                 the working tree to select which font files to index.
             codepoint_filter (Sequence[SupportsIndex] | None): Optional iterable
@@ -66,10 +69,15 @@ class FontRepo(FontFolder):
                 Optional transformation applied to each sample from the backend.
             download (bool): Whether to clone and check out the repository
                 contents when the working tree is empty or stale.
+            depth (int): Fetch depth passed to libgit2. Use ``1`` for shallow
+                sync (default), or ``0`` for full history.
 
         Raises:
             FileNotFoundError: If the repository does not exist locally and
                 ``download`` is ``False``.
+            ValueError: If ``ref`` cannot be resolved after synchronization.
+            ValueError: If ``root`` already points to a repository whose
+                ``origin`` URL differs from ``url``.
 
         Examples:
             Skip cloning when the working tree already matches the desired
@@ -86,12 +94,14 @@ class FontRepo(FontFolder):
         """
         self.url = url
         self.ref = ref
+        self.depth = depth
 
         self.commit_hash = ensure_repo(
             root=root,
             url=self.url,
             ref=self.ref,
             download=download,
+            depth=self.depth,
         )
 
         super().__init__(

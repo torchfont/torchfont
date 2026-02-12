@@ -13,6 +13,7 @@ dataset = GoogleFonts(
     root="data/google/fonts",
     ref="main",
     download=True,
+    depth=1,
 )
 
 print(f"samples={len(dataset)}")
@@ -45,13 +46,15 @@ print(reused.commit_hash)
 
 `download` が制御するのは fetch の有無だけです。どちらのモードでも TorchFont は `root` に対して `ref` を force checkout します。
 
-`root/.git` がない場合は、TorchFont が先にリポジトリ情報を初期化します。それでも `download=False` では、ローカルで `ref` を解決できるまで失敗します。新しいキャッシュディレクトリごとに、最初の 1 回は `download=True` を使ってください。
+`root/.git` がない初回に `download=False` を指定すると `FileNotFoundError` になります。新しいキャッシュディレクトリごとに、最初の 1 回は `download=True` を使ってください。
+
+`depth` は fetch 履歴の深さを制御します（既定は `1` の shallow、`0` で履歴全体）。`download=True` の `ref` は具体的なブランチ参照（`main` または `refs/heads/main`）か明示 `refs/...` を使ってください。remote-tracking ref（`origin/main`）と revspec（リビジョン指定, 例: `main~1`）は受け付けません。
 
 ## Google Fonts 専用の `root` を使う
 
 `GoogleFonts` は、Google Fonts の URL を固定した `FontRepo` プリセットです。
 
-`root` が新規ディレクトリならこの URL で初期化されます。`root/.git` がすでにある場合は、その既存リポジトリを再利用します。`data/google/fonts` のような専用キャッシュディレクトリを使い、別ソースと共有しないでください。
+`root/.git` がすでにある場合は、その既存リポジトリを再利用し、既存 `origin` URL がこの固定 URL と一致している必要があります。`data/google/fonts` のような専用キャッシュディレクトリを使い、別ソースと共有しないでください。既存リポジトリに `origin` remote がない場合は `ValueError` で失敗します。
 
 ::: warning
 `root` はキャッシュ専用ディレクトリとして使ってください。`root` 配下のローカル変更は初期化時に上書きされる可能性があります。
@@ -82,6 +85,7 @@ dataset = GoogleFonts(
     ref="main",
     codepoint_filter=range(0x30, 0x3A),  # 0-9
     download=True,
+    depth=1,
 )
 ```
 
@@ -168,8 +172,7 @@ loader = DataLoader(dataset, **loader_kwargs)
 - Linux: `"fork"` が高速になりやすい
 - macOS: `"spawn"` または `"forkserver"`
 - Windows: `"spawn"`
-- `num_workers=0` にする場合は `prefetch_factor` と
-  `multiprocessing_context` を指定しないでください
+- `num_workers=0` にする場合は `prefetch_factor` と `multiprocessing_context` を指定しないでください
 
 :::
 

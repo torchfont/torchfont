@@ -104,10 +104,13 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 - `download=True`: fetch from remote, then force-checkout `ref`
 - `download=False`: skip fetch, resolve `ref` locally, then force-checkout it
   (requires a locally resolvable `ref`)
+- `depth=1`: shallow fetch (default), `depth=0`: full history
+- With `download=True`, `ref` must be a concrete branch ref
+  (`main` or `refs/heads/main`) or explicit `refs/...` path.
+  Remote-tracking refs (`origin/main`) and ref expressions (`main~1`) are rejected.
 
-If `root/.git` does not exist yet, TorchFont initializes repository metadata
-first. Even then, `download=False` still fails until `ref` exists locally.
-In practice, run once with `download=True` on a new cache directory.
+If `root/.git` does not exist yet, `download=False` raises `FileNotFoundError`.
+Run once with `download=True` for each new cache directory.
 
 ::: warning
 `FontRepo`/`GoogleFonts` use a force checkout strategy to align `root` with

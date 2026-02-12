@@ -12,6 +12,7 @@ dataset = GoogleFonts(
     root="data/google/fonts",
     ref="main",
     download=True,
+    depth=1,
 )
 
 print(f"samples={len(dataset)}")
@@ -45,18 +46,24 @@ print(reused.commit_hash)
 `download` controls only whether fetch is performed. In both modes, TorchFont
 force-checks out `ref` into `root`.
 
-When `root/.git` does not exist, TorchFont initializes repository metadata
-first. Even then, `download=False` fails until `ref` exists locally. For each
-new cache directory, run once with `download=True`.
+If `root/.git` does not exist yet, `download=False` raises `FileNotFoundError`.
+For each new cache directory, run once with `download=True`.
+
+`depth` controls fetch history (`1` shallow by default, `0` for full history).
+With `download=True`, `ref` must be a concrete branch ref (`main` or
+`refs/heads/main`) or explicit `refs/...`.
+Remote-tracking refs (`origin/main`) and ref expressions (`main~1`) are rejected.
 
 ## Use a dedicated `root` for Google Fonts
 
 `GoogleFonts` is a preset of `FontRepo` with the Google Fonts URL.
 
-For a fresh `root`, this URL is used to initialize the repository. If
-`root/.git` already exists, TorchFont reuses that existing repository. Use a
-dedicated cache directory for Google Fonts (for example `data/google/fonts`) and
-do not share it with other sources.
+If `root/.git` already exists, TorchFont reuses that existing repository and
+requires the existing `origin` URL to match the preset URL. Use a dedicated
+cache directory for Google Fonts (for example `data/google/fonts`) and do not
+share it with other sources.
+If the existing repository has no `origin` remote, initialization fails with
+`ValueError`.
 
 ::: warning
 Treat `root` as a cache directory. Local edits under `root` can be overwritten
@@ -88,6 +95,7 @@ dataset = GoogleFonts(
     ref="main",
     codepoint_filter=range(0x30, 0x3A),  # 0-9
     download=True,
+    depth=1,
 )
 ```
 
