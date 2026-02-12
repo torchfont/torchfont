@@ -91,10 +91,7 @@ def _open_repo_and_origin(
         try:
             remote = repo.remotes[_ORIGIN]
         except KeyError as exc:
-            msg = (
-                f"Existing repository at '{path}' does not define "
-                f"'{_ORIGIN}' remote."
-            )
+            msg = f"Existing repository at '{path}' does not define '{_ORIGIN}' remote."
             raise ValueError(msg) from exc
     else:
         if not download:

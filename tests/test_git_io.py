@@ -266,7 +266,9 @@ def test_ensure_repo_download_does_not_fetch_unrelated_branches(tmp_path: Path) 
     origin_repo, origin_url = _init_origin_repo(tmp_path)
     head_commit = origin_repo.head.peel(pygit2.Commit)
     origin_repo.create_branch("extra-branch", head_commit)
-    origin_repo.remotes["origin"].push(["refs/heads/extra-branch:refs/heads/extra-branch"])
+    origin_repo.remotes["origin"].push(
+        ["refs/heads/extra-branch:refs/heads/extra-branch"]
+    )
 
     root = tmp_path / "cache"
     ensure_repo(
@@ -314,7 +316,7 @@ def test_ensure_repo_supports_explicit_tag_ref(tmp_path: Path) -> None:
     origin_repo.create_tag(
         "v1",
         head_commit.id,
-        pygit2.GIT_OBJECT_COMMIT,
+        pygit2.enums.ObjectType.COMMIT,
         _AUTHOR,
         "v1",
     )
