@@ -101,10 +101,11 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 ```
 
 - `download=True`: リモートから fetch し、`ref` を force checkout
-- `download=False`: fetch を省略し、ローカルで `ref` を解決して force checkout
-  （ローカルで解決可能な `ref` が必要）
+- `download=False`: fetch を省略し、ローカルで `ref` を解決して force checkout（ローカルで解決可能な `ref` が必要）
+- `depth=1`: shallow fetch（既定）、`depth=0`: 履歴全体を取得
+- `download=True` の `ref` は具体的なブランチ参照（`main` または `refs/heads/main`）か、明示 `refs/...` のみを想定します。remote-tracking ref（`origin/main`）や revspec（リビジョン指定, 例: `main~1`）は受け付けません。
 
-`root/.git` がない初回は、TorchFont がまずリポジトリ情報を初期化します。それでも `download=False` のままではローカル `ref` が不足して失敗します。新しいキャッシュディレクトリでは最初に一度 `download=True` で同期してください。
+`root/.git` がない初回に `download=False` を指定すると `FileNotFoundError` になります。新しいキャッシュディレクトリでは最初に一度 `download=True` で同期してください。
 
 ::: warning
 `FontRepo` / `GoogleFonts` は `root` を `ref` に合わせるために force checkout を行います。`root` はデータセット用キャッシュとして使い、手作業の変更を混在させないでください。

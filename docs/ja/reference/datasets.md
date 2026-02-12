@@ -109,6 +109,7 @@ FontRepo(
     codepoint_filter: Sequence[SupportsIndex] | None = None,
     transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
     download: bool = False,
+    depth: int = 1,
 )
 ```
 
@@ -116,11 +117,12 @@ FontRepo(
 | ------------------ | --------------------------------- | -------------------------------- |
 | `root`             | `Path \| str`                     | Git 作業ツリーを置くローカルパス |
 | `url`              | `str`                             | リモート URL                     |
-| `ref`              | `str`                             | ブランチ/タグ/コミット           |
+| `ref`              | `str`                             | Git 参照（`download=True` の制約は備考参照） |
 | `patterns`         | `Sequence[str]`                   | フォント検出パターン             |
 | `codepoint_filter` | `Sequence[SupportsIndex] \| None` | codepoint 制限                   |
 | `transform`        | `Callable \| None`                | 前処理                           |
 | `download`         | `bool`                            | `True` でリモート fetch を実行   |
+| `depth`            | `int`                             | libgit2 の fetch 深さ（`1` shallow） |
 
 ### 追加プロパティ
 
@@ -135,9 +137,11 @@ FontRepo(
 - Git 操作は `pygit2`（libgit2）で実行されます
 - どちらのモードでも force checkout が実行されます
 - `download=False` で `ref` がローカルで解決できない場合は例外になります
-- `url` は `root/.git` がない初回初期化時に使われます
-- `root/.git` がすでにある場合は既存リポジトリを再利用します
-  （同じ `root` で `url` を変更しても取得元は切り替わりません）
+- `root/.git` が存在しない状態で `download=False` は `FileNotFoundError` になります
+- `download=True` では remote-tracking ref（`origin/main`）と revspec（リビジョン指定, 例: `main~1`, `HEAD^`, `a:b`）は受け付けません
+- `download=True` で省略ブランチ名を渡した場合は `refs/heads/<ref>` を fetch します。タグは `refs/tags/...` を明示してください
+- 既存 `root/.git` の `origin` URL と `url` 引数が異なる場合は `ValueError` になります
+- 既存 `root/.git` に `origin` remote がない場合も `ValueError` になります
 
 ### 例（`FontRepo`）
 
@@ -168,6 +172,7 @@ GoogleFonts(
     codepoint_filter: Sequence[int] | None = None,
     transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
     download: bool = False,
+    depth: int = 1,
 )
 ```
 
@@ -187,7 +192,7 @@ GoogleFonts(
 ### 備考（`GoogleFonts`）
 
 - 取得元 URL は `https://github.com/google/fonts` に固定されています
-- `FontRepo` と同様に、`root/.git` があればその既存リポジトリを再利用します
+- Git 同期仕様（`download` / `depth` / URL 整合性チェック）は `FontRepo` と同じです
 - Google Fonts 用に専用 `root` ディレクトリを分けて運用してください
 
 ### 例（`GoogleFonts`）

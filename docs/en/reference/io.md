@@ -48,6 +48,7 @@ def ensure_repo(
     ref: str,
     *,
     download: bool,
+    depth: int = 1,
 ) -> str
 ```
 
@@ -56,8 +57,19 @@ commit hash.
 
 - `download=True`: fetch + force-checkout from remote
 - `download=False`: local ref resolution + force-checkout
+- `depth=1`: shallow fetch (default), `depth=0`: full history
 
 Checkout uses a force strategy to align the working tree with `ref`.
+
+Additional behavior:
+
+- If `root/.git` does not exist and `download=False`, `FileNotFoundError` is raised.
+- If `root/.git` exists but has no `origin` remote, `ValueError` is raised.
+- If `root/.git` exists but `origin` URL differs from `url`, `ValueError` is raised.
+- With `download=True`, remote-tracking refs (`origin/main`) and ref expressions
+  (`main~1`, `HEAD^`, `a:b`) are rejected with `ValueError`.
+- With `download=True`, branch shorthand is fetched as `refs/heads/<ref>`.
+  Use explicit `refs/tags/...` when targeting tags.
 
 Return value: `commit_hash` as `str`.
 

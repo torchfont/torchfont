@@ -14,6 +14,7 @@ dataset = FontRepo(
     ref="7.x",
     patterns=("otfs/*.otf",),
     download=True,
+    depth=1,
 )
 
 print(dataset.commit_hash)
@@ -53,6 +54,7 @@ FontRepo(
     ref="7.x",
     patterns=("otfs/*.otf",),
     download=True,
+    depth=1,
 )
 ```
 
@@ -65,6 +67,7 @@ FontRepo(
     ref="master",
     patterns=("variablefont/*.ttf",),
     download=True,
+    depth=1,
 )
 ```
 
@@ -77,6 +80,7 @@ FontRepo(
     ref="release",
     patterns=("*.ttf.ttc",),
     download=True,
+    depth=1,
 )
 ```
 
@@ -90,18 +94,29 @@ names like `Something.ttf.ttc`.
 - `download=True`: fetch from remote, then force-checkout `ref`
 - `download=False`: skip fetch, resolve `ref` locally, then force-checkout it
   (requires a locally resolvable `ref`)
+- With `download=True`, `ref` must be a concrete branch ref
+  (`main` or `refs/heads/main`) or explicit `refs/...`.
+  Remote-tracking refs (`origin/main`) and ref expressions (`main~1`) are rejected.
 
-If `root/.git` does not exist yet, TorchFont initializes repository metadata at
-`root` first. Even then, `download=False` still fails until `ref` exists in the
-local object database.
+If `root/.git` does not exist yet, `download=False` raises `FileNotFoundError`.
+For a new cache directory, run once with `download=True`.
 
-## Important: `root` determines the actual repository after first setup
+## Fetch depth (`depth`)
 
-For a fresh `root` (no `.git` yet), `url` is used to initialize `origin`.
+- `depth=1` (default): shallow fetch
+- `depth=0`: fetch full history
 
-If `root/.git` already exists, TorchFont reuses that existing repository.
-Changing the `url` argument later does not switch the source repository for
-that `root`.
+Use `depth=0` when you need full history available locally (for example, when
+you plan to resolve ancestry expressions later with `download=False`).
+Keep `depth=1` for faster sync in normal dataset use.
+
+## Important: `root` must match `url`
+
+If `root/.git` already exists, TorchFont reuses that repository. The existing
+`origin` URL must match the `url` argument; otherwise initialization fails with
+`ValueError`.
+If the existing repository has no `origin` remote, initialization also fails
+with `ValueError`.
 
 ::: warning
 `root` is checked out with a force strategy in both modes. Keep `root` as a

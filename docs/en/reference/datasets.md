@@ -113,6 +113,7 @@ FontRepo(
     codepoint_filter: Sequence[SupportsIndex] | None = None,
     transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
     download: bool = False,
+    depth: int = 1,
 )
 ```
 
@@ -120,11 +121,12 @@ FontRepo(
 | ------------------ | --------------------------------- | ----------------------------------- |
 | `root`             | `Path \| str`                     | local path for the Git working tree |
 | `url`              | `str`                             | remote repository URL               |
-| `ref`              | `str`                             | branch/tag/commit                   |
+| `ref`              | `str`                             | Git ref (see Notes for `download=True` constraints) |
 | `patterns`         | `Sequence[str]`                   | gitignore-style path filtering      |
 | `codepoint_filter` | `Sequence[SupportsIndex] \| None` | codepoint restriction               |
 | `transform`        | `Callable \| None`                | preprocessing transform             |
 | `download`         | `bool`                            | fetch from remote when `True`       |
+| `depth`            | `int`                             | libgit2 fetch depth (`1` shallow)   |
 
 ### Extra properties
 
@@ -139,9 +141,13 @@ FontRepo(
 - Git sync is implemented via `pygit2`/libgit2
 - checkout uses a force strategy in both modes
 - with `download=False`, unresolved local `ref` raises an exception
-- `url` is applied when `root/.git` does not exist yet
-- if `root/.git` already exists, the existing local repository is reused
-  (changing `url` later does not switch source for that `root`)
+- `download=False` on a missing `root/.git` raises `FileNotFoundError`
+- with `download=True`, remote-tracking refs (`origin/main`) and ref expressions
+  (`main~1`, `HEAD^`, `a:b`) are rejected
+- with `download=True`, branch shorthand fetches `refs/heads/<ref>`;
+  use explicit `refs/tags/...` for tags
+- if existing `root/.git` has different `origin` URL, `ValueError` is raised
+- if existing `root/.git` has no `origin` remote, `ValueError` is raised
 
 ### Example (`FontRepo`)
 
@@ -172,6 +178,7 @@ GoogleFonts(
     codepoint_filter: Sequence[int] | None = None,
     transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
     download: bool = False,
+    depth: int = 1,
 )
 ```
 
@@ -191,7 +198,7 @@ When `patterns=None`:
 ### Notes (`GoogleFonts`)
 
 - source repository URL is fixed to `https://github.com/google/fonts`
-- as with `FontRepo`, existing `root/.git` is reused when present
+- same Git sync behavior as `FontRepo` (`download`, `depth`, URL consistency checks)
 - use a dedicated `root` directory for Google Fonts cache
 
 ### Example (`GoogleFonts`)

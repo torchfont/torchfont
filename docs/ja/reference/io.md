@@ -48,6 +48,7 @@ def ensure_repo(
     ref: str,
     *,
     download: bool,
+    depth: int = 1,
 ) -> str
 ```
 
@@ -55,8 +56,17 @@ def ensure_repo(
 
 - `download=True`: リモート fetch + force checkout
 - `download=False`: ローカルで `ref` を解決して force checkout
+- `depth=1`: shallow fetch（既定）、`depth=0`: 履歴全体を取得
 
 チェックアウトは、作業ツリーを `ref` に揃える force 戦略で実行されます。
+
+追加挙動:
+
+- `root/.git` が存在せず `download=False` の場合は `FileNotFoundError` になります。
+- `root/.git` が存在しても `origin` remote が未定義の場合は `ValueError` になります。
+- `root/.git` が存在し、`origin` URL と `url` 引数が一致しない場合は `ValueError` になります。
+- `download=True` では remote-tracking ref（`origin/main`）と revspec（リビジョン指定, 例: `main~1`, `HEAD^`, `a:b`）は `ValueError` になります。
+- `download=True` で省略ブランチ名を渡した場合は `refs/heads/<ref>` として fetch されます。タグを対象にする場合は `refs/tags/...` を明示してください。
 
 返り値は `commit_hash`（文字列）です。
 
