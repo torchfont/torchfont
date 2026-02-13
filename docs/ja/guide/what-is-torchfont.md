@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-TorchFont は、**フォントのグリフアウトラインを機械学習向けテンソルとして扱う PyTorch ライブラリ**です。画像へラスタライズしてから学習するのではなく、`moveTo` / `lineTo` / `curveTo` などのパス情報を直接扱います。
+TorchFont は、**フォントのグリフアウトラインを機械学習向けテンソルとして扱う PyTorch ライブラリ**です。画像へラスタライズしてから学習するのではなく、move / line / quadratic / cubic などのパス情報を直接扱います。
 
 ::: info
 TorchFont は PyTorch の非公式ライブラリです。PyTorch プロジェクトとの公式な関係はありません。
@@ -39,8 +39,9 @@ TorchFont はこの部分を「収集」「テンソル化」「ラベル付与�
   - フォントの charmap から codepoint と glyph を対応付け
   - アウトラインをコマンド列と 6 次元座標列へ変換
   - 座標は `units_per_em` で正規化
-  - 2 次ベジェは 3 次ベジェ形式へ変換して統一
+  - 2 次ベジェと 3 次ベジェを別コマンドとして保持
 - **Transform 層**
+  - `QuadToCubic`: `QUAD_TO` を `CURVE_TO` に統一
   - `LimitSequenceLength`: 長いシーケンスを切り詰め
   - `Patchify`: 固定長パッチへ再構成
   - `Compose`: 前処理を順に合成

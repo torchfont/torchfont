@@ -18,33 +18,28 @@ types, coords, style_idx, content_idx = dataset[i]
 ## `types` の定義
 
 ```python
-from torchfont.io.outline import TYPE_TO_IDX
+from torchfont.io.outline import CommandType
 
-print(TYPE_TO_IDX)
-# {
-#   "pad": 0,
-#   "moveTo": 1,
-#   "lineTo": 2,
-#   "curveTo": 3,
-#   "closePath": 4,
-#   "eos": 5,
-# }
+print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
+# CommandType.QUAD_TO 3
 ```
 
-- `eos` はシーケンス終端
-- `pad` は主に `pad_sequence` や `Patchify` によるパディングで出現
+- `CommandType.END` はシーケンス終端
+- `CommandType.PAD` は主に `pad_sequence` や `Patchify` によるパディングで出現
 
 ## `coords` の定義
 
 各ステップは 6 次元です。
 
 ```text
-[cp1_x, cp1_y, cp2_x, cp2_y, x, y]
+[cx0, cy0, cx1, cy1, x, y]
 ```
 
-- `moveTo` / `lineTo`: 制御点は 0、終点 `(x, y)` を使用
-- `curveTo`: 3 次ベジェの制御点 2 つ + 終点を使用
-- `closePath` / `eos` / `pad`: 座標は 0
+- `CommandType.MOVE_TO` / `CommandType.LINE_TO`: 制御点は 0、終点 `(x, y)` を使用
+- `CommandType.QUAD_TO`: 2 次ベジェの制御点 `(cx0, cy0)` と終点 `(x, y)` を使用（`cx1`,
+  `cy1` は 0）
+- `CommandType.CURVE_TO`: 3 次ベジェの制御点 `(cx0, cy0)` と `(cx1, cy1)` + 終点を使用
+- `CommandType.CLOSE` / `CommandType.END` / `CommandType.PAD`: 座標は 0
 
 ::: info
 座標値はフォントの `units_per_em` で正規化されています。
@@ -52,7 +47,7 @@ print(TYPE_TO_IDX)
 
 ## 2 次ベジェの扱い
 
-TrueType でよく使われる 2 次ベジェは、内部で 3 次ベジェへ変換されるため、`coords.shape[-1]` は常に `6` です。
+2 次ベジェは `CommandType.QUAD_TO` としてそのまま出力されます。テンソル形状を固定するため、`CommandType.QUAD_TO` の座標は `[cx0, cy0, 0, 0, x, y]` です。
 
 ## スタイルとコンテンツのラベル
 

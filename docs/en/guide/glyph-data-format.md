@@ -16,33 +16,31 @@ types, coords, style_idx, content_idx = dataset[i]
 ## `types`
 
 ```python
-from torchfont.io.outline import TYPE_TO_IDX
+from torchfont.io.outline import CommandType
 
-print(TYPE_TO_IDX)
-# {
-#   "pad": 0,
-#   "moveTo": 1,
-#   "lineTo": 2,
-#   "curveTo": 3,
-#   "closePath": 4,
-#   "eos": 5,
-# }
+print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
+# CommandType.QUAD_TO 3
 ```
 
-- `eos` marks end of sequence
-- `pad` is mainly introduced by `pad_sequence` or `Patchify`
+- `CommandType.END` marks end of sequence
+- `CommandType.PAD` is mainly introduced by `pad_sequence` or `Patchify`
 
 ## `coords`
 
 Each step uses a 6D vector:
 
 ```text
-[cp1_x, cp1_y, cp2_x, cp2_y, x, y]
+[cx0, cy0, cx1, cy1, x, y]
 ```
 
-- `moveTo` / `lineTo`: control points are zero; endpoint `(x, y)` is used
-- `curveTo`: two control points `(cp1, cp2)` and the endpoint `(x, y)` are used
-- `closePath` / `eos` / `pad`: zeros
+- `CommandType.MOVE_TO` / `CommandType.LINE_TO`: control points are zero;
+  endpoint `(x, y)` is used
+- `CommandType.QUAD_TO`: one control point `(cx0, cy0)` and endpoint `(x, y)`
+  are used (`cx1, cy1` are zero)
+- `CommandType.CURVE_TO`: two control points `(cx0, cy0)` and `(cx1, cy1)`,
+  and the endpoint
+  `(x, y)` are used
+- `CommandType.CLOSE` / `CommandType.END` / `CommandType.PAD`: zeros
 
 ::: info
 Coordinates are normalized by the font `units_per_em`.
@@ -50,8 +48,9 @@ Coordinates are normalized by the font `units_per_em`.
 
 ## Quadratic Bezier handling
 
-Quadratic curves (common in TrueType) are converted to cubic form internally, so
-`coords.shape[-1]` is always `6`.
+Quadratic curves are emitted as `CommandType.QUAD_TO` without conversion. To
+keep tensor shape fixed, `CommandType.QUAD_TO` uses
+`[cx0, cy0, 0, 0, x, y]`.
 
 ## Style and content labels
 

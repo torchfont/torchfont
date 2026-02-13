@@ -114,6 +114,7 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 ## よくある最初の改善
 
 - 長すぎるシーケンスを制限する: `LimitSequenceLength(max_len=...)`
+- 2 次セグメントを 3 次へ統一する: `QuadToCubic()`
 - 固定長の入力へ揃える: `Patchify(patch_size=...)`
 - 学習対象を絞る: `codepoint_filter=` や `patterns=`
 

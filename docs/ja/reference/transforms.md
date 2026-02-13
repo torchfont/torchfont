@@ -19,9 +19,10 @@ Compose(
 ### 例（`Compose`）
 
 ```python
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
 
 transform = Compose([
+    QuadToCubic(),
     LimitSequenceLength(max_len=512),
     Patchify(patch_size=32),
 ])
@@ -48,6 +49,30 @@ LimitSequenceLength(max_len: int)
 
 - 入力: `types=(seq_len,)`, `coords=(seq_len, d)`
 - 出力: `types=(min(seq_len, max_len),)`, `coords=(min(seq_len, max_len), d)`
+
+---
+
+## QuadToCubic
+
+```python
+from torchfont.transforms import QuadToCubic
+```
+
+```python
+QuadToCubic()
+```
+
+`CommandType.QUAD_TO` を `CommandType.CURVE_TO` へ変換します。
+
+- コマンド形状は変わりません
+- 座標形状は変わりません（`(..., 6)`）
+- 各 2 次セグメントの `[cx0, cy0, 0, 0, x, y]` は、直前終点を使って
+  3 次制御点に書き換えられます
+
+### 入出力（`QuadToCubic`）
+
+- 入力: `types=(...)`, `coords=(..., 6)`
+- 出力: `types=(...)`, `coords=(..., 6)`
 
 ---
 

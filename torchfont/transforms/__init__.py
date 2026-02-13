@@ -8,9 +8,9 @@ Notes:
 Examples:
     Compose a lightweight preprocessing pipeline::
 
-        from torchfont.transforms import Compose, LimitSequenceLength
+        from torchfont.transforms import Compose, LimitSequenceLength, QuadToCubic
 
-        transform = Compose([LimitSequenceLength(256)])
+        transform = Compose([QuadToCubic(), LimitSequenceLength(256)])
 
 """
 
@@ -18,10 +18,12 @@ from torchfont.transforms.transforms import (
     Compose,
     LimitSequenceLength,
     Patchify,
+    QuadToCubic,
 )
 
 __all__ = [
     "Compose",
     "LimitSequenceLength",
     "Patchify",
+    "QuadToCubic",
 ]

@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import FontFolder
+from torchfont.io.outline import CommandType
 
 
 def test_font_folder_static_fonts() -> None:
@@ -71,6 +72,19 @@ def test_font_folder_getitem() -> None:
     assert isinstance(content_idx, int)
     assert 0 <= style_idx < len(dataset.style_classes)
     assert 0 <= content_idx < len(dataset.content_classes)
+
+
+def test_font_folder_preserves_quadratic_curves() -> None:
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=[ord("o")],
+    )
+
+    types, _, _, _ = dataset[0]
+
+    assert (types == CommandType.QUAD_TO.value).any().item()
+    assert not (types == CommandType.CURVE_TO.value).any().item()
 
 
 def test_font_folder_negative_indexing() -> None:

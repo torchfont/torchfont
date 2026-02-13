@@ -5,29 +5,29 @@
 グリフコマンドの共通定数です。
 
 ```python
-from torchfont.io.outline import TYPE_TO_IDX, TYPE_DIM, COORD_DIM
+from torchfont.io.outline import CommandType, TYPE_DIM, COORD_DIM
 ```
 
-### `TYPE_TO_IDX: dict[str, int]`
+### `CommandType: IntEnum`
 
 ```python
-{
-    "pad": 0,
-    "moveTo": 1,
-    "lineTo": 2,
-    "curveTo": 3,
-    "closePath": 4,
-    "eos": 5,
-}
+class CommandType(IntEnum):
+    PAD = 0
+    MOVE_TO = 1
+    LINE_TO = 2
+    QUAD_TO = 3
+    CURVE_TO = 4
+    CLOSE = 5
+    END = 6
 ```
 
 ### `TYPE_DIM: int`
 
-コマンド種別数。現在値は `6`。
+コマンド種別数。現在値は `7`。
 
 ### `COORD_DIM: int`
 
-座標次元数。現在値は `6`（`[cp1_x, cp1_y, cp2_x, cp2_y, x, y]`）。
+座標次元数。現在値は `6`（`[cx0, cy0, cx1, cy1, x, y]`）。
 
 ---
 

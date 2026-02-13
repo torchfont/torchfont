@@ -1,15 +1,21 @@
 """Shared constants for glyph outline command encoding."""
 
-TYPE_TO_IDX: dict[str, int] = {
-    "pad": 0,
-    "moveTo": 1,
-    "lineTo": 2,
-    "curveTo": 3,
-    "closePath": 4,
-    "eos": 5,
-}
+from enum import IntEnum
 
-TYPE_DIM: int = len(TYPE_TO_IDX)
+
+class CommandType(IntEnum):
+    """Integer command IDs emitted in glyph outline sequences."""
+
+    PAD = 0
+    MOVE_TO = 1
+    LINE_TO = 2
+    QUAD_TO = 3
+    CURVE_TO = 4
+    CLOSE = 5
+    END = 6
+
+
+TYPE_DIM: int = len(CommandType)
 COORD_DIM: int = 6
 
-__all__ = ["COORD_DIM", "TYPE_DIM", "TYPE_TO_IDX"]
+__all__ = ["COORD_DIM", "TYPE_DIM", "CommandType"]

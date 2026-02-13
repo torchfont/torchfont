@@ -8,7 +8,7 @@ Notes:
 Examples:
     Normalize and patch glyph tensors in a single pipeline::
 
-        pipeline = Compose([LimitSequenceLength(256), Patchify(32)])
+        pipeline = Compose([QuadToCubic(), LimitSequenceLength(256), Patchify(32)])
 
 """
 
@@ -16,6 +16,8 @@ from collections.abc import Callable, Sequence
 
 import torch
 from torch import Tensor
+
+from torchfont.io.outline import CommandType
 
 
 class Compose:
@@ -117,6 +119,53 @@ class LimitSequenceLength:
         coords = coords[: self.max_len]
 
         return types, coords
+
+
+class QuadToCubic:
+    """Convert quadratic segments into cubic segments in tensor form.
+
+    Notes:
+        This transform rewrites only `CommandType.QUAD_TO` rows and leaves all
+        other commands untouched. Coordinate dimensionality stays at 6.
+
+    """
+
+    def __call__(self, types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+        """Convert `QUAD_TO` entries to `CURVE_TO`.
+
+        Args:
+            types (Tensor): Command tensor whose values follow `CommandType`.
+            coords (Tensor): Coordinate tensor with the last dimension at least
+                6 and layout `[cx0, cy0, cx1, cy1, x, y]`.
+
+        Returns:
+            tuple[Tensor, Tensor]: Converted `(types, coords)` tensors.
+
+        """
+        flat_types = types.reshape(-1)
+        flat_coords = coords.reshape(-1, coords.size(-1))
+        quad = flat_types == CommandType.QUAD_TO.value
+
+        if not torch.any(quad):
+            return types, coords
+
+        out_types = flat_types.clone()
+        out_coords = flat_coords.clone()
+
+        # In valid outline streams, the previous command endpoint is the
+        # current point for a quadratic segment.
+        prev = torch.zeros_like(out_coords[:, 0:2])
+        prev[1:] = out_coords[:-1, 4:6]
+
+        q_prev = prev[quad]
+        q_ctrl = out_coords[quad, 0:2]
+        q_end = out_coords[quad, 4:6]
+
+        out_coords[quad, 0:2] = q_prev + (2.0 / 3.0) * (q_ctrl - q_prev)
+        out_coords[quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
+        out_types[quad] = CommandType.CURVE_TO.value
+
+        return out_types.view_as(types), out_coords.view_as(coords)
 
 
 class Patchify:

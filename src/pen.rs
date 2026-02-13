@@ -5,17 +5,16 @@ use skrifa::outline::OutlinePen;
 enum Command {
     MoveTo = 1,
     LineTo = 2,
-    CurveTo = 3,
-    ClosePath = 4,
-    End = 5,
+    QuadTo = 3,
+    CurveTo = 4,
+    Close = 5,
+    End = 6,
 }
 
 pub struct SegmentPen {
     commands: Vec<i32>,
     coords: Vec<f32>,
     scale: f32,
-    current: (f32, f32),
-    start: (f32, f32),
 }
 
 impl SegmentPen {
@@ -26,8 +25,6 @@ impl SegmentPen {
             commands: Vec::new(),
             coords: Vec::new(),
             scale,
-            current: (0.0, 0.0),
-            start: (0.0, 0.0),
         }
     }
 
@@ -41,37 +38,30 @@ impl SegmentPen {
         let scaled = values.map(|value| value * self.scale);
         self.coords.extend_from_slice(&scaled);
     }
+
+    fn push_endpoint(&mut self, command: Command, x: f32, y: f32) {
+        self.push(command, [0.0, 0.0, 0.0, 0.0, x, y]);
+    }
 }
 
 impl OutlinePen for SegmentPen {
     fn move_to(&mut self, x: f32, y: f32) {
-        self.push(Command::MoveTo, [0.0, 0.0, 0.0, 0.0, x, y]);
-        self.current = (x, y);
-        self.start = (x, y);
+        self.push_endpoint(Command::MoveTo, x, y);
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        self.push(Command::LineTo, [0.0, 0.0, 0.0, 0.0, x, y]);
-        self.current = (x, y);
+        self.push_endpoint(Command::LineTo, x, y);
     }
 
     fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        let (px, py) = self.current;
-        let cp1x = px + (2.0 / 3.0) * (cx0 - px);
-        let cp1y = py + (2.0 / 3.0) * (cy0 - py);
-        let cp2x = x + (2.0 / 3.0) * (cx0 - x);
-        let cp2y = y + (2.0 / 3.0) * (cy0 - y);
-        self.push(Command::CurveTo, [cp1x, cp1y, cp2x, cp2y, x, y]);
-        self.current = (x, y);
+        self.push(Command::QuadTo, [cx0, cy0, 0.0, 0.0, x, y]);
     }
 
     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
         self.push(Command::CurveTo, [cx0, cy0, cx1, cy1, x, y]);
-        self.current = (x, y);
     }
 
     fn close(&mut self) {
-        self.push(Command::ClosePath, [0.0; 6]);
-        self.current = self.start;
+        self.push(Command::Close, [0.0; 6]);
     }
 }

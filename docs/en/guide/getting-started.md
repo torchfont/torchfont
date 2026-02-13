@@ -121,6 +121,7 @@ overwritten.
 ## Common Next Tweaks
 
 - Limit long sequences: `LimitSequenceLength(max_len=...)`
+- Convert quadratic segments to cubic: `QuadToCubic()`
 - Use fixed-size inputs: `Patchify(patch_size=...)`
 - Narrow the dataset scope: `codepoint_filter=` and `patterns=`
 

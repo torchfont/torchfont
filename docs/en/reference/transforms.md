@@ -20,9 +20,10 @@ Applies transforms in order.
 ### Example (`Compose`)
 
 ```python
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
 
 transform = Compose([
+    QuadToCubic(),
     LimitSequenceLength(max_len=512),
     Patchify(patch_size=32),
 ])
@@ -49,6 +50,30 @@ Returns `types[:max_len]` and `coords[:max_len]`.
 
 - input: `types=(seq_len,)`, `coords=(seq_len, d)`
 - output: `types=(min(seq_len, max_len),)`, `coords=(min(seq_len, max_len), d)`
+
+---
+
+## QuadToCubic
+
+```python
+from torchfont.transforms import QuadToCubic
+```
+
+```python
+QuadToCubic()
+```
+
+Converts `CommandType.QUAD_TO` commands to `CommandType.CURVE_TO`.
+
+- command shape is unchanged
+- coordinate shape is unchanged (`(..., 6)`)
+- for each quadratic segment, `[cx0, cy0, 0, 0, x, y]` is rewritten to cubic
+  control points using the previous endpoint
+
+### I/O shape (`QuadToCubic`)
+
+- input: `types=(...)`, `coords=(..., 6)`
+- output: `types=(...)`, `coords=(..., 6)`
 
 ---
 
