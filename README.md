@@ -1,5 +1,13 @@
 # TorchFont
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/public/brand/torchfont-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/public/brand/torchfont-logo-light.svg">
+    <img alt="TorchFont logo" src="docs/public/brand/torchfont-logo-light.svg" width="640">
+  </picture>
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/pypi/pyversions/torchfont)](https://pypi.org/project/torchfont/)
 [![CI](https://github.com/torchfont/torchfont/actions/workflows/ci.yml/badge.svg)](https://github.com/torchfont/torchfont/actions)

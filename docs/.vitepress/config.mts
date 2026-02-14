@@ -6,8 +6,15 @@ export default defineConfig({
     : '',
 
   title: 'TorchFont',
+  head: [
+    [
+      'link',
+      { rel: 'icon', type: 'image/svg+xml', href: '/brand/torchfont-logomark.svg' },
+    ],
+  ],
 
   themeConfig: {
+    logo: '/brand/torchfont-logomark.svg',
     socialLinks: [
       { icon: 'github', link: 'https://github.com/torchfont/torchfont' },
     ],

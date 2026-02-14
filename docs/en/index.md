@@ -7,6 +7,9 @@ hero:
   tagline:
     "Convert TTF / OTF / TTC / OTC glyph outlines into PyTorch tensors and plug
     them into your DataLoader pipeline end-to-end."
+  image:
+    src: /brand/torchfont-logomark.svg
+    alt: TorchFont logomark
   actions:
     - theme: brand
       text: Quickstart

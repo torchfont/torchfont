@@ -5,6 +5,9 @@ hero:
   name: TorchFont
   text: ベクターフォントを<br>そのまま学習データへ
   tagline: "TTF / OTF / TTC / OTC のグリフアウトラインを PyTorch テンソルへ変換し、DataLoader まで一貫して扱えるライブラリ"
+  image:
+    src: /brand/torchfont-logomark.svg
+    alt: TorchFont logomark
   actions:
     - theme: brand
       text: クイックスタート
