@@ -42,7 +42,7 @@ If you find TorchFont useful in your work, please consider citing the following 
 
 ```bibtex
 @software{fujioka2025torchfont,
-    title        = {TorchFont: A PyTorch-based library for Vector Fonts},
+    title        = {TorchFont: A Machine Learning library for Vector Fonts},
     author       = {Takumu Fujioka},
     year         = 2025,
     journal      = {GitHub repository},
