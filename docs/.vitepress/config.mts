@@ -1,15 +1,18 @@
 import { defineConfig } from 'vitepress'
 
+const rtdBase = process.env.READTHEDOCS_CANONICAL_URL
+  ? new URL(process.env.READTHEDOCS_CANONICAL_URL).pathname.replace(/\/$/, '')
+  : ''
+const faviconPath = `${rtdBase}/brand/torchfont-logomark.svg`
+
 export default defineConfig({
-  base: process.env.READTHEDOCS_CANONICAL_URL
-    ? new URL(process.env.READTHEDOCS_CANONICAL_URL).pathname.replace(/\/$/, '')
-    : '',
+  base: rtdBase,
 
   title: 'TorchFont',
   head: [
     [
       'link',
-      { rel: 'icon', type: 'image/svg+xml', href: '/brand/torchfont-logomark.svg' },
+      { rel: 'icon', type: 'image/svg+xml', href: faviconPath },
     ],
   ],
 
