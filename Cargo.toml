@@ -10,10 +10,10 @@ crate-type = ["cdylib"]
 [dependencies]
 ignore = "0.4.25"
 memmap2 = "0.9.10"
-shellexpand = "3.1.1"
+shellexpand = "3.1.2"
 skrifa = "0.40.0"
 walkdir = "2.5.0"
 
 [dependencies.pyo3]
-version = "0.28.1"
+version = "0.28.2"
 features = ["abi3-py38"]
