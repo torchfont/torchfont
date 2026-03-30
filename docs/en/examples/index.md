@@ -5,9 +5,8 @@ Runnable examples live in the repository `examples/` directory.
 ::: tip Before running
 Run from the repository root, e.g. `python examples/google_fonts.py`.
 
-Some scripts use `multiprocessing_context="fork"` (Linux only) and
-`num_workers=8`. On macOS/Windows, switch to `"spawn"`. If you set
-`num_workers=0`, also remove `prefetch_factor` and `multiprocessing_context`.
+Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
+`prefetch_factor`.
 :::
 
 ## Scripts by use case
