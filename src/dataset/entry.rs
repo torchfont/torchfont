@@ -156,7 +156,11 @@ impl FontEntry {
     ) -> PyResult<Self> {
         let upem = font
             .head()
-            .map_err(|_| py_err(format!("font '{base_path}' is missing a head table")))?
+            .map_err(|_| {
+                py_err(format!(
+                    "font '{base_path}' (face_index {face_index}) is missing a head table"
+                ))
+            })?
             .units_per_em();
 
         let outline_glyphs = font.outline_glyphs();
