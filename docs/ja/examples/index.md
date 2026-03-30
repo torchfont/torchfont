@@ -7,7 +7,7 @@
 ::: tip 実行前に
 リポジトリのルートで実行してください（例: `python examples/google_fonts.py`）。
 
-一部スクリプトは `multiprocessing_context="fork"`（Linux 向け）と `num_workers=8` を前提にしています。macOS/Windows では `"spawn"` に変更してください。`num_workers=0` にする場合は `prefetch_factor` と `multiprocessing_context` も削除してください。
+一部スクリプトは `num_workers=8` を前提にしています。`num_workers=0` にする場合は `prefetch_factor` も削除してください。
 :::
 
 ## 用途別スクリプト
