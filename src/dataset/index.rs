@@ -24,13 +24,14 @@ pub(super) fn load_entries_and_index(
     let mut all_cps = Vec::new();
 
     for path in files {
-        let mut faces = FontEntry::load_faces(&path, filter)?;
-        all_cps.extend(
-            faces
-                .iter()
-                .flat_map(|entry| entry.codepoints.iter().copied()),
-        );
-        entries.append(&mut faces);
+        let faces = FontEntry::load_faces(&path, filter)?;
+        for entry in faces
+            .into_iter()
+            .filter(|entry| !entry.codepoints.is_empty())
+        {
+            all_cps.extend(entry.codepoints.iter().copied());
+            entries.push(entry);
+        }
     }
 
     let sample_offsets = std::iter::once(0)

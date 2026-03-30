@@ -162,6 +162,21 @@ def test_font_folder_cjk_support() -> None:
     assert content_idx is not None
 
 
+def test_font_folder_skips_styles_without_samples_after_filtering() -> None:
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf", "notosansjp/NotoSansJP*.ttf"),
+        codepoint_filter=[ord(c) for c in "あいう"],
+    )
+
+    assert len(dataset) > 0
+    assert len(dataset.style_classes) == len(set(dataset.targets[:, 0].tolist()))
+    assert sorted(set(dataset.targets[:, 0].tolist())) == list(
+        range(len(dataset.style_classes))
+    )
+    assert all("Lato" not in name for name in dataset.style_classes)
+
+
 def test_font_folder_codepoint_filter() -> None:
     dataset_upper = FontFolder(
         root="tests/fonts",
