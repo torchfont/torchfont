@@ -57,6 +57,15 @@ def test_collate_fn_pads_to_longest() -> None:
     batch = [dataset[i] for i in range(len(dataset))]
     types_t, coords_t, _, _ = collate_fn(batch)
 
-    max_len = max(types.shape[0] for types, _, _, _ in batch)
+    lengths = [types.shape[0] for types, _, _, _ in batch]
+    max_len = max(lengths)
     assert types_t.shape[1] == max_len
     assert coords_t.shape[1] == max_len
+
+    # Verify that positions beyond each sample's original length are zero-padded.
+    for b, orig_len in enumerate(lengths):
+        if orig_len < max_len:
+            padded_types = types_t[b, orig_len:]
+            padded_coords = coords_t[b, orig_len:, :]
+            assert torch.all(padded_types == 0)
+            assert torch.all(padded_coords == 0.0)
