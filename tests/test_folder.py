@@ -446,3 +446,29 @@ def test_targets_survives_pickle() -> None:
     restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
 
     assert torch.equal(restored.targets, original_targets)
+
+
+def test_font_folder_filters_outline_less_glyphs() -> None:
+    """Regression test for #61: outline-less glyphs must be excluded from the index.
+
+    A font whose charmap maps codepoints to glyph IDs that have no outline data
+    (e.g. color/bitmap-only fonts) previously caused len(dataset) > 0 while every
+    dataset[i] raised ValueError.  After the fix, such glyphs are filtered out at
+    construction time so that len(dataset) == the number of items that can actually
+    be retrieved via __getitem__.
+    """
+    # nocolortest/NoOutlines-Regular.ttf maps 'A' (U+0041) to a glyph with an
+    # empty glyf table entry (zero-length loca slot), so outline_glyphs().get()
+    # returns None for that glyph.
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("nocolortest/NoOutlines-Regular.ttf",),
+        codepoint_filter=range(0x80),
+    )
+
+    # All charmap'd glyphs have no outline data, so the dataset must be empty.
+    assert len(dataset) == 0
+
+    # Invariant: every index in [0, len(dataset)) must be retrievable without error.
+    for i in range(len(dataset)):
+        dataset[i]  # must not raise ValueError
