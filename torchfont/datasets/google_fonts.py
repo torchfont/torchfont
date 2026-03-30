@@ -94,17 +94,18 @@ class GoogleFonts(FontRepo):
         """Return a human-readable summary of this dataset.
 
         Returns:
-            str: String showing the class name, root, ref, commit hash,
-            patterns, sample count, style count, and content class count.
+            str: String showing the class name, root, url, ref, commit hash,
+                patterns, sample count, style count, and content class count.
 
         """
         return (
             f"{type(self).__name__}("
             f"root={str(self.root)!r}, "
+            f"url={self.url!r}, "
             f"ref={self.ref!r}, "
             f"commit={self.commit_hash!r}, "
             f"patterns={self.patterns!r}, "
             f"samples={len(self)}, "
-            f"styles={len(self.style_classes)}, "
-            f"content_classes={len(self.content_classes)})"
+            f"styles={self._dataset.style_class_count}, "
+            f"content_classes={self._dataset.content_class_count})"
         )

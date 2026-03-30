@@ -42,8 +42,18 @@ impl FontDataset {
     }
 
     #[getter]
+    pub fn content_class_count(&self) -> usize {
+        self.index.content_classes.len()
+    }
+
+    #[getter]
     pub fn content_classes(&self) -> Vec<u32> {
         self.index.content_classes.clone()
+    }
+
+    #[getter]
+    pub fn style_class_count(&self) -> usize {
+        self.index.inst_offsets.last().copied().unwrap_or(0)
     }
 
     #[getter]

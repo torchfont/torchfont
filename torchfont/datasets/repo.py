@@ -116,7 +116,7 @@ class FontRepo(FontFolder):
 
         Returns:
             str: String showing the class name, root, url, ref, commit hash,
-            sample count, style count, and content class count.
+                sample count, style count, and content class count.
 
         """
         return (
@@ -126,6 +126,6 @@ class FontRepo(FontFolder):
             f"ref={self.ref!r}, "
             f"commit={self.commit_hash!r}, "
             f"samples={len(self)}, "
-            f"styles={len(self.style_classes)}, "
-            f"content_classes={len(self.content_classes)})"
+            f"styles={self._dataset.style_class_count}, "
+            f"content_classes={self._dataset.content_class_count})"
         )

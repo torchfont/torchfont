@@ -442,13 +442,14 @@ def test_font_folder_repr() -> None:
         codepoint_filter=range(0x41, 0x44),
     )
 
-    r = repr(dataset)
-    assert r.startswith("FontFolder(")
-    assert "root=" in r
-    assert "samples=" in r
-    assert "styles=" in r
-    assert "content_classes=" in r
-    assert str(dataset.root) in r
+    expected = (
+        f"FontFolder("
+        f"root={str(dataset.root)!r}, "
+        f"samples={len(dataset)}, "
+        f"styles={len(dataset.style_classes)}, "
+        f"content_classes={len(dataset.content_classes)})"
+    )
+    assert repr(dataset) == expected
 
 
 def test_targets_survives_pickle() -> None:
