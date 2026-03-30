@@ -35,13 +35,13 @@ impl FontEntry {
             .fonts()
             .enumerate()
             .map(|(face_index, face)| {
-                face.map_err(|err| {
+                let font = face.map_err(|err| {
                     py_err(format!(
                         "failed to parse '{path}' (face {face_index}): {err}",
                         face_index = face_index
                     ))
                 })?;
-                Self::from_face(path, Arc::clone(&mapped), face_index as u32, filter)
+                Self::from_face(path, Arc::clone(&mapped), face_index as u32, &font, filter)
             })
             .collect::<PyResult<Vec<_>>>()?;
 
@@ -151,25 +151,22 @@ impl FontEntry {
         base_path: &str,
         data: Arc<Mmap>,
         face_index: u32,
+        font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
     ) -> PyResult<Self> {
-        let font = skrifa::FontRef::from_index(&data[..], face_index).map_err(|err| {
-            py_err(format!(
-                "failed to parse '{base_path}' (face {face_index}): {err}"
-            ))
-        })?;
-
         let upem = font
             .head()
             .map_err(|_| py_err(format!("font '{base_path}' is missing a head table")))?
             .units_per_em();
 
+        let outline_glyphs = font.outline_glyphs();
         let mut mappings: Vec<_> = font
             .charmap()
             .mappings()
             .filter(|(codepoint, _)| {
                 filter.is_none_or(|values| values.binary_search(codepoint).is_ok())
             })
+            .filter(|(_, glyph_id)| outline_glyphs.get(*glyph_id).is_some())
             .collect();
         mappings.sort_unstable_by_key(|entry| entry.0);
         let (codepoints, glyph_ids): (Vec<_>, Vec<_>) = mappings.into_iter().unzip();
