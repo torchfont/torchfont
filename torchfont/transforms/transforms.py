@@ -15,9 +15,9 @@ Examples:
 from collections.abc import Callable, Sequence
 
 import torch
-from torch import Tensor
 
 from torchfont.io.outline import CommandType
+from torchfont.sample import GlyphSample
 
 
 class Compose:
@@ -31,7 +31,7 @@ class Compose:
 
     def __init__(
         self,
-        transforms: Sequence[Callable[[Tensor, Tensor], tuple[Tensor, Tensor]]],
+        transforms: Sequence[Callable[[GlyphSample], GlyphSample]],
     ) -> None:
         """Store the ordered transform pipeline.
 
@@ -49,26 +49,24 @@ class Compose:
         """
         self.transforms = transforms
 
-    def __call__(self, types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Apply every transform in order to the provided sample.
 
         Args:
-            types (Tensor): Input command sequence.
-            coords (Tensor): Input coordinate sequence.
+            sample (GlyphSample): Input sample.
 
         Returns:
-            tuple[Tensor, Tensor]: Resulting sample after all transformations
-            are applied.
+            GlyphSample: Resulting sample after all transformations are applied.
 
         Examples:
             Run the composed pipeline on a glyph sample::
 
-                types, coords = pipeline(types, coords)
+                sample = pipeline(sample)
 
         """
         for t in self.transforms:
-            types, coords = t(types, coords)
-        return types, coords
+            sample = t(sample)
+        return sample
 
 
 class LimitSequenceLength:
@@ -95,15 +93,11 @@ class LimitSequenceLength:
         """
         self.max_len = max_len
 
-    def __call__(self, types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Clip the sequence and coordinate tensors to the specified length.
 
         Args:
-            types (Tensor): Tensor of pen command types.
-            coords (Tensor): Tensor of pen command coordinates.
-
-        Returns:
-            tuple[Tensor, Tensor]: Tensors truncated to ``max_len`` elements.
+            sample (GlyphSample): Input sample.
 
         Warnings:
             Elements beyond ``max_len`` are removed rather than padded or
@@ -112,13 +106,15 @@ class LimitSequenceLength:
         Examples:
             Clamp a sample to 128 steps::
 
-                types, coords = LimitSequenceLength(128)(types, coords)
+                sample = LimitSequenceLength(128)(sample)
 
         """
-        types = types[: self.max_len]
-        coords = coords[: self.max_len]
-
-        return types, coords
+        return GlyphSample(
+            types=sample.types[: self.max_len],
+            coords=sample.coords[: self.max_len],
+            style_idx=sample.style_idx,
+            content_idx=sample.content_idx,
+        )
 
 
 class QuadToCubic:
@@ -130,24 +126,23 @@ class QuadToCubic:
 
     """
 
-    def __call__(self, types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Convert `QUAD_TO` entries to `CURVE_TO`.
 
         Args:
-            types (Tensor): Command tensor whose values follow `CommandType`.
-            coords (Tensor): Coordinate tensor with the last dimension at least
+            sample (GlyphSample): Input sample whose ``types`` values follow
+                `CommandType` and whose ``coords`` last dimension is at least
                 6 and layout `[cx0, cy0, cx1, cy1, x, y]`.
 
-        Returns:
-            tuple[Tensor, Tensor]: Converted `(types, coords)` tensors.
-
         """
+        types = sample.types
+        coords = sample.coords
         flat_types = types.reshape(-1)
         flat_coords = coords.reshape(-1, coords.size(-1))
         quad = flat_types == CommandType.QUAD_TO.value
 
         if not torch.any(quad):
-            return types, coords
+            return sample
 
         out_types = flat_types.clone()
         out_coords = flat_coords.clone()
@@ -165,7 +160,12 @@ class QuadToCubic:
         out_coords[quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
         out_types[quad] = CommandType.CURVE_TO.value
 
-        return out_types.view_as(types), out_coords.view_as(coords)
+        return GlyphSample(
+            types=out_types.view_as(types),
+            coords=out_coords.view_as(coords),
+            style_idx=sample.style_idx,
+            content_idx=sample.content_idx,
+        )
 
 
 class Patchify:
@@ -193,17 +193,11 @@ class Patchify:
         """
         self.patch_size = patch_size
 
-    def __call__(self, types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Pad and reshape sequences into contiguous patches.
 
         Args:
-            types (Tensor): Tensor of pen command types.
-            coords (Tensor): Tensor of pen command coordinates.
-
-        Returns:
-            tuple[Tensor, Tensor]: Tensors grouped into patches of
-            ``patch_size`` steps. Trailing zeros are added only when needed for
-            alignment.
+            sample (GlyphSample): Input sample.
 
         Tips:
             Pair with :class:`LimitSequenceLength` to bound the worst-case number
@@ -212,9 +206,11 @@ class Patchify:
         Examples:
             Reshape a glyph sequence into patches of 64 steps::
 
-                patch_types, patch_coords = Patchify(64)(types, coords)
+                patch_sample = Patchify(64)(sample)
 
         """
+        types = sample.types
+        coords = sample.coords
         seq_len = types.size(0)
         pad = (-seq_len) % self.patch_size
         num_patches = (seq_len + pad) // self.patch_size
@@ -225,4 +221,9 @@ class Patchify:
         patch_types = pad_types.view(num_patches, self.patch_size)
         patch_coords = pad_coords.view(num_patches, self.patch_size, coords.size(1))
 
-        return patch_types, patch_coords
+        return GlyphSample(
+            types=patch_types,
+            coords=patch_coords,
+            style_idx=sample.style_idx,
+            content_idx=sample.content_idx,
+        )

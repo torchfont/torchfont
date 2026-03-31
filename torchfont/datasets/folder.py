@@ -65,7 +65,7 @@ class FontFolder(Dataset[GlyphSample]):
         *,
         codepoint_filter: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
-        transform: (Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None) = None,
+        transform: (Callable[[GlyphSample], GlyphSample] | None) = None,
     ) -> None:
         """Initialize the dataset by scanning font files and indexing samples.
 
@@ -76,9 +76,9 @@ class FontFolder(Dataset[GlyphSample]):
                 of Unicode code points used to restrict the dataset content.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
                 describing which font paths to include.
-            transform (Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None):
-                Optional transformation applied to each loader output before the
-                item is returned.
+            transform (Callable[[GlyphSample], GlyphSample] | None):
+                Optional transformation applied to each sample before the item
+                is returned.
 
         Examples:
             Restrict the dataset to uppercase ASCII glyphs::
@@ -194,15 +194,15 @@ class FontFolder(Dataset[GlyphSample]):
         raw_types, raw_coords, style_idx, content_idx = self._dataset.item(idx)
         types = torch.as_tensor(raw_types, dtype=torch.long)
         coords = torch.as_tensor(raw_coords, dtype=torch.float32).view(-1, COORD_DIM)
-        if self.transform is not None:
-            types, coords = self.transform(types, coords)
-
-        return GlyphSample(
+        sample = GlyphSample(
             types=types,
             coords=coords,
             style_idx=int(style_idx),
             content_idx=int(content_idx),
         )
+        if self.transform is not None:
+            return self.transform(sample)
+        return sample
 
     @property
     def targets(self) -> Tensor:

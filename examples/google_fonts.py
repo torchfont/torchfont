@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from torchfont.datasets import GoogleFonts
+from torchfont.sample import GlyphSample
 from torchfont.transforms import (
     Compose,
     LimitSequenceLength,
@@ -29,12 +30,13 @@ dataset = GoogleFonts(
 
 
 def collate_fn(
-    batch: Sequence[tuple[Tensor, Tensor, int, int]],
+    batch: Sequence[GlyphSample],
 ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    types_list = [types for types, _, _, _ in batch]
-    coords_list = [coords for _, coords, _, _ in batch]
-    style_label_list = [style for _, _, style, _ in batch]
-    content_label_list = [content for _, _, _, content in batch]
+    # Migration note: transforms now receive/return GlyphSample (sample-first API).
+    types_list = [sample.types for sample in batch]
+    coords_list = [sample.coords for sample in batch]
+    style_label_list = [sample.style_idx for sample in batch]
+    content_label_list = [sample.content_idx for sample in batch]
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)

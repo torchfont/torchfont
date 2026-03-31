@@ -1,7 +1,9 @@
 # Transform API
 
 `torchfont.transforms` provides composable preprocessing utilities with the
-signature `(types, coords) -> (types, coords)`.
+signature `GlyphSample -> GlyphSample`.
+
+Migration note: the old tuple contract `(types, coords) -> (types, coords)` was removed.
 
 ## Compose
 
@@ -11,7 +13,7 @@ from torchfont.transforms import Compose
 
 ```python
 Compose(
-    transforms: Sequence[Callable[[Tensor, Tensor], tuple[Tensor, Tensor]]],
+    transforms: Sequence[Callable[[GlyphSample], GlyphSample]],
 )
 ```
 
@@ -41,7 +43,7 @@ from torchfont.transforms import LimitSequenceLength
 LimitSequenceLength(max_len: int)
 ```
 
-Returns `types[:max_len]` and `coords[:max_len]`.
+Returns a `GlyphSample` whose `types` and `coords` are truncated to `max_len`.
 
 - no padding
 - elements beyond `max_len` are truncated
@@ -107,5 +109,5 @@ into patches.
 
 ```python
 patchify = Patchify(patch_size=32)
-patch_types, patch_coords = patchify(types, coords)
+patch_sample = patchify(sample)
 ```

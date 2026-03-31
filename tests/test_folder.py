@@ -91,6 +91,34 @@ def test_font_folder_getitem() -> None:
     assert 0 <= sample.content_idx < len(dataset.content_classes)
 
 
+def test_font_folder_transform_uses_sample_first_contract() -> None:
+    calls: list[GlyphSample] = []
+
+    def transform(sample: GlyphSample) -> GlyphSample:
+        calls.append(sample)
+        return GlyphSample(
+            types=sample.types[:2],
+            coords=sample.coords[:2],
+            style_idx=sample.style_idx,
+            content_idx=sample.content_idx,
+        )
+
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x5B),
+        transform=transform,
+    )
+    sample = dataset[0]
+
+    assert len(calls) == 1
+    assert isinstance(calls[0], GlyphSample)
+    assert sample.style_idx == calls[0].style_idx
+    assert sample.content_idx == calls[0].content_idx
+    assert sample.types.shape[0] == 2
+    assert sample.coords.shape[0] == 2
+
+
 def test_font_folder_preserves_quadratic_curves() -> None:
     dataset = FontFolder(
         root="tests/fonts",

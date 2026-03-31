@@ -22,10 +22,9 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import SupportsIndex
 
-from torch import Tensor
-
 from torchfont.datasets.folder import FontFolder
 from torchfont.io.git import ensure_repo
+from torchfont.sample import GlyphSample
 
 
 class FontRepo(FontFolder):
@@ -49,7 +48,7 @@ class FontRepo(FontFolder):
         *,
         patterns: Sequence[str],
         codepoint_filter: Sequence[SupportsIndex] | None = None,
-        transform: (Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None) = None,
+        transform: (Callable[[GlyphSample], GlyphSample] | None) = None,
         download: bool = False,
         depth: int = 1,
     ) -> None:
@@ -65,7 +64,7 @@ class FontRepo(FontFolder):
                 the working tree to select which font files to index.
             codepoint_filter (Sequence[SupportsIndex] | None): Optional iterable
                 that limits Unicode code points when indexing glyphs.
-            transform (Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None):
+            transform (Callable[[GlyphSample], GlyphSample] | None):
                 Optional transformation applied to each sample from the backend.
             download (bool): Whether to clone and check out the repository
                 contents when the working tree is empty or stale.
