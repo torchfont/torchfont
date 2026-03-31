@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::{GlyphId, MetadataProvider, instance::Location};
@@ -36,7 +33,7 @@ impl FontEntry {
                         face_index = face_index
                     ))
                 })?;
-                Self::from_face(path, Arc::clone(&mapped), face_index as u32, &font, filter)
+                Self::from_face(path, face_index as u32, &font, filter)
             })
             .collect::<PyResult<Vec<_>>>()?;
 
@@ -95,7 +92,6 @@ impl FontEntry {
 
     fn from_face(
         base_path: &str,
-        data: Arc<Mmap>,
         face_index: u32,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
@@ -132,7 +128,7 @@ impl FontEntry {
                 codepoints,
                 glyph_ids,
             },
-            reader: GlyphReader::new(data, base_path.to_string(), face_index),
+            reader: GlyphReader::new(base_path.to_string(), face_index),
             units_per_em: upem as f32,
             locations,
         })

@@ -12,6 +12,21 @@ from torchfont.datasets import FontFolder
 from torchfont.io.outline import CommandType
 
 
+def _read_first_sample_from_pickled_dataset(
+    payload: bytes, queue: mp.Queue[tuple[int, int, int, tuple[int, int]]]
+) -> None:
+    dataset = pickle.loads(payload)  # noqa: S301
+    sample = dataset[0]
+    queue.put(
+        (
+            sample.style_idx,
+            sample.content_idx,
+            sample.types.numel(),
+            tuple(sample.coords.shape),
+        )
+    )
+
+
 def test_font_folder_static_fonts() -> None:
     dataset = FontFolder(
         root="tests/fonts",
@@ -469,6 +484,31 @@ def test_targets_survives_pickle() -> None:
     restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
 
     assert torch.equal(restored.targets, original_targets)
+
+
+def test_font_folder_getitem_survives_spawn_pickle_roundtrip() -> None:
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    payload = pickle.dumps(dataset)
+    ctx = mp.get_context("spawn")
+    queue: mp.Queue[tuple[int, int, int, tuple[int, int]]] = ctx.Queue()
+    proc = ctx.Process(
+        target=_read_first_sample_from_pickled_dataset,
+        args=(payload, queue),
+    )
+    proc.start()
+    proc.join(timeout=30)
+
+    assert proc.exitcode == 0
+    style_idx, content_idx, types_len, coords_shape = queue.get(timeout=5)
+    assert style_idx >= 0
+    assert content_idx >= 0
+    assert types_len > 0
+    assert coords_shape[1] == 6
 
 
 def test_font_folder_filters_outline_less_glyphs() -> None:
