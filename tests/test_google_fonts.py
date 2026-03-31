@@ -1,10 +1,12 @@
 import shutil
 from collections.abc import Generator
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from torchfont.datasets import GoogleFonts
+from torchfont.datasets import google_fonts as google_fonts_module
 
 
 @pytest.fixture
@@ -142,3 +144,56 @@ def test_google_fonts_custom_codepoint_filter() -> None:
 
     assert len(dataset.content_classes) <= 10
     assert len(dataset) > 0
+
+
+def test_google_fonts_uses_default_patterns_when_not_specified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, object] = {}
+
+    def fake_font_repo_init(*_: object, **kwargs: object) -> None:
+        called.update(kwargs)
+
+    monkeypatch.setattr(
+        google_fonts_module.FontRepo,
+        "__init__",
+        fake_font_repo_init,
+    )
+
+    GoogleFonts(root="data/google/fonts", ref="main")
+
+    assert called["root"] == "data/google/fonts"
+    assert called["url"] == google_fonts_module.REPO_URL
+    assert called["ref"] == "main"
+    assert called["patterns"] == google_fonts_module.DEFAULT_PATTERNS
+    assert called["codepoint_filter"] is None
+    assert called["transform"] is None
+    assert called["download"] is False
+    assert called["depth"] == 1
+
+
+def test_google_fonts_repr_includes_patterns() -> None:
+    dataset = object.__new__(GoogleFonts)
+    dataset.root = Path("tests/fonts").resolve()
+    dataset.url = google_fonts_module.REPO_URL
+    dataset.ref = "main"
+    dataset.commit_hash = "abc123"
+    dataset.patterns = ("ufl/*/*.ttf",)
+    dataset_stats = SimpleNamespace(
+        sample_count=10,
+        style_class_count=3,
+        content_class_count=7,
+    )
+    dataset._dataset = dataset_stats  # noqa: SLF001
+
+    assert repr(dataset) == (
+        "GoogleFonts("
+        f"root={str(dataset.root)!r}, "
+        f"url={dataset.url!r}, "
+        f"ref={dataset.ref!r}, "
+        f"commit={dataset.commit_hash!r}, "
+        f"patterns={dataset.patterns!r}, "
+        f"samples={dataset_stats.sample_count}, "
+        f"styles={dataset_stats.style_class_count}, "
+        f"content_classes={dataset_stats.content_class_count})"
+    )
