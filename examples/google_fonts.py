@@ -32,7 +32,6 @@ dataset = GoogleFonts(
 def collate_fn(
     batch: Sequence[GlyphSample],
 ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    # Migration note: transforms now receive/return GlyphSample (sample-first API).
     types_list = [sample.types for sample in batch]
     coords_list = [sample.coords for sample in batch]
     style_label_list = [sample.style_idx for sample in batch]

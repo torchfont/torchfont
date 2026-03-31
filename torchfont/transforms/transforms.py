@@ -99,6 +99,10 @@ class LimitSequenceLength:
         Args:
             sample (GlyphSample): Input sample.
 
+        Returns:
+            GlyphSample: Sample with ``types`` and ``coords`` truncated to
+            ``max_len`` steps.
+
         Warnings:
             Elements beyond ``max_len`` are removed rather than padded or
             aggregated, so downstream code should account for the shorter tail.
@@ -133,6 +137,11 @@ class QuadToCubic:
             sample (GlyphSample): Input sample whose ``types`` values follow
                 `CommandType` and whose ``coords`` last dimension is at least
                 6 and layout `[cx0, cy0, cx1, cy1, x, y]`.
+
+        Returns:
+            GlyphSample: Sample with quadratic segments rewritten as cubic
+            segments. Returns the original sample unchanged if no ``QUAD_TO``
+            commands are present.
 
         """
         types = sample.types
@@ -198,6 +207,12 @@ class Patchify:
 
         Args:
             sample (GlyphSample): Input sample.
+
+        Returns:
+            GlyphSample: Sample whose ``types`` have shape
+            ``(num_patches, patch_size)`` and ``coords`` have shape
+            ``(num_patches, patch_size, coord_dim)``. Trailing zeros are added
+            only when needed for alignment.
 
         Tips:
             Pair with :class:`LimitSequenceLength` to bound the worst-case number
