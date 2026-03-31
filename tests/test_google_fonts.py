@@ -1,5 +1,6 @@
 import shutil
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
+from typing import SupportsIndex
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -158,7 +159,7 @@ def test_google_fonts_uses_default_patterns_when_not_specified(
         url: str,
         ref: str,
         patterns: tuple[str, ...],
-        codepoint_filter: range | None = None,
+        codepoint_filter: Sequence[SupportsIndex] | None = None,
         transform: object | None = None,
         download: bool = False,
         depth: int = 1,
@@ -210,7 +211,7 @@ def test_google_fonts_repr_includes_patterns() -> None:
         f"ref={dataset.ref!r}, "
         f"commit={dataset.commit_hash!r}, "
         f"patterns={dataset.patterns!r}, "
-        "samples=10, "
-        "styles=3, "
-        "content_classes=7)"
+        f"samples={dataset._dataset.sample_count}, "
+        f"styles={dataset._dataset.style_class_count}, "
+        f"content_classes={dataset._dataset.content_class_count})"
     )
