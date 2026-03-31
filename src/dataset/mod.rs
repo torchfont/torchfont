@@ -1,6 +1,7 @@
 mod entry;
 mod index;
 mod io;
+mod reader;
 
 use crate::error::py_index_err;
 use entry::FontEntry;
@@ -105,11 +106,11 @@ impl FontDataset {
         let entry = &self.entries[font_idx];
         let font_start = self.index.sample_offsets[font_idx];
         let sample_idx = idx - font_start;
-        let cp_count = entry.codepoints.len();
+        let cp_count = entry.codepoint_count();
         debug_assert!(
             cp_count > 0,
             "font '{}' has no indexed code points",
-            &entry.path
+            entry.path()
         );
 
         let inst_start = self.index.inst_offsets[font_idx];
@@ -118,11 +119,11 @@ impl FontDataset {
             inst_idx < entry.instance_count(),
             "instance index {} out of range for font '{}'",
             inst_idx,
-            &entry.path
+            entry.path()
         );
 
         let cp_offset = sample_idx % cp_count;
-        let cp = entry.codepoints[cp_offset];
+        let cp = entry.codepoints()[cp_offset];
         let style_idx = inst_start + inst_idx;
         let content_idx = self.index.content_index(cp)?;
         let instance = entry.is_variable().then_some(inst_idx);
@@ -144,7 +145,7 @@ impl FontDataset {
             let inst_offset = self.index.inst_offsets[font_idx];
             for inst_idx in 0..entry.instance_count() {
                 let style_idx = inst_offset + inst_idx;
-                for &cp in &entry.codepoints {
+                for &cp in entry.codepoints() {
                     let content_idx = self.index.content_index(cp)?;
                     flat.push(style_idx as i64);
                     flat.push(content_idx as i64);
