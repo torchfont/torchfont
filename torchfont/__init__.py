@@ -25,3 +25,7 @@ References:
     guidelines in greater depth.
 
 """
+
+from torchfont.sample import GlyphSample
+
+__all__ = ["GlyphSample"]

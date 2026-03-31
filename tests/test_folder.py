@@ -7,6 +7,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
+from torchfont import GlyphSample
 from torchfont.datasets import FontFolder
 from torchfont.io.outline import CommandType
 
@@ -60,18 +61,19 @@ def test_font_folder_getitem() -> None:
 
     assert len(dataset) > 0
 
-    types, coords, style_idx, content_idx = dataset[0]
+    sample = dataset[0]
 
-    assert types.dtype == torch.long
-    assert types.ndim == 1
+    assert isinstance(sample, GlyphSample)
+    assert sample.types.dtype == torch.long
+    assert sample.types.ndim == 1
 
-    assert coords.dtype == torch.float32
-    assert coords.ndim == 2
-    assert coords.shape[1] == 6
-    assert isinstance(style_idx, int)
-    assert isinstance(content_idx, int)
-    assert 0 <= style_idx < len(dataset.style_classes)
-    assert 0 <= content_idx < len(dataset.content_classes)
+    assert sample.coords.dtype == torch.float32
+    assert sample.coords.ndim == 2
+    assert sample.coords.shape[1] == 6
+    assert isinstance(sample.style_idx, int)
+    assert isinstance(sample.content_idx, int)
+    assert 0 <= sample.style_idx < len(dataset.style_classes)
+    assert 0 <= sample.content_idx < len(dataset.content_classes)
 
 
 def test_font_folder_preserves_quadratic_curves() -> None:
@@ -81,10 +83,10 @@ def test_font_folder_preserves_quadratic_curves() -> None:
         codepoint_filter=[ord("o")],
     )
 
-    types, _, _, _ = dataset[0]
+    sample = dataset[0]
 
-    assert (types == CommandType.QUAD_TO.value).any().item()
-    assert not (types == CommandType.CURVE_TO.value).any().item()
+    assert (sample.types == CommandType.QUAD_TO.value).any().item()
+    assert not (sample.types == CommandType.CURVE_TO.value).any().item()
 
 
 def test_font_folder_negative_indexing() -> None:
@@ -98,28 +100,24 @@ def test_font_folder_negative_indexing() -> None:
     assert len(dataset) > 0
 
     # Test that dataset[-1] returns the last element
-    types_last, coords_last, style_last, content_last = dataset[-1]
-    types_explicit, coords_explicit, style_explicit, content_explicit = dataset[
-        len(dataset) - 1
-    ]
+    sample_last = dataset[-1]
+    sample_explicit = dataset[len(dataset) - 1]
 
     # Verify that negative indexing returns the same result as positive indexing
-    assert torch.equal(types_last, types_explicit)
-    assert torch.equal(coords_last, coords_explicit)
-    assert style_last == style_explicit
-    assert content_last == content_explicit
+    assert torch.equal(sample_last.types, sample_explicit.types)
+    assert torch.equal(sample_last.coords, sample_explicit.coords)
+    assert sample_last.style_idx == sample_explicit.style_idx
+    assert sample_last.content_idx == sample_explicit.content_idx
 
     # Test dataset[-2] if dataset has at least 2 elements
     if len(dataset) >= 2:
-        types_second_last, coords_second_last, style_sl, content_sl = dataset[-2]
-        types_explicit2, coords_explicit2, style_exp2, content_exp2 = dataset[
-            len(dataset) - 2
-        ]
+        sample_sl = dataset[-2]
+        sample_exp2 = dataset[len(dataset) - 2]
 
-        assert torch.equal(types_second_last, types_explicit2)
-        assert torch.equal(coords_second_last, coords_explicit2)
-        assert style_sl == style_exp2
-        assert content_sl == content_exp2
+        assert torch.equal(sample_sl.types, sample_exp2.types)
+        assert torch.equal(sample_sl.coords, sample_exp2.coords)
+        assert sample_sl.style_idx == sample_exp2.style_idx
+        assert sample_sl.content_idx == sample_exp2.content_idx
 
 
 def test_font_folder_index_out_of_bounds() -> None:
@@ -155,11 +153,11 @@ def test_font_folder_cjk_support() -> None:
     )
 
     assert len(dataset) > 0
-    types, coords, style_idx, content_idx = dataset[0]
-    assert types is not None
-    assert coords is not None
-    assert style_idx is not None
-    assert content_idx is not None
+    sample = dataset[0]
+    assert sample.types is not None
+    assert sample.coords is not None
+    assert sample.style_idx is not None
+    assert sample.content_idx is not None
 
 
 def test_font_folder_skips_styles_without_samples_after_filtering() -> None:
@@ -353,29 +351,29 @@ def test_font_folder_dataloader_multiworker(
     batch = next(iter(loader))
     assert batch is not None
 
-    # Unpack batch and validate structure similar to test_font_folder_getitem
-    types_batch, coords_batch, style_idx_batch, content_idx_batch = batch
+    # DataLoader collates GlyphSample fields into a GlyphSample of batched tensors
+    assert isinstance(batch, GlyphSample)
 
     # Validate types tensor (batch dimension added)
-    assert types_batch.dtype == torch.long
-    assert types_batch.ndim == 2  # batch_size x sequence_length
+    assert batch.types.dtype == torch.long
+    assert batch.types.ndim == 2  # batch_size x sequence_length
 
     # Validate coords tensor (batch dimension added)
-    assert coords_batch.dtype == torch.float32
-    assert coords_batch.ndim == 3  # batch_size x sequence_length x 6
-    assert coords_batch.shape[2] == 6
+    assert batch.coords.dtype == torch.float32
+    assert batch.coords.ndim == 3  # batch_size x sequence_length x 6
+    assert batch.coords.shape[2] == 6
 
     # Validate indices tensors
-    assert style_idx_batch.dtype == torch.long
-    assert content_idx_batch.dtype == torch.long
-    assert style_idx_batch.ndim == 1  # batch_size
-    assert content_idx_batch.ndim == 1  # batch_size
+    assert batch.style_idx.dtype == torch.long
+    assert batch.content_idx.dtype == torch.long
+    assert batch.style_idx.ndim == 1  # batch_size
+    assert batch.content_idx.ndim == 1  # batch_size
 
     # Validate index values are in valid range
-    assert torch.all(style_idx_batch >= 0)
-    assert torch.all(style_idx_batch < len(dataset.style_classes))
-    assert torch.all(content_idx_batch >= 0)
-    assert torch.all(content_idx_batch < len(dataset.content_classes))
+    assert torch.all(batch.style_idx >= 0)
+    assert torch.all(batch.style_idx < len(dataset.style_classes))
+    assert torch.all(batch.content_idx >= 0)
+    assert torch.all(batch.content_idx < len(dataset.content_classes))
 
 
 def test_targets_shape_and_dtype() -> None:
@@ -399,9 +397,9 @@ def test_targets_matches_getitem() -> None:
     )
 
     for i in range(len(dataset)):
-        _, _, style_idx, content_idx = dataset[i]
-        assert dataset.targets[i, 0].item() == style_idx
-        assert dataset.targets[i, 1].item() == content_idx
+        sample = dataset[i]
+        assert dataset.targets[i, 0].item() == sample.style_idx
+        assert dataset.targets[i, 1].item() == sample.content_idx
 
 
 def test_targets_empty_dataset() -> None:
@@ -429,9 +427,9 @@ def test_targets_variable_fonts() -> None:
     assert dataset.targets.dtype == torch.long
 
     for i in range(len(dataset)):
-        _, _, style_idx, content_idx = dataset[i]
-        assert dataset.targets[i, 0].item() == style_idx
-        assert dataset.targets[i, 1].item() == content_idx
+        sample = dataset[i]
+        assert dataset.targets[i, 0].item() == sample.style_idx
+        assert dataset.targets[i, 1].item() == sample.content_idx
 
 
 def test_font_folder_repr() -> None:
