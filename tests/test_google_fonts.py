@@ -1,8 +1,8 @@
 import shutil
 from collections.abc import Generator, Sequence
-from typing import SupportsIndex
 from pathlib import Path
 from types import SimpleNamespace
+from typing import SupportsIndex
 
 import pytest
 
