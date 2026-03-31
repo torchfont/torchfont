@@ -11,7 +11,8 @@ Examples:
         from torchfont.datasets import FontFolder
 
         dataset = FontFolder(root="~/fonts")
-        sample, target = dataset[0]
+        sample = dataset[0]
+        print(sample.types, sample.style_idx)
 
 """
 
@@ -27,9 +28,10 @@ from torch.utils.data import Dataset
 
 from torchfont import _torchfont
 from torchfont.io.outline import COORD_DIM
+from torchfont.sample import GlyphSample
 
 
-class FontFolder(Dataset[tuple[Tensor, Tensor, int, int]]):
+class FontFolder(Dataset[GlyphSample]):
     """Dataset that yields glyph samples from a directory of font files.
 
     The dataset flattens every available code point and variation instance into
@@ -155,7 +157,7 @@ class FontFolder(Dataset[tuple[Tensor, Tensor, int, int]]):
         """
         return int(self._dataset.sample_count)
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, int, int]:
+    def __getitem__(self, idx: int) -> GlyphSample:
         """Load a glyph sample and its associated targets.
 
         Args:
@@ -164,19 +166,18 @@ class FontFolder(Dataset[tuple[Tensor, Tensor, int, int]]):
                 from the end of the dataset.
 
         Returns:
-            tuple[Tensor, Tensor, int, int]: ``(types, coords,
-            style_idx, content_idx)`` where ``types`` and ``coords`` are
-            produced by the compiled backend and the labels describe the
-            variation instance and Unicode code point class.
+            GlyphSample: Structured sample containing ``types``, ``coords``,
+            ``style_idx``, and ``content_idx``.
 
         Examples:
             Retrieve the first glyph sample and its target labels::
 
-                types, coords, style_idx, content_idx = dataset[0]
+                sample = dataset[0]
+                print(sample.types, sample.style_idx)
 
             Retrieve the last glyph sample::
 
-                types, coords, style_idx, content_idx = dataset[-1]
+                sample = dataset[-1]
 
         """
         idx = int(idx)
@@ -196,7 +197,12 @@ class FontFolder(Dataset[tuple[Tensor, Tensor, int, int]]):
         if self.transform is not None:
             types, coords = self.transform(types, coords)
 
-        return types, coords, style_idx, content_idx
+        return GlyphSample(
+            types=types,
+            coords=coords,
+            style_idx=int(style_idx),
+            content_idx=int(content_idx),
+        )
 
     @property
     def targets(self) -> Tensor:

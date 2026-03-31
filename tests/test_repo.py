@@ -108,15 +108,15 @@ def test_font_repo_getitem(clean_repo_dir: Path) -> None:
 
     assert len(dataset) > 0
 
-    types, coords, style_idx, content_idx = dataset[0]
+    sample = dataset[0]
 
-    assert types.dtype == torch.long
-    assert types.ndim == 1
-    assert coords.dtype == torch.float32
-    assert coords.ndim == 2
-    assert coords.shape[1] == 6
-    assert isinstance(style_idx, int)
-    assert isinstance(content_idx, int)
+    assert sample.types.dtype == torch.long
+    assert sample.types.ndim == 1
+    assert sample.coords.dtype == torch.float32
+    assert sample.coords.ndim == 2
+    assert sample.coords.shape[1] == 6
+    assert isinstance(sample.style_idx, int)
+    assert isinstance(sample.content_idx, int)
 
 
 @pytest.mark.network

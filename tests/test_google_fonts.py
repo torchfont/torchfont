@@ -36,11 +36,11 @@ def test_google_fonts_fresh_clone(clean_clone_dir: Path) -> None:
     assert dataset.patterns == ("ufl/*/*.ttf",)
     assert len(dataset) > 0
 
-    types, coords, style_idx, content_idx = dataset[0]
-    assert types is not None
-    assert coords is not None
-    assert style_idx is not None
-    assert content_idx is not None
+    sample = dataset[0]
+    assert sample.types is not None
+    assert sample.coords is not None
+    assert sample.style_idx is not None
+    assert sample.content_idx is not None
 
 
 @pytest.mark.network
