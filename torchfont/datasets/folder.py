@@ -106,6 +106,31 @@ class FontFolder(Dataset[tuple[Tensor, Tensor, int, int]]):
             self.patterns,
         )
 
+    def __repr__(self) -> str:
+        """Return a human-readable summary of this dataset.
+
+        Returns:
+            str: String showing the class name, root path, sample count,
+                number of style classes, and number of content classes.
+
+        Examples:
+            >>> ds = FontFolder(
+            ...     root="tests/fonts",
+            ...     codepoint_filter=range(0x41, 0x5B),
+            ...     patterns=("**/Lato-Regular.ttf",),
+            ... )
+            >>> len(ds), len(ds.style_classes), len(ds.content_classes)
+            (26, 1, 26)
+
+        """
+        return (
+            f"{type(self).__name__}("
+            f"root={str(self.root)!r}, "
+            f"samples={len(self)}, "
+            f"styles={self._dataset.style_class_count}, "
+            f"content_classes={self._dataset.content_class_count})"
+        )
+
     def __getstate__(self) -> dict[str, object]:
         """Return state without the native backend for worker reconstruction."""
         state = self.__dict__.copy()

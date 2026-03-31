@@ -434,6 +434,24 @@ def test_targets_variable_fonts() -> None:
         assert dataset.targets[i, 1].item() == content_idx
 
 
+def test_font_folder_repr() -> None:
+    """Test that FontFolder has a useful __repr__."""
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    expected = (
+        f"FontFolder("
+        f"root={str(dataset.root)!r}, "
+        f"samples={len(dataset)}, "
+        f"styles={len(dataset.style_classes)}, "
+        f"content_classes={len(dataset.content_classes)})"
+    )
+    assert repr(dataset) == expected
+
+
 def test_targets_survives_pickle() -> None:
     """Test that targets is correctly restored after pickle round-trip."""
     dataset = FontFolder(
