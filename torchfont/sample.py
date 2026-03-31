@@ -17,7 +17,11 @@ class GlyphSample(NamedTuple):
         coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
             coordinate data for each command.
         style_idx (int): Index into the dataset's ``style_classes`` list.
+            When batches are formed by PyTorch's default DataLoader collation,
+            this field becomes a 1-D ``torch.LongTensor``.
         content_idx (int): Index into the dataset's ``content_classes`` list.
+            When batches are formed by PyTorch's default DataLoader collation,
+            this field becomes a 1-D ``torch.LongTensor``.
 
     Examples:
         Access fields by name rather than by position::
@@ -31,6 +35,3 @@ class GlyphSample(NamedTuple):
     coords: Tensor
     style_idx: int
     content_idx: int
-
-
-__all__ = ["GlyphSample"]

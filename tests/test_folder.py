@@ -154,10 +154,17 @@ def test_font_folder_cjk_support() -> None:
 
     assert len(dataset) > 0
     sample = dataset[0]
-    assert sample.types is not None
-    assert sample.coords is not None
-    assert sample.style_idx is not None
-    assert sample.content_idx is not None
+    assert isinstance(sample, GlyphSample)
+    assert sample.types.dtype == torch.long
+    assert sample.types.ndim == 1
+    assert sample.types.numel() > 0
+    assert sample.coords.dtype == torch.float32
+    assert sample.coords.ndim == 2
+    assert sample.coords.shape[1] == 6
+    assert isinstance(sample.style_idx, int)
+    assert isinstance(sample.content_idx, int)
+    assert 0 <= sample.style_idx < len(dataset.style_classes)
+    assert 0 <= sample.content_idx < len(dataset.content_classes)
 
 
 def test_font_folder_skips_styles_without_samples_after_filtering() -> None:
