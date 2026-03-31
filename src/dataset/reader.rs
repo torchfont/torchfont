@@ -153,12 +153,16 @@ impl GlyphReader {
             return Ok(Arc::clone(mapped));
         }
 
-        let mapped = map_font(&self.path)?;
         let mut guard = self
             .data
             .write()
             .map_err(|_| py_err("glyph reader lock poisoned"))?;
-        let stored = guard.get_or_insert_with(|| Arc::clone(&mapped));
-        Ok(Arc::clone(stored))
+        if let Some(mapped) = guard.as_ref() {
+            return Ok(Arc::clone(mapped));
+        }
+        let mapped = map_font(&self.path)?;
+        let result = Arc::clone(&mapped);
+        *guard = Some(mapped);
+        Ok(result)
     }
 }
