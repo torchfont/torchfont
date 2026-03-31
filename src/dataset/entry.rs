@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::{GlyphId, MetadataProvider, instance::Location};
