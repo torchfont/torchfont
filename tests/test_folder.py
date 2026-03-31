@@ -469,6 +469,6 @@ def test_font_folder_filters_outline_less_glyphs() -> None:
     # All charmap'd glyphs have no outline data, so the dataset must be empty.
     assert len(dataset) == 0
 
-    # Invariant: every index in [0, len(dataset)) must be retrievable without error.
-    for i in range(len(dataset)):
-        dataset[i]  # must not raise ValueError
+    # Accessing an empty dataset must fail with IndexError rather than ValueError.
+    with pytest.raises(IndexError):
+        dataset[0]

@@ -158,7 +158,7 @@ impl FontEntry {
             .head()
             .map_err(|_| {
                 py_err(format!(
-                    "font '{base_path}' (face_index {face_index}) is missing a head table"
+                    "font '{base_path}' (face {face_index}) is missing a head table"
                 ))
             })?
             .units_per_em();
