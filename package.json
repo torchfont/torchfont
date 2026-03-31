@@ -7,6 +7,10 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
+  "overrides": {
+    "esbuild": "^0.27.4",
+    "rollup": "^4.60.1"
+  },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "vitepress": "^1.6.3"
