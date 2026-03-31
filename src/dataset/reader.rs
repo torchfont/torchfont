@@ -28,6 +28,10 @@ impl GlyphReader {
         }
     }
 
+    pub(super) fn path(&self) -> &str {
+        &self.path
+    }
+
     pub(super) fn draw_glyph(
         &self,
         glyph_id: GlyphId,
@@ -49,7 +53,7 @@ impl GlyphReader {
             .draw(
                 DrawSettings::unhinted(
                     Size::unscaled(),
-                    Self::location_ref(locations, instance_index)?,
+                    self.location_ref(locations, instance_index)?,
                 ),
                 &mut pen,
             )
@@ -119,13 +123,17 @@ impl GlyphReader {
     }
 
     fn location_ref<'a>(
+        &self,
         locations: &'a [Location],
         index: Option<usize>,
     ) -> PyResult<LocationRef<'a>> {
         if let Some(idx) = index {
-            let location = locations
-                .get(idx)
-                .ok_or_else(|| py_index_err(format!("instance index {idx} out of range")))?;
+            let location = locations.get(idx).ok_or_else(|| {
+                py_index_err(format!(
+                    "instance index {idx} out of range for '{}'",
+                    self.path
+                ))
+            })?;
             Ok(LocationRef::from(location))
         } else {
             Ok(LocationRef::default())

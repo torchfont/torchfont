@@ -16,7 +16,6 @@ pub(super) struct GlyphIndex {
 pub(super) struct FontEntry {
     index: GlyphIndex,
     reader: GlyphReader,
-    path: String,
     units_per_em: f32,
     locations: Vec<Location>,
 }
@@ -68,7 +67,7 @@ impl FontEntry {
     }
 
     pub(super) fn path(&self) -> &str {
-        &self.path
+        self.reader.path()
     }
 
     pub(super) fn codepoints(&self) -> &[u32] {
@@ -134,7 +133,6 @@ impl FontEntry {
                 glyph_ids,
             },
             reader: GlyphReader::new(data, base_path.to_string(), face_index),
-            path: base_path.to_string(),
             units_per_em: upem as f32,
             locations,
         })
@@ -148,7 +146,7 @@ impl FontEntry {
             .map_err(|_| {
                 py_index_err(format!(
                     "codepoint U+{codepoint:04X} missing from '{}'",
-                    self.path
+                    self.reader.path()
                 ))
             })
     }
