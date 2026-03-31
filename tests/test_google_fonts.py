@@ -1,13 +1,12 @@
 import shutil
-from collections.abc import Generator, Sequence
+from collections.abc import Generator
 from pathlib import Path
 from types import SimpleNamespace
-from typing import SupportsIndex
 
 import pytest
 
-from torchfont.datasets import google_fonts as google_fonts_module
 from torchfont.datasets import GoogleFonts
+from torchfont.datasets import google_fonts as google_fonts_module
 
 
 @pytest.fixture
@@ -152,26 +151,8 @@ def test_google_fonts_uses_default_patterns_when_not_specified(
 ) -> None:
     called: dict[str, object] = {}
 
-    def fake_font_repo_init(
-        self: GoogleFonts,
-        *,
-        root: Path | str,
-        url: str,
-        ref: str,
-        patterns: tuple[str, ...],
-        codepoint_filter: Sequence[SupportsIndex] | None = None,
-        transform: object | None = None,
-        download: bool = False,
-        depth: int = 1,
-    ) -> None:
-        called["root"] = root
-        called["url"] = url
-        called["ref"] = ref
-        called["patterns"] = patterns
-        called["codepoint_filter"] = codepoint_filter
-        called["transform"] = transform
-        called["download"] = download
-        called["depth"] = depth
+    def fake_font_repo_init(*_: object, **kwargs: object) -> None:
+        called.update(kwargs)
 
     monkeypatch.setattr(
         google_fonts_module.FontRepo,
@@ -198,11 +179,12 @@ def test_google_fonts_repr_includes_patterns() -> None:
     dataset.ref = "main"
     dataset.commit_hash = "abc123"
     dataset.patterns = ("ufl/*/*.ttf",)
-    dataset._dataset = SimpleNamespace(
+    dataset_stats = SimpleNamespace(
         sample_count=10,
         style_class_count=3,
         content_class_count=7,
     )
+    dataset._dataset = dataset_stats  # noqa: SLF001
 
     assert repr(dataset) == (
         "GoogleFonts("
@@ -211,7 +193,7 @@ def test_google_fonts_repr_includes_patterns() -> None:
         f"ref={dataset.ref!r}, "
         f"commit={dataset.commit_hash!r}, "
         f"patterns={dataset.patterns!r}, "
-        f"samples={dataset._dataset.sample_count}, "
-        f"styles={dataset._dataset.style_class_count}, "
-        f"content_classes={dataset._dataset.content_class_count})"
+        f"samples={dataset_stats.sample_count}, "
+        f"styles={dataset_stats.style_class_count}, "
+        f"content_classes={dataset_stats.content_class_count})"
     )
