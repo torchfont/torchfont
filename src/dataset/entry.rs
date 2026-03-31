@@ -3,24 +3,19 @@ use std::sync::Arc;
 use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::raw::{FileRef, TableProvider};
-use skrifa::{
-    GlyphId, MetadataProvider,
-    instance::{Location, LocationRef, Size},
-    outline::DrawSettings,
-};
+use skrifa::{GlyphId, MetadataProvider, instance::Location};
 
-use super::io::map_font;
-use crate::{
-    error::{py_err, py_index_err},
-    pen::SegmentPen,
-};
+use super::{io::map_font, reader::GlyphReader};
+use crate::error::{py_err, py_index_err};
+
+pub(super) struct GlyphIndex {
+    codepoints: Vec<u32>,
+    glyph_ids: Vec<GlyphId>,
+}
 
 pub(super) struct FontEntry {
-    data: Arc<Mmap>,
-    face_index: u32,
-    pub(super) path: String,
-    pub(super) codepoints: Vec<u32>,
-    glyph_ids: Vec<GlyphId>,
+    index: GlyphIndex,
+    reader: GlyphReader,
     units_per_em: f32,
     locations: Vec<Location>,
 }
@@ -59,29 +54,8 @@ impl FontEntry {
         instance_index: Option<usize>,
     ) -> PyResult<(Vec<i32>, Vec<f32>)> {
         let glyph_id = self.lookup_glyph(codepoint)?;
-        let font = skrifa::FontRef::from_index(&self.data[..], self.face_index).map_err(|err| {
-            py_err(format!(
-                "failed to parse '{}' (face {}): {err}",
-                self.path, self.face_index
-            ))
-        })?;
-        let glyph = font.outline_glyphs().get(glyph_id).ok_or_else(|| {
-            py_err(format!(
-                "glyph id {} missing from '{}'",
-                glyph_id.to_u32(),
-                self.path
-            ))
-        })?;
-
-        let mut pen = SegmentPen::new(self.units_per_em);
-        glyph
-            .draw(
-                DrawSettings::unhinted(Size::unscaled(), self.location_ref(instance_index)?),
-                &mut pen,
-            )
-            .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
-
-        Ok(pen.finish())
+        self.reader
+            .draw_glyph(glyph_id, self.units_per_em, &self.locations, instance_index)
     }
 
     pub(super) fn instance_count(&self) -> usize {
@@ -92,59 +66,31 @@ impl FontEntry {
         !self.locations.is_empty()
     }
 
+    pub(super) fn path(&self) -> &str {
+        self.reader.path()
+    }
+
+    pub(super) fn codepoints(&self) -> &[u32] {
+        &self.index.codepoints
+    }
+
+    pub(super) fn codepoint_count(&self) -> usize {
+        self.index.codepoints.len()
+    }
+
     pub(super) fn named_instance_names(&self) -> Vec<Option<String>> {
         if !self.is_variable() {
             return vec![];
         }
-
-        let font = match skrifa::FontRef::from_index(&self.data[..], self.face_index) {
-            Ok(f) => f,
-            Err(_) => return vec![],
-        };
-
-        font.named_instances()
-            .iter()
-            .map(|inst| {
-                let name_id = inst.subfamily_name_id();
-                font.localized_strings(name_id)
-                    .english_or_first()
-                    .map(|s| s.to_string())
-            })
-            .collect()
+        self.reader.named_instance_names()
     }
 
     pub(super) fn family_name(&self) -> String {
-        let font = match skrifa::FontRef::from_index(&self.data[..], self.face_index) {
-            Ok(f) => f,
-            Err(_) => return String::new(),
-        };
-
-        [
-            skrifa::raw::types::NameId::TYPOGRAPHIC_FAMILY_NAME,
-            skrifa::raw::types::NameId::FAMILY_NAME,
-        ]
-        .into_iter()
-        .find_map(|id| {
-            font.localized_strings(id)
-                .english_or_first()
-                .map(|s| s.to_string())
-        })
-        .unwrap_or_default()
+        self.reader.family_name()
     }
 
     pub(super) fn subfamily_name(&self) -> Option<String> {
-        let font = skrifa::FontRef::from_index(&self.data[..], self.face_index).ok()?;
-
-        [
-            skrifa::raw::types::NameId::TYPOGRAPHIC_SUBFAMILY_NAME,
-            skrifa::raw::types::NameId::SUBFAMILY_NAME,
-        ]
-        .into_iter()
-        .find_map(|id| {
-            font.localized_strings(id)
-                .english_or_first()
-                .map(|s| s.to_string())
-        })
+        self.reader.subfamily_name()
     }
 
     fn from_face(
@@ -182,39 +128,26 @@ impl FontEntry {
             .collect();
 
         Ok(Self {
-            path: base_path.to_string(),
-            data,
-            face_index,
-            codepoints,
-            glyph_ids,
+            index: GlyphIndex {
+                codepoints,
+                glyph_ids,
+            },
+            reader: GlyphReader::new(data, base_path.to_string(), face_index),
             units_per_em: upem as f32,
             locations,
         })
     }
 
     fn lookup_glyph(&self, codepoint: u32) -> PyResult<GlyphId> {
-        self.codepoints
+        self.index
+            .codepoints
             .binary_search(&codepoint)
-            .map(|idx| self.glyph_ids[idx])
+            .map(|idx| self.index.glyph_ids[idx])
             .map_err(|_| {
                 py_index_err(format!(
                     "codepoint U+{codepoint:04X} missing from '{}'",
-                    self.path
+                    self.reader.path()
                 ))
             })
-    }
-
-    fn location_ref(&self, index: Option<usize>) -> PyResult<LocationRef<'_>> {
-        if let Some(idx) = index {
-            let location = self.locations.get(idx).ok_or_else(|| {
-                py_index_err(format!(
-                    "instance index {idx} out of range for '{}'",
-                    self.path
-                ))
-            })?;
-            Ok(LocationRef::from(location))
-        } else {
-            Ok(LocationRef::default())
-        }
     }
 }

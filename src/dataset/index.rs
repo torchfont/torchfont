@@ -27,9 +27,9 @@ pub(super) fn load_entries_and_index(
         let faces = FontEntry::load_faces(&path, filter)?;
         for entry in faces
             .into_iter()
-            .filter(|entry| !entry.codepoints.is_empty())
+            .filter(|entry| entry.codepoint_count() > 0)
         {
-            all_cps.extend(entry.codepoints.iter().copied());
+            all_cps.extend(entry.codepoints().iter().copied());
             entries.push(entry);
         }
     }
@@ -38,7 +38,7 @@ pub(super) fn load_entries_and_index(
         .chain(
             entries
                 .iter()
-                .map(|entry| entry.codepoints.len() * entry.instance_count()),
+                .map(|entry| entry.codepoint_count() * entry.instance_count()),
         )
         .scan(0usize, |total, delta| {
             *total += delta;
