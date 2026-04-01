@@ -9,17 +9,14 @@ Examples:
 
 """
 
-from torchfont.datasets.folder import (
-    ContentLabel,
-    FontFolder,
-    GlyphDataset,
-    StyleLabel,
-)
+from torchfont.datasets.folder import FontFolder, GlyphDataset
 from torchfont.datasets.google_fonts import GoogleFonts
+from torchfont.datasets.metadata import ContentLabel, DatasetMetadata, StyleLabel
 from torchfont.datasets.repo import FontRepo
 
 __all__ = [
     "ContentLabel",
+    "DatasetMetadata",
     "FontFolder",
     "FontRepo",
     "GlyphDataset",

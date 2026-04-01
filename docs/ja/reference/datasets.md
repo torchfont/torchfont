@@ -69,6 +69,16 @@ sample = dataset[idx]
 
 コンテンツクラス名（1 文字 Unicode 文字列）の配列。
 
+#### `metadata -> DatasetMetadata`
+
+ラベル metadata をまとめた構造化オブジェクト。
+
+- `metadata.styles`: `StyleLabel` の tuple
+- `metadata.contents`: `ContentLabel` の tuple
+- `metadata.style_id_to_idx`: style `label_id` から style index へのマップ
+- `metadata.style_name_to_idxs`: style 表示名から全 index へのマップ
+- `metadata.content_id_to_idx`: content `label_id` から content index へのマップ
+
 #### `content_class_to_idx -> dict[str, int]`
 
 文字から content index へのマップ。
@@ -109,6 +119,8 @@ style `label_id` から style index へのマップ。
 #### `style_name_to_idxs -> dict[str, list[int]]`
 
 style の表示名から、該当する全 style index へのマップ。
+
+上記の metadata 関連プロパティは、内部的には `dataset.metadata` の射影です。
 
 ### 例（`FontFolder`）
 

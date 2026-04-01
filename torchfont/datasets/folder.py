@@ -18,32 +18,21 @@ Examples:
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import NamedTuple, SupportsIndex
+from typing import SupportsIndex
 
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
 from torchfont import _torchfont
+from torchfont.datasets.metadata import (
+    ContentLabel,
+    DatasetMetadata,
+    StyleLabel,
+    build_dataset_metadata,
+)
 from torchfont.io.outline import COORD_DIM
 from torchfont.sample import GlyphSample
-
-
-class StyleLabel(NamedTuple):
-    """Metadata for a style label stored on a dataset."""
-
-    idx: int
-    label_id: str
-    name: str
-
-
-class ContentLabel(NamedTuple):
-    """Metadata for a content label stored on a dataset."""
-
-    idx: int
-    label_id: str
-    char: str
-    codepoint: int
 
 
 class FontFolder(Dataset[GlyphSample]):
@@ -68,6 +57,8 @@ class FontFolder(Dataset[GlyphSample]):
         style_class_to_idx (dict[str, int]): Mapping from style names to style
             class indices. This is a legacy convenience mapping and may collapse
             duplicate style names.
+        metadata (DatasetMetadata): Structured label metadata object that
+            consolidates style/content labels and related lookup tables.
         style_labels (list[StyleLabel]): Collision-safe style metadata with
             explicit label IDs.
         style_label_to_idx (dict[str, int]): Mapping from style label IDs to
@@ -133,6 +124,7 @@ class FontFolder(Dataset[GlyphSample]):
             self.codepoint_filter,
             self.patterns,
         )
+        self._metadata: DatasetMetadata | None = None
 
     def __repr__(self) -> str:
         """Return a human-readable summary of this dataset.
@@ -173,6 +165,8 @@ class FontFolder(Dataset[GlyphSample]):
             self.codepoint_filter,
             self.patterns,
         )
+        if not hasattr(self, "_metadata"):
+            self._metadata = None
 
     def __len__(self) -> int:
         """Return the total number of glyph samples discoverable in the dataset.
@@ -267,8 +261,7 @@ class FontFolder(Dataset[GlyphSample]):
             ['A', 'B', 'C']
 
         """
-        codepoints = self._dataset.content_classes
-        return [chr(cp) for cp in codepoints]
+        return [label.char for label in self.metadata.contents]
 
     @property
     def content_class_to_idx(self) -> dict[str, int]:
@@ -282,7 +275,17 @@ class FontFolder(Dataset[GlyphSample]):
             0
 
         """
-        return {label.char: label.idx for label in self.content_labels}
+        return {label.char: label.idx for label in self.metadata.contents}
+
+    @property
+    def metadata(self) -> DatasetMetadata:
+        """Structured style/content metadata for this dataset."""
+        if self._metadata is None:
+            self._metadata = build_dataset_metadata(
+                style_names=self.style_classes,
+                content_codepoints=self._dataset.content_classes,
+            )
+        return self._metadata
 
     @property
     def content_labels(self) -> list[ContentLabel]:
@@ -292,16 +295,7 @@ class FontFolder(Dataset[GlyphSample]):
             list[ContentLabel]: Metadata entries ordered by ``idx``.
 
         """
-        codepoints = self._dataset.content_classes
-        return [
-            ContentLabel(
-                idx=idx,
-                label_id=f"content:U+{cp:04X}",
-                char=chr(cp),
-                codepoint=cp,
-            )
-            for idx, cp in enumerate(codepoints)
-        ]
+        return list(self.metadata.contents)
 
     @property
     def content_label_to_idx(self) -> dict[str, int]:
@@ -311,7 +305,7 @@ class FontFolder(Dataset[GlyphSample]):
             dict[str, int]: Dictionary mapping ``label_id`` to content index.
 
         """
-        return {label.label_id: label.idx for label in self.content_labels}
+        return dict(self.metadata.content_id_to_idx)
 
     @property
     def style_classes(self) -> list[str]:
@@ -343,7 +337,10 @@ class FontFolder(Dataset[GlyphSample]):
             0
 
         """
-        return {name: idxs[-1] for name, idxs in self.style_name_to_idxs.items()}
+        return {
+            name: idxs[-1]
+            for name, idxs in self.metadata.style_name_to_idxs.items()
+        }
 
     @property
     def style_labels(self) -> list[StyleLabel]:
@@ -356,10 +353,7 @@ class FontFolder(Dataset[GlyphSample]):
             list[StyleLabel]: Metadata entries ordered by ``idx``.
 
         """
-        return [
-            StyleLabel(idx=idx, label_id=f"style:{idx}", name=name)
-            for idx, name in enumerate(self.style_classes)
-        ]
+        return list(self.metadata.styles)
 
     @property
     def style_label_to_idx(self) -> dict[str, int]:
@@ -369,7 +363,7 @@ class FontFolder(Dataset[GlyphSample]):
             dict[str, int]: Dictionary mapping ``label_id`` to style index.
 
         """
-        return {label.label_id: label.idx for label in self.style_labels}
+        return dict(self.metadata.style_id_to_idx)
 
     @property
     def style_name_to_idxs(self) -> dict[str, list[int]]:
@@ -380,10 +374,10 @@ class FontFolder(Dataset[GlyphSample]):
             list of all style indices that share that name.
 
         """
-        grouped: dict[str, list[int]] = {}
-        for label in self.style_labels:
-            grouped.setdefault(label.name, []).append(label.idx)
-        return grouped
+        return {
+            name: list(idxs)
+            for name, idxs in self.metadata.style_name_to_idxs.items()
+        }
 
 
 class GlyphDataset(FontFolder):

@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from torchfont import GlyphSample
-from torchfont.datasets import FontFolder, GlyphDataset
+from torchfont.datasets import DatasetMetadata, FontFolder, GlyphDataset
 from torchfont.io.outline import CommandType
 
 
@@ -373,6 +373,29 @@ def test_style_label_metadata_is_index_addressable() -> None:
     assert dataset.content_class_to_idx[content_label.char] == sample.content_idx
 
 
+def test_dataset_metadata_consolidates_label_views() -> None:
+    """DatasetMetadata provides a structured source of label metadata."""
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    metadata = dataset.metadata
+    sample = dataset[0]
+
+    assert isinstance(metadata, DatasetMetadata)
+    assert metadata.styles[sample.style_idx] == dataset.style_labels[sample.style_idx]
+    assert metadata.contents[sample.content_idx] == dataset.content_labels[
+        sample.content_idx
+    ]
+    assert metadata.style_id_to_idx == dataset.style_label_to_idx
+    assert metadata.content_id_to_idx == dataset.content_label_to_idx
+    assert dict(metadata.style_name_to_idxs) == {
+        name: tuple(idxs) for name, idxs in dataset.style_name_to_idxs.items()
+    }
+
+
 def test_style_label_metadata_handles_duplicate_names() -> None:
     """Test duplicate style names are preserved in collision-safe metadata."""
     dataset = FontFolder(
@@ -397,6 +420,32 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     assert grouped["Unique"] == [1]
     assert mapping["Shared"] == 2
     assert mapping["Unique"] == 1
+
+
+def test_dataset_metadata_handles_duplicate_names() -> None:
+    """DatasetMetadata preserves all indices for duplicate style names."""
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    raw_names = ["Shared", "Unique", "Shared"]
+    with patch.object(
+        FontFolder,
+        "style_classes",
+        new_callable=PropertyMock,
+        return_value=raw_names,
+    ):
+        metadata = dataset.metadata
+
+    assert [label.label_id for label in metadata.styles] == [
+        "style:0",
+        "style:1",
+        "style:2",
+    ]
+    assert metadata.style_name_to_idxs["Shared"] == (0, 2)
+    assert metadata.style_name_to_idxs["Unique"] == (1,)
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])
