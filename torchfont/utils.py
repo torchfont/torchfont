@@ -67,7 +67,7 @@ def collate_fn(
         device=types_tensor.device,
     )
     lengths = torch.as_tensor(
-        [sample.types.shape[0] for sample in batch],
+        [t.shape[0] for t in types_list],
         dtype=torch.long,
         device=types_tensor.device,
     )
