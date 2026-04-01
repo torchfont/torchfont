@@ -33,7 +33,7 @@ from torchfont.datasets import GlyphDataset
 GlyphDataset(
     root: Path | str,
     *,
-    codepoint_filter: Sequence[SupportsIndex] | None = None,
+    codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
     transform: Callable[[GlyphSample], GlyphSample] | None = None,
 )
@@ -42,15 +42,23 @@ GlyphDataset(
 | 引数               | 型                                | 説明                               |
 | ------------------ | --------------------------------- | ---------------------------------- |
 | `root`             | `Path \| str`                     | フォント探索の起点ディレクトリ     |
-| `codepoint_filter` | `Sequence[SupportsIndex] \| None` | 対象 Unicode codepoint を制限      |
+| `codepoints` | `Sequence[SupportsIndex] \| None` | 対象 Unicode codepoint を制限      |
 | `patterns`         | `Sequence[str] \| None`           | gitignore 互換パターンでパスを絞る |
 | `transform`        | `Callable \| None`                | sample-first 前処理（`GlyphSample -> GlyphSample`） |
 
 ### 振る舞い
 
 - 走査対象拡張子: `.ttf` / `.otf` / `.ttc` / `.otc`
+- `root` は初期化時に絶対 `Path` へ解決される
+- `codepoints` は index 化前に sort 済み・重複なしの整数列へ正規化される
 - `__getitem__` は負インデックス対応（`dataset[-1]` など）
 - 範囲外インデックスは `IndexError`
+
+### 保持される設定値
+
+- `dataset.root`: 解決済みの root `Path`
+- `dataset.patterns`: パスフィルタの tuple、または `None`
+- `dataset.codepoints`: sort 済み・重複なし codepoint の tuple、または `None`
 
 ### 戻り値
 
@@ -134,7 +142,7 @@ style の表示名から、該当する全 style index へのマップ。
 ```python
 dataset = GlyphDataset(
     root="~/fonts",
-    codepoint_filter=range(0x41, 0x5B),  # A-Z
+    codepoints=range(0x41, 0x5B),  # A-Z
     patterns=("**/*.ttf", "!*Bold*"),
 )
 ```

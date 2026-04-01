@@ -51,6 +51,7 @@ from torchfont.utils import collate_fn
 dataset = GlyphDataset(
     root="~/fonts",  # or "tests/fonts" in this repository
     patterns=("*.ttf",),
+    codepoints=range(0x20, 0x7F),  # printable ASCII
 )
 
 loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)

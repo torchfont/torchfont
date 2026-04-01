@@ -14,7 +14,7 @@ transform = Compose(
 dataset = GlyphDataset(
     root="tests/fonts",
     patterns=("*.ttf",),
-    codepoint_filter=range(0x20, 0x7F),
+    codepoints=range(0x20, 0x7F),
     transform=transform,
 )
 

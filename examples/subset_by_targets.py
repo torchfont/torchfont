@@ -8,7 +8,7 @@ def main() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("*.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     print(f"{len(dataset)=}")

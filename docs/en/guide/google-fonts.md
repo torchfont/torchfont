@@ -56,11 +56,11 @@ Pass a narrower pattern when you only want part of the corpus.
 dataset = GlyphDataset(
     root="data/google/fonts",
     patterns=("ofl/*/*.ttf",),
-    codepoint_filter=range(0x30, 0x3A),  # 0-9
+    codepoints=range(0x30, 0x3A),  # 0-9
 )
 ```
 
-`codepoint_filter` removes unwanted characters during indexing.
+`codepoints` removes unwanted characters during indexing.
 
 ## Update workflow
 
