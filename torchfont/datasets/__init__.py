@@ -3,13 +3,18 @@
 Examples:
     Mirror the Google Fonts index into a training dataset::
 
-        from torchfont.datasets import GoogleFonts
+        from torchfont.datasets import GlyphDataset
 
-        ds = GoogleFonts(root="data/google/fonts", ref="main", download=True)
+        ds = GlyphDataset(root="~/fonts")
 
 """
 
-from torchfont.datasets.folder import ContentLabel, FontFolder, StyleLabel
+from torchfont.datasets.folder import (
+    ContentLabel,
+    FontFolder,
+    GlyphDataset,
+    StyleLabel,
+)
 from torchfont.datasets.google_fonts import GoogleFonts
 from torchfont.datasets.repo import FontRepo
 
@@ -17,6 +22,7 @@ __all__ = [
     "ContentLabel",
     "FontFolder",
     "FontRepo",
+    "GlyphDataset",
     "GoogleFonts",
     "StyleLabel",
 ]
