@@ -67,6 +67,10 @@ impl FontEntry {
         self.reader.path()
     }
 
+    pub(super) fn face_index(&self) -> u32 {
+        self.reader.face_index()
+    }
+
     pub(super) fn codepoints(&self) -> &[u32] {
         &self.index.codepoints
     }

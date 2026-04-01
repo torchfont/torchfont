@@ -13,6 +13,14 @@ from torchfont.datasets import GlyphSample
 Structured return type for `GlyphDataset.__getitem__` and the sample type used
 throughout `torchfont.transforms`.
 
+## GlyphLocation
+
+```python
+from torchfont.datasets import GlyphLocation
+```
+
+Structured source metadata returned by `GlyphDataset.locate(idx)`.
+
 ## DatasetMetadata
 
 ```python
@@ -74,6 +82,19 @@ sample = dataset[idx]
 | `sample.content_idx` | `int`               | scalar         |
 
 `sample` is a `GlyphSample`.
+
+### Methods
+
+#### `locate(idx) -> GlyphLocation`
+
+Map one dataset index back to its source font location.
+
+- `font_path`: resolved path to the font file
+- `face_idx`: zero-based face index within the file
+- `instance_idx`: zero-based named-instance index, or `None` for static fonts
+- `codepoint`: Unicode codepoint for the glyph sample
+- `style_idx`: style class index
+- `content_idx`: content class index
 
 ### Properties
 

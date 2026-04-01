@@ -89,7 +89,47 @@ impl FontDataset {
         names
     }
 
-    pub fn locate(&self, idx: usize) -> PyResult<(usize, Option<usize>, u32, usize, usize)> {
+    pub fn locate(&self, idx: usize) -> PyResult<(String, u32, Option<usize>, u32, usize, usize)> {
+        let (font_idx, instance_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
+        let entry = &self.entries[font_idx];
+        Ok((
+            entry.path().to_owned(),
+            entry.face_index(),
+            instance_idx,
+            codepoint,
+            style_idx,
+            content_idx,
+        ))
+    }
+
+    pub fn item(&self, idx: usize) -> PyResult<(Vec<i32>, Vec<f32>, usize, usize)> {
+        let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
+        self.entries[font_idx]
+            .glyph(codepoint, inst_idx)
+            .map(|(types, coords)| (types, coords, style_idx, content_idx))
+    }
+
+    pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let total = self.sample_count();
+        let mut flat: Vec<i64> = Vec::with_capacity(total * 2);
+        for (font_idx, entry) in self.entries.iter().enumerate() {
+            let inst_offset = self.index.inst_offsets[font_idx];
+            for inst_idx in 0..entry.instance_count() {
+                let style_idx = inst_offset + inst_idx;
+                for &cp in entry.codepoints() {
+                    let content_idx = self.index.content_index(cp)?;
+                    flat.push(style_idx as i64);
+                    flat.push(content_idx as i64);
+                }
+            }
+        }
+        let bytes: Vec<u8> = flat.iter().flat_map(|&v| v.to_ne_bytes()).collect();
+        Ok(PyBytes::new(py, &bytes))
+    }
+}
+
+impl FontDataset {
+    fn locate_parts(&self, idx: usize) -> PyResult<(usize, Option<usize>, u32, usize, usize)> {
         let total = self.sample_count();
         if idx >= total {
             return Err(py_index_err(format!(
@@ -129,30 +169,5 @@ impl FontDataset {
         let instance = entry.is_variable().then_some(inst_idx);
 
         Ok((font_idx, instance, cp, style_idx, content_idx))
-    }
-
-    pub fn item(&self, idx: usize) -> PyResult<(Vec<i32>, Vec<f32>, usize, usize)> {
-        let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate(idx)?;
-        self.entries[font_idx]
-            .glyph(codepoint, inst_idx)
-            .map(|(types, coords)| (types, coords, style_idx, content_idx))
-    }
-
-    pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        let total = self.sample_count();
-        let mut flat: Vec<i64> = Vec::with_capacity(total * 2);
-        for (font_idx, entry) in self.entries.iter().enumerate() {
-            let inst_offset = self.index.inst_offsets[font_idx];
-            for inst_idx in 0..entry.instance_count() {
-                let style_idx = inst_offset + inst_idx;
-                for &cp in entry.codepoints() {
-                    let content_idx = self.index.content_index(cp)?;
-                    flat.push(style_idx as i64);
-                    flat.push(content_idx as i64);
-                }
-            }
-        }
-        let bytes: Vec<u8> = flat.iter().flat_map(|&v| v.to_ne_bytes()).collect();
-        Ok(PyBytes::new(py, &bytes))
     }
 }
