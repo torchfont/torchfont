@@ -14,12 +14,12 @@ from torchfont.datasets import GlyphDataset
 dataset = GlyphDataset(
     root="tests/fonts",
     patterns=("*.ttf",),
-    codepoint_filter=range(0x80),
+    codepoints=range(0x80),
 )
 
 t = dataset.targets
 if t.numel() == 0:
-    raise ValueError("dataset が空です。patterns/codepoint_filter を緩めてください")
+    raise ValueError("dataset が空です。patterns/codepoints を緩めてください")
 print(t.shape)  # (N, 2)
 ```
 

@@ -37,7 +37,7 @@ def test_glyph_dataset_static_fonts() -> None:
             "ubuntu/Ubuntu-Regular.ttf",
             "ptsans/PT_Sans-Web-Regular.ttf",
         ),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     assert len(dataset.style_classes) > 0
@@ -49,7 +49,7 @@ def test_glyph_dataset_variable_fonts() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf", "notosansjp/NotoSansJP*.ttf"),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     assert len(dataset.style_classes) > 0
@@ -61,7 +61,7 @@ def test_glyph_dataset_all_fonts() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("*.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     assert len(dataset.style_classes) > 0
@@ -73,7 +73,7 @@ def test_glyph_dataset_getitem() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     assert len(dataset) > 0
@@ -120,7 +120,7 @@ def test_glyph_dataset_is_primary_local_api() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     sample = dataset[0]
@@ -145,7 +145,7 @@ def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
         transform=transform,
     )
     sample = dataset[0]
@@ -162,7 +162,7 @@ def test_glyph_dataset_preserves_quadratic_curves() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=[ord("o")],
+        codepoints=[ord("o")],
     )
 
     sample = dataset[0]
@@ -176,7 +176,7 @@ def test_glyph_dataset_negative_indexing() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     assert len(dataset) > 0
@@ -207,7 +207,7 @@ def test_glyph_dataset_index_out_of_bounds() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     assert len(dataset) > 0
@@ -231,7 +231,7 @@ def test_glyph_dataset_cjk_support() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("notosansjp/NotoSansJP*.ttf",),
-        codepoint_filter=[ord(c) for c in "あいうえお"],
+        codepoints=[ord(c) for c in "あいうえお"],
     )
 
     assert len(dataset) > 0
@@ -253,7 +253,7 @@ def test_glyph_dataset_skips_styles_without_samples_after_filtering() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf", "notosansjp/NotoSansJP*.ttf"),
-        codepoint_filter=[ord(c) for c in "あいう"],
+        codepoints=[ord(c) for c in "あいう"],
     )
 
     assert len(dataset) > 0
@@ -264,17 +264,17 @@ def test_glyph_dataset_skips_styles_without_samples_after_filtering() -> None:
     assert all("Lato" not in name for name in dataset.style_classes)
 
 
-def test_glyph_dataset_codepoint_filter() -> None:
+def test_glyph_dataset_codepoints() -> None:
     dataset_upper = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     dataset_lower = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x61, 0x7B),
+        codepoints=range(0x61, 0x7B),
     )
 
     assert len(dataset_upper) > 0
@@ -284,23 +284,37 @@ def test_glyph_dataset_codepoint_filter() -> None:
     assert len(dataset_lower.content_classes) <= 26
 
 
+def test_glyph_dataset_normalizes_codepoints_on_instance() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=[ord("C"), ord("A"), ord("B"), ord("A")],
+    )
+
+    assert dataset.codepoints == (ord("A"), ord("B"), ord("C"))
+    assert dataset.content_classes == ["A", "B", "C"]
+
+    restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
+    assert restored.codepoints == dataset.codepoints
+
+
 def test_glyph_dataset_pattern_filter() -> None:
     dataset_all = GlyphDataset(
         root="tests/fonts",
         patterns=("*.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     dataset_roboto = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf", "notosansjp/NotoSans*.ttf"),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     dataset_lato = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     assert len(dataset_all) > 0
@@ -314,7 +328,7 @@ def test_glyph_dataset_empty_result() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nonexistent*.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
     assert len(dataset) == 0
     assert len(dataset.style_classes) == 0
@@ -326,7 +340,7 @@ def test_content_classes() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),  # A, B, C
+        codepoints=range(0x41, 0x44),  # A, B, C
     )
 
     assert len(dataset.content_classes) == 3
@@ -339,7 +353,7 @@ def test_content_class_to_idx() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     assert dataset.content_class_to_idx["A"] == 0
@@ -356,7 +370,7 @@ def test_style_classes() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/*.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     assert len(dataset.style_classes) > 0
@@ -368,7 +382,7 @@ def test_style_label_metadata_is_index_addressable() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     sample = dataset[0]
@@ -389,7 +403,7 @@ def test_dataset_metadata_consolidates_label_views() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     metadata = dataset.metadata
@@ -413,7 +427,7 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     raw_names = ["Shared", "Unique", "Shared"]
@@ -436,7 +450,7 @@ def test_dataset_metadata_handles_duplicate_names() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     raw_names = ["Shared", "Unique", "Shared"]
@@ -464,7 +478,7 @@ def test_glyph_dataset_dataloader_multiworker(
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     assert len(dataset) > 0
@@ -510,7 +524,7 @@ def test_targets_shape_and_dtype() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     assert dataset.targets.shape == (len(dataset), 2)
@@ -522,7 +536,7 @@ def test_targets_matches_getitem() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),  # A, B, C - small set
+        codepoints=range(0x41, 0x44),  # A, B, C - small set
     )
 
     for i in range(len(dataset)):
@@ -536,7 +550,7 @@ def test_targets_empty_dataset() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nonexistent*.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     assert dataset.targets.shape == (0, 2)
@@ -548,7 +562,7 @@ def test_targets_variable_fonts() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     assert len(dataset.style_classes) > 1
@@ -566,7 +580,7 @@ def test_glyph_dataset_repr() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     expected = (
@@ -583,7 +597,7 @@ def test_glyph_dataset_repr_uses_native_count_getters() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
     style_count = len(dataset.style_classes)
     content_count = len(dataset.content_classes)
@@ -619,7 +633,7 @@ def test_targets_survives_pickle() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     original_targets = dataset.targets.clone()
@@ -632,7 +646,7 @@ def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     payload = pickle.dumps(dataset)
@@ -668,7 +682,7 @@ def test_glyph_dataset_filters_outline_less_glyphs() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nocolortest/NoOutlines-Regular.ttf",),
-        codepoint_filter=range(0x80),
+        codepoints=range(0x80),
     )
 
     # All charmap'd glyphs have no outline data, so the dataset must be empty.

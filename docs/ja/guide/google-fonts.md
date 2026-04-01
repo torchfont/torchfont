@@ -55,11 +55,11 @@ print(f"contents={len(dataset.content_classes)}")
 dataset = GlyphDataset(
     root="data/google/fonts",
     patterns=("ofl/*/*.ttf",),
-    codepoint_filter=range(0x30, 0x3A),  # 0-9
+    codepoints=range(0x30, 0x3A),  # 0-9
 )
 ```
 
-`codepoint_filter` に含まれない文字はインデックス時に除外されます。
+`codepoints` に含まれない文字はインデックス時に除外されます。
 
 ## 更新フロー
 

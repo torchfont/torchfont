@@ -17,7 +17,7 @@ def test_collate_fn_basic() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     assert len(dataset) >= 2
@@ -43,7 +43,7 @@ def test_collate_fn_with_dataloader() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_fn)
@@ -62,7 +62,7 @@ def test_collate_fn_pads_to_longest() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x5B),
+        codepoints=range(0x41, 0x5B),
     )
 
     batch = [dataset[i] for i in range(len(dataset))]
@@ -90,7 +90,7 @@ def test_collate_fn_keeps_label_tensors_on_sample_device() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoints=range(0x41, 0x44),
     )
 
     batch = [dataset[i] for i in range(2)]
@@ -105,7 +105,7 @@ def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x45),
+        codepoints=range(0x41, 0x45),
         transform=Patchify(4),
     )
 

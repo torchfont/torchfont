@@ -21,10 +21,10 @@ impl FontDataset {
     #[new]
     pub fn new(
         root: String,
-        codepoint_filter: Option<Vec<u32>>,
+        codepoints: Option<Vec<u32>>,
         patterns: Option<Vec<String>>,
     ) -> PyResult<Self> {
-        let filter = codepoint_filter.map(|mut values| {
+        let filter = codepoints.map(|mut values| {
             values.sort_unstable();
             values.dedup();
             values

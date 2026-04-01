@@ -33,7 +33,7 @@ from torchfont.datasets import GlyphDataset
 GlyphDataset(
     root: Path | str,
     *,
-    codepoint_filter: Sequence[SupportsIndex] | None = None,
+    codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
     transform: Callable[[GlyphSample], GlyphSample] | None = None,
 )
@@ -42,15 +42,23 @@ GlyphDataset(
 | Parameter          | Type                              | Description                         |
 | ------------------ | --------------------------------- | ----------------------------------- |
 | `root`             | `Path \| str`                     | root directory for font discovery   |
-| `codepoint_filter` | `Sequence[SupportsIndex] \| None` | restrict indexed Unicode codepoints |
+| `codepoints` | `Sequence[SupportsIndex] \| None` | restrict indexed Unicode codepoints |
 | `patterns`         | `Sequence[str] \| None`           | gitignore-style path filtering      |
 | `transform`        | `Callable \| None`                | sample-first preprocessing (`GlyphSample -> GlyphSample`) |
 
 ### Behavior
 
 - supported extensions: `.ttf` / `.otf` / `.ttc` / `.otc`
+- `root` is resolved to an absolute `Path` during initialization
+- `codepoints` are normalized to sorted unique integers before indexing
 - `__getitem__` supports negative indices (`dataset[-1]`)
 - out-of-range index raises `IndexError`
+
+### Stored configuration
+
+- `dataset.root`: resolved root `Path`
+- `dataset.patterns`: tuple of path-filter patterns, or `None`
+- `dataset.codepoints`: tuple of sorted unique codepoints, or `None`
 
 ### Return value
 
@@ -138,7 +146,7 @@ The metadata-related properties above are convenience projections from
 ```python
 dataset = GlyphDataset(
     root="~/fonts",
-    codepoint_filter=range(0x41, 0x5B),  # A-Z
+    codepoints=range(0x41, 0x5B),  # A-Z
     patterns=("**/*.ttf", "!*Bold*"),
 )
 ```

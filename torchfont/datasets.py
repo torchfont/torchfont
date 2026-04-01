@@ -97,6 +97,10 @@ class GlyphDataset(Dataset[GlyphSample]):
             IDs and codepoints.
         content_label_to_idx (dict[str, int]): Mapping from content label IDs
             to content class indices.
+        root (Path): Resolved root directory used for font discovery.
+        patterns (tuple[str, ...] | None): Canonicalized path filter patterns.
+        codepoints (tuple[int, ...] | None): Sorted unique Unicode code points
+            applied during indexing.
 
     """
 
@@ -104,7 +108,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         self,
         root: Path | str,
         *,
-        codepoint_filter: Sequence[SupportsIndex] | None = None,
+        codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
         transform: (Callable[[GlyphSample], GlyphSample] | None) = None,
     ) -> None:
@@ -113,8 +117,10 @@ class GlyphDataset(Dataset[GlyphSample]):
         Args:
             root (Path | str): Directory containing font files. Both OTF and TTF
                 files are discovered recursively.
-            codepoint_filter (Sequence[SupportsIndex] | None): Optional iterable
+            codepoints (Sequence[SupportsIndex] | None): Optional iterable
                 of Unicode code points used to restrict the dataset content.
+                Duplicate values are ignored and the effective filter is stored
+                as sorted unique integers on ``dataset.codepoints``.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
                 describing which font paths to include.
             transform (Callable[[GlyphSample], GlyphSample] | None):
@@ -126,7 +132,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
                 dataset = GlyphDataset(
                     root="~/fonts",
-                    codepoint_filter=[ord(c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"],
+                    codepoints=[ord(c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"],
                 )
 
         """
@@ -137,15 +143,11 @@ class GlyphDataset(Dataset[GlyphSample]):
             if patterns is not None
             else None
         )
-        self.codepoint_filter = (
-            [int(cp) for cp in codepoint_filter]
-            if codepoint_filter is not None
-            else None
-        )
+        self.codepoints = self._normalize_codepoints(codepoints)
 
         self._dataset = _torchfont.FontDataset(
             str(self.root),
-            self.codepoint_filter,
+            self.codepoints,
             self.patterns,
         )
         self._metadata: DatasetMetadata | None = None
@@ -160,7 +162,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         Examples:
             >>> ds = GlyphDataset(
             ...     root="tests/fonts",
-            ...     codepoint_filter=range(0x41, 0x5B),
+            ...     codepoints=range(0x41, 0x5B),
             ...     patterns=("**/Lato-Regular.ttf",),
             ... )
             >>> len(ds), len(ds.style_classes), len(ds.content_classes)
@@ -186,11 +188,20 @@ class GlyphDataset(Dataset[GlyphSample]):
         self.__dict__.update(state)
         self._dataset = _torchfont.FontDataset(
             str(self.root),
-            self.codepoint_filter,
+            self.codepoints,
             self.patterns,
         )
         if not hasattr(self, "_metadata"):
             self._metadata = None
+
+    @staticmethod
+    def _normalize_codepoints(
+        codepoints: Sequence[SupportsIndex] | None,
+    ) -> tuple[int, ...] | None:
+        """Convert an optional codepoint filter into a canonical tuple."""
+        if codepoints is None:
+            return None
+        return tuple(sorted({int(cp) for cp in codepoints}))
 
     def __len__(self) -> int:
         """Return the total number of glyph samples discoverable in the dataset.
@@ -259,7 +270,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         Examples:
             >>> dataset = GlyphDataset(
             ...     root="fonts",
-            ...     codepoint_filter=range(0x41, 0x44),
+            ...     codepoints=range(0x41, 0x44),
             ... )
             >>> dataset.targets.shape
             torch.Size([N, 2])
@@ -285,7 +296,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         Examples:
             >>> dataset = GlyphDataset(
             ...     root="fonts",
-            ...     codepoint_filter=range(0x41, 0x44),
+            ...     codepoints=range(0x41, 0x44),
             ... )
             >>> dataset.content_classes
             ['A', 'B', 'C']

@@ -31,7 +31,11 @@ from torchfont.datasets import GlyphDataset
 
 # root must point to an existing directory
 # e.g. root="~/fonts" (or "tests/fonts" if you cloned this repository)
-dataset = GlyphDataset(root="~/fonts")
+dataset = GlyphDataset(
+    root="~/fonts",
+    patterns=("*.ttf",),
+    codepoints=range(0x20, 0x7F),
+)
 
 print(f"samples={len(dataset)}")
 print(f"styles={len(dataset.style_classes)}")
@@ -59,7 +63,11 @@ from torchfont.datasets import GlyphDataset
 from torchfont.utils import collate_fn
 
 
-dataset = GlyphDataset(root="~/fonts")
+dataset = GlyphDataset(
+    root="~/fonts",
+    patterns=("*.ttf",),
+    codepoints=range(0x20, 0x7F),
+)
 loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
 batch = next(iter(loader))
@@ -102,7 +110,7 @@ native cache sees the updated files.
 - Limit long sequences: `LimitSequenceLength(max_len=...)`
 - Convert quadratic segments to cubic: `QuadToCubic()`
 - Use fixed-size inputs: `Patchify(patch_size=...)`
-- Narrow the dataset scope: `codepoint_filter=` and `patterns=`
+- Narrow the dataset scope: `codepoints=` and `patterns=`
 
 ## Read Next
 

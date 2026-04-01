@@ -4,7 +4,7 @@ class FontDataset:
     def __init__(
         self,
         root: str,
-        codepoint_filter: Sequence[int] | None = ...,
+        codepoints: Sequence[int] | None = ...,
         patterns: Sequence[str] | None = ...,
     ) -> None: ...
 
