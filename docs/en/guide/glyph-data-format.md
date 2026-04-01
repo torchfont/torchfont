@@ -1,17 +1,19 @@
 # Glyph Data Format
 
-TorchFont datasets return each glyph sample as:
+TorchFont datasets return each glyph sample as a `GlyphSample`:
 
 ```python
-types, coords, style_idx, content_idx = dataset[i]
+sample = dataset[i]
 ```
 
 | Element       | Type                | Shape          | Meaning              |
 | ------------- | ------------------- | -------------- | -------------------- |
-| `types`       | `torch.LongTensor`  | `(seq_len,)`   | Pen command sequence |
-| `coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinate sequence  |
-| `style_idx`   | `int`               | scalar         | Style class ID       |
-| `content_idx` | `int`               | scalar         | Content class ID     |
+| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Pen command sequence |
+| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinate sequence  |
+| `sample.style_idx`   | `int`               | scalar         | Style class ID       |
+| `sample.content_idx` | `int`               | scalar         | Content class ID     |
+
+`GlyphSample` is a NamedTuple, so field access by name is the intended API.
 
 ## `types`
 
