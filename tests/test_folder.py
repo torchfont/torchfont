@@ -13,7 +13,7 @@ from torchfont.io.outline import CommandType
 
 
 def _read_first_sample_from_pickled_dataset(
-    payload: bytes, queue: mp.Queue[tuple[int, int, int, tuple[int, int]]]
+    payload: bytes, queue: mp.Queue
 ) -> None:
     dataset = pickle.loads(payload)  # noqa: S301
     sample = dataset[0]
