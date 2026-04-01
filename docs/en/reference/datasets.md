@@ -73,6 +73,19 @@ Content class names (single-character Unicode strings).
 
 Mapping from character to content index.
 
+#### `content_labels -> list[ContentLabel]`
+
+Content label metadata entries. Each entry has:
+
+- `idx`: content index
+- `label_id`: collision-safe ID (`content:U+XXXX`)
+- `char`: one-character Unicode string
+- `codepoint`: Unicode codepoint (`int`)
+
+#### `content_label_to_idx -> dict[str, int]`
+
+Mapping from content `label_id` to content index.
+
 #### `style_classes -> list[str]`
 
 Style class names. Static fonts use family/subfamily names. Variable fonts use
@@ -82,8 +95,24 @@ empty, the family name is used.
 
 #### `style_class_to_idx -> dict[str, int]`
 
-Mapping from style name to style index. If style names collide, `UserWarning` is
-emitted and later entries overwrite earlier ones.
+Legacy convenience mapping from style name to style index. If style names
+collide, later entries overwrite earlier ones.
+
+#### `style_labels -> list[StyleLabel]`
+
+Style label metadata entries. Each entry has:
+
+- `idx`: style index
+- `label_id`: collision-safe ID (`style:<idx>`)
+- `name`: display name (may duplicate)
+
+#### `style_label_to_idx -> dict[str, int]`
+
+Mapping from style `label_id` to style index.
+
+#### `style_name_to_idxs -> dict[str, list[int]]`
+
+Mapping from style display name to all matching style indices.
 
 ### Example (`FontFolder`)
 

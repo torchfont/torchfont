@@ -16,11 +16,9 @@ Examples:
 
 """
 
-import warnings
-from collections import Counter
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import SupportsIndex
+from typing import NamedTuple, SupportsIndex
 
 import torch
 from torch import Tensor
@@ -29,6 +27,23 @@ from torch.utils.data import Dataset
 from torchfont import _torchfont
 from torchfont.io.outline import COORD_DIM
 from torchfont.sample import GlyphSample
+
+
+class StyleLabel(NamedTuple):
+    """Metadata for a style label stored on a dataset."""
+
+    idx: int
+    label_id: str
+    name: str
+
+
+class ContentLabel(NamedTuple):
+    """Metadata for a content label stored on a dataset."""
+
+    idx: int
+    label_id: str
+    char: str
+    codepoint: int
 
 
 class FontFolder(Dataset[GlyphSample]):
@@ -51,7 +66,14 @@ class FontFolder(Dataset[GlyphSample]):
             class, sorted by index. Use len(style_classes) to get the total
             number of style classes.
         style_class_to_idx (dict[str, int]): Mapping from style names to style
-            class indices.
+            class indices. This is a legacy convenience mapping and may collapse
+            duplicate style names.
+        style_labels (list[StyleLabel]): Collision-safe style metadata with
+            explicit label IDs.
+        style_name_to_idxs (dict[str, list[int]]): Mapping from style names to
+            all matching style indices.
+        content_labels (list[ContentLabel]): Content metadata with stable label
+            IDs and codepoints.
 
     See Also:
         torchfont.datasets.repo.FontRepo: Extends the same indexing machinery
@@ -256,7 +278,31 @@ class FontFolder(Dataset[GlyphSample]):
             0
 
         """
-        return {char: idx for idx, char in enumerate(self.content_classes)}
+        return {label.char: label.idx for label in self.content_labels}
+
+    @property
+    def content_labels(self) -> list[ContentLabel]:
+        """Content label metadata with explicit IDs and Unicode codepoints.
+
+        Returns:
+            list[ContentLabel]: Metadata entries ordered by ``idx``.
+
+        """
+        codepoints = list(self._dataset.content_classes)
+        return [
+            ContentLabel(
+                idx=idx,
+                label_id=f"content:U+{cp:04X}",
+                char=chr(cp),
+                codepoint=cp,
+            )
+            for idx, cp in enumerate(codepoints)
+        ]
+
+    @property
+    def content_label_to_idx(self) -> dict[str, int]:
+        """Mapping from content label IDs to content class indices."""
+        return {label.label_id: label.idx for label in self.content_labels}
 
     @property
     def style_classes(self) -> list[str]:
@@ -283,26 +329,38 @@ class FontFolder(Dataset[GlyphSample]):
         Returns:
             dict[str, int]: Dictionary mapping style name to index.
 
-        Warns:
-            UserWarning: If duplicate style names exist, earlier entries are
-                overwritten and the mapping will have fewer keys than
-                :attr:`style_classes` has elements.
-
         Examples:
             >>> dataset.style_class_to_idx['Roboto Regular']
             0
 
         """
-        names = self.style_classes
-        mapping = {name: idx for idx, name in enumerate(names)}
-        if len(mapping) != len(names):
-            duplicates = {n for n, c in Counter(names).items() if c > 1}
-            warnings.warn(
-                "Duplicate style class names found: "
-                + ", ".join(sorted(duplicates))
-                + ". style_class_to_idx will map each name to the last "
-                "occurrence only.",
-                UserWarning,
-                stacklevel=2,
-            )
-        return mapping
+        return {name: idxs[-1] for name, idxs in self.style_name_to_idxs.items()}
+
+    @property
+    def style_labels(self) -> list[StyleLabel]:
+        """Style label metadata with explicit IDs.
+
+        Style names are not guaranteed to be unique, so each entry also includes
+        a collision-safe ``label_id``.
+
+        Returns:
+            list[StyleLabel]: Metadata entries ordered by ``idx``.
+
+        """
+        return [
+            StyleLabel(idx=idx, label_id=f"style:{idx}", name=name)
+            for idx, name in enumerate(self.style_classes)
+        ]
+
+    @property
+    def style_label_to_idx(self) -> dict[str, int]:
+        """Mapping from style label IDs to style class indices."""
+        return {label.label_id: label.idx for label in self.style_labels}
+
+    @property
+    def style_name_to_idxs(self) -> dict[str, list[int]]:
+        """Mapping from style names to all matching style indices."""
+        grouped: dict[str, list[int]] = {}
+        for label in self.style_labels:
+            grouped.setdefault(label.name, []).append(label.idx)
+        return grouped

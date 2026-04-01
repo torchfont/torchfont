@@ -73,13 +73,42 @@ sample = dataset[idx]
 
 文字から content index へのマップ。
 
+#### `content_labels -> list[ContentLabel]`
+
+content ラベル metadata の配列。各要素は次を持ちます。
+
+- `idx`: content index
+- `label_id`: 衝突しない識別子（`content:U+XXXX`）
+- `char`: 1 文字の Unicode 文字列
+- `codepoint`: Unicode codepoint（`int`）
+
+#### `content_label_to_idx -> dict[str, int]`
+
+content `label_id` から content index へのマップ。
+
 #### `style_classes -> list[str]`
 
 スタイル名の配列。静的フォントは family/subfamily 名を使います。可変フォントは named instance があればそれを使い、ない場合は family/subfamily（または family のみ）へフォールバックします。named instance があっても名前が空の場合は family 名のみを使います。
 
 #### `style_class_to_idx -> dict[str, int]`
 
-スタイル名から style index へのマップ。重複名がある場合は `UserWarning` が出て、後から処理されたエントリで上書きされます。
+スタイル名から style index へのレガシー簡易マップ。重複名がある場合は、後から処理されたエントリで上書きされます。
+
+#### `style_labels -> list[StyleLabel]`
+
+style ラベル metadata の配列。各要素は次を持ちます。
+
+- `idx`: style index
+- `label_id`: 衝突しない識別子（`style:<idx>`）
+- `name`: 表示名（重複可）
+
+#### `style_label_to_idx -> dict[str, int]`
+
+style `label_id` から style index へのマップ。
+
+#### `style_name_to_idxs -> dict[str, list[int]]`
+
+style の表示名から、該当する全 style index へのマップ。
 
 ### 例（`FontFolder`）
 
