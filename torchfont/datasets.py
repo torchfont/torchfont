@@ -17,6 +17,7 @@ Examples:
 """
 
 from collections.abc import Callable, Sequence
+from operator import index
 from pathlib import Path
 from typing import NamedTuple, SupportsIndex
 
@@ -201,7 +202,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         """Convert an optional codepoint filter into a canonical tuple."""
         if codepoints is None:
             return None
-        return tuple(sorted({int(cp) for cp in codepoints}))
+        return tuple(sorted({index(cp) for cp in codepoints}))
 
     def __len__(self) -> int:
         """Return the total number of glyph samples discoverable in the dataset.
