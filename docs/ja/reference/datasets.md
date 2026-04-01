@@ -26,7 +26,7 @@ FontFolder(
     *,
     codepoint_filter: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
+    transform: Callable[[GlyphSample], GlyphSample] | None = None,
 )
 ```
 
@@ -35,7 +35,7 @@ FontFolder(
 | `root`             | `Path \| str`                     | フォント探索の起点ディレクトリ     |
 | `codepoint_filter` | `Sequence[SupportsIndex] \| None` | 対象 Unicode codepoint を制限      |
 | `patterns`         | `Sequence[str] \| None`           | gitignore 互換パターンでパスを絞る |
-| `transform`        | `Callable \| None`                | `(types, coords)` へ適用する前処理 |
+| `transform`        | `Callable \| None`                | sample-first 前処理（`GlyphSample -> GlyphSample`） |
 
 ### 振る舞い
 
@@ -46,15 +46,15 @@ FontFolder(
 ### 戻り値
 
 ```python
-types, coords, style_idx, content_idx = dataset[idx]
+sample = dataset[idx]
 ```
 
-| 要素          | 型                  | 形状           |
-| ------------- | ------------------- | -------------- |
-| `types`       | `torch.LongTensor`  | `(seq_len,)`   |
-| `coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
-| `style_idx`   | `int`               | スカラー       |
-| `content_idx` | `int`               | スカラー       |
+| 要素                 | 型                  | 形状           |
+| -------------------- | ------------------- | -------------- |
+| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
+| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
+| `sample.style_idx`   | `int`               | スカラー       |
+| `sample.content_idx` | `int`               | スカラー       |
 
 ### プロパティ
 
@@ -107,7 +107,7 @@ FontRepo(
     *,
     patterns: Sequence[str],
     codepoint_filter: Sequence[SupportsIndex] | None = None,
-    transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
+    transform: Callable[[GlyphSample], GlyphSample] | None = None,
     download: bool = False,
     depth: int = 1,
 )
@@ -170,7 +170,7 @@ GoogleFonts(
     *,
     patterns: Sequence[str] | None = None,
     codepoint_filter: Sequence[int] | None = None,
-    transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
+    transform: Callable[[GlyphSample], GlyphSample] | None = None,
     download: bool = False,
     depth: int = 1,
 )

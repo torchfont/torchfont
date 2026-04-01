@@ -26,7 +26,7 @@ FontFolder(
     *,
     codepoint_filter: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
+    transform: Callable[[GlyphSample], GlyphSample] | None = None,
 )
 ```
 
@@ -35,7 +35,7 @@ FontFolder(
 | `root`             | `Path \| str`                     | root directory for font discovery   |
 | `codepoint_filter` | `Sequence[SupportsIndex] \| None` | restrict indexed Unicode codepoints |
 | `patterns`         | `Sequence[str] \| None`           | gitignore-style path filtering      |
-| `transform`        | `Callable \| None`                | preprocessing for `(types, coords)` |
+| `transform`        | `Callable \| None`                | sample-first preprocessing (`GlyphSample -> GlyphSample`) |
 
 ### Behavior
 
@@ -46,15 +46,15 @@ FontFolder(
 ### Return value
 
 ```python
-types, coords, style_idx, content_idx = dataset[idx]
+sample = dataset[idx]
 ```
 
-| Element       | Type                | Shape          |
+| Field         | Type                | Shape          |
 | ------------- | ------------------- | -------------- |
-| `types`       | `torch.LongTensor`  | `(seq_len,)`   |
-| `coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
-| `style_idx`   | `int`               | scalar         |
-| `content_idx` | `int`               | scalar         |
+| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
+| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
+| `sample.style_idx`   | `int`               | scalar         |
+| `sample.content_idx` | `int`               | scalar         |
 
 ### Properties
 
@@ -111,7 +111,7 @@ FontRepo(
     *,
     patterns: Sequence[str],
     codepoint_filter: Sequence[SupportsIndex] | None = None,
-    transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
+    transform: Callable[[GlyphSample], GlyphSample] | None = None,
     download: bool = False,
     depth: int = 1,
 )
@@ -176,7 +176,7 @@ GoogleFonts(
     *,
     patterns: Sequence[str] | None = None,
     codepoint_filter: Sequence[int] | None = None,
-    transform: Callable[[Tensor, Tensor], tuple[Tensor, Tensor]] | None = None,
+    transform: Callable[[GlyphSample], GlyphSample] | None = None,
     download: bool = False,
     depth: int = 1,
 )

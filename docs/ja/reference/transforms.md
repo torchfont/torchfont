@@ -1,6 +1,8 @@
 # トランスフォーム API
 
-`torchfont.transforms` は `(types, coords) -> (types, coords)` の形で前処理を組み立てるためのモジュールです。
+`torchfont.transforms` は `GlyphSample -> GlyphSample` の形で前処理を組み立てるためのモジュールです。
+
+移行メモ: 旧来の `(types, coords) -> (types, coords)` 契約は廃止されました。
 
 ## Compose
 
@@ -10,7 +12,7 @@ from torchfont.transforms import Compose
 
 ```python
 Compose(
-    transforms: Sequence[Callable[[Tensor, Tensor], tuple[Tensor, Tensor]]],
+    transforms: Sequence[Callable[[GlyphSample], GlyphSample]],
 )
 ```
 
@@ -40,7 +42,7 @@ from torchfont.transforms import LimitSequenceLength
 LimitSequenceLength(max_len: int)
 ```
 
-`types[:max_len]` と `coords[:max_len]` を返します。
+`types` と `coords` を `max_len` に切り詰めた `GlyphSample` を返します。
 
 - パディングは行いません
 - `max_len` を超えた後半は切り捨て
@@ -104,5 +106,5 @@ Patchify(patch_size: int)
 
 ```python
 patchify = Patchify(patch_size=32)
-patch_types, patch_coords = patchify(types, coords)
+patch_sample = patchify(sample)
 ```
