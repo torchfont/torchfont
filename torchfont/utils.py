@@ -56,10 +56,18 @@ def collate_fn(
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
 
-    style_label_tensor = torch.as_tensor(style_label_list, dtype=torch.long)
-    content_label_tensor = torch.as_tensor(content_label_list, dtype=torch.long)
-    lengths = torch.tensor(
-        [t.shape[0] for t in types_list],
+    style_label_tensor = torch.as_tensor(
+        style_label_list,
+        dtype=torch.long,
+        device=types_tensor.device,
+    )
+    content_label_tensor = torch.as_tensor(
+        content_label_list,
+        dtype=torch.long,
+        device=types_tensor.device,
+    )
+    lengths = torch.as_tensor(
+        [sample.types.shape[0] for sample in batch],
         dtype=torch.long,
         device=types_tensor.device,
     )

@@ -79,6 +79,22 @@ def test_collate_fn_pads_to_longest() -> None:
             assert not torch.any(glyph_batch.mask[b, orig_len:])
 
 
+def test_collate_fn_keeps_label_tensors_on_sample_device() -> None:
+    """collate_fn keeps indices and mask on the same device as sample tensors."""
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    batch = [dataset[i] for i in range(2)]
+    glyph_batch = collate_fn(batch)
+
+    assert glyph_batch.style_idx.device == glyph_batch.types.device
+    assert glyph_batch.content_idx.device == glyph_batch.types.device
+    assert glyph_batch.mask.device == glyph_batch.types.device
+
+
 def test_collate_tuples_preserves_legacy_shape_contract() -> None:
     """collate_tuples keeps the old tuple-style batch output available."""
     dataset = GlyphDataset(
