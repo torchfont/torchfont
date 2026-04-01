@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from torchfont import GlyphSample
-from torchfont.datasets import FontFolder
+from torchfont.datasets import FontFolder, GlyphDataset
 from torchfont.io.outline import CommandType
 
 
@@ -90,6 +90,20 @@ def test_font_folder_getitem() -> None:
     assert isinstance(sample.content_idx, int)
     assert 0 <= sample.style_idx < len(dataset.style_classes)
     assert 0 <= sample.content_idx < len(dataset.content_classes)
+
+
+def test_glyph_dataset_is_primary_local_api() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    sample = dataset[0]
+
+    assert isinstance(dataset, FontFolder)
+    assert isinstance(sample, GlyphSample)
+    assert len(dataset) > 0
 
 
 def test_font_folder_transform_uses_sample_first_contract() -> None:
