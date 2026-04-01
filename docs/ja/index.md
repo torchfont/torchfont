@@ -21,14 +21,14 @@ hero:
 
 features:
   - icon: ⚙️
-    title: データセット構築を統一
-    details: "ローカルフォント（FontFolder）、任意 Git リポジトリ（FontRepo）、Google Fonts（GoogleFonts）を同じ API で扱えます。"
+    title: ローカルファーストな Dataset API
+    details: "`GlyphDataset(root=...)` を使い、ローカルのフォントディレクトリや clone 済み checkout をそのまま入力にできます。"
   - icon: 🚀
     title: Rust バックエンド
     details: "skrifa + PyO3 による実装で、グリフアウトラインを command + coordinate テンソルへ高速に変換します。"
   - icon: 🧱
-    title: 学習向けテンソル形式
-    details: "各サンプルは `(types, coords, style_idx, content_idx)`。`targets` によりスタイル/文字ラベルをまとめて利用できます。"
+    title: Sample / Batch の基本型
+    details: "`GlyphSample` が 1 グリフ、`collate_fn` が padded tensor と mask を持つ `GlyphBatch` を返します。"
   - icon: 🧩
     title: 合成可能な前処理
     details: "`Compose` / `LimitSequenceLength` / `Patchify` を組み合わせ、モデルに合わせた入力形式へ調整できます。"

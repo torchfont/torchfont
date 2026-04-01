@@ -25,91 +25,76 @@ pip install torchfont
 
 ## 2. ローカルフォントを読む
 
-`FontFolder` はローカルディレクトリ配下のフォント（`.ttf` / `.otf` / `.ttc` / `.otc`）を走査して Dataset を作ります。
+`GlyphDataset` はローカルディレクトリ配下のフォント（`.ttf` / `.otf` /
+`.ttc` / `.otc`）を走査して Dataset を作ります。
 
 ```python
-from torchfont.datasets import FontFolder
+from torchfont.datasets import GlyphDataset
 
 # root は存在するディレクトリを指定してください
 # 例: root="~/fonts"（このリポジトリを clone 済みなら "tests/fonts" も可）
-dataset = FontFolder(root="~/fonts")
+dataset = GlyphDataset(root="~/fonts")
 
 print(f"samples={len(dataset)}")
 print(f"styles={len(dataset.style_classes)}")
 print(f"contents={len(dataset.content_classes)}")
 
-types, coords, style_idx, content_idx = dataset[0]
-print(types.shape)   # (seq_len,)
-print(coords.shape)  # (seq_len, 6)
+sample = dataset[0]
+print(sample.types.shape)   # (seq_len,)
+print(sample.coords.shape)  # (seq_len, 6)
 ```
 
 ::: warning
-`FontFolder` は `root` を絶対パス化してから読み込みます。存在しないパスを渡すと初期化時に例外になります。
+`GlyphDataset` は `root` を絶対パス化してから読み込みます。存在しないパスを渡すと初期化時に例外になります。
 :::
 
 ## 3. DataLoader に渡す
 
-グリフは可変長なので、`collate_fn` でパディングするのが基本です。
+グリフは可変長なので、組み込みの `torchfont.utils.collate_fn` を使うのが基本です。
 
 ```python
-from collections.abc import Sequence
-
-import torch
-from torch import Tensor
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import FontFolder
+from torchfont.datasets import GlyphDataset
+from torchfont.utils import collate_fn
 
 
-def collate_fn(
-    batch: Sequence[tuple[Tensor, Tensor, int, int]],
-) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    types_list = [t for t, _, _, _ in batch]
-    coords_list = [c for _, c, _, _ in batch]
-    style_list = [s for _, _, s, _ in batch]
-    content_list = [c for _, _, _, c in batch]
-
-    types = pad_sequence(types_list, batch_first=True, padding_value=0)
-    coords = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
-
-    style_idx = torch.as_tensor(style_list, dtype=torch.long)
-    content_idx = torch.as_tensor(content_list, dtype=torch.long)
-    return types, coords, style_idx, content_idx
-
-
-dataset = FontFolder(root="~/fonts")
+dataset = GlyphDataset(root="~/fonts")
 loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
 batch = next(iter(loader))
-print([x.shape for x in batch[:2]])
+print(batch.types.shape)
+print(batch.coords.shape)
+print(batch.mask.shape)
 ```
 
-## 4. Google Fonts で大規模に試す
+## 4. ローカル checkout を大きなコーパスに向ける
+
+リポジトリの同期は TorchFont の外側で行い、その checkout を
+`GlyphDataset` に渡します。
+
+```bash
+git clone --depth 1 https://github.com/google/fonts data/google/fonts
+```
 
 ```python
-from torchfont.datasets import GoogleFonts
+from torchfont.datasets import GlyphDataset
 
-dataset = GoogleFonts(
+dataset = GlyphDataset(
     root="data/google/fonts",
-    ref="main",
-    download=True,
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
 )
 
-print(dataset.commit_hash)
 print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 ```
 
-- `download=True`: リモートから fetch し、`ref` を force checkout
-- `download=False`: fetch を省略し、ローカルで `ref` を解決して force checkout（ローカルで解決可能な `ref` が必要）
-- `depth=1`: shallow fetch（既定）、`depth=0`: 履歴全体を取得
-- `download=True` の `ref` は具体的なブランチ参照（`main` または `refs/heads/main`）か、明示 `refs/...` のみを想定します。remote-tracking ref（`origin/main`）や revspec（リビジョン指定, 例: `main~1`）は受け付けません。
-
-`root/.git` がない初回に `download=False` を指定すると `FileNotFoundError` になります。新しいキャッシュディレクトリでは最初に一度 `download=True` で同期してください。
-
-::: warning
-`FontRepo` / `GoogleFonts` は `root` を `ref` に合わせるために force checkout を行います。`root` はデータセット用キャッシュとして使い、手作業の変更を混在させないでください。
-:::
+TorchFont は checkout 済みディレクトリを通常のローカルフォルダとして扱います。
+Git などで更新したあとは Dataset インスタンスを作り直してください。
 
 ## よくある最初の改善
 
@@ -122,4 +107,5 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 
 - [グリフデータ形式](/ja/guide/glyph-data-format)
 - [DataLoader との統合](/ja/guide/dataloader)
+- [Git checkout 済みリポジトリを使う](/ja/guide/git-repos)
 - [Google Fonts](/ja/guide/google-fonts)

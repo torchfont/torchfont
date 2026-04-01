@@ -1,80 +1,43 @@
 # Google Fonts
 
-`GoogleFonts` is a preset dataset for shallow-fetching the Google Fonts
-repository and indexing it as TorchFont samples.
+Use a local checkout of the Google Fonts repository, then open it with
+`GlyphDataset`.
 
 ## Minimal example
 
-```python
-from torchfont.datasets import GoogleFonts
+```bash
+git clone --depth 1 https://github.com/google/fonts data/google/fonts
+```
 
-dataset = GoogleFonts(
+```python
+from torchfont.datasets import GlyphDataset
+
+dataset = GlyphDataset(
     root="data/google/fonts",
-    ref="main",
-    download=True,
-    depth=1,
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
 )
 
 print(f"samples={len(dataset)}")
 print(f"styles={len(dataset.style_classes)}")
 print(f"contents={len(dataset.content_classes)}")
-print(f"commit={dataset.commit_hash}")
 ```
 
-## Practical workflow
+## Why use this flow
 
-### 1. First sync (network)
+- repository sync stays in normal Git tooling
+- Google Fonts uses the same `GlyphDataset(root=...)` boundary as any other
+  local corpus
+- reproducibility comes from the checkout commit you record externally
 
-```python
-_ = GoogleFonts(root="data/google/fonts", ref="main", download=True)
-```
+## Recommended `patterns`
 
-### 2. Reuse local cache
-
-```python
-reused = GoogleFonts(root="data/google/fonts", ref="main", download=False)
-print(reused.commit_hash)
-```
-
-## How `download` works
-
-| Mode             | Network fetch | `ref` resolution source |
-| ---------------- | ------------- | ----------------------- |
-| `download=True`  | yes           | remote fetch result     |
-| `download=False` | no            | local Git objects only  |
-
-`download` controls only whether fetch is performed. In both modes, TorchFont
-force-checks out `ref` into `root`.
-
-If `root/.git` does not exist yet, `download=False` raises `FileNotFoundError`.
-For each new cache directory, run once with `download=True`.
-
-`depth` controls fetch history (`1` shallow by default, `0` for full history).
-With `download=True`, `ref` must be a concrete branch ref (`main` or
-`refs/heads/main`) or explicit `refs/...`.
-Remote-tracking refs (`origin/main`) and ref expressions (`main~1`) are rejected.
-
-## Use a dedicated `root` for Google Fonts
-
-`GoogleFonts` is a preset of `FontRepo` with the Google Fonts URL.
-
-If `root/.git` already exists, TorchFont reuses that existing repository and
-requires the existing `origin` URL to match the preset URL. Use a dedicated
-cache directory for Google Fonts (for example `data/google/fonts`) and do not
-share it with other sources.
-If the existing repository has no `origin` remote, initialization fails with
-`ValueError`.
-
-::: warning
-Treat `root` as a cache directory. Local edits under `root` can be overwritten
-by dataset initialization.
-:::
-
-## Narrow the indexed dataset
-
-### Default `patterns`
-
-When `patterns=None`, TorchFont uses:
+These include/exclude rules are a good default when using `GlyphDataset`
+directly:
 
 ```python
 (
@@ -85,81 +48,52 @@ When `patterns=None`, TorchFont uses:
 )
 ```
 
-Pass `patterns` explicitly when you want to index only part of the repository.
+Pass a narrower pattern when you only want part of the corpus.
 
 ### Limit character coverage
 
 ```python
-dataset = GoogleFonts(
+dataset = GlyphDataset(
     root="data/google/fonts",
-    ref="main",
+    patterns=("ofl/*/*.ttf",),
     codepoint_filter=range(0x30, 0x3A),  # 0-9
-    download=True,
-    depth=1,
 )
 ```
 
 `codepoint_filter` removes unwanted characters during indexing.
 
-## Reproducibility tip
+## Update workflow
 
-Branches (for example `main`) move over time. For strict reproducibility, pin
-`ref` to a commit hash or record `dataset.commit_hash` and reuse it.
+Update the checkout with Git, then recreate the dataset:
 
-```python
-dataset = GoogleFonts(root="data/google/fonts", ref="main", download=True)
-print(dataset.commit_hash)
-
-# Later: pin exactly the same snapshot
-repro = GoogleFonts(
-    root="data/google/fonts",
-    ref=dataset.commit_hash,
-    download=False,
-)
+```bash
+git -C data/google/fonts pull --ff-only
+git -C data/google/fonts rev-parse HEAD
 ```
+
+Record the commit hash externally when you need exact reproducibility.
 
 ## Training pipeline example
 
 ```python
-from collections.abc import Sequence
 import sys
 
-import torch
-from torch import Tensor
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GoogleFonts
+from torchfont.datasets import GlyphDataset
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.utils import collate_fn
 
 transform = Compose([
     LimitSequenceLength(max_len=512),
     Patchify(patch_size=32),
 ])
 
-dataset = GoogleFonts(
+dataset = GlyphDataset(
     root="data/google/fonts",
-    ref="main",
+    patterns=("ofl/*/*.ttf",),
     transform=transform,
-    download=True,
 )
-
-
-def collate_fn(
-    batch: Sequence[tuple[Tensor, Tensor, int, int]],
-) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    types_list = [t for t, _, _, _ in batch]
-    coords_list = [c for _, c, _, _ in batch]
-    style_list = [s for _, _, s, _ in batch]
-    content_list = [c for _, _, _, c in batch]
-
-    types = pad_sequence(types_list, batch_first=True, padding_value=0)
-    coords = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
-
-    style_idx = torch.as_tensor(style_list, dtype=torch.long)
-    content_idx = torch.as_tensor(content_list, dtype=torch.long)
-    return types, coords, style_idx, content_idx
-
 
 num_workers = 8
 loader_kwargs = {

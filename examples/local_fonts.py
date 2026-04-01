@@ -1,5 +1,4 @@
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify
@@ -7,29 +6,30 @@ from torchfont.utils import collate_fn
 
 transform = Compose(
     (
-        LimitSequenceLength(max_len=512),
+        LimitSequenceLength(max_len=256),
         Patchify(patch_size=32),
     ),
 )
 
 dataset = GlyphDataset(
-    root="data/google/fonts",
-    patterns=("ofl/*/*.ttf",),
+    root="tests/fonts",
+    patterns=("*.ttf",),
+    codepoint_filter=range(0x20, 0x7F),
     transform=transform,
 )
 
 dataloader = DataLoader(
     dataset,
-    batch_size=64,
+    batch_size=8,
     shuffle=True,
-    num_workers=8,
-    prefetch_factor=2,
     collate_fn=collate_fn,
 )
+
+batch = next(iter(dataloader))
 
 print(f"{len(dataset)=}")
 print(f"{len(dataset.content_classes)=}")
 print(f"{len(dataset.style_classes)=}")
-
-for batch in tqdm(dataloader, desc="Iterating over datasets"):
-    _ = batch
+print(f"{batch.types.shape=}")
+print(f"{batch.coords.shape=}")
+print(f"{batch.mask.shape=}")

@@ -8,49 +8,30 @@ TorchFont の Dataset は `torch.utils.data.Dataset` を継承しているため
 
 ```python
 from torch.utils.data import DataLoader
-from torchfont.datasets import FontFolder
+from torchfont.datasets import GlyphDataset
 
-dataset = FontFolder(root="~/fonts")
+dataset = GlyphDataset(root="~/fonts")
 loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
-types, coords, style_idx, content_idx = next(iter(loader))
-print(types.shape, coords.shape)  # (1, seq_len), (1, seq_len, 6)
-print(style_idx.shape, content_idx.shape)  # (1,), (1,)
+sample = next(iter(loader))
+print(sample.types.shape, sample.coords.shape)  # (1, seq_len), (1, seq_len, 6)
+print(sample.style_idx.shape, sample.content_idx.shape)  # (1,), (1,)
 ```
 
-この例は動作確認用です。`batch_size > 1` では可変長シーケンスを扱うため、通常は専用 `collate_fn` が必要です。
+この例は動作確認用です。`batch_size > 1` では可変長シーケンスを扱うため、通常は padding 対応の `collate_fn` が必要です。
 
 ## 学習向けの `collate_fn`
 
 ```python
-from collections.abc import Sequence
 import sys
 
-import torch
-from torch import Tensor
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GoogleFonts
+from torchfont.datasets import GlyphDataset
+from torchfont.utils import collate_fn
 
 
-def collate_fn(
-    batch: Sequence[tuple[Tensor, Tensor, int, int]],
-) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    types_list = [t for t, _, _, _ in batch]
-    coords_list = [c for _, c, _, _ in batch]
-    style_list = [s for _, _, s, _ in batch]
-    content_list = [c for _, _, _, c in batch]
-
-    types = pad_sequence(types_list, batch_first=True, padding_value=0)
-    coords = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
-
-    style_idx = torch.as_tensor(style_list, dtype=torch.long)
-    content_idx = torch.as_tensor(content_list, dtype=torch.long)
-    return types, coords, style_idx, content_idx
-
-
-dataset = GoogleFonts(root="data/google/fonts", ref="main", download=True)
+dataset = GlyphDataset(root="~/fonts")
 num_workers = 8
 mp_context = "fork" if sys.platform.startswith("linux") else "spawn"
 
@@ -66,6 +47,11 @@ if num_workers > 0:
     loader_kwargs["multiprocessing_context"] = mp_context
 
 loader = DataLoader(dataset, **loader_kwargs)
+batch = next(iter(loader))
+
+print(batch.types.shape)
+print(batch.coords.shape)
+print(batch.mask.shape)
 ```
 
 `num_workers > 0` のときだけ、プリフェッチと multiprocessing の設定を有効にします。`num_workers=0` なら、これらの引数は指定しないでください。
@@ -76,12 +62,14 @@ loader = DataLoader(dataset, **loader_kwargs)
 |macOS|`"spawn"` または `"forkserver"`|
 |Windows|`"spawn"`|
 
-## パディングマスクを作る
+## パディングマスク
 
-`types` の `0` は `pad` なので、簡単にマスクが作れます。
+組み込みの `collate_fn` は `GlyphBatch.mask` を返します。`True` が有効な
+シーケンス位置です。
 
 ```python
-padding_mask = types == 0
+valid_mask = batch.mask
+padding_mask = ~batch.mask
 ```
 
 ## `Patchify` を使う場合
@@ -97,4 +85,6 @@ transform = Compose([
 ])
 ```
 
-この場合、`types.shape` は `(num_patches, 32)` になります。サンプルごとに `num_patches` が異なる可能性は残るため、サンプル単位でバッチ化するなら `collate_fn` 側で `pad_sequence` が必要になることがあります。
+この場合、`types.shape` は `(num_patches, 32)` になります。サンプルごとに
+`num_patches` が異なる可能性は残るため、サンプル単位でバッチ化するなら
+`collate_fn` 側で padding が必要になることがあります。

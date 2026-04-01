@@ -23,20 +23,20 @@ hero:
 
 features:
   - icon: ⚙️
-    title: Unified dataset construction
+    title: Local-first dataset API
     details:
-      "Use one API across local fonts (FontFolder), arbitrary Git repositories
-      (FontRepo), and Google Fonts (GoogleFonts)."
+      "Point `GlyphDataset(root=...)` at any local font directory or
+      already-cloned repository checkout."
   - icon: 🚀
     title: Rust backend
     details:
       "A skrifa + PyO3 backend converts glyph outlines into command + coordinate
       tensors efficiently."
   - icon: 🧱
-    title: Training-ready tensor format
+    title: Sample + batch primitives
     details:
-      "Each sample is `(types, coords, style_idx, content_idx)`, and `targets`
-      provides style/content labels in one matrix."
+      "`GlyphSample` represents one glyph, and `collate_fn` builds
+      `GlyphBatch` with padded tensors plus a validity mask."
   - icon: 🧩
     title: Composable preprocessing
     details:

@@ -18,7 +18,7 @@ types, coords, style_idx, content_idx = dataset[i]
 ## `types` の定義
 
 ```python
-from torchfont.io.outline import CommandType
+from torchfont.io import CommandType
 
 print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 # CommandType.QUAD_TO 3

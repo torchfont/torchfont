@@ -1,46 +1,45 @@
-# Git リポジトリからのフォント取得
+# checkout 済み Git リポジトリを使う
 
-<!-- markdownlint-disable MD013 -->
-
-`FontRepo` を使うと、任意の Git リポジトリをローカルへ同期し、フォントファイルを Dataset として扱えます。
+TorchFont の中心ワークフローでは、Git リポジトリの同期自体は
+TorchFont の外で行います。clone / update した checkout を
+`GlyphDataset` に渡してください。
 
 ## 基本形
 
-```python
-from torchfont.datasets import FontRepo
-
-dataset = FontRepo(
-    root="data/fortawesome/font-awesome",
-    url="https://github.com/FortAwesome/Font-Awesome",
-    ref="7.x",
-    patterns=("otfs/*.otf",),
-    download=True,
-    depth=1,
-)
-
-print(dataset.commit_hash)
-print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
+```bash
+git clone --depth 1 https://github.com/FortAwesome/Font-Awesome \
+  data/fortawesome/font-awesome
 ```
 
-## `FontRepo` を使う判断基準
+```python
+from torchfont.datasets import GlyphDataset
 
-- 既存 OSS のフォント資産を直接使いたい
-- コミットハッシュ固定で再現性を確保したい
-- Google Fonts 以外の配布元を統一フローで扱いたい
+dataset = GlyphDataset(
+    root="data/fortawesome/font-awesome",
+    patterns=("otfs/*.otf",),
+)
+```
 
-## `patterns` の書き方
+## この使い方が向く場面
 
-`patterns` は gitignore 互換のマッチングです。
+- 既存 OSS フォント資産をそのまま使いたい
+- checkout の commit を自分で管理して再現性を持たせたい
+- すべてのコーパスを同じ local-directory API から読みたい
 
-| パターン     | 意味                                                       |
-| ------------ | ---------------------------------------------------------- |
-| `*.ttf`      | ファイル名ベースで `.ttf` を一致（サブディレクトリを含む） |
-| `**/*.ttf`   | 深さを明示した再帰マッチ                                   |
-| `otfs/*.otf` | `otfs/` 直下の `.otf`                                      |
-| `!*Bold*`    | `Bold` を含むパスを除外                                    |
+## パターン構文
+
+`patterns` は gitignore 互換のマッチングを使います。
+
+| パターン     | 意味                                                         |
+| ------------ | ------------------------------------------------------------ |
+| `*.ttf`      | basename ベースで `.ttf` に一致（サブディレクトリ含む）      |
+| `**/*.ttf`   | 任意深さを明示した再帰 `.ttf` マッチ                         |
+| `otfs/*.otf` | `otfs/` 配下の `.otf` に一致                                 |
+| `!*Bold*`    | `Bold` を含むパスを除外                                      |
 
 ::: info
-`patterns` は候補パスを絞るための条件です。最終的には TorchFont 側で `.ttf` / `.otf` / `.ttc` / `.otc` 拡張子だけが読み込み対象になります。
+`patterns` は候補パスを先に絞り込みます。その後、TorchFont は
+`.ttf` / `.otf` / `.ttc` / `.otc` 拡張子のファイルだけを残します。
 :::
 
 ## 実例
@@ -48,77 +47,57 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 ### Font Awesome
 
 ```python
-FontRepo(
+GlyphDataset(
     root="data/fortawesome/font-awesome",
-    url="https://github.com/FortAwesome/Font-Awesome",
-    ref="7.x",
     patterns=("otfs/*.otf",),
-    download=True,
-    depth=1,
 )
 ```
 
 ### Material Design Icons
 
 ```python
-FontRepo(
+GlyphDataset(
     root="data/google/material_design_icons",
-    url="https://github.com/google/material-design-icons",
-    ref="master",
     patterns=("variablefont/*.ttf",),
-    download=True,
-    depth=1,
 )
 ```
 
-### Source Han Sans (TTC を含む)
+### Source Han Sans（TTC 含む）
 
 ```python
-FontRepo(
+GlyphDataset(
     root="data/adobe-fonts/source-han-sans",
-    url="https://github.com/adobe-fonts/source-han-sans",
-    ref="release",
     patterns=("*.ttf.ttc",),
-    download=True,
-    depth=1,
 )
 ```
 
 ::: info
-`*.ttf.ttc` パターンは意図的です。このリポジトリには `Something.ttf.ttc` のような命名の TTC ファイルが含まれます。
+`*.ttf.ttc` は意図通りです。このリポジトリには `Something.ttf.ttc`
+のような名前の TTC ファイルがあります。
 :::
 
-## `download` の使い分け
+## 更新フロー
 
-- `download=True`: リモート fetch を実行し、`ref` を force checkout
-- `download=False`: fetch を省略し、ローカルで `ref` を解決して force checkout（ローカルで解決可能な `ref` が必要）
-- `download=True` では `ref` は具体的なブランチ参照（`main` または `refs/heads/main`）か明示 `refs/...` のみを想定します。remote-tracking ref（`origin/main`）と revspec（リビジョン指定, 例: `main~1`）は受け付けません。
+Git 側で checkout を更新し、そのあと Dataset インスタンスを作り直します。
 
-`root/.git` がない初回に `download=False` を指定すると `FileNotFoundError` になります。新しいキャッシュディレクトリでは、最初に 1 回 `download=True` で同期してください。
+```bash
+git -C data/fortawesome/font-awesome fetch --depth 1 origin
+git -C data/fortawesome/font-awesome checkout 7.x
+```
 
-## `depth`（fetch 深さ）
+TorchFont は Dataset オブジェクトの寿命中、ネイティブバックエンド内に
+glyph 情報をキャッシュします。ディスク上のファイルが変わったら、
+Dataset も作り直してください。
 
-- `depth=1`（既定）: shallow fetch
-- `depth=0`: 履歴全体を取得
+## 再現性のためのメモ
 
-通常のデータセット用途では `depth=1` を推奨します。`download=False` で後から revspec（例: `main~1`）を解決する予定がある場合だけ `depth=0` を使ってください。
+必要なら commit hash を Git 側で保存してください。
 
-## 重要: `root` と `url` は一致している必要がある
+```bash
+git -C data/fortawesome/font-awesome rev-parse HEAD
+```
 
-`root/.git` がすでにある場合はその既存リポジトリを再利用します。このとき既存 `origin` URL と `url` 引数が一致しない場合、初期化は `ValueError` で失敗します。既存リポジトリに `origin` remote 自体がない場合も `ValueError` で失敗します。
+## DataLoader との統合
 
-::: warning
-どちらのモードでも `root` は force checkout されます。`root` はキャッシュ用途に限定し、ローカル編集を混在させないでください。
-:::
-
-::: tip 運用のコツ
-
-- 再現実験では `commit_hash` を保存し、次回は `ref=<保存したハッシュ>` で実行してください。
-- 同じ `root` での初回実行は `download=True` から始めてください。
-- 取得元ごとに `root` を分けて運用してください。
-
-:::
-
-## DataLoader への接続
-
-`FontRepo` は `FontFolder` 継承なので、[DataLoader との統合](/ja/guide/dataloader)と同じ `collate_fn` をそのまま使えます。
+[DataLoader との統合](/ja/guide/dataloader)で紹介している
+`collate_fn` をそのまま使えます。
