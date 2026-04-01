@@ -384,3 +384,12 @@ class FontFolder(Dataset[GlyphSample]):
         for label in self.style_labels:
             grouped.setdefault(label.name, []).append(label.idx)
         return grouped
+
+
+class GlyphDataset(FontFolder):
+    """Primary dataset API for local font directories.
+
+    This class is the public, sample-first dataset surface. It currently
+    reuses :class:`FontFolder` as its implementation.
+
+    """

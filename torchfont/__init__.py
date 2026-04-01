@@ -26,6 +26,7 @@ References:
 
 """
 
+from torchfont.batch import GlyphBatch
 from torchfont.sample import GlyphSample
 
-__all__ = ["GlyphSample"]
+__all__ = ["GlyphBatch", "GlyphSample"]

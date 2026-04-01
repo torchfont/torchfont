@@ -1,13 +1,14 @@
 import torch
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import FontFolder
-from torchfont.utils import collate_fn
+from torchfont import GlyphBatch
+from torchfont.datasets import GlyphDataset
+from torchfont.utils import collate_fn, collate_tuples
 
 
 def test_collate_fn_basic() -> None:
     """collate_fn returns correctly shaped and typed tensors."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -15,22 +16,25 @@ def test_collate_fn_basic() -> None:
 
     assert len(dataset) >= 2
     batch = [dataset[i] for i in range(2)]
-    types_t, coords_t, style_t, content_t = collate_fn(batch)
+    glyph_batch = collate_fn(batch)
 
-    assert types_t.dtype == torch.long
-    assert types_t.ndim == 2
-    assert coords_t.dtype == torch.float32
-    assert coords_t.ndim == 3
-    assert coords_t.shape[2] == 6
-    assert style_t.dtype == torch.long
-    assert style_t.shape == (2,)
-    assert content_t.dtype == torch.long
-    assert content_t.shape == (2,)
+    assert isinstance(glyph_batch, GlyphBatch)
+    assert glyph_batch.types.dtype == torch.long
+    assert glyph_batch.types.ndim == 2
+    assert glyph_batch.coords.dtype == torch.float32
+    assert glyph_batch.coords.ndim == 3
+    assert glyph_batch.coords.shape[2] == 6
+    assert glyph_batch.style_idx.dtype == torch.long
+    assert glyph_batch.style_idx.shape == (2,)
+    assert glyph_batch.content_idx.dtype == torch.long
+    assert glyph_batch.content_idx.shape == (2,)
+    assert glyph_batch.mask.dtype == torch.bool
+    assert glyph_batch.mask.shape == glyph_batch.types.shape
 
 
 def test_collate_fn_with_dataloader() -> None:
     """collate_fn works as the collate_fn argument of DataLoader."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -38,26 +42,29 @@ def test_collate_fn_with_dataloader() -> None:
 
     loader = DataLoader(dataset, batch_size=2, collate_fn=collate_fn)
     batch = next(iter(loader))
-    types_t, coords_t, style_t, content_t = batch
 
-    assert types_t.ndim == 2
-    assert coords_t.ndim == 3
-    assert style_t.ndim == 1
-    assert content_t.ndim == 1
+    assert isinstance(batch, GlyphBatch)
+    assert batch.types.ndim == 2
+    assert batch.coords.ndim == 3
+    assert batch.style_idx.ndim == 1
+    assert batch.content_idx.ndim == 1
+    assert batch.mask.ndim == 2
 
 
 def test_collate_fn_pads_to_longest() -> None:
     """collate_fn zero-pads shorter sequences to match the longest in batch."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
     )
 
     batch = [dataset[i] for i in range(len(dataset))]
-    types_t, coords_t, _, _ = collate_fn(batch)
+    glyph_batch = collate_fn(batch)
+    types_t = glyph_batch.types
+    coords_t = glyph_batch.coords
 
-    lengths = [types.shape[0] for types, _, _, _ in batch]
+    lengths = [sample.types.shape[0] for sample in batch]
     max_len = max(lengths)
     assert types_t.shape[1] == max_len
     assert coords_t.shape[1] == max_len
@@ -69,3 +76,37 @@ def test_collate_fn_pads_to_longest() -> None:
             padded_coords = coords_t[b, orig_len:, :]
             assert torch.all(padded_types == 0)
             assert torch.all(padded_coords == 0.0)
+            assert not torch.any(glyph_batch.mask[b, orig_len:])
+
+
+def test_collate_fn_keeps_label_tensors_on_sample_device() -> None:
+    """collate_fn keeps indices and mask on the same device as sample tensors."""
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    batch = [dataset[i] for i in range(2)]
+    glyph_batch = collate_fn(batch)
+
+    assert glyph_batch.style_idx.device == glyph_batch.types.device
+    assert glyph_batch.content_idx.device == glyph_batch.types.device
+    assert glyph_batch.mask.device == glyph_batch.types.device
+
+
+def test_collate_tuples_preserves_legacy_shape_contract() -> None:
+    """collate_tuples keeps the old tuple-style batch output available."""
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    batch = [dataset[i] for i in range(2)]
+    types_t, coords_t, style_t, content_t = collate_tuples(batch)
+
+    assert types_t.ndim == 2
+    assert coords_t.ndim == 3
+    assert style_t.shape == (2,)
+    assert content_t.shape == (2,)
