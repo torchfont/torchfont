@@ -585,27 +585,33 @@ def test_glyph_dataset_repr_uses_native_count_getters() -> None:
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
     )
+    style_count = len(dataset.style_classes)
+    content_count = len(dataset.content_classes)
 
     expected = (
         f"GlyphDataset("
         f"root={str(dataset.root)!r}, "
         f"samples={len(dataset)}, "
-        f"styles={dataset._dataset.style_class_count}, "
-        f"content_classes={dataset._dataset.content_class_count})"
+        f"styles={style_count}, "
+        f"content_classes={content_count})"
     )
 
-    with patch.object(GlyphDataset, "style_classes", new_callable=PropertyMock) as styles:
-        with patch.object(
+    with (
+        patch.object(
+            GlyphDataset, "style_classes", new_callable=PropertyMock
+        ) as styles,
+        patch.object(
             GlyphDataset,
             "content_classes",
             new_callable=PropertyMock,
-        ) as contents:
-            styles.side_effect = AssertionError("repr should not materialize style_classes")
-            contents.side_effect = AssertionError(
-                "repr should not materialize content_classes"
-            )
+        ) as contents,
+    ):
+        styles.side_effect = AssertionError("repr should not materialize style_classes")
+        contents.side_effect = AssertionError(
+            "repr should not materialize content_classes"
+        )
 
-            assert repr(dataset) == expected
+        assert repr(dataset) == expected
 
 
 def test_targets_survives_pickle() -> None:

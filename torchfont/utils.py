@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Utility helpers for building training pipelines with TorchFont datasets.
 
 Examples:
@@ -14,7 +12,8 @@ Examples:
 
 """
 
-from collections.abc import Sequence
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, NamedTuple
 
 import torch
@@ -22,6 +21,8 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from torchfont.datasets import GlyphSample
 
 

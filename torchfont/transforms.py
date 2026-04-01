@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Composable transforms for polishing tensor glyph sequences before training.
 
 Notes:
@@ -14,7 +12,8 @@ Examples:
 
 """
 
-from collections.abc import Callable, Sequence
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import torch
@@ -22,6 +21,8 @@ import torch
 from torchfont.io import CommandType
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from torchfont.datasets import GlyphSample
 
 
