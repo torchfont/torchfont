@@ -69,6 +69,16 @@ Label matrix for all samples (`shape=(N, 2)`).
 
 Content class names (single-character Unicode strings).
 
+#### `metadata -> DatasetMetadata`
+
+Structured label metadata object.
+
+- `metadata.styles`: tuple of `StyleLabel`
+- `metadata.contents`: tuple of `ContentLabel`
+- `metadata.style_id_to_idx`: mapping from style `label_id` to style index
+- `metadata.style_name_to_idxs`: mapping from style display name to all indices
+- `metadata.content_id_to_idx`: mapping from content `label_id` to content index
+
 #### `content_class_to_idx -> dict[str, int]`
 
 Mapping from character to content index.
@@ -113,6 +123,9 @@ Mapping from style `label_id` to style index.
 #### `style_name_to_idxs -> dict[str, list[int]]`
 
 Mapping from style display name to all matching style indices.
+
+The legacy metadata-related properties above are projections from
+`dataset.metadata`.
 
 ### Example (`FontFolder`)
 
