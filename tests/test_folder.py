@@ -386,9 +386,10 @@ def test_dataset_metadata_consolidates_label_views() -> None:
 
     assert isinstance(metadata, DatasetMetadata)
     assert metadata.styles[sample.style_idx] == dataset.style_labels[sample.style_idx]
-    assert metadata.contents[sample.content_idx] == dataset.content_labels[
-        sample.content_idx
-    ]
+    assert (
+        metadata.contents[sample.content_idx]
+        == dataset.content_labels[sample.content_idx]
+    )
     assert metadata.style_id_to_idx == dataset.style_label_to_idx
     assert metadata.content_id_to_idx == dataset.content_label_to_idx
     assert dict(metadata.style_name_to_idxs) == {

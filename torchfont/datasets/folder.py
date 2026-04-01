@@ -338,8 +338,7 @@ class FontFolder(Dataset[GlyphSample]):
 
         """
         return {
-            name: idxs[-1]
-            for name, idxs in self.metadata.style_name_to_idxs.items()
+            name: idxs[-1] for name, idxs in self.metadata.style_name_to_idxs.items()
         }
 
     @property
@@ -375,8 +374,7 @@ class FontFolder(Dataset[GlyphSample]):
 
         """
         return {
-            name: list(idxs)
-            for name, idxs in self.metadata.style_name_to_idxs.items()
+            name: list(idxs) for name, idxs in self.metadata.style_name_to_idxs.items()
         }
 
 

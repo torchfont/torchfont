@@ -70,8 +70,6 @@ def build_dataset_metadata(
         styles=styles,
         contents=contents,
         style_id_to_idx={label.label_id: label.idx for label in styles},
-        style_name_to_idxs={
-            name: tuple(idxs) for name, idxs in grouped_names.items()
-        },
+        style_name_to_idxs={name: tuple(idxs) for name, idxs in grouped_names.items()},
         content_id_to_idx={label.label_id: label.idx for label in contents},
     )
