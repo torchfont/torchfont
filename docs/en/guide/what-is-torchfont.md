@@ -2,8 +2,8 @@
 
 TorchFont is a **PyTorch library for treating font glyph outlines as
 machine-learning tensors**. Instead of rasterizing glyphs into images first, it
-works directly with path
-commands such as move, line, quadratic, and cubic segments.
+works directly with path commands such as move, line, quadratic, and cubic
+segments.
 
 ::: info
 TorchFont is an unofficial library and is not affiliated with the PyTorch
@@ -12,10 +12,13 @@ project.
 
 ## In One Minute
 
-- **Unified dataset API**:
-  `FontFolder` (local), `FontRepo` (arbitrary Git), and `GoogleFonts`.
-- **Training-ready output**:
-  `dataset[i] -> (types, coords, style_idx, content_idx)`.
+- **Primary dataset API**:
+  `GlyphDataset(root=...)` reads any local font directory or repository
+  checkout already on disk.
+- **Sample-first output**:
+  `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx)`.
+- **Built-in batching**:
+  `torchfont.utils.collate_fn(batch) -> GlyphBatch`.
 - **Fast preprocessing**:
   Rust backend (`skrifa` + PyO3) reduces Python-side overhead.
 - **DataLoader-friendly**:
@@ -25,20 +28,19 @@ project.
 
 Common pain points in font ML workflows:
 
-- data collection pipelines differ per project and are hard to reproduce
+- the boundary between "how fonts are collected" and "how glyphs are read" is
+  often blurry
 - rasterization-heavy preprocessing makes experiments harder to compare
 - static and variable fonts are often handled with separate logic
 
-TorchFont standardizes collection, tensorization, and labeling so you can spend
+TorchFont standardizes tensorization, labeling, and batching so you can spend
 more time on model design.
 
 ## How It Works
 
 - **Dataset layer**
-  - `FontFolder`: scans local directories for fonts
-  - `FontRepo`: synchronizes a Git repository, then indexes fonts like
-    `FontFolder`
-  - `GoogleFonts`: preset configuration of `FontRepo` for Google Fonts
+  - `GlyphDataset`: scans local directories for fonts
+  - a Git repository is just another input directory once it is checked out
 - **Rust backend**
   - maps charmap codepoints to glyphs
   - converts outlines into command sequences + 6D coordinate sequences
@@ -49,20 +51,23 @@ more time on model design.
   - `LimitSequenceLength`: truncate long sequences
   - `Patchify`: reshape into fixed-length patches
   - `Compose`: chain transforms in order
+- **Batching utilities**
+  - `collate_fn`: pads variable-length samples into `GlyphBatch`
+  - `GlyphBatch.mask`: marks valid, non-padding positions
 
 ## Minimal Example
 
 ```python
-from torchfont.datasets import FontFolder
+from torchfont.datasets import GlyphDataset
 
 # root must exist
 # e.g. root="~/fonts" (or "tests/fonts" if you cloned this repository)
-dataset = FontFolder(root="~/fonts")
+dataset = GlyphDataset(root="~/fonts")
 
-types, coords, style_idx, content_idx = dataset[0]
-print(types.shape)         # (seq_len,)
-print(coords.shape)        # (seq_len, 6)
-print(style_idx, content_idx)
+sample = dataset[0]
+print(sample.types.shape)         # (seq_len,)
+print(sample.coords.shape)        # (seq_len, 6)
+print(sample.style_idx, sample.content_idx)
 ```
 
 ## When It Is a Good Fit

@@ -32,7 +32,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["pygit2>=1.18.2", "rich>=14.2.0", "torch>=2.3.0"]
+dependencies = ["torch>=2.3.0"]
 
 [project.urls]
 Repository = "https://github.com/torchfont/torchfont"

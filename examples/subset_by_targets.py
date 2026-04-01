@@ -1,14 +1,14 @@
 import torch
 from torch.utils.data import Subset
 
-from torchfont.datasets import GoogleFonts
+from torchfont.datasets import GlyphDataset
 
 
 def main() -> None:
-    dataset = GoogleFonts(
-        root="data/google/fonts",
-        ref="main",
-        download=True,
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("*.ttf",),
+        codepoint_filter=range(0x80),
     )
 
     print(f"{len(dataset)=}")

@@ -1,7 +1,7 @@
 import torch
 
-from torchfont import GlyphSample
-from torchfont.io.outline import CommandType
+from torchfont.datasets import GlyphSample
+from torchfont.io import CommandType
 from torchfont.transforms import Compose, LimitSequenceLength, QuadToCubic
 
 

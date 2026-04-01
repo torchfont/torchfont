@@ -20,6 +20,10 @@
 TorchFont is an **unofficial** library based on PyTorch for deep learning with vector fonts.
 It is not affiliated with or endorsed by the PyTorch project.
 
+TorchFont is local-first: point `GlyphDataset` at a font directory or a
+repository checkout that already exists on disk, and TorchFont turns glyph
+outlines into `GlyphSample` / `GlyphBatch` objects for PyTorch pipelines.
+
 ## Installation
 
 The package requires Python 3.10+ and PyTorch 2.3+.
@@ -35,6 +39,38 @@ Or with **pip**:
 ```bash
 pip install torchfont
 ```
+
+## Quickstart
+
+```python
+from torch.utils.data import DataLoader
+
+from torchfont.datasets import GlyphDataset
+from torchfont.utils import collate_fn
+
+dataset = GlyphDataset(
+    root="~/fonts",  # or "tests/fonts" in this repository
+    patterns=("*.ttf",),
+)
+
+loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
+batch = next(iter(loader))
+
+print(batch.types.shape)
+print(batch.coords.shape)
+print(batch.mask.shape)
+```
+
+## What TorchFont Focuses On
+
+- local font directories and repository checkouts as the input boundary
+- Rust-backed outline decoding into `(types, coords, style_idx, content_idx)`
+- sample-first transforms such as `QuadToCubic`, `LimitSequenceLength`, and `Patchify`
+- DataLoader integration through `GlyphBatch` and `collate_fn`
+
+TorchFont does not need to own Git clone / fetch / checkout in the main
+workflow. Sync repositories with Git or another tool, then point
+`GlyphDataset(root=...)` at the resulting directory.
 
 ## Citation
 

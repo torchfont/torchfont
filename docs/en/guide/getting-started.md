@@ -23,100 +23,79 @@ pip install torchfont
 
 ## 2. Load local fonts
 
-`FontFolder` scans local directories for `.ttf`, `.otf`, `.ttc`, and `.otc`
+`GlyphDataset` scans local directories for `.ttf`, `.otf`, `.ttc`, and `.otc`
 files.
 
 ```python
-from torchfont.datasets import FontFolder
+from torchfont.datasets import GlyphDataset
 
 # root must point to an existing directory
 # e.g. root="~/fonts" (or "tests/fonts" if you cloned this repository)
-dataset = FontFolder(root="~/fonts")
+dataset = GlyphDataset(root="~/fonts")
 
 print(f"samples={len(dataset)}")
 print(f"styles={len(dataset.style_classes)}")
 print(f"contents={len(dataset.content_classes)}")
 
-types, coords, style_idx, content_idx = dataset[0]
-print(types.shape)   # (seq_len,)
-print(coords.shape)  # (seq_len, 6)
+sample = dataset[0]
+print(sample.types.shape)   # (seq_len,)
+print(sample.coords.shape)  # (seq_len, 6)
 ```
 
 ::: warning
-`FontFolder` resolves `root` to an absolute path during initialization. If the
+`GlyphDataset` resolves `root` to an absolute path during initialization. If the
 path does not exist, initialization fails.
 :::
 
 ## 3. Plug into DataLoader
 
-Glyph sequences are variable-length, so a custom `collate_fn` with padding is
-the standard pattern.
+Glyph sequences are variable-length, so the built-in
+`torchfont.utils.collate_fn` is the standard starting point.
 
 ```python
-from collections.abc import Sequence
-
-import torch
-from torch import Tensor
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import FontFolder
+from torchfont.datasets import GlyphDataset
+from torchfont.utils import collate_fn
 
 
-def collate_fn(
-    batch: Sequence[tuple[Tensor, Tensor, int, int]],
-) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    types_list = [t for t, _, _, _ in batch]
-    coords_list = [c for _, c, _, _ in batch]
-    style_list = [s for _, _, s, _ in batch]
-    content_list = [c for _, _, _, c in batch]
-
-    types = pad_sequence(types_list, batch_first=True, padding_value=0)
-    coords = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
-
-    style_idx = torch.as_tensor(style_list, dtype=torch.long)
-    content_idx = torch.as_tensor(content_list, dtype=torch.long)
-    return types, coords, style_idx, content_idx
-
-
-dataset = FontFolder(root="~/fonts")
+dataset = GlyphDataset(root="~/fonts")
 loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
 batch = next(iter(loader))
-print([x.shape for x in batch[:2]])
+print(batch.types.shape)
+print(batch.coords.shape)
+print(batch.mask.shape)
 ```
 
-## 4. Try Google Fonts at scale
+## 4. Scale up with a local checkout
+
+Sync the repository outside TorchFont, then point `GlyphDataset` at the
+checked-out directory.
+
+```bash
+git clone --depth 1 https://github.com/google/fonts data/google/fonts
+```
 
 ```python
-from torchfont.datasets import GoogleFonts
+from torchfont.datasets import GlyphDataset
 
-dataset = GoogleFonts(
+dataset = GlyphDataset(
     root="data/google/fonts",
-    ref="main",
-    download=True,
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
 )
 
-print(dataset.commit_hash)
 print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 ```
 
-- `download=True`: fetch from remote, then force-checkout `ref`
-- `download=False`: skip fetch, resolve `ref` locally, then force-checkout it
-  (requires a locally resolvable `ref`)
-- `depth=1`: shallow fetch (default), `depth=0`: full history
-- With `download=True`, `ref` must be a concrete branch ref
-  (`main` or `refs/heads/main`) or explicit `refs/...` path.
-  Remote-tracking refs (`origin/main`) and ref expressions (`main~1`) are rejected.
-
-If `root/.git` does not exist yet, `download=False` raises `FileNotFoundError`.
-Run once with `download=True` for each new cache directory.
-
-::: warning
-`FontRepo`/`GoogleFonts` use a force checkout strategy to align `root` with
-`ref`. Keep this directory as a dataset cache; local edits under `root` may be
-overwritten.
-:::
+TorchFont treats any checkout as a normal local directory. Use Git or another
+sync tool to refresh the checkout, then recreate the dataset instance so the
+native cache sees the updated files.
 
 ## Common Next Tweaks
 
@@ -129,4 +108,5 @@ overwritten.
 
 - [Glyph Data Format](/en/guide/glyph-data-format)
 - [DataLoader Integration](/en/guide/dataloader)
+- [Git Repository Checkouts](/en/guide/git-repos)
 - [Google Fonts](/en/guide/google-fonts)

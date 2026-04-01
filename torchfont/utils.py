@@ -12,14 +12,42 @@ Examples:
 
 """
 
-from collections.abc import Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, NamedTuple
 
 import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 
-from torchfont.batch import GlyphBatch
-from torchfont.sample import GlyphSample
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from torchfont.datasets import GlyphSample
+
+
+class GlyphBatch(NamedTuple):
+    """One collated glyph batch.
+
+    Attributes:
+        types (Tensor): Long tensor of shape ``(B, L, ...)`` holding padded
+            command values. Only the leading sequence dimension ``L`` is padded;
+            any trailing dimensions are preserved.
+        coords (Tensor): Float tensor of shape ``(B, L, ...)`` holding padded
+            coordinate values. Only the leading sequence dimension ``L`` is
+            padded; trailing dimensions such as ``patch_size`` are preserved.
+        style_idx (Tensor): 1-D long tensor of style indices.
+        content_idx (Tensor): 1-D long tensor of content indices.
+        mask (Tensor): Boolean tensor marking valid, non-padding sequence
+            positions. Shape is ``(B, L)``.
+
+    """
+
+    types: Tensor
+    coords: Tensor
+    style_idx: Tensor
+    content_idx: Tensor
+    mask: Tensor
 
 
 def collate_fn(
@@ -27,17 +55,18 @@ def collate_fn(
 ) -> GlyphBatch:
     """Collate a list of glyph samples into a padded glyph batch.
 
-    Pads variable-length ``types`` and ``coords`` sequences to the length of
-    the longest sample in the batch. Suitable for use as the ``collate_fn``
-    argument of :class:`~torch.utils.data.DataLoader`.
+    Pads the leading variable-length sequence dimension of ``types`` and
+    ``coords`` to the longest sample in the batch. Suitable for use as the
+    ``collate_fn`` argument of :class:`~torch.utils.data.DataLoader`.
 
     Args:
-        batch: Sequence of :class:`~torchfont.sample.GlyphSample` values as
+        batch: Sequence of :class:`~torchfont.datasets.GlyphSample` values as
             returned by a TorchFont dataset.
 
     Returns:
         GlyphBatch: Structured batch containing padded tensors plus a validity
-            mask for non-padding positions.
+            mask for non-padding positions. Any trailing dimensions produced by
+            transforms such as ``Patchify`` are preserved.
 
     Examples:
         Plug directly into a DataLoader::
@@ -83,14 +112,4 @@ def collate_fn(
     )
 
 
-def collate_tuples(
-    batch: Sequence[GlyphSample],
-) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-    """Legacy tuple-return wrapper around :func:`collate_fn`."""
-    glyph_batch = collate_fn(batch)
-    return (
-        glyph_batch.types,
-        glyph_batch.coords,
-        glyph_batch.style_idx,
-        glyph_batch.content_idx,
-    )
+__all__ = ["GlyphBatch", "collate_fn"]

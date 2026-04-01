@@ -2,23 +2,25 @@
 
 <!-- markdownlint-disable MD013 -->
 
-TorchFont の Dataset は、各グリフを次の 4 要素で返します。
+TorchFont の Dataset は、各グリフを `GlyphSample` として返します。
 
 ```python
-types, coords, style_idx, content_idx = dataset[i]
+sample = dataset[i]
 ```
 
 | 要素 | 型 | 形状 | 意味 |
 | --- | --- | --- | --- |
-| `types` | `torch.LongTensor` | `(seq_len,)` | ペンコマンド列 |
-| `coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各コマンドの座標 |
-| `style_idx` | `int` | スカラー | 書体スタイルのクラスID |
-| `content_idx` | `int` | スカラー | 文字内容のクラスID |
+| `sample.types` | `torch.LongTensor` | `(seq_len,)` | ペンコマンド列 |
+| `sample.coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各コマンドの座標 |
+| `sample.style_idx` | `int` | スカラー | 書体スタイルのクラスID |
+| `sample.content_idx` | `int` | スカラー | 文字内容のクラスID |
+
+`GlyphSample` は NamedTuple なので、名前付きフィールドでアクセスする使い方が前提です。
 
 ## `types` の定義
 
 ```python
-from torchfont.io.outline import CommandType
+from torchfont.io import CommandType
 
 print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 # CommandType.QUAD_TO 3

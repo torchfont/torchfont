@@ -8,9 +8,10 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from torchfont import GlyphSample
-from torchfont.datasets import DatasetMetadata, FontFolder, GlyphDataset
-from torchfont.io.outline import CommandType
+import torchfont
+import torchfont.datasets as datasets_module
+from torchfont.datasets import DatasetMetadata, GlyphDataset, GlyphSample
+from torchfont.io import CommandType
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -28,8 +29,8 @@ def _read_first_sample_from_pickled_dataset(
     )
 
 
-def test_font_folder_static_fonts() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_static_fonts() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=(
             "lato/Lato-Regular.ttf",
@@ -44,8 +45,8 @@ def test_font_folder_static_fonts() -> None:
     assert len(dataset) > 0
 
 
-def test_font_folder_variable_fonts() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_variable_fonts() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf", "notosansjp/NotoSansJP*.ttf"),
         codepoint_filter=range(0x80),
@@ -56,8 +57,8 @@ def test_font_folder_variable_fonts() -> None:
     assert len(dataset) > 0
 
 
-def test_font_folder_all_fonts() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_all_fonts() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("*.ttf",),
         codepoint_filter=range(0x80),
@@ -68,8 +69,8 @@ def test_font_folder_all_fonts() -> None:
     assert len(dataset) > 0
 
 
-def test_font_folder_getitem() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_getitem() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
@@ -92,6 +93,29 @@ def test_font_folder_getitem() -> None:
     assert 0 <= sample.content_idx < len(dataset.content_classes)
 
 
+def test_datasets_public_api_is_glyphdataset_centered() -> None:
+    assert datasets_module.__all__ == [
+        "ContentLabel",
+        "DatasetMetadata",
+        "GlyphDataset",
+        "GlyphSample",
+        "StyleLabel",
+    ]
+    assert datasets_module.DatasetMetadata is DatasetMetadata
+    assert datasets_module.GlyphDataset is GlyphDataset
+    assert datasets_module.GlyphSample is GlyphSample
+    assert not hasattr(datasets_module, "FontFolder")
+    assert not hasattr(datasets_module, "FontRepo")
+    assert not hasattr(datasets_module, "GoogleFonts")
+
+
+def test_package_root_stays_thin() -> None:
+    assert torchfont.__all__ == []
+    assert not hasattr(torchfont, "GlyphDataset")
+    assert not hasattr(torchfont, "GlyphSample")
+    assert not hasattr(torchfont, "GlyphBatch")
+
+
 def test_glyph_dataset_is_primary_local_api() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
@@ -101,12 +125,12 @@ def test_glyph_dataset_is_primary_local_api() -> None:
 
     sample = dataset[0]
 
-    assert isinstance(dataset, FontFolder)
+    assert isinstance(dataset, GlyphDataset)
     assert isinstance(sample, GlyphSample)
     assert len(dataset) > 0
 
 
-def test_font_folder_transform_uses_sample_first_contract() -> None:
+def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
     calls: list[GlyphSample] = []
 
     def transform(sample: GlyphSample) -> GlyphSample:
@@ -118,7 +142,7 @@ def test_font_folder_transform_uses_sample_first_contract() -> None:
             content_idx=sample.content_idx,
         )
 
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
@@ -134,8 +158,8 @@ def test_font_folder_transform_uses_sample_first_contract() -> None:
     assert sample.coords.shape[0] == 2
 
 
-def test_font_folder_preserves_quadratic_curves() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_preserves_quadratic_curves() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=[ord("o")],
@@ -147,9 +171,9 @@ def test_font_folder_preserves_quadratic_curves() -> None:
     assert not (sample.types == CommandType.CURVE_TO.value).any().item()
 
 
-def test_font_folder_negative_indexing() -> None:
+def test_glyph_dataset_negative_indexing() -> None:
     """Test that negative indexing works correctly."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
@@ -178,9 +202,9 @@ def test_font_folder_negative_indexing() -> None:
         assert sample_sl.content_idx == sample_exp2.content_idx
 
 
-def test_font_folder_index_out_of_bounds() -> None:
+def test_glyph_dataset_index_out_of_bounds() -> None:
     """Test that out of bounds indices raise IndexError."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
@@ -203,8 +227,8 @@ def test_font_folder_index_out_of_bounds() -> None:
         dataset[-len(dataset) - 100]
 
 
-def test_font_folder_cjk_support() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_cjk_support() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("notosansjp/NotoSansJP*.ttf",),
         codepoint_filter=[ord(c) for c in "あいうえお"],
@@ -225,8 +249,8 @@ def test_font_folder_cjk_support() -> None:
     assert 0 <= sample.content_idx < len(dataset.content_classes)
 
 
-def test_font_folder_skips_styles_without_samples_after_filtering() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_skips_styles_without_samples_after_filtering() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf", "notosansjp/NotoSansJP*.ttf"),
         codepoint_filter=[ord(c) for c in "あいう"],
@@ -240,14 +264,14 @@ def test_font_folder_skips_styles_without_samples_after_filtering() -> None:
     assert all("Lato" not in name for name in dataset.style_classes)
 
 
-def test_font_folder_codepoint_filter() -> None:
-    dataset_upper = FontFolder(
+def test_glyph_dataset_codepoint_filter() -> None:
+    dataset_upper = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
     )
 
-    dataset_lower = FontFolder(
+    dataset_lower = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x61, 0x7B),
@@ -260,20 +284,20 @@ def test_font_folder_codepoint_filter() -> None:
     assert len(dataset_lower.content_classes) <= 26
 
 
-def test_font_folder_pattern_filter() -> None:
-    dataset_all = FontFolder(
+def test_glyph_dataset_pattern_filter() -> None:
+    dataset_all = GlyphDataset(
         root="tests/fonts",
         patterns=("*.ttf",),
         codepoint_filter=range(0x80),
     )
 
-    dataset_roboto = FontFolder(
+    dataset_roboto = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf", "notosansjp/NotoSans*.ttf"),
         codepoint_filter=range(0x80),
     )
 
-    dataset_lato = FontFolder(
+    dataset_lato = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x80),
@@ -286,8 +310,8 @@ def test_font_folder_pattern_filter() -> None:
     assert len(dataset_all.style_classes) >= len(dataset_lato.style_classes)
 
 
-def test_font_folder_empty_result() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_empty_result() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nonexistent*.ttf",),
         codepoint_filter=range(0x80),
@@ -298,8 +322,8 @@ def test_font_folder_empty_result() -> None:
 
 
 def test_content_classes() -> None:
-    """Test content_classes returns Unicode character strings"""
-    dataset = FontFolder(
+    """Test content_classes returns Unicode character strings."""
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),  # A, B, C
@@ -311,8 +335,8 @@ def test_content_classes() -> None:
 
 
 def test_content_class_to_idx() -> None:
-    """Test content_class_to_idx maps characters to indices"""
-    dataset = FontFolder(
+    """Test content_class_to_idx maps characters to indices."""
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -328,8 +352,8 @@ def test_content_class_to_idx() -> None:
 
 
 def test_style_classes() -> None:
-    """Test style_classes returns descriptive names"""
-    dataset = FontFolder(
+    """Test style_classes returns descriptive names."""
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/*.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -339,22 +363,9 @@ def test_style_classes() -> None:
     assert all(isinstance(s, str) for s in dataset.style_classes)
 
 
-def test_style_class_to_idx() -> None:
-    """Test style_class_to_idx maps names to indices"""
-    dataset = FontFolder(
-        root="tests/fonts",
-        patterns=("lato/*.ttf",),
-        codepoint_filter=range(0x41, 0x44),
-    )
-
-    # Round-trip test
-    for idx, name in enumerate(dataset.style_classes):
-        assert dataset.style_class_to_idx[name] == idx
-
-
 def test_style_label_metadata_is_index_addressable() -> None:
     """Test metadata APIs are compatible with sample style/content indices."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -375,7 +386,7 @@ def test_style_label_metadata_is_index_addressable() -> None:
 
 def test_dataset_metadata_consolidates_label_views() -> None:
     """DatasetMetadata provides a structured source of label metadata."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -399,7 +410,7 @@ def test_dataset_metadata_consolidates_label_views() -> None:
 
 def test_style_label_metadata_handles_duplicate_names() -> None:
     """Test duplicate style names are preserved in collision-safe metadata."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -407,25 +418,22 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
 
     raw_names = ["Shared", "Unique", "Shared"]
     with patch.object(
-        FontFolder,
+        GlyphDataset,
         "style_classes",
         new_callable=PropertyMock,
         return_value=raw_names,
     ):
         labels = dataset.style_labels
         grouped = dataset.style_name_to_idxs
-        mapping = dataset.style_class_to_idx
 
     assert [label.label_id for label in labels] == ["style:0", "style:1", "style:2"]
     assert grouped["Shared"] == [0, 2]
     assert grouped["Unique"] == [1]
-    assert mapping["Shared"] == 2
-    assert mapping["Unique"] == 1
 
 
 def test_dataset_metadata_handles_duplicate_names() -> None:
     """DatasetMetadata preserves all indices for duplicate style names."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -433,7 +441,7 @@ def test_dataset_metadata_handles_duplicate_names() -> None:
 
     raw_names = ["Shared", "Unique", "Shared"]
     with patch.object(
-        FontFolder,
+        GlyphDataset,
         "style_classes",
         new_callable=PropertyMock,
         return_value=raw_names,
@@ -450,10 +458,10 @@ def test_dataset_metadata_handles_duplicate_names() -> None:
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])
-def test_font_folder_dataloader_multiworker(
+def test_glyph_dataset_dataloader_multiworker(
     start_method: str | None,
 ) -> None:
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
@@ -499,7 +507,7 @@ def test_font_folder_dataloader_multiworker(
 
 def test_targets_shape_and_dtype() -> None:
     """Test that targets has shape (N, 2) and dtype long."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x5B),
@@ -511,10 +519,10 @@ def test_targets_shape_and_dtype() -> None:
 
 def test_targets_matches_getitem() -> None:
     """Test that targets[i] matches the labels from __getitem__."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),  # A, B, C — small set
+        codepoint_filter=range(0x41, 0x44),  # A, B, C - small set
     )
 
     for i in range(len(dataset)):
@@ -525,7 +533,7 @@ def test_targets_matches_getitem() -> None:
 
 def test_targets_empty_dataset() -> None:
     """Test that targets has shape (0, 2) for an empty dataset."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nonexistent*.ttf",),
         codepoint_filter=range(0x80),
@@ -537,7 +545,7 @@ def test_targets_empty_dataset() -> None:
 
 def test_targets_variable_fonts() -> None:
     """Test that targets is correct for variable fonts with multiple instances."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -553,16 +561,16 @@ def test_targets_variable_fonts() -> None:
         assert dataset.targets[i, 1].item() == sample.content_idx
 
 
-def test_font_folder_repr() -> None:
-    """Test that FontFolder has a useful __repr__."""
-    dataset = FontFolder(
+def test_glyph_dataset_repr() -> None:
+    """Test that GlyphDataset has a useful __repr__."""
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
     )
 
     expected = (
-        f"FontFolder("
+        f"GlyphDataset("
         f"root={str(dataset.root)!r}, "
         f"samples={len(dataset)}, "
         f"styles={len(dataset.style_classes)}, "
@@ -571,9 +579,44 @@ def test_font_folder_repr() -> None:
     assert repr(dataset) == expected
 
 
+def test_glyph_dataset_repr_uses_native_count_getters() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+    style_count = len(dataset.style_classes)
+    content_count = len(dataset.content_classes)
+
+    expected = (
+        f"GlyphDataset("
+        f"root={str(dataset.root)!r}, "
+        f"samples={len(dataset)}, "
+        f"styles={style_count}, "
+        f"content_classes={content_count})"
+    )
+
+    with (
+        patch.object(
+            GlyphDataset, "style_classes", new_callable=PropertyMock
+        ) as styles,
+        patch.object(
+            GlyphDataset,
+            "content_classes",
+            new_callable=PropertyMock,
+        ) as contents,
+    ):
+        styles.side_effect = AssertionError("repr should not materialize style_classes")
+        contents.side_effect = AssertionError(
+            "repr should not materialize content_classes"
+        )
+
+        assert repr(dataset) == expected
+
+
 def test_targets_survives_pickle() -> None:
     """Test that targets is correctly restored after pickle round-trip."""
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -585,8 +628,8 @@ def test_targets_survives_pickle() -> None:
     assert torch.equal(restored.targets, original_targets)
 
 
-def test_font_folder_getitem_survives_spawn_pickle_roundtrip() -> None:
-    dataset = FontFolder(
+def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
@@ -610,19 +653,19 @@ def test_font_folder_getitem_survives_spawn_pickle_roundtrip() -> None:
     assert coords_shape[1] == 6
 
 
-def test_font_folder_filters_outline_less_glyphs() -> None:
+def test_glyph_dataset_filters_outline_less_glyphs() -> None:
     """Regression test for #61: outline-less glyphs must be excluded from the index.
 
     A font whose charmap maps codepoints to glyph IDs that have no outline data
     (e.g. color/bitmap-only fonts) previously caused len(dataset) > 0 while every
-    dataset[i] raised ValueError.  After the fix, such glyphs are filtered out at
+    dataset[i] raised ValueError. After the fix, such glyphs are filtered out at
     construction time so that len(dataset) == the number of items that can actually
     be retrieved via __getitem__.
     """
     # nocolortest/NoOutlines-Regular.ttf maps 'A' (U+0041) to a glyph with an
     # empty glyf table entry (zero-length loca slot), so outline_glyphs().get()
     # returns None for that glyph.
-    dataset = FontFolder(
+    dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nocolortest/NoOutlines-Regular.ttf",),
         codepoint_filter=range(0x80),

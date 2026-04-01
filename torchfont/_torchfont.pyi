@@ -9,6 +9,8 @@ class FontDataset:
     ) -> None: ...
 
     sample_count: int
+    style_class_count: int
+    content_class_count: int
 
     content_classes: list[int]
 

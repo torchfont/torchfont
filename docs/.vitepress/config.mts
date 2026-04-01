@@ -63,6 +63,7 @@ export default defineConfig({
               text: 'リファレンス',
               items: [
                 { text: 'データセット', link: '/ja/reference/datasets' },
+                { text: 'ユーティリティ', link: '/ja/reference/utils' },
                 { text: 'トランスフォーム', link: '/ja/reference/transforms' },
                 { text: 'IO ユーティリティ', link: '/ja/reference/io' },
               ],
@@ -108,6 +109,7 @@ export default defineConfig({
               text: 'Reference',
               items: [
                 { text: 'Datasets', link: '/en/reference/datasets' },
+                { text: 'Utilities', link: '/en/reference/utils' },
                 { text: 'Transforms', link: '/en/reference/transforms' },
                 { text: 'IO Utilities', link: '/en/reference/io' },
               ],

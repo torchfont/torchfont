@@ -1,9 +1,15 @@
 import torch
 from torch.utils.data import DataLoader
 
-from torchfont import GlyphBatch
+import torchfont.utils as utils_module
 from torchfont.datasets import GlyphDataset
-from torchfont.utils import collate_fn, collate_tuples
+from torchfont.transforms import Patchify
+from torchfont.utils import GlyphBatch, collate_fn
+
+
+def test_utils_public_api_is_batching_centered() -> None:
+    assert utils_module.__all__ == ["GlyphBatch", "collate_fn"]
+    assert utils_module.GlyphBatch is GlyphBatch
 
 
 def test_collate_fn_basic() -> None:
@@ -95,18 +101,19 @@ def test_collate_fn_keeps_label_tensors_on_sample_device() -> None:
     assert glyph_batch.mask.device == glyph_batch.types.device
 
 
-def test_collate_tuples_preserves_legacy_shape_contract() -> None:
-    """collate_tuples keeps the old tuple-style batch output available."""
+def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
+        codepoint_filter=range(0x41, 0x45),
+        transform=Patchify(4),
     )
 
     batch = [dataset[i] for i in range(2)]
-    types_t, coords_t, style_t, content_t = collate_tuples(batch)
+    glyph_batch = collate_fn(batch)
 
-    assert types_t.ndim == 2
-    assert coords_t.ndim == 3
-    assert style_t.shape == (2,)
-    assert content_t.shape == (2,)
+    assert glyph_batch.types.ndim == 3
+    assert glyph_batch.coords.ndim == 4
+    assert glyph_batch.types.shape[:2] == glyph_batch.mask.shape
+    assert glyph_batch.types.shape[2] == 4
+    assert glyph_batch.coords.shape[2:] == (4, 6)

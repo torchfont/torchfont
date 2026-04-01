@@ -8,9 +8,9 @@ Notes:
 Examples:
     Iterate glyph samples from a directory of fonts::
 
-        from torchfont.datasets import FontFolder
+        from torchfont.datasets import GlyphDataset
 
-        dataset = FontFolder(root="~/fonts")
+        dataset = GlyphDataset(root="~/fonts")
         sample = dataset[0]
         print(sample.types, sample.style_idx)
 
@@ -18,24 +18,55 @@ Examples:
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import SupportsIndex
+from typing import NamedTuple, SupportsIndex
 
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
 from torchfont import _torchfont
-from torchfont.datasets.metadata import (
+from torchfont.io import COORD_DIM
+from torchfont.metadata import (
     ContentLabel,
     DatasetMetadata,
     StyleLabel,
     build_dataset_metadata,
 )
-from torchfont.io.outline import COORD_DIM
-from torchfont.sample import GlyphSample
 
 
-class FontFolder(Dataset[GlyphSample]):
+class GlyphSample(NamedTuple):
+    """One glyph sample returned by a dataset.
+
+    Using a NamedTuple means fields can be accessed by name rather than by
+    position, so downstream code does not depend on tuple ordering.
+    PyTorch's default DataLoader collation handles NamedTuples natively.
+
+    Attributes:
+        types (Tensor): 1-D long tensor of pen command types.
+        coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
+            coordinate data for each command.
+        style_idx (int): Index into the dataset's ``style_classes`` list.
+            When batches are formed by PyTorch's default DataLoader collation,
+            this field becomes a 1-D ``torch.LongTensor``.
+        content_idx (int): Index into the dataset's ``content_classes`` list.
+            When batches are formed by PyTorch's default DataLoader collation,
+            this field becomes a 1-D ``torch.LongTensor``.
+
+    Examples:
+        Access fields by name rather than by position::
+
+            sample = dataset[0]
+            print(sample.types.shape, sample.style_idx)
+
+    """
+
+    types: Tensor
+    coords: Tensor
+    style_idx: int
+    content_idx: int
+
+
+class GlyphDataset(Dataset[GlyphSample]):
     """Dataset that yields glyph samples from a directory of font files.
 
     The dataset flattens every available code point and variation instance into
@@ -54,9 +85,6 @@ class FontFolder(Dataset[GlyphSample]):
         style_classes (list[str]): List of style instance names, one per style
             class, sorted by index. Use len(style_classes) to get the total
             number of style classes.
-        style_class_to_idx (dict[str, int]): Mapping from style names to style
-            class indices. This is a legacy convenience mapping and may collapse
-            duplicate style names.
         metadata (DatasetMetadata): Structured label metadata object that
             consolidates style/content labels and related lookup tables.
         style_labels (list[StyleLabel]): Collision-safe style metadata with
@@ -69,10 +97,6 @@ class FontFolder(Dataset[GlyphSample]):
             IDs and codepoints.
         content_label_to_idx (dict[str, int]): Mapping from content label IDs
             to content class indices.
-
-    See Also:
-        torchfont.datasets.repo.FontRepo: Extends the same indexing machinery
-        with Git synchronization for remote repositories.
 
     """
 
@@ -100,7 +124,7 @@ class FontFolder(Dataset[GlyphSample]):
         Examples:
             Restrict the dataset to uppercase ASCII glyphs::
 
-                dataset = FontFolder(
+                dataset = GlyphDataset(
                     root="~/fonts",
                     codepoint_filter=[ord(c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"],
                 )
@@ -134,7 +158,7 @@ class FontFolder(Dataset[GlyphSample]):
                 number of style classes, and number of content classes.
 
         Examples:
-            >>> ds = FontFolder(
+            >>> ds = GlyphDataset(
             ...     root="tests/fonts",
             ...     codepoint_filter=range(0x41, 0x5B),
             ...     patterns=("**/Lato-Regular.ttf",),
@@ -233,7 +257,10 @@ class FontFolder(Dataset[GlyphSample]):
             the style class index and column 1 holds the content class index.
 
         Examples:
-            >>> dataset = FontFolder(root="fonts", codepoint_filter=range(0x41, 0x44))
+            >>> dataset = GlyphDataset(
+            ...     root="fonts",
+            ...     codepoint_filter=range(0x41, 0x44),
+            ... )
             >>> dataset.targets.shape
             torch.Size([N, 2])
             >>> dataset.targets[0]
@@ -256,7 +283,10 @@ class FontFolder(Dataset[GlyphSample]):
             list[str]: Character strings for each content class.
 
         Examples:
-            >>> dataset = FontFolder(root="fonts", codepoint_filter=range(0x41, 0x44))
+            >>> dataset = GlyphDataset(
+            ...     root="fonts",
+            ...     codepoint_filter=range(0x41, 0x44),
+            ... )
             >>> dataset.content_classes
             ['A', 'B', 'C']
 
@@ -326,22 +356,6 @@ class FontFolder(Dataset[GlyphSample]):
         return list(self._dataset.style_classes)
 
     @property
-    def style_class_to_idx(self) -> dict[str, int]:
-        """Mapping from style instance names to style class indices.
-
-        Returns:
-            dict[str, int]: Dictionary mapping style name to index.
-
-        Examples:
-            >>> dataset.style_class_to_idx['Roboto Regular']
-            0
-
-        """
-        return {
-            name: idxs[-1] for name, idxs in self.metadata.style_name_to_idxs.items()
-        }
-
-    @property
     def style_labels(self) -> list[StyleLabel]:
         """Style label metadata with explicit IDs.
 
@@ -378,10 +392,10 @@ class FontFolder(Dataset[GlyphSample]):
         }
 
 
-class GlyphDataset(FontFolder):
-    """Primary dataset API for local font directories.
-
-    This class is the public, sample-first dataset surface. It currently
-    reuses :class:`FontFolder` as its implementation.
-
-    """
+__all__ = [
+    "ContentLabel",
+    "DatasetMetadata",
+    "GlyphDataset",
+    "GlyphSample",
+    "StyleLabel",
+]

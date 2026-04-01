@@ -10,9 +10,13 @@ you can use:
 ```python
 import torch
 from torch.utils.data import Subset
-from torchfont.datasets import GoogleFonts
+from torchfont.datasets import GlyphDataset
 
-dataset = GoogleFonts(root="data/google/fonts", ref="main", download=True)
+dataset = GlyphDataset(
+    root="tests/fonts",
+    patterns=("*.ttf",),
+    codepoint_filter=range(0x80),
+)
 
 t = dataset.targets
 if t.numel() == 0:
@@ -20,7 +24,8 @@ if t.numel() == 0:
 print(t.shape)  # (N, 2)
 ```
 
-For repeated runs against the same `root`, switch to `download=False`.
+If you are using a checked-out font repository instead, only `root` and
+`patterns` need to change.
 
 - `t[:, 0]`: `style_idx`
 - `t[:, 1]`: `content_idx`
@@ -71,11 +76,6 @@ mask = style_mask & (t[:, 1] == content_idx_from_name)
 indices = torch.where(mask)[0].tolist()
 subset = Subset(dataset, indices)
 ```
-
-::: warning
-`style_class_to_idx` keeps only one index per style name. If duplicate style
-names exist, later entries overwrite earlier ones.
-:::
 
 ## Complete script
 
