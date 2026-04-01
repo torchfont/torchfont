@@ -130,7 +130,7 @@ Mapping from style `label_id` to style index.
 
 Mapping from style display name to all matching style indices.
 
-The legacy metadata-related properties above are projections from
+The metadata-related properties above are convenience projections from
 `dataset.metadata`.
 
 ### Example (`GlyphDataset`)
