@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import multiprocessing as mp
 import pickle
 import warnings
@@ -13,7 +15,7 @@ from torchfont.io.outline import CommandType
 
 
 def _read_first_sample_from_pickled_dataset(
-    payload: bytes, queue: mp.Queue
+    payload: bytes, queue: mp.Queue[tuple[int, int, int, tuple[int, int]]]
 ) -> None:
     dataset = pickle.loads(payload)  # noqa: S301
     sample = dataset[0]
