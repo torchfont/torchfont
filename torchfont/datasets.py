@@ -261,9 +261,9 @@ class GlyphDataset(Dataset[GlyphSample]):
         """Load a glyph sample and its associated targets.
 
         Args:
-            idx (int): Zero-based index locating a sample across all fonts, code
-                points, and instances. Negative indices are supported and count
-                from the end of the dataset.
+            idx (SupportsIndex): Zero-based index locating a sample across all
+                fonts, code points, and instances. Negative indices are
+                supported and count from the end of the dataset.
 
         Returns:
             GlyphSample: Structured sample containing ``types``, ``coords``,
