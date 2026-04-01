@@ -262,8 +262,9 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         Args:
             idx (SupportsIndex): Zero-based index locating a sample across all
-                fonts, code points, and instances. Negative indices are
-                supported and count from the end of the dataset.
+                fonts, code points, and instances. Any object implementing
+                ``__index__`` is accepted. Negative indices are supported and
+                count from the end of the dataset.
 
         Returns:
             GlyphSample: Structured sample containing ``types``, ``coords``,
