@@ -61,12 +61,12 @@ print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 
 ```python
 print(dataset.style_classes[:5])
-print(dataset.style_class_to_idx)
+print(dataset.style_labels[:5])
+print(dataset.style_name_to_idxs)
 ```
 
-::: warning
-`style_classes` には重複名が含まれることがあります。この場合、`style_class_to_idx` は同名のうち最後の要素だけを保持します。重複を区別した抽出が必要なら、`style_classes` を列挙して扱ってください。
-:::
+`style_labels` は衝突しない識別子（`style:<idx>`）を持ち、重複表示名は
+`style_name_to_idxs` で全 index を取得できます。
 
 ### `content_idx`
 
@@ -74,7 +74,8 @@ print(dataset.style_class_to_idx)
 
 ```python
 print(dataset.content_classes[:5])
-print(dataset.content_class_to_idx)
+print(dataset.content_labels[:5])
+print(dataset.content_label_to_idx)
 ```
 
 ## `targets` で一括取得

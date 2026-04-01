@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import pickle
-import warnings
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -339,45 +338,51 @@ def test_style_class_to_idx() -> None:
         assert dataset.style_class_to_idx[name] == idx
 
 
-def test_style_class_to_idx_warns_on_duplicates() -> None:
-    """Test that style_class_to_idx emits a UserWarning on duplicate names."""
+def test_style_label_metadata_is_index_addressable() -> None:
+    """Test metadata APIs are compatible with sample style/content indices."""
     dataset = FontFolder(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoint_filter=range(0x41, 0x44),
     )
 
-    raw_names = ["Roboto Regular", "Roboto Bold", "Roboto Regular"]
+    sample = dataset[0]
+    style_label = dataset.style_labels[sample.style_idx]
+    content_label = dataset.content_labels[sample.content_idx]
+
+    assert style_label.idx == sample.style_idx
+    assert dataset.style_label_to_idx[style_label.label_id] == sample.style_idx
+    assert sample.style_idx in dataset.style_name_to_idxs[style_label.name]
+
+    assert content_label.idx == sample.content_idx
+    assert dataset.content_label_to_idx[content_label.label_id] == sample.content_idx
+    assert dataset.content_class_to_idx[content_label.char] == sample.content_idx
+
+
+def test_style_label_metadata_handles_duplicate_names() -> None:
+    """Test duplicate style names are preserved in collision-safe metadata."""
+    dataset = FontFolder(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoint_filter=range(0x41, 0x44),
+    )
+
+    raw_names = ["Shared", "Unique", "Shared"]
     with patch.object(
         FontFolder,
         "style_classes",
         new_callable=PropertyMock,
         return_value=raw_names,
     ):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            mapping = dataset.style_class_to_idx
-            assert len(w) == 1
-            assert issubclass(w[0].category, UserWarning)
-            assert "Roboto Regular" in str(w[0].message)
+        labels = dataset.style_labels
+        grouped = dataset.style_name_to_idxs
+        mapping = dataset.style_class_to_idx
 
-        assert len(mapping) == 2  # duplicates collapsed
-        assert mapping["Roboto Regular"] == 2  # keeps last occurrence
-        assert mapping["Roboto Bold"] == 1
-
-
-def test_style_class_to_idx_no_warning_without_duplicates() -> None:
-    """Test that no warning is emitted when style names are unique."""
-    dataset = FontFolder(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoint_filter=range(0x41, 0x44),
-    )
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        _ = dataset.style_class_to_idx
-        assert len(w) == 0
+    assert [label.label_id for label in labels] == ["style:0", "style:1", "style:2"]
+    assert grouped["Shared"] == [0, 2]
+    assert grouped["Unique"] == [1]
+    assert mapping["Shared"] == 2
+    assert mapping["Unique"] == 1
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])

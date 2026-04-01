@@ -64,14 +64,12 @@ keep tensor shape fixed, `CommandType.QUAD_TO` uses
 
 ```python
 print(dataset.style_classes[:5])
-print(dataset.style_class_to_idx)
+print(dataset.style_labels[:5])
+print(dataset.style_name_to_idxs)
 ```
 
-::: warning
-`style_classes` can include duplicate names. In that case,
-`style_class_to_idx` keeps only the last occurrence of each name.
-When duplicate-safe filtering is required, enumerate `style_classes` directly.
-:::
+`style_labels` exposes collision-safe IDs (`style:<idx>`), while
+`style_name_to_idxs` keeps every index for duplicate display names.
 
 ### `content_idx`
 
@@ -79,7 +77,8 @@ When duplicate-safe filtering is required, enumerate `style_classes` directly.
 
 ```python
 print(dataset.content_classes[:5])
-print(dataset.content_class_to_idx)
+print(dataset.content_labels[:5])
+print(dataset.content_label_to_idx)
 ```
 
 ## `targets`
