@@ -10,7 +10,12 @@ from torch.utils.data import DataLoader
 
 import torchfont
 import torchfont.datasets as datasets_module
-from torchfont.datasets import DatasetMetadata, GlyphDataset, GlyphSample
+from torchfont.datasets import (
+    DatasetMetadata,
+    GlyphDataset,
+    GlyphLocation,
+    GlyphSample,
+)
 from torchfont.io import CommandType
 
 
@@ -93,16 +98,58 @@ def test_glyph_dataset_getitem() -> None:
     assert 0 <= sample.content_idx < len(dataset.content_classes)
 
 
+def test_glyph_dataset_locate_returns_source_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    sample = dataset[0]
+    location = dataset.locate(0)
+
+    assert isinstance(location, GlyphLocation)
+    assert location.font_path == dataset.root / "lato/Lato-Regular.ttf"
+    assert location.font_path.is_absolute()
+    assert location.face_idx == 0
+    assert location.instance_idx is None
+    assert location.codepoint == ord("A")
+    assert location.style_idx == sample.style_idx
+    assert location.content_idx == sample.content_idx
+
+
+def test_glyph_dataset_locate_tracks_variable_font_instance_index() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    assert len(dataset.style_classes) > 1
+    codepoint_count = len(dataset.content_classes)
+
+    first = dataset.locate(0)
+    second = dataset.locate(codepoint_count)
+
+    assert first.instance_idx == 0
+    assert second.instance_idx == 1
+    assert first.codepoint == ord("A")
+    assert second.codepoint == ord("A")
+    assert first.style_idx != second.style_idx
+
+
 def test_datasets_public_api_is_glyphdataset_centered() -> None:
     assert datasets_module.__all__ == [
         "ContentLabel",
         "DatasetMetadata",
         "GlyphDataset",
+        "GlyphLocation",
         "GlyphSample",
         "StyleLabel",
     ]
     assert datasets_module.DatasetMetadata is DatasetMetadata
     assert datasets_module.GlyphDataset is GlyphDataset
+    assert datasets_module.GlyphLocation is GlyphLocation
     assert datasets_module.GlyphSample is GlyphSample
     assert not hasattr(datasets_module, "FontFolder")
     assert not hasattr(datasets_module, "FontRepo")
@@ -225,6 +272,22 @@ def test_glyph_dataset_index_out_of_bounds() -> None:
 
     with pytest.raises(IndexError):
         dataset[-len(dataset) - 100]
+
+
+def test_glyph_dataset_locate_index_out_of_bounds() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x5B),
+    )
+
+    assert len(dataset) > 0
+
+    with pytest.raises(IndexError):
+        dataset.locate(len(dataset))
+
+    with pytest.raises(IndexError):
+        dataset.locate(-len(dataset) - 1)
 
 
 def test_glyph_dataset_cjk_support() -> None:

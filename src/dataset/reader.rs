@@ -33,6 +33,10 @@ impl GlyphReader {
         &self.path
     }
 
+    pub(super) fn face_index(&self) -> u32 {
+        self.face_index
+    }
+
     pub(super) fn draw_glyph(
         &self,
         glyph_id: GlyphId,

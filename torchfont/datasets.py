@@ -67,6 +67,35 @@ class GlyphSample(NamedTuple):
     content_idx: int
 
 
+class GlyphLocation(NamedTuple):
+    """Source metadata for one dataset index.
+
+    Attributes:
+        font_path (Path): Resolved path to the font file containing the glyph.
+        face_idx (int): Zero-based face index within the font file. Collection
+            formats such as TTC/OTC can expose multiple faces from one file.
+        instance_idx (int | None): Zero-based named-instance index for variable
+            fonts, or ``None`` for static fonts.
+        codepoint (int): Unicode codepoint for the indexed glyph sample.
+        style_idx (int): Index into the dataset's ``style_classes`` list.
+        content_idx (int): Index into the dataset's ``content_classes`` list.
+
+    Examples:
+        Inspect where the first sample came from::
+
+            location = dataset.locate(0)
+            print(location.font_path, hex(location.codepoint))
+
+    """
+
+    font_path: Path
+    face_idx: int
+    instance_idx: int | None
+    codepoint: int
+    style_idx: int
+    content_idx: int
+
+
 class GlyphDataset(Dataset[GlyphSample]):
     """Dataset that yields glyph samples from a directory of font files.
 
@@ -204,6 +233,21 @@ class GlyphDataset(Dataset[GlyphSample]):
             return None
         return tuple(sorted({index(cp) for cp in codepoints}))
 
+    def _normalize_index(self, idx: SupportsIndex) -> int:
+        """Resolve one dataset index, including negative indices."""
+        resolved_idx = index(idx)
+        original_idx = resolved_idx
+        dataset_len = len(self)
+        if resolved_idx < 0:
+            resolved_idx += dataset_len
+        if resolved_idx < 0 or resolved_idx >= dataset_len:
+            msg = (
+                f"index {original_idx} is out of range for dataset of length "
+                f"{dataset_len}"
+            )
+            raise IndexError(msg)
+        return resolved_idx
+
     def __len__(self) -> int:
         """Return the total number of glyph samples discoverable in the dataset.
 
@@ -213,7 +257,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         """
         return int(self._dataset.sample_count)
 
-    def __getitem__(self, idx: int) -> GlyphSample:
+    def __getitem__(self, idx: SupportsIndex) -> GlyphSample:
         """Load a glyph sample and its associated targets.
 
         Args:
@@ -236,17 +280,7 @@ class GlyphDataset(Dataset[GlyphSample]):
                 sample = dataset[-1]
 
         """
-        idx = int(idx)
-        original_idx = idx
-        dataset_len = len(self)
-        if idx < 0:
-            idx += dataset_len
-        if idx < 0 or idx >= dataset_len:
-            msg = (
-                f"index {original_idx} is out of range for dataset of length "
-                f"{dataset_len}"
-            )
-            raise IndexError(msg)
+        idx = self._normalize_index(idx)
         raw_types, raw_coords, style_idx, content_idx = self._dataset.item(idx)
         types = torch.as_tensor(raw_types, dtype=torch.long)
         coords = torch.as_tensor(raw_coords, dtype=torch.float32).view(-1, COORD_DIM)
@@ -259,6 +293,38 @@ class GlyphDataset(Dataset[GlyphSample]):
         if self.transform is not None:
             return self.transform(sample)
         return sample
+
+    def locate(self, idx: SupportsIndex) -> GlyphLocation:
+        """Return source metadata for one dataset index.
+
+        Args:
+            idx (SupportsIndex): Zero-based index locating a sample across all
+                fonts, faces, variation instances, and codepoints. Negative
+                indices are supported and count from the end of the dataset.
+
+        Returns:
+            GlyphLocation: Source metadata describing the underlying font file,
+            face, variation instance, Unicode codepoint, and label indices.
+
+        Examples:
+            Inspect the first sample's origin::
+
+                location = dataset.locate(0)
+                print(location.font_path.name, hex(location.codepoint))
+
+        """
+        idx = self._normalize_index(idx)
+        font_path, face_idx, instance_idx, codepoint, style_idx, content_idx = (
+            self._dataset.locate(idx)
+        )
+        return GlyphLocation(
+            font_path=Path(font_path),
+            face_idx=int(face_idx),
+            instance_idx=None if instance_idx is None else int(instance_idx),
+            codepoint=int(codepoint),
+            style_idx=int(style_idx),
+            content_idx=int(content_idx),
+        )
 
     @property
     def targets(self) -> Tensor:
@@ -408,6 +474,7 @@ __all__ = [
     "ContentLabel",
     "DatasetMetadata",
     "GlyphDataset",
+    "GlyphLocation",
     "GlyphSample",
     "StyleLabel",
 ]
