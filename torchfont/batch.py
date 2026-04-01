@@ -9,9 +9,9 @@ class GlyphBatch(NamedTuple):
     """One collated glyph batch.
 
     Attributes:
-        types (Tensor): Long tensor of shape ``(B, L, ...)`` holding padded
+        types (Tensor): Long tensor of shape ``(B, L)`` holding padded
             command types.
-        coords (Tensor): Float tensor of shape ``(B, L, ..., 6)`` holding
+        coords (Tensor): Float tensor of shape ``(B, L, 6)`` holding
             padded coordinate values.
         style_idx (Tensor): 1-D long tensor of style indices.
         content_idx (Tensor): 1-D long tensor of content indices.

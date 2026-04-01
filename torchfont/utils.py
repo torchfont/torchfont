@@ -58,9 +58,10 @@ def collate_fn(
 
     style_label_tensor = torch.as_tensor(style_label_list, dtype=torch.long)
     content_label_tensor = torch.as_tensor(content_label_list, dtype=torch.long)
-    lengths = torch.as_tensor(
-        [sample.types.shape[0] for sample in batch],
+    lengths = torch.tensor(
+        [t.shape[0] for t in types_list],
         dtype=torch.long,
+        device=types_tensor.device,
     )
     steps = torch.arange(types_tensor.shape[1], device=types_tensor.device)
     mask = steps.unsqueeze(0) < lengths.unsqueeze(1)
