@@ -70,10 +70,14 @@ class FontFolder(Dataset[GlyphSample]):
             duplicate style names.
         style_labels (list[StyleLabel]): Collision-safe style metadata with
             explicit label IDs.
+        style_label_to_idx (dict[str, int]): Mapping from style label IDs to
+            style class indices.
         style_name_to_idxs (dict[str, list[int]]): Mapping from style names to
             all matching style indices.
         content_labels (list[ContentLabel]): Content metadata with stable label
             IDs and codepoints.
+        content_label_to_idx (dict[str, int]): Mapping from content label IDs
+            to content class indices.
 
     See Also:
         torchfont.datasets.repo.FontRepo: Extends the same indexing machinery
@@ -288,7 +292,7 @@ class FontFolder(Dataset[GlyphSample]):
             list[ContentLabel]: Metadata entries ordered by ``idx``.
 
         """
-        codepoints = list(self._dataset.content_classes)
+        codepoints = self._dataset.content_classes
         return [
             ContentLabel(
                 idx=idx,
@@ -301,7 +305,12 @@ class FontFolder(Dataset[GlyphSample]):
 
     @property
     def content_label_to_idx(self) -> dict[str, int]:
-        """Mapping from content label IDs to content class indices."""
+        """Mapping from content label IDs to content class indices.
+
+        Returns:
+            dict[str, int]: Dictionary mapping ``label_id`` to content index.
+
+        """
         return {label.label_id: label.idx for label in self.content_labels}
 
     @property
@@ -354,12 +363,23 @@ class FontFolder(Dataset[GlyphSample]):
 
     @property
     def style_label_to_idx(self) -> dict[str, int]:
-        """Mapping from style label IDs to style class indices."""
+        """Mapping from style label IDs to style class indices.
+
+        Returns:
+            dict[str, int]: Dictionary mapping ``label_id`` to style index.
+
+        """
         return {label.label_id: label.idx for label in self.style_labels}
 
     @property
     def style_name_to_idxs(self) -> dict[str, list[int]]:
-        """Mapping from style names to all matching style indices."""
+        """Mapping from style names to all matching style indices.
+
+        Returns:
+            dict[str, list[int]]: Dictionary mapping style display name to a
+            list of all style indices that share that name.
+
+        """
         grouped: dict[str, list[int]] = {}
         for label in self.style_labels:
             grouped.setdefault(label.name, []).append(label.idx)
