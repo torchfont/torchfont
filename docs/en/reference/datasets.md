@@ -61,6 +61,7 @@ GlyphDataset(
 - `codepoints` are normalized to sorted unique integers before indexing
 - hidden-directory and `.gitignore` filtering are not applied implicitly;
   use `patterns` for path selection
+- VCS metadata directories such as `.git`, `.hg`, and `.svn` stay excluded
 - `__getitem__` supports negative indices (`dataset[-1]`)
 - out-of-range index raises `IndexError`
 

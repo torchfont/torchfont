@@ -154,7 +154,8 @@ class GlyphDataset(Dataset[GlyphSample]):
             patterns (Sequence[str] | None): Optional gitignore-style patterns
                 describing which font paths to include. Hidden-directory and
                 ``.gitignore`` filtering are not applied implicitly during
-                discovery.
+                discovery, but VCS metadata directories such as ``.git`` stay
+                excluded.
             transform (Callable[[GlyphSample], GlyphSample] | None):
                 Optional transformation applied to each sample before the item
                 is returned.

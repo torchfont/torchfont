@@ -419,6 +419,8 @@ def test_glyph_dataset_discovers_fonts_in_hidden_directories(
 def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
     source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
     git_executable = shutil.which("git")
+    if git_executable is None:
+        pytest.skip("git not installed")
     assert git_executable is not None
     subprocess.run(  # noqa: S603
         [git_executable, "init", "-q"],
@@ -433,6 +435,19 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
 
     assert len(dataset) > 0
     assert dataset.locate(0).font_path == font_path.resolve()
+
+
+def test_glyph_dataset_skips_vcs_metadata_directories(tmp_path: Path) -> None:
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    vcs_dir = tmp_path / ".git"
+    vcs_dir.mkdir()
+    shutil.copy(source, vcs_dir / "Lato-Regular.ttf")
+
+    dataset = GlyphDataset(root=tmp_path)
+
+    assert len(dataset) == 0
+    assert dataset.style_classes == []
+    assert dataset.content_classes == []
 
 
 def test_content_classes() -> None:
