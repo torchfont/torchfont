@@ -437,7 +437,7 @@ def test_glyph_dataset_discovers_fonts_in_hidden_directories(
     hidden_font = hidden_dir / "Lato-Regular.ttf"
     shutil.copy(source, hidden_font)
 
-    dataset = GlyphDataset(root=tmp_path)
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
 
     assert len(dataset) > 0
     assert dataset.locate(0).font_path == hidden_font.resolve()
@@ -458,7 +458,7 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
     shutil.copy(source, font_path)
     (tmp_path / ".gitignore").write_text("*.ttf\n", encoding="utf-8")
 
-    dataset = GlyphDataset(root=tmp_path)
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
 
     assert len(dataset) > 0
     assert dataset.locate(0).font_path == font_path.resolve()
@@ -470,7 +470,7 @@ def test_glyph_dataset_skips_vcs_metadata_directories(tmp_path: Path) -> None:
     vcs_dir.mkdir()
     shutil.copy(source, vcs_dir / "Lato-Regular.ttf")
 
-    dataset = GlyphDataset(root=tmp_path)
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
 
     assert len(dataset) == 0
     assert dataset.style_classes == []
