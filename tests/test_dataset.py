@@ -18,6 +18,7 @@ from torchfont.datasets import (
     GlyphSample,
 )
 from torchfont.io import CommandType
+from torchfont.metadata import build_dataset_metadata
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -484,6 +485,8 @@ def test_style_label_metadata_is_index_addressable() -> None:
     content_label = dataset.content_labels[sample.content_idx]
 
     assert style_label.idx == sample.style_idx
+    assert style_label.label_id.startswith("style:path=")
+    assert "instance=static" in style_label.label_id
     assert dataset.style_label_to_idx[style_label.label_id] == sample.style_idx
     assert sample.style_idx in dataset.style_name_to_idxs[style_label.name]
 
@@ -525,16 +528,27 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     )
 
     raw_names = ["Shared", "Unique", "Shared"]
-    with patch.object(
-        GlyphDataset,
-        "style_classes",
-        new_callable=PropertyMock,
-        return_value=raw_names,
+    with (
+        patch.object(
+            GlyphDataset,
+            "style_classes",
+            new_callable=PropertyMock,
+            return_value=raw_names,
+        ),
+        patch.object(
+            GlyphDataset,
+            "_style_sources",
+            return_value=[
+                (dataset.root / "lato/Lato-Regular.ttf", 0, None),
+                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
+                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
+            ],
+        ),
     ):
         labels = dataset.style_labels
         grouped = dataset.style_name_to_idxs
 
-    assert [label.label_id for label in labels] == ["style:0", "style:1", "style:2"]
+    assert len({label.label_id for label in labels}) == 3
     assert grouped["Shared"] == [0, 2]
     assert grouped["Unique"] == [1]
 
@@ -548,21 +562,64 @@ def test_dataset_metadata_handles_duplicate_names() -> None:
     )
 
     raw_names = ["Shared", "Unique", "Shared"]
-    with patch.object(
-        GlyphDataset,
-        "style_classes",
-        new_callable=PropertyMock,
-        return_value=raw_names,
+    with (
+        patch.object(
+            GlyphDataset,
+            "style_classes",
+            new_callable=PropertyMock,
+            return_value=raw_names,
+        ),
+        patch.object(
+            GlyphDataset,
+            "_style_sources",
+            return_value=[
+                (dataset.root / "lato/Lato-Regular.ttf", 0, None),
+                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
+                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
+            ],
+        ),
     ):
         metadata = dataset.metadata
 
-    assert [label.label_id for label in metadata.styles] == [
-        "style:0",
-        "style:1",
-        "style:2",
-    ]
+    assert len({label.label_id for label in metadata.styles}) == 3
     assert metadata.style_name_to_idxs["Shared"] == (0, 2)
     assert metadata.style_name_to_idxs["Unique"] == (1,)
+
+
+def test_build_dataset_metadata_rejects_mismatched_style_inputs() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="style_names and style_sources must have the same length",
+    ):
+        build_dataset_metadata(
+            root=dataset.root,
+            style_names=["Lato Regular"],
+            style_sources=[],
+            content_codepoints=[ord("A")],
+        )
+
+
+def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
+    dataset_a = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+    dataset_b = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x46),
+    )
+
+    assert [label.label_id for label in dataset_a.style_labels] == [
+        label.label_id for label in dataset_b.style_labels
+    ]
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])

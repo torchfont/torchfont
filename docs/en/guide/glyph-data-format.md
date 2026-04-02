@@ -70,8 +70,9 @@ print(dataset.style_labels[:5])
 print(dataset.style_name_to_idxs)
 ```
 
-`style_labels` exposes collision-safe IDs (`style:<idx>`), while
-`style_name_to_idxs` keeps every index for duplicate display names.
+`style_labels` exposes source-based collision-safe IDs derived from relative
+font path / face / instance information, while `style_name_to_idxs` keeps every
+index for duplicate display names.
 
 ### `content_idx`
 

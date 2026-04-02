@@ -419,12 +419,25 @@ class GlyphDataset(Dataset[GlyphSample]):
         """
         return {label.char: label.idx for label in self.metadata.contents}
 
+    def _style_sources(self) -> list[tuple[Path, int, int | None]]:
+        """Return style source tuples aligned with ``style_classes`` order."""
+        return [
+            (
+                Path(font_path),
+                int(face_idx),
+                None if instance_idx is None else int(instance_idx),
+            )
+            for font_path, face_idx, instance_idx in self._dataset.style_sources
+        ]
+
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
         if self._metadata is None:
             self._metadata = build_dataset_metadata(
+                root=self.root,
                 style_names=self.style_classes,
+                style_sources=self._style_sources(),
                 content_codepoints=self._dataset.content_classes,
             )
         return self._metadata
@@ -472,7 +485,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         """Style label metadata with explicit IDs.
 
         Style names are not guaranteed to be unique, so each entry also includes
-        a collision-safe ``label_id``.
+        a source-based, collision-safe ``label_id``.
 
         Returns:
             list[StyleLabel]: Metadata entries ordered by ``idx``.

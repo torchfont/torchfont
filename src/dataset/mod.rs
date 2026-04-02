@@ -89,6 +89,18 @@ impl FontDataset {
         names
     }
 
+    #[getter]
+    pub fn style_sources(&self) -> Vec<(String, u32, Option<usize>)> {
+        let mut sources = Vec::new();
+        for entry in self.entries.iter() {
+            for inst_idx in 0..entry.instance_count() {
+                let instance = entry.is_variable().then_some(inst_idx);
+                sources.push((entry.path().to_owned(), entry.face_index(), instance));
+            }
+        }
+        sources
+    }
+
     pub fn locate(&self, idx: usize) -> PyResult<(String, u32, Option<usize>, u32, usize, usize)> {
         let (font_idx, instance_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
         let entry = &self.entries[font_idx];
