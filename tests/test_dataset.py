@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import pickle
+import shutil
+import subprocess
+from pathlib import Path
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -396,6 +399,40 @@ def test_glyph_dataset_empty_result() -> None:
     assert len(dataset) == 0
     assert len(dataset.style_classes) == 0
     assert len(dataset.content_classes) == 0
+
+
+def test_glyph_dataset_discovers_fonts_in_hidden_directories(
+    tmp_path: Path,
+) -> None:
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    hidden_dir = tmp_path / ".fonts"
+    hidden_dir.mkdir()
+    hidden_font = hidden_dir / "Lato-Regular.ttf"
+    shutil.copy(source, hidden_font)
+
+    dataset = GlyphDataset(root=tmp_path)
+
+    assert len(dataset) > 0
+    assert dataset.locate(0).font_path == hidden_font.resolve()
+
+
+def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    git_executable = shutil.which("git")
+    assert git_executable is not None
+    subprocess.run(  # noqa: S603
+        [git_executable, "init", "-q"],
+        cwd=tmp_path,
+        check=True,
+    )
+    font_path = tmp_path / "Lato-Regular.ttf"
+    shutil.copy(source, font_path)
+    (tmp_path / ".gitignore").write_text("*.ttf\n", encoding="utf-8")
+
+    dataset = GlyphDataset(root=tmp_path)
+
+    assert len(dataset) > 0
+    assert dataset.locate(0).font_path == font_path.resolve()
 
 
 def test_content_classes() -> None:

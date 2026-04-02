@@ -152,7 +152,9 @@ class GlyphDataset(Dataset[GlyphSample]):
                 Duplicate values are ignored and the effective filter is stored
                 as sorted unique integers on ``dataset.codepoints``.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
-                describing which font paths to include.
+                describing which font paths to include. Hidden-directory and
+                ``.gitignore`` filtering are not applied implicitly during
+                discovery.
             transform (Callable[[GlyphSample], GlyphSample] | None):
                 Optional transformation applied to each sample before the item
                 is returned.
