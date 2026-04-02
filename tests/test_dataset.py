@@ -5,6 +5,7 @@ import pickle
 import shutil
 import subprocess
 from pathlib import Path
+from typing import cast
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -421,6 +422,7 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
     git_executable = shutil.which("git")
     if git_executable is None:
         pytest.skip("git not installed")
+    git_executable = cast("str", git_executable)
     subprocess.run(  # noqa: S603
         [git_executable, "init", "-q"],
         cwd=tmp_path,
