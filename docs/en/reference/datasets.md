@@ -58,6 +58,7 @@ GlyphDataset(
 
 - supported extensions: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` is resolved to an absolute `Path` during initialization
+- `root` must resolve to a directory; non-directory paths raise `ValueError`
 - `codepoints` are normalized to sorted unique integers before indexing
 - invalid `codepoints` values raise `ValueError`; accepted values must be
   Unicode scalar values (`0 <= cp <= 0x10FFFF`, excluding surrogates)
