@@ -59,9 +59,10 @@ GlyphDataset(
 - 走査対象拡張子: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` は初期化時に絶対 `Path` へ解決される
 - `codepoints` は index 化前に sort 済み・重複なしの整数列へ正規化される
-- hidden directory や `.gitignore` による暗黙 filter は使わず、パス選択は
-  `patterns` に寄せる
-- ただし `.git` / `.hg` / `.svn` などの VCS metadata directory は除外する
+- `ignore` crate の standard filters（hidden directory / `.gitignore` / `.ignore` /
+  グローバル gitignore / git exclude など）による暗黙の ignore ルールは使わず、
+  パス選択は `patterns` に寄せる
+- ただし `.git` / `.hg` / `.svn` などの VCS metadata directory は明示的に除外する
 - `__getitem__` は負インデックス対応（`dataset[-1]` など）
 - 範囲外インデックスは `IndexError`
 
