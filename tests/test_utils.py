@@ -1,3 +1,4 @@
+import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -117,3 +118,8 @@ def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
     assert glyph_batch.types.shape[:2] == glyph_batch.mask.shape
     assert glyph_batch.types.shape[2] == 4
     assert glyph_batch.coords.shape[2:] == (4, 6)
+
+
+def test_collate_fn_rejects_empty_batch() -> None:
+    with pytest.raises(ValueError, match="batch must be non-empty"):
+        collate_fn([])
