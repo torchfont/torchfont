@@ -81,9 +81,11 @@ def build_dataset_metadata(
             under ``root``.
 
     """
-    if len(style_names) != len(style_sources):
+    try:
+        paired_styles = tuple(zip(style_names, style_sources, strict=True))
+    except ValueError:
         msg = "style_names and style_sources must have the same length"
-        raise ValueError(msg)
+        raise ValueError(msg) from None
 
     styles = tuple(
         StyleLabel(
@@ -91,9 +93,7 @@ def build_dataset_metadata(
             label_id=_style_label_id(root, font_path, face_idx, instance_idx),
             name=name,
         )
-        for idx, (name, (font_path, face_idx, instance_idx)) in enumerate(
-            zip(style_names, style_sources, strict=True)
-        )
+        for idx, (name, (font_path, face_idx, instance_idx)) in enumerate(paired_styles)
     )
     contents = tuple(
         ContentLabel(

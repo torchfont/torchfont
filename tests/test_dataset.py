@@ -17,6 +17,7 @@ from torchfont.datasets import (
     GlyphSample,
 )
 from torchfont.io import CommandType
+from torchfont.metadata import build_dataset_metadata
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -552,6 +553,25 @@ def test_dataset_metadata_handles_duplicate_names() -> None:
     assert len({label.label_id for label in metadata.styles}) == 3
     assert metadata.style_name_to_idxs["Shared"] == (0, 2)
     assert metadata.style_name_to_idxs["Unique"] == (1,)
+
+
+def test_build_dataset_metadata_rejects_mismatched_style_inputs() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="style_names and style_sources must have the same length",
+    ):
+        build_dataset_metadata(
+            root=dataset.root,
+            style_names=["Lato Regular"],
+            style_sources=[],
+            content_codepoints=[ord("A")],
+        )
 
 
 def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
