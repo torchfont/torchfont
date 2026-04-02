@@ -92,7 +92,7 @@ def build_dataset_metadata(
             name=name,
         )
         for idx, (name, (font_path, face_idx, instance_idx)) in enumerate(
-            zip(style_names, style_sources)
+            zip(style_names, style_sources, strict=True)
         )
     )
     contents = tuple(
