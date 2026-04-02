@@ -46,6 +46,7 @@ LimitSequenceLength(max_len: int)
 
 - パディングは行いません
 - `max_len` を超えた後半は切り捨て
+- `max_len` は `>= 0` が必須で、不正値は constructor 時点で `ValueError` になります
 
 ### 入出力（`LimitSequenceLength`）
 
@@ -100,7 +101,7 @@ Patchify(patch_size: int)
 
 - `types` の埋め値は `0`（`pad`）
 - `coords` の埋め値は `0.0`
-- `patch_size` は `> 0` が必須（`0` や負値は実行時エラー）
+- `patch_size` は `>= 1` が必須で、不正値は constructor 時点で `ValueError` になります
 
 ### 例（`Patchify`）
 

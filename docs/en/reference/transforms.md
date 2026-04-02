@@ -47,6 +47,7 @@ Returns a `GlyphSample` whose `types` and `coords` are truncated to `max_len`.
 
 - no padding
 - elements beyond `max_len` are truncated
+- `max_len` must be `>= 0`; invalid values raise `ValueError` at construction
 
 ### I/O shape (`LimitSequenceLength`)
 
@@ -103,7 +104,7 @@ into patches.
 
 - type padding value: `0` (`pad`)
 - coordinate padding value: `0.0`
-- `patch_size` must be `> 0` (`0` or negative values fail at runtime)
+- `patch_size` must be `>= 1`; invalid values raise `ValueError` at construction
 
 ### Example (`Patchify`)
 

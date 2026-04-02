@@ -63,6 +63,31 @@ def _validate_sample_sequence_lengths(batch: Sequence[GlyphSample]) -> None:
             raise ValueError(msg)
 
 
+def _validate_trailing_shape(name: str, tensors: Sequence[Tensor]) -> None:
+    """Ensure every tensor agrees past the leading sequence dimension."""
+    if not tensors:
+        return
+
+    # Require at least one leading sequence dimension for every tensor.
+    for idx, tensor in enumerate(tensors):
+        if tensor.ndim < 1:
+            msg = (
+                f"all samples must be at least 1-D for '{name}'; "
+                f"found 0-D tensor at batch index {idx}"
+            )
+            raise ValueError(msg)
+
+    expected = tuple(tensors[0].shape[1:])
+    for idx, tensor in enumerate(tensors[1:], start=1):
+        actual = tuple(tensor.shape[1:])
+        if actual != expected:
+            msg = (
+                f"all samples must share the same trailing {name} shape; "
+                f"expected {expected}, got {actual} at batch index {idx}"
+            )
+            raise ValueError(msg)
+
+
 def collate_fn(
     batch: Sequence[GlyphSample],
 ) -> GlyphBatch:
@@ -90,12 +115,18 @@ def collate_fn(
             loader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn)
 
     """
-    _validate_sample_sequence_lengths(batch)
+    if not batch:
+        msg = "batch must be non-empty"
+        raise ValueError(msg)
 
     types_list = [sample.types for sample in batch]
     coords_list = [sample.coords for sample in batch]
     style_label_list = [sample.style_idx for sample in batch]
     content_label_list = [sample.content_idx for sample in batch]
+
+    _validate_trailing_shape("types", types_list)
+    _validate_trailing_shape("coords", coords_list)
+    _validate_sample_sequence_lengths(batch)
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
