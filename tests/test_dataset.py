@@ -5,7 +5,6 @@ import pickle
 import shutil
 import subprocess
 from pathlib import Path
-from typing import cast
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -365,6 +364,25 @@ def test_glyph_dataset_normalizes_codepoints_on_instance() -> None:
     assert restored.codepoints == dataset.codepoints
 
 
+@pytest.mark.parametrize(
+    ("codepoints", "message"),
+    [
+        ([-1], "expected 0 <= cp <= 0x10FFFF"),
+        ([0x110000], "expected 0 <= cp <= 0x10FFFF"),
+        ([0xD800], "surrogate code points"),
+    ],
+)
+def test_glyph_dataset_rejects_invalid_unicode_codepoints(
+    codepoints: list[int], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns=("lato/Lato-Regular.ttf",),
+            codepoints=codepoints,
+        )
+
+
 def test_glyph_dataset_pattern_filter() -> None:
     dataset_all = GlyphDataset(
         root="tests/fonts",
@@ -422,7 +440,7 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
     git_executable = shutil.which("git")
     if git_executable is None:
         pytest.skip("git not installed")
-    git_executable = cast("str", git_executable)
+    assert git_executable is not None
     subprocess.run(  # noqa: S603
         [git_executable, "init", "-q"],
         cwd=tmp_path,

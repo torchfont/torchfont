@@ -63,6 +63,8 @@ GlyphDataset(
   `.ignore`, global gitignore, and git exclude files are all ignored for
   discovery); use `patterns` for path selection
 - VCS metadata directories such as `.git`, `.hg`, and `.svn` stay excluded
+- invalid `codepoints` values raise `ValueError`; accepted values must be
+  Unicode scalar values (`0 <= cp <= 0x10FFFF`, excluding surrogates)
 - `__getitem__` supports negative indices (`dataset[-1]`)
 - out-of-range index raises `IndexError`
 

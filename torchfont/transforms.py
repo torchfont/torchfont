@@ -88,8 +88,9 @@ class LimitSequenceLength:
         """Initialize the transform with the desired maximum length.
 
         Args:
-            max_len (int): Maximum number of time steps to keep. Any surplus
-                command or coordinate pairs are discarded.
+            max_len (int): Maximum number of time steps to keep. Must be
+                non-negative. Any surplus command or coordinate pairs are
+                discarded.
 
         Examples:
             Cap sequences at 512 steps::
@@ -97,6 +98,9 @@ class LimitSequenceLength:
                 LimitSequenceLength(512)
 
         """
+        if max_len < 0:
+            msg = "max_len must be >= 0"
+            raise ValueError(msg)
         self.max_len = max_len
 
     def __call__(self, sample: GlyphSample) -> GlyphSample:
@@ -198,9 +202,9 @@ class Patchify:
         """Configure the patch length for reshaping sequences.
 
         Args:
-            patch_size (int): Number of time steps captured in each patch. Choose
-                values that align with the receptive field of your downstream
-                model.
+            patch_size (int): Number of time steps captured in each patch. Must
+                be positive. Choose values that align with the receptive field
+                of your downstream model.
 
         Examples:
             Create 32-step patches for transformer models::
@@ -208,6 +212,9 @@ class Patchify:
                 Patchify(32)
 
         """
+        if patch_size < 1:
+            msg = "patch_size must be >= 1"
+            raise ValueError(msg)
         self.patch_size = patch_size
 
     def __call__(self, sample: GlyphSample) -> GlyphSample:

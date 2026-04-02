@@ -63,6 +63,8 @@ GlyphDataset(
   グローバル gitignore / git exclude など）による暗黙の ignore ルールは使わず、
   パス選択は `patterns` に寄せる
 - ただし `.git` / `.hg` / `.svn` などの VCS metadata directory は明示的に除外する
+- 不正な `codepoints` は `ValueError` になり、受け入れる値は Unicode scalar
+  value（`0 <= cp <= 0x10FFFF` かつ surrogate を除く）に限る
 - `__getitem__` は負インデックス対応（`dataset[-1]` など）
 - 範囲外インデックスは `IndexError`
 

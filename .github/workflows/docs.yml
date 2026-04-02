@@ -1,0 +1,37 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'mise.toml'
+      - '.readthedocs.yaml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'mise.toml'
+      - '.readthedocs.yaml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v2
+      - run: mise exec -- npm ci
+      - run: mise run docs-build

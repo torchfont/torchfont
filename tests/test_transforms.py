@@ -1,8 +1,9 @@
+import pytest
 import torch
 
 from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import Compose, LimitSequenceLength, QuadToCubic
+from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
 
 
 def test_quad_to_cubic_converts_quadratic_segments() -> None:
@@ -152,3 +153,20 @@ def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
     assert out.content_idx == sample.content_idx
     assert out.types.shape[0] == 2
     assert out.coords.shape[0] == 2
+
+
+@pytest.mark.parametrize(
+    ("transform_cls", "kwargs", "expected_message"),
+    [
+        (LimitSequenceLength, {"max_len": -1}, "max_len must be >= 0"),
+        (Patchify, {"patch_size": 0}, "patch_size must be >= 1"),
+        (Patchify, {"patch_size": -1}, "patch_size must be >= 1"),
+    ],
+)
+def test_transform_constructors_validate_invalid_arguments(
+    transform_cls: type[LimitSequenceLength] | type[Patchify],
+    kwargs: dict[str, int],
+    expected_message: str,
+) -> None:
+    with pytest.raises(ValueError, match=expected_message):
+        transform_cls(**kwargs)
