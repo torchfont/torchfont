@@ -157,7 +157,11 @@ class GlyphDataset(Dataset[GlyphSample]):
                 as sorted unique integers on ``dataset.codepoints``. Values
                 must be Unicode scalar values.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
-                describing which font paths to include.
+                describing which font paths to include. No implicit filtering
+                from hidden directories or ignore files (such as ``.gitignore``,
+                ``.ignore``, global gitignore, or git exclude rules) is applied;
+                all such behavior must be expressed via ``patterns``. VCS metadata
+                directories such as ``.git`` remain excluded.
             transform (Callable[[GlyphSample], GlyphSample] | None):
                 Optional transformation applied to each sample before the item
                 is returned.

@@ -24,6 +24,8 @@ pub(super) fn discover_font_files(
     patterns: Option<&[String]>,
 ) -> PyResult<Vec<String>> {
     let mut builder = WalkBuilder::new(root);
+    builder.standard_filters(false);
+    builder.filter_entry(|entry| !is_vcs_metadata_dir(entry));
     if let Some(patterns) = patterns.filter(|p| !p.is_empty()) {
         builder.overrides(build_overrides(root, patterns)?);
     }
@@ -43,6 +45,14 @@ pub(super) fn discover_font_files(
 
     files.sort_unstable();
     Ok(files)
+}
+
+fn is_vcs_metadata_dir(entry: &ignore::DirEntry) -> bool {
+    entry.file_type().is_some_and(|ft| ft.is_dir())
+        && entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| matches!(name, ".git" | ".hg" | ".svn"))
 }
 
 fn has_font_extension(path: &Path) -> bool {

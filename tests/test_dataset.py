@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import pickle
-from typing import TYPE_CHECKING
+import shutil
+import subprocess
+from pathlib import Path
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -19,9 +21,6 @@ from torchfont.datasets import (
 )
 from torchfont.io import CommandType
 from torchfont.metadata import build_dataset_metadata
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -428,6 +427,55 @@ def test_glyph_dataset_empty_result() -> None:
     assert len(dataset) == 0
     assert len(dataset.style_classes) == 0
     assert len(dataset.content_classes) == 0
+
+
+def test_glyph_dataset_discovers_fonts_in_hidden_directories(
+    tmp_path: Path,
+) -> None:
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    hidden_dir = tmp_path / ".fonts"
+    hidden_dir.mkdir()
+    hidden_font = hidden_dir / "Lato-Regular.ttf"
+    shutil.copy(source, hidden_font)
+
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
+
+    assert len(dataset) > 0
+    assert dataset.locate(0).font_path == hidden_font.resolve()
+
+
+def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        pytest.skip("git not installed")
+    assert git_executable is not None
+    subprocess.run(  # noqa: S603
+        [git_executable, "init", "-q"],
+        cwd=tmp_path,
+        check=True,
+    )
+    font_path = tmp_path / "Lato-Regular.ttf"
+    shutil.copy(source, font_path)
+    (tmp_path / ".gitignore").write_text("*.ttf\n", encoding="utf-8")
+
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
+
+    assert len(dataset) > 0
+    assert dataset.locate(0).font_path == font_path.resolve()
+
+
+def test_glyph_dataset_skips_vcs_metadata_directories(tmp_path: Path) -> None:
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    vcs_dir = tmp_path / ".git"
+    vcs_dir.mkdir()
+    shutil.copy(source, vcs_dir / "Lato-Regular.ttf")
+
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
+
+    assert len(dataset) == 0
+    assert dataset.style_classes == []
+    assert dataset.content_classes == []
 
 
 def test_content_classes() -> None:

@@ -60,6 +60,10 @@ GlyphDataset(
 - `root` is resolved to an absolute `Path` during initialization
 - `root` must resolve to a directory; non-directory paths raise `ValueError`
 - `codepoints` are normalized to sorted unique integers before indexing
+- no implicit ignore rules are applied (hidden directories, `.gitignore`,
+  `.ignore`, global gitignore, and git exclude files are all ignored for
+  discovery); use `patterns` for path selection
+- VCS metadata directories such as `.git`, `.hg`, and `.svn` stay excluded
 - invalid `codepoints` values raise `ValueError`; accepted values must be
   Unicode scalar values (`0 <= cp <= 0x10FFFF`, excluding surrogates)
 - `__getitem__` supports negative indices (`dataset[-1]`)

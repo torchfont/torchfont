@@ -60,6 +60,10 @@ GlyphDataset(
 - `root` は初期化時に絶対 `Path` へ解決される
 - `root` はディレクトリである必要があり、ファイルパスなどでは `ValueError` を送出する
 - `codepoints` は index 化前に sort 済み・重複なしの整数列へ正規化される
+- `ignore` crate の standard filters（hidden directory / `.gitignore` / `.ignore` /
+  グローバル gitignore / git exclude など）による暗黙の ignore ルールは使わず、
+  パス選択は `patterns` に寄せる
+- ただし `.git` / `.hg` / `.svn` などの VCS metadata directory は明示的に除外する
 - 不正な `codepoints` は `ValueError` になり、受け入れる値は Unicode scalar
   value（`0 <= cp <= 0x10FFFF` かつ surrogate を除く）に限る
 - `__getitem__` は負インデックス対応（`dataset[-1]` など）
