@@ -51,7 +51,36 @@ def build_dataset_metadata(
     style_sources: list[tuple[Path, int, int | None]],
     content_codepoints: list[int],
 ) -> DatasetMetadata:
-    """Build a metadata object from style names and Unicode codepoints."""
+    """Build a DatasetMetadata object for a glyph dataset.
+
+    This constructs style and content label entries and their lookup tables.
+    Style ``label_id`` values are derived from the underlying font file
+    locations (relative to ``root``) and the ``(face_idx, instance_idx)``
+    values in ``style_sources``, via :func:`_style_label_id`.
+
+    Args:
+        root: Common root directory used to relativize font paths when
+            constructing stable style ``label_id`` values.  Every font path
+            in ``style_sources`` must be located inside ``root``; a
+            ``ValueError`` is raised if any path falls outside it.
+        style_names: Human-readable display names for each style.  Must have
+            the same length and order as ``style_sources``.
+        style_sources: Triples of ``(font_path, face_idx, instance_idx)`` that
+            identify the concrete font source corresponding to each style
+            name.  ``instance_idx`` is ``None`` for static faces.
+        content_codepoints: Unicode code points to turn into ``ContentLabel``
+            entries.
+
+    Returns:
+        DatasetMetadata: Immutable metadata containing style and content label
+        entries and their associated lookup dictionaries.
+
+    Raises:
+        ValueError: If ``style_names`` and ``style_sources`` have different
+            lengths, or if any font path in ``style_sources`` is not located
+            under ``root``.
+
+    """
     if len(style_names) != len(style_sources):
         msg = "style_names and style_sources must have the same length"
         raise ValueError(msg)
@@ -63,7 +92,7 @@ def build_dataset_metadata(
             name=name,
         )
         for idx, (name, (font_path, face_idx, instance_idx)) in enumerate(
-            zip(style_names, style_sources, strict=True)
+            zip(style_names, style_sources)
         )
     )
     contents = tuple(
@@ -95,11 +124,17 @@ def _style_label_id(
     face_idx: int,
     instance_idx: int | None,
 ) -> str:
-    """Build a stable, source-based style label ID."""
+    """Build a stable, source-based style label ID.
+
+    Raises:
+        ValueError: If ``font_path`` is not located under ``root``.
+
+    """
     try:
         relative_path = font_path.relative_to(root)
     except ValueError:
-        relative_path = font_path
+        msg = f"font path {font_path!r} is not under dataset root {root!r}"
+        raise ValueError(msg) from None
 
     instance_value = "static" if instance_idx is None else str(instance_idx)
     quoted_path = quote(relative_path.as_posix(), safe="/")
