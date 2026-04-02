@@ -77,6 +77,14 @@ def test_glyph_dataset_all_fonts() -> None:
     assert len(dataset) > 0
 
 
+def test_glyph_dataset_rejects_non_directory_root(tmp_path: Path) -> None:
+    file_root = tmp_path / "not-a-directory.txt"
+    file_root.write_text("not a font directory")
+
+    with pytest.raises(ValueError, match="root must be a directory"):
+        GlyphDataset(root=file_root)
+
+
 def test_glyph_dataset_getitem() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",

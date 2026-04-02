@@ -58,6 +58,7 @@ GlyphDataset(
 
 - supported extensions: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` is resolved to an absolute `Path` during initialization
+- `root` must resolve to a directory; non-directory paths raise `ValueError`
 - `codepoints` are normalized to sorted unique integers before indexing
 - no implicit ignore rules are applied (hidden directories, `.gitignore`,
   `.ignore`, global gitignore, and git exclude files are all ignored for

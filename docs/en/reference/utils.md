@@ -34,7 +34,8 @@ collate_fn(batch: Sequence[GlyphSample]) -> GlyphBatch
 
 Pads the leading variable-length sequence dimension to the longest sample in the
 batch and returns a `GlyphBatch`.
-
+- each sample in `batch` must keep `types.shape[0]` and `coords.shape[0]`
+  aligned; mismatched sequence lengths raise `ValueError`
 - `batch` must be non-empty; empty input raises `ValueError`
 - all samples in `batch` must share the same trailing `types.shape[1:]` and
   `coords.shape[1:]`; incompatible layouts raise `ValueError`

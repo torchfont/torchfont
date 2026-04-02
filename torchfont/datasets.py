@@ -176,6 +176,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         self.root = Path(root).expanduser().resolve()
+        self._validate_root_dir(self.root)
         self.transform = transform
         self.patterns = (
             tuple(str(pattern) for pattern in patterns)
@@ -225,6 +226,7 @@ class GlyphDataset(Dataset[GlyphSample]):
     def __setstate__(self, state: dict[str, object]) -> None:
         """Restore state and recreate the native backend after unpickling."""
         self.__dict__.update(state)
+        self._validate_root_dir(self.root)
         self._dataset = _torchfont.FontDataset(
             str(self.root),
             self.codepoints,
@@ -232,6 +234,13 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
         if not hasattr(self, "_metadata"):
             self._metadata = None
+
+    @staticmethod
+    def _validate_root_dir(root: Path) -> None:
+        """Raise ValueError if *root* exists but is not a directory."""
+        if root.exists() and not root.is_dir():
+            msg = f"root must be a directory: {root}"
+            raise ValueError(msg)
 
     @staticmethod
     def _normalize_codepoints(

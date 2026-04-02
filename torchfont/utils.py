@@ -50,6 +50,19 @@ class GlyphBatch(NamedTuple):
     mask: Tensor
 
 
+def _validate_sample_sequence_lengths(batch: Sequence[GlyphSample]) -> None:
+    """Ensure each sample keeps its leading sequence length aligned."""
+    for idx, sample in enumerate(batch):
+        types_length = sample.types.shape[0]
+        coords_length = sample.coords.shape[0]
+        if types_length != coords_length:
+            msg = (
+                "each sample must keep types.shape[0] and coords.shape[0] "
+                f"aligned; got {types_length} and {coords_length} at batch index {idx}"
+            )
+            raise ValueError(msg)
+
+
 def _validate_trailing_shape(name: str, tensors: Sequence[Tensor]) -> None:
     """Ensure every tensor agrees past the leading sequence dimension."""
     if not tensors:
@@ -113,6 +126,7 @@ def collate_fn(
 
     _validate_trailing_shape("types", types_list)
     _validate_trailing_shape("coords", coords_list)
+    _validate_sample_sequence_lengths(batch)
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
