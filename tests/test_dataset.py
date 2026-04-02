@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import pickle
+from typing import TYPE_CHECKING
 from unittest.mock import PropertyMock, patch
 
 import pytest
@@ -17,6 +18,9 @@ from torchfont.datasets import (
     GlyphSample,
 )
 from torchfont.io import CommandType
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -72,6 +76,14 @@ def test_glyph_dataset_all_fonts() -> None:
     assert len(dataset.style_classes) > 0
     assert len(dataset.content_classes) > 0
     assert len(dataset) > 0
+
+
+def test_glyph_dataset_rejects_non_directory_root(tmp_path: Path) -> None:
+    file_root = tmp_path / "not-a-directory.txt"
+    file_root.write_text("not a font directory")
+
+    with pytest.raises(ValueError, match="root must be a directory"):
+        GlyphDataset(root=file_root)
 
 
 def test_glyph_dataset_getitem() -> None:

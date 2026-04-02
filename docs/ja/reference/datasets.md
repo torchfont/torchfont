@@ -58,6 +58,7 @@ GlyphDataset(
 
 - 走査対象拡張子: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` は初期化時に絶対 `Path` へ解決される
+- `root` は directory である必要があり、file path などでは `ValueError` を送出する
 - `codepoints` は index 化前に sort 済み・重複なしの整数列へ正規化される
 - `__getitem__` は負インデックス対応（`dataset[-1]` など）
 - 範囲外インデックスは `IndexError`

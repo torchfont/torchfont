@@ -167,6 +167,9 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         self.root = Path(root).expanduser().resolve()
+        if self.root.exists() and not self.root.is_dir():
+            msg = f"root must be a directory: {self.root}"
+            raise ValueError(msg)
         self.transform = transform
         self.patterns = (
             tuple(str(pattern) for pattern in patterns)
@@ -216,6 +219,9 @@ class GlyphDataset(Dataset[GlyphSample]):
     def __setstate__(self, state: dict[str, object]) -> None:
         """Restore state and recreate the native backend after unpickling."""
         self.__dict__.update(state)
+        if self.root.exists() and not self.root.is_dir():
+            msg = f"root must be a directory: {self.root}"
+            raise ValueError(msg)
         self._dataset = _torchfont.FontDataset(
             str(self.root),
             self.codepoints,

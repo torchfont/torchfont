@@ -58,6 +58,7 @@ GlyphDataset(
 
 - supported extensions: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` is resolved to an absolute `Path` during initialization
+- `root` must resolve to a directory; non-directory paths raise `ValueError`
 - `codepoints` are normalized to sorted unique integers before indexing
 - `__getitem__` supports negative indices (`dataset[-1]`)
 - out-of-range index raises `IndexError`
