@@ -257,7 +257,7 @@ class Patchify:
         Returns:
             GlyphSample: Sample whose ``types`` have shape
             ``(num_patches, patch_size)`` and ``coords`` have shape
-            ``(num_patches, patch_size, coord_dim)``. Trailing zeros are added
+            ``(num_patches, patch_size, 6)``. Trailing zeros are added
             only when needed for alignment.
 
         Tips:
