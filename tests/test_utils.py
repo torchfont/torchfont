@@ -130,7 +130,7 @@ def test_collate_fn_rejects_incompatible_trailing_types_shapes() -> None:
         ),
         GlyphSample(
             types=torch.tensor([[1, 2]], dtype=torch.long),
-            coords=torch.zeros(1, 2, 6),
+            coords=torch.zeros(1, 6),
             style_idx=1,
             content_idx=1,
         ),
