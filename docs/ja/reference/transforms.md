@@ -93,8 +93,8 @@ Patchify(patch_size: int)
 
 ### 入出力（`Patchify`）
 
-- 入力: `types=(seq_len,)`, `coords=(seq_len, d)`
-- 出力: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, d)`
+- 入力: `types=(seq_len,)`, `coords=(seq_len, 6)`
+- 出力: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, 6)`
 - `num_patches = ceil(seq_len / patch_size)`
 
 ### 備考
@@ -102,6 +102,9 @@ Patchify(patch_size: int)
 - `types` の埋め値は `0`（`pad`）
 - `coords` の埋め値は `0.0`
 - `patch_size` は `>= 1` が必須で、不正値は constructor 時点で `ValueError` になります
+- malformed な入力 sample も `ValueError` になり、`Patchify` は
+  `types.ndim == 1`、`coords.ndim == 2`、`coords.shape[1] == 6`、および
+  先頭シーケンス長の一致を前提にします
 
 ### 例（`Patchify`）
 
