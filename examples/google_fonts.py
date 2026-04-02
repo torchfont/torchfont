@@ -5,31 +5,37 @@ from torchfont.datasets import GlyphDataset
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify
 from torchfont.utils import collate_fn
 
-transform = Compose(
-    (
-        LimitSequenceLength(max_len=512),
-        Patchify(patch_size=32),
-    ),
-)
 
-dataset = GlyphDataset(
-    root="data/google/fonts",
-    patterns=("ofl/*/*.ttf",),
-    transform=transform,
-)
+def main() -> None:
+    transform = Compose(
+        (
+            LimitSequenceLength(max_len=512),
+            Patchify(patch_size=32),
+        ),
+    )
 
-dataloader = DataLoader(
-    dataset,
-    batch_size=64,
-    shuffle=True,
-    num_workers=8,
-    prefetch_factor=2,
-    collate_fn=collate_fn,
-)
+    dataset = GlyphDataset(
+        root="data/google/fonts",
+        patterns=("ofl/*/*.ttf",),
+        transform=transform,
+    )
 
-print(f"{len(dataset)=}")
-print(f"{len(dataset.content_classes)=}")
-print(f"{len(dataset.style_classes)=}")
+    dataloader = DataLoader(
+        dataset,
+        batch_size=64,
+        shuffle=True,
+        num_workers=8,
+        prefetch_factor=2,
+        collate_fn=collate_fn,
+    )
 
-for batch in tqdm(dataloader, desc="Iterating over datasets"):
-    _ = batch
+    print(f"{len(dataset)=}")
+    print(f"{len(dataset.content_classes)=}")
+    print(f"{len(dataset.style_classes)=}")
+
+    for batch in tqdm(dataloader, desc="Iterating over datasets"):
+        _ = batch
+
+
+if __name__ == "__main__":
+    main()
