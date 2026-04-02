@@ -55,6 +55,15 @@ def _validate_trailing_shape(name: str, tensors: Sequence[Tensor]) -> None:
     if not tensors:
         return
 
+    # Require at least one leading sequence dimension for every tensor.
+    for idx, tensor in enumerate(tensors):
+        if tensor.ndim < 1:
+            msg = (
+                f"all samples must be at least 1-D for '{name}'; "
+                f"found 0-D tensor at batch index {idx}"
+            )
+            raise ValueError(msg)
+
     expected = tuple(tensors[0].shape[1:])
     for idx, tensor in enumerate(tensors[1:], start=1):
         actual = tuple(tensor.shape[1:])
@@ -93,6 +102,10 @@ def collate_fn(
             loader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn)
 
     """
+    if not batch:
+        msg = "batch must be non-empty"
+        raise ValueError(msg)
+
     types_list = [sample.types for sample in batch]
     coords_list = [sample.coords for sample in batch]
     style_label_list = [sample.style_idx for sample in batch]

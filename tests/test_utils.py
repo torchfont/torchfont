@@ -120,6 +120,11 @@ def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
     assert glyph_batch.coords.shape[2:] == (4, 6)
 
 
+def test_collate_fn_rejects_empty_batch() -> None:
+    with pytest.raises(ValueError, match="batch must be non-empty"):
+        collate_fn([])
+
+
 def test_collate_fn_rejects_incompatible_trailing_types_shapes() -> None:
     samples = [
         GlyphSample(
@@ -157,4 +162,32 @@ def test_collate_fn_rejects_incompatible_trailing_coords_shapes() -> None:
     ]
 
     with pytest.raises(ValueError, match="trailing coords shape"):
+        collate_fn(samples)
+
+
+def test_collate_fn_rejects_zero_dim_trailing_types_inputs() -> None:
+    samples = [
+        GlyphSample(
+            types=torch.tensor(1, dtype=torch.long),
+            coords=torch.zeros(1, 6),
+            style_idx=0,
+            content_idx=0,
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="at least 1-D for 'types'"):
+        collate_fn(samples)
+
+
+def test_collate_fn_rejects_zero_dim_trailing_coords_inputs() -> None:
+    samples = [
+        GlyphSample(
+            types=torch.tensor([1], dtype=torch.long),
+            coords=torch.tensor(0.0),
+            style_idx=0,
+            content_idx=0,
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="at least 1-D for 'coords'"):
         collate_fn(samples)
