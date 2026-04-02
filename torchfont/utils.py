@@ -50,6 +50,22 @@ class GlyphBatch(NamedTuple):
     mask: Tensor
 
 
+def _validate_trailing_shape(name: str, tensors: Sequence[Tensor]) -> None:
+    """Ensure every tensor agrees past the leading sequence dimension."""
+    if not tensors:
+        return
+
+    expected = tuple(tensors[0].shape[1:])
+    for idx, tensor in enumerate(tensors[1:], start=1):
+        actual = tuple(tensor.shape[1:])
+        if actual != expected:
+            msg = (
+                f"all samples must share the same trailing {name} shape; "
+                f"expected {expected}, got {actual} at batch index {idx}"
+            )
+            raise ValueError(msg)
+
+
 def collate_fn(
     batch: Sequence[GlyphSample],
 ) -> GlyphBatch:
@@ -81,6 +97,9 @@ def collate_fn(
     coords_list = [sample.coords for sample in batch]
     style_label_list = [sample.style_idx for sample in batch]
     content_label_list = [sample.content_idx for sample in batch]
+
+    _validate_trailing_shape("types", types_list)
+    _validate_trailing_shape("coords", coords_list)
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
