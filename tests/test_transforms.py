@@ -182,6 +182,58 @@ def test_transform_constructors_validate_invalid_arguments(
                 style_idx=0,
                 content_idx=0,
             ),
+            r"LimitSequenceLength expects types\.ndim == 1; got 0",
+        ),
+        (
+            GlyphSample(
+                types=torch.tensor([1, 2], dtype=torch.long),
+                coords=torch.zeros(2),
+                style_idx=0,
+                content_idx=0,
+            ),
+            r"LimitSequenceLength expects coords\.ndim == 2; got 1",
+        ),
+        (
+            GlyphSample(
+                types=torch.tensor([1, 2], dtype=torch.long),
+                coords=torch.zeros(2, 5),
+                style_idx=0,
+                content_idx=0,
+            ),
+            r"LimitSequenceLength expects coords\.shape\[1\] == 6; got 5",
+        ),
+        (
+            GlyphSample(
+                types=torch.tensor([1, 2], dtype=torch.long),
+                coords=torch.zeros(3, 6),
+                style_idx=0,
+                content_idx=0,
+            ),
+            (
+                r"LimitSequenceLength expects types\.shape\[0\] and "
+                r"coords\.shape\[0\] to match; got 2 and 3"
+            ),
+        ),
+    ],
+)
+def test_limit_sequence_length_rejects_malformed_samples(
+    sample: GlyphSample,
+    expected_message: str,
+) -> None:
+    with pytest.raises(ValueError, match=expected_message):
+        LimitSequenceLength(2)(sample)
+
+
+@pytest.mark.parametrize(
+    ("sample", "expected_message"),
+    [
+        (
+            GlyphSample(
+                types=torch.tensor(1, dtype=torch.long),
+                coords=torch.zeros(1, 6),
+                style_idx=0,
+                content_idx=0,
+            ),
             r"Patchify expects types\.ndim == 1; got 0",
         ),
         (

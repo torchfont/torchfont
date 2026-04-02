@@ -103,6 +103,38 @@ class LimitSequenceLength:
             raise ValueError(msg)
         self.max_len = max_len
 
+    @staticmethod
+    def _validate_sample(sample: GlyphSample) -> None:
+        """Validate the untruncated sample contract required by the transform."""
+        expected_types_ndim = 1
+        expected_coords_ndim = 2
+
+        if sample.types.ndim != expected_types_ndim:
+            msg = (
+                f"LimitSequenceLength expects types.ndim == "
+                f"{expected_types_ndim}; got {sample.types.ndim}"
+            )
+            raise ValueError(msg)
+        if sample.coords.ndim != expected_coords_ndim:
+            msg = (
+                f"LimitSequenceLength expects coords.ndim == "
+                f"{expected_coords_ndim}; got {sample.coords.ndim}"
+            )
+            raise ValueError(msg)
+        if sample.coords.shape[1] != COORD_DIM:
+            msg = (
+                f"LimitSequenceLength expects coords.shape[1] == {COORD_DIM}; "
+                f"got {sample.coords.shape[1]}"
+            )
+            raise ValueError(msg)
+        if sample.types.shape[0] != sample.coords.shape[0]:
+            msg = (
+                "LimitSequenceLength expects types.shape[0] and "
+                "coords.shape[0] to match; "
+                f"got {sample.types.shape[0]} and {sample.coords.shape[0]}"
+            )
+            raise ValueError(msg)
+
     def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Clip the sequence and coordinate tensors to the specified length.
 
@@ -123,6 +155,7 @@ class LimitSequenceLength:
                 sample = LimitSequenceLength(128)(sample)
 
         """
+        self._validate_sample(sample)
         sample_type = type(sample)
         return sample_type(
             types=sample.types[: self.max_len],
