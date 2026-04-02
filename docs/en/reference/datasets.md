@@ -148,7 +148,8 @@ empty, the family name is used.
 Style label metadata entries. Each entry has:
 
 - `idx`: style index
-- `label_id`: collision-safe ID (`style:<idx>`)
+- `label_id`: source-based collision-safe ID derived from relative path, face,
+  and instance information
 - `name`: display name (may duplicate)
 
 #### `style_label_to_idx -> dict[str, int]`

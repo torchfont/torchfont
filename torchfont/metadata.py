@@ -1,6 +1,8 @@
 """Structured metadata objects for glyph datasets."""
 
+from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import quote
 
 
 class StyleLabel(NamedTuple):
@@ -44,13 +46,25 @@ class DatasetMetadata(NamedTuple):
 
 
 def build_dataset_metadata(
+    root: Path,
     style_names: list[str],
+    style_sources: list[tuple[Path, int, int | None]],
     content_codepoints: list[int],
 ) -> DatasetMetadata:
     """Build a metadata object from style names and Unicode codepoints."""
+    if len(style_names) != len(style_sources):
+        msg = "style_names and style_sources must have the same length"
+        raise ValueError(msg)
+
     styles = tuple(
-        StyleLabel(idx=idx, label_id=f"style:{idx}", name=name)
-        for idx, name in enumerate(style_names)
+        StyleLabel(
+            idx=idx,
+            label_id=_style_label_id(root, font_path, face_idx, instance_idx),
+            name=name,
+        )
+        for idx, (name, (font_path, face_idx, instance_idx)) in enumerate(
+            zip(style_names, style_sources, strict=True)
+        )
     )
     contents = tuple(
         ContentLabel(
@@ -73,3 +87,20 @@ def build_dataset_metadata(
         style_name_to_idxs={name: tuple(idxs) for name, idxs in grouped_names.items()},
         content_id_to_idx={label.label_id: label.idx for label in contents},
     )
+
+
+def _style_label_id(
+    root: Path,
+    font_path: Path,
+    face_idx: int,
+    instance_idx: int | None,
+) -> str:
+    """Build a stable, source-based style label ID."""
+    try:
+        relative_path = font_path.relative_to(root)
+    except ValueError:
+        relative_path = font_path
+
+    instance_value = "static" if instance_idx is None else str(instance_idx)
+    quoted_path = quote(relative_path.as_posix(), safe="/")
+    return f"style:path={quoted_path};face={face_idx};instance={instance_value}"

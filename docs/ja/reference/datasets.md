@@ -145,7 +145,7 @@ content `label_id` から content index へのマップ。
 style ラベル metadata の配列。各要素は次を持ちます。
 
 - `idx`: style index
-- `label_id`: 衝突しない識別子（`style:<idx>`）
+- `label_id`: relative path / face / instance 由来の衝突しない識別子
 - `name`: 表示名（重複可）
 
 #### `style_label_to_idx -> dict[str, int]`

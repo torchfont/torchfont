@@ -15,6 +15,7 @@ class FontDataset:
     content_classes: list[int]
 
     style_classes: list[str]
+    style_sources: list[tuple[str, int, int | None]]
 
     def item(
         self,

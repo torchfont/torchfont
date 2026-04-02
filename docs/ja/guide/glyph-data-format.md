@@ -67,8 +67,7 @@ print(dataset.style_labels[:5])
 print(dataset.style_name_to_idxs)
 ```
 
-`style_labels` は衝突しない識別子（`style:<idx>`）を持ち、重複表示名は
-`style_name_to_idxs` で全 index を取得できます。
+`style_labels` は relative path / face / instance 由来の衝突しない識別子を持ち、重複表示名は `style_name_to_idxs` で全 index を取得できます。
 
 ### `content_idx`
 
