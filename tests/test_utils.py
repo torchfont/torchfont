@@ -158,3 +158,23 @@ def test_collate_fn_rejects_incompatible_trailing_coords_shapes() -> None:
 
     with pytest.raises(ValueError, match="trailing coords shape"):
         collate_fn(samples)
+
+
+def test_collate_fn_rejects_zero_dim_types_tensor() -> None:
+    samples = [
+        GlyphSample(
+            types=torch.tensor([1, 2], dtype=torch.long),
+            coords=torch.zeros(2, 6),
+            style_idx=0,
+            content_idx=0,
+        ),
+        GlyphSample(
+            types=torch.tensor(1, dtype=torch.long),
+            coords=torch.zeros(1, 6),
+            style_idx=1,
+            content_idx=1,
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="at least 1-D for 'types'"):
+        collate_fn(samples)
