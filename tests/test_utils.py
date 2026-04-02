@@ -1,8 +1,9 @@
+import pytest
 import torch
 from torch.utils.data import DataLoader
 
 import torchfont.utils as utils_module
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.transforms import Patchify
 from torchfont.utils import GlyphBatch, collate_fn
 
@@ -117,3 +118,15 @@ def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
     assert glyph_batch.types.shape[:2] == glyph_batch.mask.shape
     assert glyph_batch.types.shape[2] == 4
     assert glyph_batch.coords.shape[2:] == (4, 6)
+
+
+def test_collate_fn_rejects_samples_with_misaligned_sequence_lengths() -> None:
+    sample = GlyphSample(
+        types=torch.tensor([1, 2], dtype=torch.long),
+        coords=torch.zeros(3, 6),
+        style_idx=0,
+        content_idx=0,
+    )
+
+    with pytest.raises(ValueError, match=r"types.shape\[0\] and coords.shape\[0\]"):
+        collate_fn([sample])

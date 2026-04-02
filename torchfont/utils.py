@@ -50,6 +50,19 @@ class GlyphBatch(NamedTuple):
     mask: Tensor
 
 
+def _validate_sample_sequence_lengths(batch: Sequence[GlyphSample]) -> None:
+    """Ensure each sample keeps its leading sequence length aligned."""
+    for idx, sample in enumerate(batch):
+        types_length = sample.types.shape[0]
+        coords_length = sample.coords.shape[0]
+        if types_length != coords_length:
+            msg = (
+                "each sample must keep types.shape[0] and coords.shape[0] "
+                f"aligned; got {types_length} and {coords_length} at batch index {idx}"
+            )
+            raise ValueError(msg)
+
+
 def collate_fn(
     batch: Sequence[GlyphSample],
 ) -> GlyphBatch:
@@ -77,6 +90,8 @@ def collate_fn(
             loader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn)
 
     """
+    _validate_sample_sequence_lengths(batch)
+
     types_list = [sample.types for sample in batch]
     coords_list = [sample.coords for sample in batch]
     style_label_list = [sample.style_idx for sample in batch]

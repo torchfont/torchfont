@@ -35,6 +35,9 @@ collate_fn(batch: Sequence[GlyphSample]) -> GlyphBatch
 可変長 glyph sample の先頭シーケンス次元だけを batch 内最長に合わせて
 padding し、`GlyphBatch` を返します。
 
+- `batch` 内の各 sample では `types.shape[0]` と `coords.shape[0]` を
+  そろえる必要があり、シーケンス長が一致しない場合は `ValueError` を送出します。
+
 ### 例
 
 ```python
