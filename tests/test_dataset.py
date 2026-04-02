@@ -3,7 +3,7 @@ from __future__ import annotations
 import multiprocessing as mp
 import pickle
 import shutil
-import subprocess  # noqa: S404
+import subprocess
 from pathlib import Path
 from unittest.mock import PropertyMock, patch
 
