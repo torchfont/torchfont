@@ -51,8 +51,14 @@ Returns a `GlyphSample` whose `types` and `coords` are truncated to `max_len`.
 
 ### I/O shape (`LimitSequenceLength`)
 
-- input: `types=(seq_len,)`, `coords=(seq_len, d)`
-- output: `types=(min(seq_len, max_len),)`, `coords=(min(seq_len, max_len), d)`
+- input: `types=(seq_len,)`, `coords=(seq_len, 6)`
+- output: `types=(min(seq_len, max_len),)`, `coords=(min(seq_len, max_len), 6)`
+
+### Notes
+
+- malformed input samples also raise `ValueError`; `LimitSequenceLength`
+  expects untruncated tensors with `types.ndim == 1`, `coords.ndim == 2`,
+  `coords.shape[1] == 6`, and aligned leading sequence lengths
 
 ---
 

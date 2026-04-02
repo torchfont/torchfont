@@ -50,8 +50,14 @@ LimitSequenceLength(max_len: int)
 
 ### 入出力（`LimitSequenceLength`）
 
-- 入力: `types=(seq_len,)`, `coords=(seq_len, d)`
-- 出力: `types=(min(seq_len, max_len),)`, `coords=(min(seq_len, max_len), d)`
+- 入力: `types=(seq_len,)`, `coords=(seq_len, 6)`
+- 出力: `types=(min(seq_len, max_len),)`, `coords=(min(seq_len, max_len), 6)`
+
+### 備考
+
+- malformed な入力 sample も `ValueError` になり、`LimitSequenceLength` は
+  未切り詰めの `types.ndim == 1`、`coords.ndim == 2`、`coords.shape[1] == 6`、
+  および先頭シーケンス長の一致を前提にします
 
 ---
 
