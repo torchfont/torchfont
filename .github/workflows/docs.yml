@@ -32,9 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: npm
+      - uses: jdx/mise-action@v2
       - run: npm ci
-      - run: npm run docs:build
+      - run: mise run docs-build
