@@ -415,8 +415,10 @@ class GlyphDataset(Dataset[GlyphSample]):
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
         return build_dataset_metadata(
-            root=self.root,
-            style_rows=cast("list[StyleMetadataRow]", self._dataset.style_rows),
+            style_rows=cast(
+                "list[StyleMetadataRow]",
+                self._dataset.style_metadata_rows(str(self.root)),
+            ),
             content_codepoints=self._dataset.content_classes,
         )
 
