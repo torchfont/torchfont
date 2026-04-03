@@ -123,7 +123,13 @@ impl FontDataset {
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let total = self.sample_count();
-        let mut bytes = Vec::with_capacity(total * 2 * std::mem::size_of::<i64>());
+        let capacity = total
+            .checked_mul(2)
+            .and_then(|n| n.checked_mul(std::mem::size_of::<i64>()))
+            .ok_or_else(|| {
+                pyo3::exceptions::PyOverflowError::new_err("target buffer size overflowed usize")
+            })?;
+        let mut bytes = Vec::with_capacity(capacity);
         for (font_idx, entry) in self.entries.iter().enumerate() {
             let inst_offset = self.index.inst_offsets[font_idx];
             for inst_idx in 0..entry.instance_count() {
