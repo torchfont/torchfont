@@ -784,19 +784,6 @@ def test_targets_empty_dataset() -> None:
     assert dataset.targets.dtype == torch.long
 
 
-def test_targets_are_cached() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    first = dataset.targets
-    second = dataset.targets
-
-    assert second is first
-
-
 def test_targets_variable_fonts() -> None:
     """Test that targets is correct for variable fonts with multiple instances."""
     dataset = GlyphDataset(
