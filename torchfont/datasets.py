@@ -192,7 +192,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             self.codepoints,
             self.patterns,
         )
-        self._metadata: DatasetMetadata | None = None
 
     def __repr__(self) -> str:
         """Return a human-readable summary of this dataset.
@@ -227,6 +226,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
     def __setstate__(self, state: dict[str, object]) -> None:
         """Restore state and recreate the native backend after unpickling."""
+        state.pop("_metadata", None)
         self.__dict__.update(state)
         self._validate_root_dir(self.root)
         self._dataset = _torchfont.FontDataset(
@@ -234,8 +234,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             self.codepoints,
             self.patterns,
         )
-        if not hasattr(self, "_metadata"):
-            self._metadata = None
 
     @staticmethod
     def _validate_root_dir(root: Path) -> None:
@@ -439,14 +437,12 @@ class GlyphDataset(Dataset[GlyphSample]):
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
-        if self._metadata is None:
-            self._metadata = build_dataset_metadata(
-                root=self.root,
-                style_names=self.style_classes,
-                style_sources=self._style_sources(),
-                content_codepoints=self._dataset.content_classes,
-            )
-        return self._metadata
+        return build_dataset_metadata(
+            root=self.root,
+            style_names=self.style_classes,
+            style_sources=self._style_sources(),
+            content_codepoints=self._dataset.content_classes,
+        )
 
     @property
     def content_labels(self) -> list[ContentLabel]:
