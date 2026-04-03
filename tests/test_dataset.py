@@ -648,24 +648,6 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     assert metadata.style_name_to_idxs["Unique"] == (1,)
 
 
-def test_dataset_metadata_handles_duplicate_names() -> None:
-    """DatasetMetadata preserves all indices for duplicate style names."""
-    root = Path("tests/fonts").resolve()
-    metadata = build_dataset_metadata(
-        root=root,
-        style_rows=[
-            ("Shared", root / "lato/Lato-Regular.ttf", 0, None),
-            ("Unique", root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
-            ("Shared", root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
-        ],
-        content_codepoints=[ord("A"), ord("B"), ord("C")],
-    )
-
-    assert len({label.label_id for label in metadata.styles}) == 3
-    assert metadata.style_name_to_idxs["Shared"] == (0, 2)
-    assert metadata.style_name_to_idxs["Unique"] == (1,)
-
-
 def test_build_dataset_metadata_rejects_style_row_outside_root() -> None:
     root = Path("tests/fonts").resolve()
 
