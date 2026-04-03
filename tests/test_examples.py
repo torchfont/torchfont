@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-EXAMPLES_DIR = Path("examples")
+EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
 
 
 @pytest.mark.parametrize(
@@ -31,7 +31,7 @@ def test_examples_are_import_safe(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
-    assert callable(namespace["main"])
+    assert callable(namespace.get("main")), f"{script_name} must define a callable main()"
 
 
 @pytest.mark.parametrize(
