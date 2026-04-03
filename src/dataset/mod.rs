@@ -123,19 +123,18 @@ impl FontDataset {
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let total = self.sample_count();
-        let mut flat: Vec<i64> = Vec::with_capacity(total * 2);
+        let mut bytes = Vec::with_capacity(total * 2 * std::mem::size_of::<i64>());
         for (font_idx, entry) in self.entries.iter().enumerate() {
             let inst_offset = self.index.inst_offsets[font_idx];
             for inst_idx in 0..entry.instance_count() {
                 let style_idx = inst_offset + inst_idx;
                 for &cp in entry.codepoints() {
                     let content_idx = self.index.content_index(cp)?;
-                    flat.push(style_idx as i64);
-                    flat.push(content_idx as i64);
+                    bytes.extend_from_slice(&(style_idx as i64).to_ne_bytes());
+                    bytes.extend_from_slice(&(content_idx as i64).to_ne_bytes());
                 }
             }
         }
-        let bytes: Vec<u8> = flat.iter().flat_map(|&v| v.to_ne_bytes()).collect();
         Ok(PyBytes::new(py, &bytes))
     }
 }
