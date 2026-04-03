@@ -195,6 +195,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             self.patterns,
         )
         self._metadata: DatasetMetadata | None = None
+        self._style_axes_cache: list[tuple[StyleAxis, ...]] | None = None
 
     def __repr__(self) -> str:
         """Return a human-readable summary of this dataset.
@@ -238,6 +239,8 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
         if not hasattr(self, "_metadata"):
             self._metadata = None
+        if not hasattr(self, "_style_axes_cache"):
+            self._style_axes_cache = None
 
     @staticmethod
     def _validate_root_dir(root: Path) -> None:
@@ -359,7 +362,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         font_path, face_idx, instance_idx, codepoint, style_idx, content_idx = (
             self._dataset.locate(idx)
         )
-        axes = self.metadata.styles[int(style_idx)].axes
+        axes = self._style_axes()[int(style_idx)]
         return GlyphLocation(
             font_path=Path(font_path),
             face_idx=int(face_idx),
@@ -442,10 +445,12 @@ class GlyphDataset(Dataset[GlyphSample]):
 
     def _style_axes(self) -> list[tuple[StyleAxis, ...]]:
         """Return style axis metadata aligned with ``style_classes`` order."""
-        return [
-            tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
-            for axes in self._dataset.style_axes
-        ]
+        if self._style_axes_cache is None:
+            self._style_axes_cache = [
+                tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
+                for axes in self._dataset.style_axes
+            ]
+        return self._style_axes_cache
 
     @property
     def metadata(self) -> DatasetMetadata:

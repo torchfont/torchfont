@@ -132,6 +132,20 @@ def test_glyph_dataset_locate_returns_source_metadata() -> None:
     assert location.axes == ()
 
 
+def test_glyph_dataset_locate_does_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError("locate should not materialize metadata")
+        location = dataset.locate(0)
+
+    assert location.axes == ()
+
+
 def test_glyph_dataset_locate_tracks_variable_font_instance_index() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
