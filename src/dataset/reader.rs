@@ -1,6 +1,3 @@
-use std::sync::{Arc, RwLock};
-
-use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::{
     GlyphId, MetadataProvider,
@@ -15,18 +12,13 @@ use crate::{
 };
 
 pub(super) struct GlyphReader {
-    data: RwLock<Option<Arc<Mmap>>>,
     path: String,
     face_index: u32,
 }
 
 impl GlyphReader {
     pub(super) fn new(path: String, face_index: u32) -> Self {
-        Self {
-            data: RwLock::new(None),
-            path,
-            face_index,
-        }
+        Self { path, face_index }
     }
 
     pub(super) fn path(&self) -> &str {
@@ -119,7 +111,7 @@ impl GlyphReader {
     }
 
     fn with_font_ref<T>(&self, f: impl FnOnce(skrifa::FontRef<'_>) -> PyResult<T>) -> PyResult<T> {
-        let data = self.load_data()?;
+        let data = map_font(&self.path)?;
         let font = skrifa::FontRef::from_index(&data[..], self.face_index).map_err(|err| {
             py_err(format!(
                 "failed to parse '{}' (face {}): {err}",
@@ -145,28 +137,5 @@ impl GlyphReader {
         } else {
             Ok(LocationRef::default())
         }
-    }
-
-    fn load_data(&self) -> PyResult<Arc<Mmap>> {
-        if let Some(mapped) = self
-            .data
-            .read()
-            .map_err(|_| py_err("glyph reader lock poisoned"))?
-            .as_ref()
-        {
-            return Ok(Arc::clone(mapped));
-        }
-
-        let mut guard = self
-            .data
-            .write()
-            .map_err(|_| py_err("glyph reader lock poisoned"))?;
-        if let Some(mapped) = guard.as_ref() {
-            return Ok(Arc::clone(mapped));
-        }
-        let mapped = map_font(&self.path)?;
-        let result = Arc::clone(&mapped);
-        *guard = Some(mapped);
-        Ok(result)
     }
 }

@@ -5,7 +5,6 @@ use pyo3::prelude::*;
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 pub(super) fn canonicalize_root(root: &str) -> PyResult<PathBuf> {
@@ -63,12 +62,12 @@ fn has_font_extension(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-pub(super) fn map_font(path: &str) -> PyResult<Arc<Mmap>> {
+pub(super) fn map_font(path: &str) -> PyResult<Mmap> {
     let file =
         fs::File::open(path).map_err(|err| py_err(format!("failed to open '{path}': {err}")))?;
     let mmap = unsafe { Mmap::map(&file) }
         .map_err(|err| py_err(format!("failed to map '{path}': {err}")))?;
-    Ok(Arc::new(mmap))
+    Ok(mmap)
 }
 
 fn build_overrides(root: &Path, patterns: &[String]) -> PyResult<ignore::overrides::Override> {
