@@ -191,6 +191,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             self.patterns,
         )
         self._metadata: DatasetMetadata | None = None
+        self._targets: Tensor | None = None
 
     def __repr__(self) -> str:
         """Return a human-readable summary of this dataset.
@@ -221,6 +222,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         """Return state without the native backend for worker reconstruction."""
         state = self.__dict__.copy()
         state.pop("_dataset", None)
+        state.pop("_targets", None)
         return state
 
     def __setstate__(self, state: dict[str, object]) -> None:
@@ -234,6 +236,8 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
         if not hasattr(self, "_metadata"):
             self._metadata = None
+        if not hasattr(self, "_targets"):
+            self._targets = None
 
     @staticmethod
     def _validate_root_dir(root: Path) -> None:
@@ -383,10 +387,15 @@ class GlyphDataset(Dataset[GlyphSample]):
             tensor([style_idx, content_idx])
 
         """
-        raw = self._dataset.targets()
-        if not raw:
-            return torch.empty(0, 2, dtype=torch.long)
-        return torch.frombuffer(bytearray(raw), dtype=torch.long).view(-1, 2)
+        if self._targets is None:
+            raw = self._dataset.targets()
+            if not raw:
+                self._targets = torch.empty(0, 2, dtype=torch.long)
+            else:
+                self._targets = torch.frombuffer(bytearray(raw), dtype=torch.long).view(
+                    -1, 2
+                )
+        return self._targets
 
     @property
     def content_classes(self) -> list[str]:
