@@ -21,7 +21,7 @@ Examples:
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
-from typing import NamedTuple, SupportsIndex
+from typing import NamedTuple, SupportsIndex, cast
 
 import torch
 from torch import Tensor
@@ -33,6 +33,7 @@ from torchfont.metadata import (
     ContentLabel,
     DatasetMetadata,
     StyleLabel,
+    StyleMetadataRow,
     build_dataset_metadata,
 )
 
@@ -413,24 +414,12 @@ class GlyphDataset(Dataset[GlyphSample]):
         """
         return {label.char: label.idx for label in self.metadata.contents}
 
-    def _style_sources(self) -> list[tuple[Path, int, int | None]]:
-        """Return style source tuples aligned with ``style_classes`` order."""
-        return [
-            (
-                Path(font_path),
-                int(face_idx),
-                None if instance_idx is None else int(instance_idx),
-            )
-            for font_path, face_idx, instance_idx in self._dataset.style_sources
-        ]
-
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
         return build_dataset_metadata(
             root=self.root,
-            style_names=self.style_classes,
-            style_sources=self._style_sources(),
+            style_rows=cast("list[StyleMetadataRow]", self._dataset.style_rows),
             content_codepoints=self._dataset.content_classes,
         )
 
