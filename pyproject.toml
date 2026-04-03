@@ -44,10 +44,12 @@ build-backend = "maturin"
 
 [dependency-groups]
 dev = [
+    "asv>=0.6.5",
     "lightning>=2.6.0",
     "maturin>=1.10.2",
     "numpy>=2.2.6",
     "pytest>=8.4.2",
+    "pytest-benchmark>=5.1.0",
     "ruff>=0.12.4",
     "tqdm>=4.67.1",
     "ty>=0.0.12",
@@ -74,6 +76,7 @@ select = ["ALL"]
 ignore = ["COM812", "D203", "D213", "EXE002"]
 
 [tool.ruff.lint.per-file-ignores]
+"benchmarks/**/*.py" = ["ARG002", "D", "PLR2004", "RUF012", "S101", "T201"]
 "examples/**/*.py" = ["D", "T201"]
 "torchfont/datasets/*.py" = ["PLR0913"]
 "tests/**/*.py" = ["D", "PLR2004", "S101"]

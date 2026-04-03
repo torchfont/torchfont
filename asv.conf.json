@@ -1,0 +1,16 @@
+{
+    "version": 1,
+    "project": "torchfont",
+    "project_url": "https://github.com/torchfont/torchfont",
+    "repo": ".",
+    "branches": ["main"],
+    "show_commit_url": "https://github.com/torchfont/torchfont/commit/",
+    "environment_type": "existing",
+    "pythons": ["same"],
+    "benchmark_dir": "benchmarks",
+    "html_dir": ".asv/html",
+    "results_dir": ".asv/results",
+    "build_command": [
+        "maturin develop --release"
+    ]
+}

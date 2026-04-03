@@ -1,6 +1,9 @@
 # Custom ignore rules
 data/
 
+# asv benchmark results and HTML output
+.asv/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
