@@ -1,18 +1,13 @@
 from __future__ import annotations
 
-import shutil
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-FONTS_DIR = Path(__file__).parent.parent / "tests" / "fonts"
+from benchmarks._helpers import copy_font_copies
 
-# Source fonts used to build pseudo-large datasets
-_BENCH_FONT_PATTERNS = (
-    "lato/Lato-Regular.ttf",
-    "ubuntu/Ubuntu-Regular.ttf",
-    "ptsans/PT_Sans-Web-Regular.ttf",
-)
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Number of per-font copies; 50 copies x 3 fonts = 150 font files
 _BENCH_COPIES = 50
@@ -26,10 +21,5 @@ def font_copies_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     recommended by the benchmarking strategy in the project issue.
     """
     root = tmp_path_factory.mktemp("bench_fonts")
-    for pattern in _BENCH_FONT_PATTERNS:
-        src = FONTS_DIR / pattern
-        for i in range(_BENCH_COPIES):
-            dst = root / str(i) / pattern
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
+    copy_font_copies(root, _BENCH_COPIES)
     return root
