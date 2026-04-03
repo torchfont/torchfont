@@ -362,7 +362,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         font_path, face_idx, instance_idx, codepoint, style_idx, content_idx = (
             self._dataset.locate(idx)
         )
-        axes = self._style_axes()[int(style_idx)]
+        axes = () if instance_idx is None else self._style_axes()[int(style_idx)]
         return GlyphLocation(
             font_path=Path(font_path),
             face_idx=int(face_idx),
