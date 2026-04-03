@@ -15,6 +15,7 @@ pub(super) struct FontEntry {
     reader: GlyphReader,
     units_per_em: f32,
     locations: Vec<Location>,
+    style_axes: Vec<Vec<(String, f32)>>,
 }
 
 impl FontEntry {
@@ -56,7 +57,7 @@ impl FontEntry {
     }
 
     pub(super) fn instance_count(&self) -> usize {
-        self.locations.len().max(1)
+        self.style_axes.len()
     }
 
     pub(super) fn is_variable(&self) -> bool {
@@ -84,6 +85,10 @@ impl FontEntry {
             return vec![];
         }
         self.reader.named_instance_names()
+    }
+
+    pub(super) fn style_axes(&self) -> &[Vec<(String, f32)>] {
+        &self.style_axes
     }
 
     pub(super) fn family_name(&self) -> String {
@@ -121,11 +126,21 @@ impl FontEntry {
         mappings.sort_unstable_by_key(|entry| entry.0);
         let (codepoints, glyph_ids): (Vec<_>, Vec<_>) = mappings.into_iter().unzip();
 
-        let locations = font
-            .named_instances()
+        let axis_tags: Vec<String> = font
+            .axes()
             .iter()
-            .map(|inst| inst.location())
+            .map(|axis| axis.tag().to_string())
             .collect();
+        let named_instances = font.named_instances();
+        let locations: Vec<Location> = named_instances.iter().map(|inst| inst.location()).collect();
+        let style_axes = if locations.is_empty() {
+            vec![vec![]]
+        } else {
+            named_instances
+                .iter()
+                .map(|inst| axis_tags.iter().cloned().zip(inst.user_coords()).collect())
+                .collect()
+        };
 
         Ok(Self {
             index: GlyphIndex {
@@ -135,6 +150,7 @@ impl FontEntry {
             reader: GlyphReader::new(base_path.to_string(), face_index),
             units_per_em: upem as f32,
             locations,
+            style_axes,
         })
     }
 

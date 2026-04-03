@@ -5,12 +5,20 @@ from typing import NamedTuple
 from urllib.parse import quote
 
 
+class StyleAxis(NamedTuple):
+    """One user-space variation axis value for a style."""
+
+    tag: str
+    value: float
+
+
 class StyleLabel(NamedTuple):
     """Metadata for a style label stored on a dataset."""
 
     idx: int
     label_id: str
     name: str
+    axes: tuple[StyleAxis, ...]
 
 
 class ContentLabel(NamedTuple):
@@ -49,6 +57,7 @@ def build_dataset_metadata(
     root: Path,
     style_names: list[str],
     style_sources: list[tuple[Path, int, int | None]],
+    style_axes: list[tuple[StyleAxis, ...]],
     content_codepoints: list[int],
 ) -> DatasetMetadata:
     """Build a DatasetMetadata object for a glyph dataset.
@@ -68,6 +77,9 @@ def build_dataset_metadata(
         style_sources: Triples of ``(font_path, face_idx, instance_idx)`` that
             identify the concrete font source corresponding to each style
             name.  ``instance_idx`` is ``None`` for static faces.
+        style_axes: User-space variation axis settings aligned with
+            ``style_names`` and ``style_sources``. Static styles use an empty
+            tuple.
         content_codepoints: Unicode code points to turn into ``ContentLabel``
             entries.
 
@@ -76,15 +88,17 @@ def build_dataset_metadata(
         entries and their associated lookup dictionaries.
 
     Raises:
-        ValueError: If ``style_names`` and ``style_sources`` have different
-            lengths, or if any font path in ``style_sources`` is not located
-            under ``root``.
+        ValueError: If ``style_names``, ``style_sources``, and ``style_axes``
+            have different lengths, or if any font path in ``style_sources``
+            is not located under ``root``.
 
     """
     try:
-        paired_styles = tuple(zip(style_names, style_sources, strict=True))
+        paired_styles = tuple(
+            zip(style_names, style_sources, style_axes, strict=True),
+        )
     except ValueError:
-        msg = "style_names and style_sources must have the same length"
+        msg = "style_names, style_sources, and style_axes must have the same length"
         raise ValueError(msg) from None
 
     styles = tuple(
@@ -92,8 +106,13 @@ def build_dataset_metadata(
             idx=idx,
             label_id=_style_label_id(root, font_path, face_idx, instance_idx),
             name=name,
+            axes=axes,
         )
-        for idx, (name, (font_path, face_idx, instance_idx)) in enumerate(paired_styles)
+        for idx, (
+            name,
+            (font_path, face_idx, instance_idx),
+            axes,
+        ) in enumerate(paired_styles)
     )
     contents = tuple(
         ContentLabel(

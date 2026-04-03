@@ -30,6 +30,7 @@ from torchfont.io import COORD_DIM
 from torchfont.metadata import (
     ContentLabel,
     DatasetMetadata,
+    StyleAxis,
     StyleLabel,
     build_dataset_metadata,
 )
@@ -83,6 +84,8 @@ class GlyphLocation(NamedTuple):
         codepoint (int): Unicode codepoint for the indexed glyph sample.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
+        axes (tuple[StyleAxis, ...]): User-space variation axis settings for
+            the resolved style. Static fonts use an empty tuple.
 
     Examples:
         Inspect where the first sample came from::
@@ -98,6 +101,7 @@ class GlyphLocation(NamedTuple):
     codepoint: int
     style_idx: int
     content_idx: int
+    axes: tuple[StyleAxis, ...]
 
 
 class GlyphDataset(Dataset[GlyphSample]):
@@ -355,6 +359,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         font_path, face_idx, instance_idx, codepoint, style_idx, content_idx = (
             self._dataset.locate(idx)
         )
+        axes = self.metadata.styles[int(style_idx)].axes
         return GlyphLocation(
             font_path=Path(font_path),
             face_idx=int(face_idx),
@@ -362,6 +367,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             codepoint=int(codepoint),
             style_idx=int(style_idx),
             content_idx=int(content_idx),
+            axes=axes,
         )
 
     @property
@@ -434,6 +440,13 @@ class GlyphDataset(Dataset[GlyphSample]):
             for font_path, face_idx, instance_idx in self._dataset.style_sources
         ]
 
+    def _style_axes(self) -> list[tuple[StyleAxis, ...]]:
+        """Return style axis metadata aligned with ``style_classes`` order."""
+        return [
+            tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
+            for axes in self._dataset.style_axes
+        ]
+
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
@@ -442,6 +455,7 @@ class GlyphDataset(Dataset[GlyphSample]):
                 root=self.root,
                 style_names=self.style_classes,
                 style_sources=self._style_sources(),
+                style_axes=self._style_axes(),
                 content_codepoints=self._dataset.content_classes,
             )
         return self._metadata
@@ -527,5 +541,6 @@ __all__ = [
     "GlyphDataset",
     "GlyphLocation",
     "GlyphSample",
+    "StyleAxis",
     "StyleLabel",
 ]
