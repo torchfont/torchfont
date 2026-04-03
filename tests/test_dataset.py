@@ -529,22 +529,23 @@ def test_style_label_metadata_is_index_addressable() -> None:
     )
 
     sample = dataset[0]
-    style_label = dataset.style_labels[sample.style_idx]
-    content_label = dataset.content_labels[sample.content_idx]
+    metadata = dataset.metadata
+    style_label = metadata.styles[sample.style_idx]
+    content_label = metadata.contents[sample.content_idx]
 
     assert style_label.idx == sample.style_idx
     assert style_label.label_id.startswith("style:path=")
     assert "instance=static" in style_label.label_id
-    assert dataset.style_label_to_idx[style_label.label_id] == sample.style_idx
-    assert sample.style_idx in dataset.style_name_to_idxs[style_label.name]
+    assert metadata.style_id_to_idx[style_label.label_id] == sample.style_idx
+    assert sample.style_idx in metadata.style_name_to_idxs[style_label.name]
 
     assert content_label.idx == sample.content_idx
-    assert dataset.content_label_to_idx[content_label.label_id] == sample.content_idx
+    assert metadata.content_id_to_idx[content_label.label_id] == sample.content_idx
     assert dataset.content_class_to_idx[content_label.char] == sample.content_idx
 
 
 def test_dataset_metadata_consolidates_label_views() -> None:
-    """DatasetMetadata provides a structured source of label metadata."""
+    """DatasetMetadata is the canonical source of label metadata."""
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
@@ -555,16 +556,30 @@ def test_dataset_metadata_consolidates_label_views() -> None:
     sample = dataset[0]
 
     assert isinstance(metadata, DatasetMetadata)
-    assert metadata.styles[sample.style_idx] == dataset.style_labels[sample.style_idx]
+    assert metadata.styles[sample.style_idx].idx == sample.style_idx
+    assert metadata.contents[sample.content_idx].idx == sample.content_idx
     assert (
-        metadata.contents[sample.content_idx]
-        == dataset.content_labels[sample.content_idx]
+        metadata.style_id_to_idx[metadata.styles[sample.style_idx].label_id]
+        == sample.style_idx
     )
-    assert metadata.style_id_to_idx == dataset.style_label_to_idx
-    assert metadata.content_id_to_idx == dataset.content_label_to_idx
-    assert dict(metadata.style_name_to_idxs) == {
-        name: tuple(idxs) for name, idxs in dataset.style_name_to_idxs.items()
-    }
+    assert (
+        metadata.content_id_to_idx[metadata.contents[sample.content_idx].label_id]
+        == sample.content_idx
+    )
+
+
+def test_dataset_does_not_expose_redundant_metadata_projections() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    assert not hasattr(dataset, "style_labels")
+    assert not hasattr(dataset, "style_label_to_idx")
+    assert not hasattr(dataset, "style_name_to_idxs")
+    assert not hasattr(dataset, "content_labels")
+    assert not hasattr(dataset, "content_label_to_idx")
 
 
 def test_dataset_metadata_does_not_add_python_cache_state() -> None:
@@ -610,12 +625,11 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
             ],
         ),
     ):
-        labels = dataset.style_labels
-        grouped = dataset.style_name_to_idxs
+        metadata = dataset.metadata
 
-    assert len({label.label_id for label in labels}) == 3
-    assert grouped["Shared"] == [0, 2]
-    assert grouped["Unique"] == [1]
+    assert len({label.label_id for label in metadata.styles}) == 3
+    assert metadata.style_name_to_idxs["Shared"] == (0, 2)
+    assert metadata.style_name_to_idxs["Unique"] == (1,)
 
 
 def test_dataset_metadata_handles_duplicate_names() -> None:
@@ -682,8 +696,8 @@ def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
         codepoints=range(0x41, 0x46),
     )
 
-    assert [label.label_id for label in dataset_a.style_labels] == [
-        label.label_id for label in dataset_b.style_labels
+    assert [label.label_id for label in dataset_a.metadata.styles] == [
+        label.label_id for label in dataset_b.metadata.styles
     ]
 
 

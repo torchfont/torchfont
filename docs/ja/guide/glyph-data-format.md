@@ -62,21 +62,25 @@ print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
   `Family`）へフォールバック
 
 ```python
+metadata = dataset.metadata
+
 print(dataset.style_classes[:5])
-print(dataset.style_labels[:5])
-print(dataset.style_name_to_idxs)
+print(metadata.styles[:5])
+print(metadata.style_name_to_idxs)
 ```
 
-`style_labels` は relative path / face / instance 由来の衝突しない識別子を持ち、重複表示名は `style_name_to_idxs` で全 index を取得できます。
+`metadata.styles` は relative path / face / instance 由来の衝突しない識別子を持ち、重複表示名は `metadata.style_name_to_idxs` で全 index を取得できます。
 
 ### `content_idx`
 
 - Unicode 文字ごとのクラスID
 
 ```python
+metadata = dataset.metadata
+
 print(dataset.content_classes[:5])
-print(dataset.content_labels[:5])
-print(dataset.content_label_to_idx)
+print(metadata.contents[:5])
+print(metadata.content_id_to_idx)
 ```
 
 ## `targets` で一括取得

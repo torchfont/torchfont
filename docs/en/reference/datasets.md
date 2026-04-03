@@ -130,45 +130,12 @@ Structured label metadata object.
 
 Mapping from character to content index.
 
-#### `content_labels -> list[ContentLabel]`
-
-Content label metadata entries. Each entry has:
-
-- `idx`: content index
-- `label_id`: collision-safe ID (`content:U+XXXX`)
-- `char`: one-character Unicode string
-- `codepoint`: Unicode codepoint (`int`)
-
-#### `content_label_to_idx -> dict[str, int]`
-
-Mapping from content `label_id` to content index.
-
 #### `style_classes -> list[str]`
 
 Style class names. Static fonts use family/subfamily names. Variable fonts use
 named instances when available, otherwise they fall back to family/subfamily
 (or family-only) names. If a named instance exists but its subfamily name is
 empty, the family name is used.
-
-#### `style_labels -> list[StyleLabel]`
-
-Style label metadata entries. Each entry has:
-
-- `idx`: style index
-- `label_id`: source-based collision-safe ID derived from relative path, face,
-  and instance information
-- `name`: display name (may duplicate)
-
-#### `style_label_to_idx -> dict[str, int]`
-
-Mapping from style `label_id` to style index.
-
-#### `style_name_to_idxs -> dict[str, list[int]]`
-
-Mapping from style display name to all matching style indices.
-
-The metadata-related properties above are convenience projections from
-`dataset.metadata`.
 
 ### Example (`GlyphDataset`)
 
