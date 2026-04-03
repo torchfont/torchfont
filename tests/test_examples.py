@@ -23,7 +23,10 @@ def test_examples_are_import_safe(
     script_name: str,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    namespace = runpy.run_path(str(EXAMPLES_DIR / script_name))
+    namespace = runpy.run_path(
+        str(EXAMPLES_DIR / script_name),
+        run_name="_example_import_check",
+    )
 
     captured = capsys.readouterr()
     assert captured.out == ""
