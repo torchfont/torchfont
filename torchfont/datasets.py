@@ -407,7 +407,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             ['A', 'B', 'C']
 
         """
-        return [label.char for label in self.metadata.contents]
+        return [chr(codepoint) for codepoint in self._dataset.content_classes]
 
     @property
     def content_class_to_idx(self) -> dict[str, int]:
@@ -421,7 +421,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             0
 
         """
-        return {label.char: label.idx for label in self.metadata.contents}
+        return {char: idx for idx, char in enumerate(self.content_classes)}
 
     def _style_sources(self) -> list[tuple[Path, int, int | None]]:
         """Return style source tuples aligned with ``style_classes`` order."""

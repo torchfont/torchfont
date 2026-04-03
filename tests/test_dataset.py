@@ -508,6 +508,34 @@ def test_content_class_to_idx() -> None:
         assert dataset.content_class_to_idx[char] == idx
 
 
+def test_content_classes_do_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError(
+            "content_classes should not materialize metadata"
+        )
+        assert dataset.content_classes == ["A", "B", "C"]
+
+
+def test_content_class_to_idx_does_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError(
+            "content_class_to_idx should not materialize metadata"
+        )
+        assert dataset.content_class_to_idx == {"A": 0, "B": 1, "C": 2}
+
+
 def test_style_classes() -> None:
     """Test style_classes returns descriptive names."""
     dataset = GlyphDataset(
