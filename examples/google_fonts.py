@@ -16,7 +16,12 @@ def main() -> None:
 
     dataset = GlyphDataset(
         root="data/google/fonts",
-        patterns=("ofl/*/*.ttf",),
+        patterns=(
+            "apache/*/*.ttf",
+            "ofl/*/*.ttf",
+            "ufl/*/*.ttf",
+            "!ofl/adobeblank/*.ttf",
+        ),
         transform=transform,
     )
 
