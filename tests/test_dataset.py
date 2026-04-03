@@ -567,6 +567,23 @@ def test_dataset_metadata_consolidates_label_views() -> None:
     }
 
 
+def test_dataset_metadata_does_not_add_python_cache_state() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    assert "_metadata" not in dataset.__dict__
+
+    first = dataset.metadata
+    second = dataset.metadata
+
+    assert "_metadata" not in dataset.__dict__
+    assert first == second
+    assert first is not second
+
+
 def test_style_label_metadata_handles_duplicate_names() -> None:
     """Test duplicate style names are preserved in collision-safe metadata."""
     dataset = GlyphDataset(
