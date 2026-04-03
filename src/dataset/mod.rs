@@ -53,6 +53,26 @@ impl FontDataset {
         self.index.content_classes.clone()
     }
 
+    pub fn content_metadata_rows(&self) -> PyResult<Vec<(String, String, u32)>> {
+        self.index
+            .content_classes
+            .iter()
+            .copied()
+            .map(|codepoint| {
+                let ch = char::from_u32(codepoint).ok_or_else(|| {
+                    crate::error::py_err(format!(
+                        "indexed codepoint U+{codepoint:04X} is not a Unicode scalar value"
+                    ))
+                })?;
+                Ok((
+                    format!("content:U+{codepoint:04X}"),
+                    ch.to_string(),
+                    codepoint,
+                ))
+            })
+            .collect()
+    }
+
     #[getter]
     pub fn style_class_count(&self) -> usize {
         self.index.inst_offsets.last().copied().unwrap_or(0)

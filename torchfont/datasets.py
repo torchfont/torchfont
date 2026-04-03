@@ -29,6 +29,7 @@ from torchfont import _torchfont
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
     ContentLabel,
+    ContentMetadataRow,
     DatasetMetadata,
     StyleLabel,
     StyleMetadataRow,
@@ -419,7 +420,10 @@ class GlyphDataset(Dataset[GlyphSample]):
                 "list[StyleMetadataRow]",
                 self._dataset.style_metadata_rows(str(self.root)),
             ),
-            content_codepoints=self._dataset.content_classes,
+            content_rows=cast(
+                "list[ContentMetadataRow]",
+                self._dataset.content_metadata_rows(),
+            ),
         )
 
     @property
