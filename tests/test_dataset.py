@@ -599,33 +599,49 @@ def test_dataset_metadata_does_not_add_python_cache_state() -> None:
     assert first is not second
 
 
-def test_style_label_metadata_handles_duplicate_names() -> None:
-    """Test duplicate style names are preserved in collision-safe metadata."""
+def test_dataset_metadata_does_not_route_through_python_projections() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
     )
 
-    raw_names = ["Shared", "Unique", "Shared"]
     with (
         patch.object(
             GlyphDataset,
             "style_classes",
             new_callable=PropertyMock,
-            return_value=raw_names,
-        ),
+        ) as style_classes,
         patch.object(
             GlyphDataset,
-            "_style_sources",
-            return_value=[
-                (dataset.root / "lato/Lato-Regular.ttf", 0, None),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
-            ],
-        ),
+            "content_classes",
+            new_callable=PropertyMock,
+        ) as content_classes,
     ):
+        style_classes.side_effect = AssertionError(
+            "metadata should not materialize style_classes",
+        )
+        content_classes.side_effect = AssertionError(
+            "metadata should not materialize content_classes",
+        )
         metadata = dataset.metadata
+
+    assert metadata.styles
+    assert metadata.contents
+
+
+def test_style_label_metadata_handles_duplicate_names() -> None:
+    """Test duplicate style names are preserved in collision-safe metadata."""
+    root = Path("tests/fonts").resolve()
+    metadata = build_dataset_metadata(
+        root=root,
+        style_rows=[
+            ("Shared", root / "lato/Lato-Regular.ttf", 0, None),
+            ("Unique", root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
+            ("Shared", root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
+        ],
+        content_codepoints=[ord("A"), ord("B"), ord("C")],
+    )
 
     assert len({label.label_id for label in metadata.styles}) == 3
     assert metadata.style_name_to_idxs["Shared"] == (0, 2)
@@ -634,52 +650,31 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
 
 def test_dataset_metadata_handles_duplicate_names() -> None:
     """DatasetMetadata preserves all indices for duplicate style names."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
+    root = Path("tests/fonts").resolve()
+    metadata = build_dataset_metadata(
+        root=root,
+        style_rows=[
+            ("Shared", root / "lato/Lato-Regular.ttf", 0, None),
+            ("Unique", root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
+            ("Shared", root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
+        ],
+        content_codepoints=[ord("A"), ord("B"), ord("C")],
     )
-
-    raw_names = ["Shared", "Unique", "Shared"]
-    with (
-        patch.object(
-            GlyphDataset,
-            "style_classes",
-            new_callable=PropertyMock,
-            return_value=raw_names,
-        ),
-        patch.object(
-            GlyphDataset,
-            "_style_sources",
-            return_value=[
-                (dataset.root / "lato/Lato-Regular.ttf", 0, None),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
-            ],
-        ),
-    ):
-        metadata = dataset.metadata
 
     assert len({label.label_id for label in metadata.styles}) == 3
     assert metadata.style_name_to_idxs["Shared"] == (0, 2)
     assert metadata.style_name_to_idxs["Unique"] == (1,)
 
 
-def test_build_dataset_metadata_rejects_mismatched_style_inputs() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
+def test_build_dataset_metadata_rejects_style_row_outside_root() -> None:
+    root = Path("tests/fonts").resolve()
 
-    with pytest.raises(
-        ValueError,
-        match="style_names and style_sources must have the same length",
-    ):
+    with pytest.raises(ValueError, match="is not under dataset root"):
         build_dataset_metadata(
-            root=dataset.root,
-            style_names=["Lato Regular"],
-            style_sources=[],
+            root=root,
+            style_rows=[
+                ("Outside", root.parent / "outside.ttf", 0, None),
+            ],
             content_codepoints=[ord("A")],
         )
 

@@ -59,46 +59,47 @@ impl FontDataset {
 
     #[getter]
     pub fn style_classes(&self) -> Vec<String> {
-        let mut names = Vec::new();
-        for entry in self.entries.iter() {
-            let family_name = entry.family_name();
-            if entry.is_variable() {
-                let instance_names = entry.named_instance_names();
-                if instance_names.is_empty() {
-                    if let Some(subfamily) = entry.subfamily_name() {
-                        names.push(format!("{family_name} {subfamily}"));
-                    } else {
-                        names.push(family_name);
-                    }
-                } else {
-                    for name_opt in instance_names.iter() {
-                        let instance_name = name_opt.as_deref().unwrap_or("");
-                        if instance_name.is_empty() {
-                            names.push(family_name.clone());
-                        } else {
-                            names.push(format!("{family_name} {instance_name}"));
-                        }
-                    }
-                }
-            } else if let Some(subfamily) = entry.subfamily_name() {
-                names.push(format!("{family_name} {subfamily}"));
-            } else {
-                names.push(family_name);
-            }
-        }
-        names
+        self.style_rows()
+            .into_iter()
+            .map(|(name, _, _, _)| name)
+            .collect()
     }
 
     #[getter]
-    pub fn style_sources(&self) -> Vec<(String, u32, Option<usize>)> {
-        let mut sources = Vec::new();
+    pub fn style_rows(&self) -> Vec<(String, String, u32, Option<usize>)> {
+        let mut rows = Vec::new();
         for entry in self.entries.iter() {
-            for inst_idx in 0..entry.instance_count() {
-                let instance = entry.is_variable().then_some(inst_idx);
-                sources.push((entry.path().to_owned(), entry.face_index(), instance));
+            let path = entry.path().to_owned();
+            let face_idx = entry.face_index();
+            let family_name = entry.family_name();
+
+            if entry.is_variable() {
+                let instance_names = entry.named_instance_names();
+                if instance_names.is_empty() {
+                    let display_name = if let Some(subfamily) = entry.subfamily_name() {
+                        format!("{family_name} {subfamily}")
+                    } else {
+                        family_name
+                    };
+                    rows.push((display_name, path, face_idx, None));
+                } else {
+                    for (inst_idx, name_opt) in instance_names.iter().enumerate() {
+                        let instance_name = name_opt.as_deref().unwrap_or("");
+                        let display_name = if instance_name.is_empty() {
+                            family_name.clone()
+                        } else {
+                            format!("{family_name} {instance_name}")
+                        };
+                        rows.push((display_name, path.clone(), face_idx, Some(inst_idx)));
+                    }
+                }
+            } else if let Some(subfamily) = entry.subfamily_name() {
+                rows.push((format!("{family_name} {subfamily}"), path, face_idx, None));
+            } else {
+                rows.push((family_name, path, face_idx, None));
             }
         }
-        sources
+        rows
     }
 
     pub fn locate(&self, idx: usize) -> PyResult<(String, u32, Option<usize>, u32, usize, usize)> {
