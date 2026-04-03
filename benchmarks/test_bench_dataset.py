@@ -1,4 +1,4 @@
-"""Benchmarks for GlyphDataset construction and item access.
+"""Benchmarks for GlyphDataset initialization and iteration.
 
 Run locally with pytest-benchmark::
 
@@ -7,7 +7,7 @@ Run locally with pytest-benchmark::
 Run with asv::
 
     asv run --bench DatasetInit
-    asv run --bench DatasetGetItem
+    asv run --bench DatasetIter
 """
 
 from __future__ import annotations
@@ -72,27 +72,37 @@ def test_bench_dataset_init_large(
     )
 
 
-def test_bench_dataset_getitem(benchmark: BenchmarkFixture) -> None:
-    """Benchmark random item access on a small dataset."""
+def test_bench_dataset_iter_small(benchmark: BenchmarkFixture) -> None:
+    """Benchmark a full iteration pass over a small dataset."""
     dataset = GlyphDataset(
         root=FONTS_DIR,
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=_CODEPOINTS,
     )
-    benchmark(dataset.__getitem__, 0)
+
+    def _iterate() -> None:
+        for _ in dataset:
+            pass
+
+    benchmark(_iterate)
 
 
-def test_bench_dataset_getitem_large(
+def test_bench_dataset_iter_large(
     benchmark: BenchmarkFixture,
     font_copies_dir: Path,
 ) -> None:
-    """Benchmark random item access on a pseudo-large dataset."""
+    """Benchmark a full iteration pass over a pseudo-large dataset."""
     dataset = GlyphDataset(
         root=font_copies_dir,
         patterns=("**/*.ttf",),
         codepoints=_CODEPOINTS,
     )
-    benchmark(dataset.__getitem__, 0)
+
+    def _iterate() -> None:
+        for _ in dataset:
+            pass
+
+    benchmark(_iterate)
 
 
 # ---------------------------------------------------------------------------
@@ -124,8 +134,8 @@ class DatasetInit:
         )
 
 
-class DatasetGetItem:
-    """asv benchmark for GlyphDataset item access."""
+class DatasetIter:
+    """asv benchmark for iterating through an entire GlyphDataset."""
 
     params = [1, 50]
     param_names = ["n_copies"]
@@ -143,5 +153,6 @@ class DatasetGetItem:
     def teardown(self, n_copies: int) -> None:
         self._tmpdir.cleanup()
 
-    def time_getitem(self, n_copies: int) -> None:
-        self._dataset[0]
+    def time_iter(self, n_copies: int) -> None:
+        for _ in self._dataset:
+            pass

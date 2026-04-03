@@ -2,14 +2,8 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
-
-from benchmarks._helpers import make_glyph_sample
-
-if TYPE_CHECKING:
-    from torchfont.datasets import GlyphSample
 
 FONTS_DIR = Path(__file__).parent.parent / "tests" / "fonts"
 
@@ -39,9 +33,3 @@ def font_copies_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
     return root
-
-
-@pytest.fixture(scope="module")
-def glyph_sample() -> GlyphSample:
-    """A realistic-length GlyphSample for transform benchmarks."""
-    return make_glyph_sample(256)
