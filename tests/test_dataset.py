@@ -666,8 +666,6 @@ def test_unpickling_drops_legacy_metadata_cache_state() -> None:
     assert "_metadata" not in dataset.__dict__
 
 
-def test_style_label_metadata_handles_duplicate_names() -> None:
-    """Test duplicate style names are preserved in collision-safe metadata."""
 def test_dataset_metadata_does_not_route_through_python_projections() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
