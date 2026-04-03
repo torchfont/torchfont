@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 FONTS_DIR = Path(__file__).parent.parent / "tests" / "fonts"
 
 # Codepoints kept small so benchmarks focus on I/O and indexing, not rendering
-_CODEPOINTS = range(0x41, 0x7B)  # A-Z and a-z
+_CODEPOINTS = tuple(range(0x41, 0x5B)) + tuple(range(0x61, 0x7B))  # A-Z and a-z
 
 _BENCH_FONT_PATTERNS = (
     "lato/Lato-Regular.ttf",
