@@ -31,6 +31,8 @@ def test_collate_fn_basic() -> None:
     assert glyph_batch.coords.dtype == torch.float32
     assert glyph_batch.coords.ndim == 3
     assert glyph_batch.coords.shape[2] == 6
+    assert glyph_batch.metrics.dtype == torch.float32
+    assert glyph_batch.metrics.shape == (2, 6)
     assert glyph_batch.style_idx.dtype == torch.long
     assert glyph_batch.style_idx.shape == (2,)
     assert glyph_batch.content_idx.dtype == torch.long
@@ -124,6 +126,7 @@ def test_collate_fn_rejects_samples_with_misaligned_sequence_lengths() -> None:
     sample = GlyphSample(
         types=torch.tensor([1, 2], dtype=torch.long),
         coords=torch.zeros(3, 6),
+        metrics=torch.zeros(6),
         style_idx=0,
         content_idx=0,
     )
@@ -142,12 +145,14 @@ def test_collate_fn_rejects_incompatible_trailing_types_shapes() -> None:
         GlyphSample(
             types=torch.tensor([1, 2], dtype=torch.long),
             coords=torch.zeros(2, 6),
+            metrics=torch.zeros(6),
             style_idx=0,
             content_idx=0,
         ),
         GlyphSample(
             types=torch.tensor([[1, 2]], dtype=torch.long),
             coords=torch.zeros(1, 6),
+            metrics=torch.zeros(6),
             style_idx=1,
             content_idx=1,
         ),
@@ -162,12 +167,14 @@ def test_collate_fn_rejects_incompatible_trailing_coords_shapes() -> None:
         GlyphSample(
             types=torch.tensor([1, 2], dtype=torch.long),
             coords=torch.zeros(2, 6),
+            metrics=torch.zeros(6),
             style_idx=0,
             content_idx=0,
         ),
         GlyphSample(
             types=torch.tensor([1, 2, 3], dtype=torch.long),
             coords=torch.zeros(3, 1, 6),
+            metrics=torch.zeros(6),
             style_idx=1,
             content_idx=1,
         ),
@@ -182,6 +189,7 @@ def test_collate_fn_rejects_zero_dim_trailing_types_inputs() -> None:
         GlyphSample(
             types=torch.tensor(1, dtype=torch.long),
             coords=torch.zeros(1, 6),
+            metrics=torch.zeros(6),
             style_idx=0,
             content_idx=0,
         ),
@@ -196,6 +204,7 @@ def test_collate_fn_rejects_zero_dim_trailing_coords_inputs() -> None:
         GlyphSample(
             types=torch.tensor([1], dtype=torch.long),
             coords=torch.tensor(0.0),
+            metrics=torch.zeros(6),
             style_idx=0,
             content_idx=0,
         ),

@@ -55,6 +55,11 @@ class GlyphSample(NamedTuple):
         types (Tensor): 1-D long tensor of pen command types.
         coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
             coordinate data for each command.
+        metrics (Tensor): 1-D float tensor of shape ``(6,)`` holding glyph
+            metrics normalized by ``units_per_em``. Layout:
+            ``[advance_width, lsb, x_min, y_min, x_max, y_max]`` where
+            ``lsb`` is the left side bearing and the bounding box values are
+            derived from the convex hull of all outline control points.
         style_idx (int): Index into the dataset's ``style_classes`` list.
             When batches are formed by PyTorch's default DataLoader collation,
             this field becomes a 1-D ``torch.LongTensor``.
@@ -66,12 +71,13 @@ class GlyphSample(NamedTuple):
         Access fields by name rather than by position::
 
             sample = dataset[0]
-            print(sample.types.shape, sample.style_idx)
+            print(sample.types.shape, sample.metrics, sample.style_idx)
 
     """
 
     types: Tensor
     coords: Tensor
+    metrics: Tensor
     style_idx: int
     content_idx: int
 
@@ -315,12 +321,16 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         idx = self._normalize_index(idx)
-        raw_types, raw_coords, style_idx, content_idx = self._dataset.item(idx)
+        raw_types, raw_coords, raw_metrics, style_idx, content_idx = self._dataset.item(
+            idx
+        )
         types = torch.as_tensor(raw_types, dtype=torch.long)
         coords = torch.as_tensor(raw_coords, dtype=torch.float32).view(-1, COORD_DIM)
+        metrics = torch.as_tensor(raw_metrics, dtype=torch.float32)
         sample = GlyphSample(
             types=types,
             coords=coords,
+            metrics=metrics,
             style_idx=int(style_idx),
             content_idx=int(content_idx),
         )

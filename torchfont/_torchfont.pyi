@@ -18,7 +18,7 @@ class FontDataset:
     def item(
         self,
         idx: int,
-    ) -> tuple[list[int], list[float], int, int]: ...
+    ) -> tuple[list[int], list[float], list[float], int, int]: ...
     def locate(
         self,
         idx: int,

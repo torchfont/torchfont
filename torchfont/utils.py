@@ -36,6 +36,9 @@ class GlyphBatch(NamedTuple):
         coords (Tensor): Float tensor of shape ``(B, L, ...)`` holding padded
             coordinate values. Only the leading sequence dimension ``L`` is
             padded; trailing dimensions such as ``patch_size`` are preserved.
+        metrics (Tensor): Float tensor of shape ``(B, 6)`` holding per-glyph
+            metrics. Layout per row: ``[advance_width, lsb, x_min, y_min,
+            x_max, y_max]``, all normalized by ``units_per_em``.
         style_idx (Tensor): 1-D long tensor of style indices.
         content_idx (Tensor): 1-D long tensor of content indices.
         mask (Tensor): Boolean tensor marking valid, non-padding sequence
@@ -45,6 +48,7 @@ class GlyphBatch(NamedTuple):
 
     types: Tensor
     coords: Tensor
+    metrics: Tensor
     style_idx: Tensor
     content_idx: Tensor
     mask: Tensor
@@ -121,6 +125,7 @@ def collate_fn(
 
     types_list = [sample.types for sample in batch]
     coords_list = [sample.coords for sample in batch]
+    metrics_list = [sample.metrics for sample in batch]
     style_label_list = [sample.style_idx for sample in batch]
     content_label_list = [sample.content_idx for sample in batch]
 
@@ -130,6 +135,7 @@ def collate_fn(
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
+    metrics_tensor = torch.stack(metrics_list)
 
     style_label_tensor = torch.as_tensor(
         style_label_list,
@@ -152,6 +158,7 @@ def collate_fn(
     return GlyphBatch(
         types=types_tensor,
         coords=coords_tensor,
+        metrics=metrics_tensor,
         style_idx=style_label_tensor,
         content_idx=content_label_tensor,
         mask=mask,

@@ -50,7 +50,7 @@ impl FontEntry {
         &self,
         codepoint: u32,
         instance_index: Option<usize>,
-    ) -> PyResult<(Vec<i32>, Vec<f32>)> {
+    ) -> PyResult<(Vec<i32>, Vec<f32>, Vec<f32>)> {
         let glyph_id = self.lookup_glyph(codepoint)?;
         self.reader
             .draw_glyph(glyph_id, self.units_per_em, &self.locations, instance_index)

@@ -160,6 +160,7 @@ class LimitSequenceLength:
         return sample_type(
             types=sample.types[: self.max_len],
             coords=sample.coords[: self.max_len],
+            metrics=sample.metrics,
             style_idx=sample.style_idx,
             content_idx=sample.content_idx,
         )
@@ -217,6 +218,7 @@ class QuadToCubic:
         return sample_type(
             types=out_types.view_as(types),
             coords=out_coords.view_as(coords),
+            metrics=sample.metrics,
             style_idx=sample.style_idx,
             content_idx=sample.content_idx,
         )
@@ -320,6 +322,7 @@ class Patchify:
         return sample_type(
             types=patch_types,
             coords=patch_coords,
+            metrics=sample.metrics,
             style_idx=sample.style_idx,
             content_idx=sample.content_idx,
         )

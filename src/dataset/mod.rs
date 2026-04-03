@@ -21,6 +21,8 @@ type LocateResult = (
     Vec<(String, f32)>,
 );
 
+type ItemResult = (Vec<i32>, Vec<f32>, Vec<f32>, usize, usize);
+
 #[pyclass]
 pub struct FontDataset {
     entries: Vec<FontEntry>,
@@ -122,11 +124,11 @@ impl FontDataset {
         ))
     }
 
-    pub fn item(&self, idx: usize) -> PyResult<(Vec<i32>, Vec<f32>, usize, usize)> {
+    pub fn item(&self, idx: usize) -> PyResult<ItemResult> {
         let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
         self.entries[font_idx]
             .glyph(codepoint, inst_idx)
-            .map(|(types, coords)| (types, coords, style_idx, content_idx))
+            .map(|(types, coords, metrics)| (types, coords, metrics, style_idx, content_idx))
     }
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {

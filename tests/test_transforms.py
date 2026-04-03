@@ -35,6 +35,7 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
     sample = GlyphSample(
         types=types,
         coords=coords,
+        metrics=torch.zeros(6),
         style_idx=3,
         content_idx=7,
     )
@@ -85,7 +86,9 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(types=types, coords=coords, style_idx=1, content_idx=2)
+    sample = GlyphSample(
+        types=types, coords=coords, metrics=torch.zeros(6), style_idx=1, content_idx=2
+    )
     out = transform(sample)
 
     assert out is sample
@@ -109,7 +112,9 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(types=types, coords=coords, style_idx=4, content_idx=5)
+    sample = GlyphSample(
+        types=types, coords=coords, metrics=torch.zeros(6), style_idx=4, content_idx=5
+    )
     out = transform(sample)
 
     assert out.types.shape == types.shape
@@ -143,6 +148,7 @@ def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
             ],
             dtype=torch.float32,
         ),
+        metrics=torch.zeros(6),
         style_idx=11,
         content_idx=13,
     )
@@ -179,6 +185,7 @@ def test_transform_constructors_validate_invalid_arguments(
             GlyphSample(
                 types=torch.tensor(1, dtype=torch.long),
                 coords=torch.zeros(1, 6),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -188,6 +195,7 @@ def test_transform_constructors_validate_invalid_arguments(
             GlyphSample(
                 types=torch.tensor([1, 2], dtype=torch.long),
                 coords=torch.zeros(2),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -197,6 +205,7 @@ def test_transform_constructors_validate_invalid_arguments(
             GlyphSample(
                 types=torch.tensor([1, 2], dtype=torch.long),
                 coords=torch.zeros(2, 5),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -206,6 +215,7 @@ def test_transform_constructors_validate_invalid_arguments(
             GlyphSample(
                 types=torch.tensor([1, 2], dtype=torch.long),
                 coords=torch.zeros(3, 6),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -231,6 +241,7 @@ def test_limit_sequence_length_rejects_malformed_samples(
             GlyphSample(
                 types=torch.tensor(1, dtype=torch.long),
                 coords=torch.zeros(1, 6),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -240,6 +251,7 @@ def test_limit_sequence_length_rejects_malformed_samples(
             GlyphSample(
                 types=torch.tensor([1, 2], dtype=torch.long),
                 coords=torch.zeros(2),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -249,6 +261,7 @@ def test_limit_sequence_length_rejects_malformed_samples(
             GlyphSample(
                 types=torch.tensor([1, 2], dtype=torch.long),
                 coords=torch.zeros(2, 5),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),
@@ -258,6 +271,7 @@ def test_limit_sequence_length_rejects_malformed_samples(
             GlyphSample(
                 types=torch.tensor([1, 2], dtype=torch.long),
                 coords=torch.zeros(3, 6),
+                metrics=torch.zeros(6),
                 style_idx=0,
                 content_idx=0,
             ),

@@ -105,6 +105,15 @@ def test_glyph_dataset_getitem() -> None:
     assert sample.coords.dtype == torch.float32
     assert sample.coords.ndim == 2
     assert sample.coords.shape[1] == 6
+
+    assert sample.metrics.dtype == torch.float32
+    assert sample.metrics.shape == (6,)
+    # advance_width must be positive for a non-empty glyph
+    assert sample.metrics[0] > 0
+    # bounding box: x_min <= x_max and y_min <= y_max
+    assert sample.metrics[2] <= sample.metrics[4]
+    assert sample.metrics[3] <= sample.metrics[5]
+
     assert isinstance(sample.style_idx, int)
     assert isinstance(sample.content_idx, int)
     assert 0 <= sample.style_idx < len(dataset.style_classes)
@@ -241,6 +250,7 @@ def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
         return GlyphSample(
             types=sample.types[:2],
             coords=sample.coords[:2],
+            metrics=sample.metrics,
             style_idx=sample.style_idx,
             content_idx=sample.content_idx,
         )

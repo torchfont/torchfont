@@ -17,5 +17,12 @@ class CommandType(IntEnum):
 
 TYPE_DIM: int = len(CommandType)
 COORD_DIM: int = 6
+METRICS_DIM: int = 6
+"""Number of scalar values in a glyph metrics vector.
 
-__all__ = ["COORD_DIM", "TYPE_DIM", "CommandType"]
+The metrics vector layout is ``[advance_width, lsb, x_min, y_min, x_max, y_max]``,
+all normalized by ``units_per_em``. ``lsb`` is the left side bearing. Bounding
+box values are derived from the convex hull of all outline control points.
+"""
+
+__all__ = ["COORD_DIM", "METRICS_DIM", "TYPE_DIM", "CommandType"]

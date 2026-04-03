@@ -35,7 +35,7 @@ impl GlyphReader {
         units_per_em: f32,
         locations: &[Location],
         instance_index: Option<usize>,
-    ) -> PyResult<(Vec<i32>, Vec<f32>)> {
+    ) -> PyResult<(Vec<i32>, Vec<f32>, Vec<f32>)> {
         self.with_font_ref(|font| {
             let glyph = font.outline_glyphs().get(glyph_id).ok_or_else(|| {
                 py_err(format!(
@@ -44,6 +44,15 @@ impl GlyphReader {
                     self.path
                 ))
             })?;
+
+            let scale = units_per_em.recip();
+            let glyph_metrics = font.glyph_metrics(
+                Size::unscaled(),
+                self.location_ref(locations, instance_index)?,
+            );
+            let advance_width = glyph_metrics.advance_width(glyph_id).unwrap_or(0.0) * scale;
+            let lsb = glyph_metrics.left_side_bearing(glyph_id).unwrap_or(0.0) * scale;
+            let bbox = glyph_metrics.bounds(glyph_id).unwrap_or_default();
 
             let mut pen = SegmentPen::new(units_per_em);
             glyph
@@ -56,7 +65,16 @@ impl GlyphReader {
                 )
                 .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
 
-            Ok(pen.finish())
+            let (types, coords) = pen.finish();
+            let metrics = vec![
+                advance_width,
+                lsb,
+                bbox.x_min * scale,
+                bbox.y_min * scale,
+                bbox.x_max * scale,
+                bbox.y_max * scale,
+            ];
+            Ok((types, coords, metrics))
         })
     }
 
