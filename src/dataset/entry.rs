@@ -138,7 +138,15 @@ impl FontEntry {
         } else {
             named_instances
                 .iter()
-                .map(|inst| axis_tags.iter().cloned().zip(inst.user_coords()).collect())
+                .map(|inst| {
+                    let user_coords: Vec<f32> = inst.user_coords().collect();
+                    debug_assert_eq!(
+                        axis_tags.len(),
+                        user_coords.len(),
+                        "font '{base_path}' (face {face_index}) reported mismatched axis metadata",
+                    );
+                    axis_tags.iter().cloned().zip(user_coords).collect()
+                })
                 .collect()
         };
 
