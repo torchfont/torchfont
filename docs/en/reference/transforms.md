@@ -3,8 +3,6 @@
 `torchfont.transforms` provides composable preprocessing utilities with the
 signature `GlyphSample -> GlyphSample`.
 
-Migration note: the old tuple contract `(types, coords) -> (types, coords)` was removed.
-
 ## Compose
 
 ```python
