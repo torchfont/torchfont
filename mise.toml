@@ -29,5 +29,8 @@ run = [
 [tasks.test]
 run = ["mise exec -- uv run pytest tests"]
 
+[tasks.bench]
+run = ["mise exec -- uv run pytest benchmarks --benchmark-only --benchmark-sort=mean"]
+
 [tasks.docs-build]
 run = "mise exec -- npm run docs:build"
