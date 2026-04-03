@@ -11,6 +11,16 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::path::Path;
 
+type LocateResult = (
+    String,
+    u32,
+    Option<usize>,
+    u32,
+    usize,
+    usize,
+    Vec<(String, f32)>,
+);
+
 #[pyclass]
 pub struct FontDataset {
     entries: Vec<FontEntry>,
@@ -86,9 +96,21 @@ impl FontDataset {
             .collect()
     }
 
-    pub fn locate(&self, idx: usize) -> PyResult<(String, u32, Option<usize>, u32, usize, usize)> {
+    #[getter]
+    pub fn style_axes(&self) -> Vec<Vec<(String, f32)>> {
+        let mut axes = Vec::new();
+        for entry in self.entries.iter() {
+            axes.extend(entry.style_axes().iter().cloned());
+        }
+        axes
+    }
+
+    pub fn locate(&self, idx: usize) -> PyResult<LocateResult> {
         let (font_idx, instance_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
         let entry = &self.entries[font_idx];
+        let axes = instance_idx
+            .map(|inst_idx| entry.style_axes()[inst_idx].clone())
+            .unwrap_or_default();
         Ok((
             entry.path().to_owned(),
             entry.face_index(),
@@ -96,6 +118,7 @@ impl FontDataset {
             codepoint,
             style_idx,
             content_idx,
+            axes,
         ))
     }
 

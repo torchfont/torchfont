@@ -18,6 +18,7 @@ from torchfont.datasets import (
     GlyphDataset,
     GlyphLocation,
     GlyphSample,
+    StyleAxis,
 )
 from torchfont.io import CommandType
 from torchfont.metadata import build_dataset_metadata
@@ -128,6 +129,40 @@ def test_glyph_dataset_locate_returns_source_metadata() -> None:
     assert location.codepoint == ord("A")
     assert location.style_idx == sample.style_idx
     assert location.content_idx == sample.content_idx
+    assert location.axes == ()
+
+
+def test_glyph_dataset_locate_does_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError("locate should not materialize metadata")
+        location = dataset.locate(0)
+
+    assert location.axes == ()
+
+
+def test_glyph_dataset_locate_variable_font_does_not_build_style_axis_view() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "_style_axes") as style_axes:
+        style_axes.side_effect = AssertionError(
+            "locate should read axes directly from the native sample lookup"
+        )
+        location = dataset.locate(0)
+
+    assert location.axes == (
+        StyleAxis(tag="wght", value=100.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
 
 
 def test_glyph_dataset_locate_tracks_variable_font_instance_index() -> None:
@@ -148,6 +183,14 @@ def test_glyph_dataset_locate_tracks_variable_font_instance_index() -> None:
     assert first.codepoint == ord("A")
     assert second.codepoint == ord("A")
     assert first.style_idx != second.style_idx
+    assert first.axes == (
+        StyleAxis(tag="wght", value=100.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
+    assert second.axes == (
+        StyleAxis(tag="wght", value=200.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
 
 
 def test_datasets_public_api_is_glyphdataset_centered() -> None:
@@ -157,6 +200,7 @@ def test_datasets_public_api_is_glyphdataset_centered() -> None:
         "GlyphDataset",
         "GlyphLocation",
         "GlyphSample",
+        "StyleAxis",
         "StyleLabel",
     ]
     assert datasets_module.DatasetMetadata is DatasetMetadata
@@ -588,6 +632,7 @@ def test_style_label_metadata_is_index_addressable() -> None:
     assert style_label.idx == sample.style_idx
     assert style_label.label_id.startswith("style:path=")
     assert "instance=static" in style_label.label_id
+    assert style_label.axes == ()
     assert metadata.style_id_to_idx[style_label.label_id] == sample.style_idx
     assert sample.style_idx in metadata.style_name_to_idxs[style_label.name]
 
@@ -701,14 +746,22 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     """Test duplicate style names are preserved in collision-safe metadata."""
     metadata = build_dataset_metadata(
         style_rows=[
-            ("Shared", "style:path=lato/Lato-Regular.ttf;face=0;instance=static"),
+            ("Shared", "style:path=lato/Lato-Regular.ttf;face=0;instance=static", ()),
             (
                 "Unique",
                 "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=0",
+                (
+                    StyleAxis(tag="wdth", value=100.0),
+                    StyleAxis(tag="wght", value=100.0),
+                ),
             ),
             (
                 "Shared",
                 "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=1",
+                (
+                    StyleAxis(tag="wdth", value=100.0),
+                    StyleAxis(tag="wght", value=200.0),
+                ),
             ),
         ],
         content_rows=[
@@ -721,12 +774,20 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     assert len({label.label_id for label in metadata.styles}) == 3
     assert metadata.style_name_to_idxs["Shared"] == (0, 2)
     assert metadata.style_name_to_idxs["Unique"] == (1,)
+    assert metadata.styles[2].axes == (
+        StyleAxis(tag="wdth", value=100.0),
+        StyleAxis(tag="wght", value=200.0),
+    )
 
 
 def test_build_dataset_metadata_uses_precomputed_style_label_ids() -> None:
     metadata = build_dataset_metadata(
         style_rows=[
-            ("Lato Regular", "style:path=lato/Lato-Regular.ttf;face=0;instance=static"),
+            (
+                "Lato Regular",
+                "style:path=lato/Lato-Regular.ttf;face=0;instance=static",
+                (),
+            ),
         ],
         content_rows=[
             ("content:U+0041", "A", 0x41),
@@ -766,6 +827,29 @@ def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
     assert [label.label_id for label in dataset_a.metadata.styles] == [
         label.label_id for label in dataset_b.metadata.styles
     ]
+
+
+def test_variable_font_style_axes_are_exposed_in_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    labels_by_name = {label.name: label for label in dataset.metadata.styles}
+
+    assert labels_by_name["Roboto Thin"].axes == (
+        StyleAxis(tag="wght", value=100.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
+    assert labels_by_name["Roboto Regular"].axes == (
+        StyleAxis(tag="wght", value=400.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
+    assert labels_by_name["Roboto Condensed Regular"].axes == (
+        StyleAxis(tag="wght", value=400.0),
+        StyleAxis(tag="wdth", value=75.0),
+    )
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])

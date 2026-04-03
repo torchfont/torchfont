@@ -33,6 +33,7 @@ from torchfont.metadata import (
     ContentLabel,
     ContentMetadataRow,
     DatasetMetadata,
+    StyleAxis,
     StyleLabel,
     StyleMetadataRow,
     build_dataset_metadata,
@@ -87,6 +88,8 @@ class GlyphLocation(NamedTuple):
         codepoint (int): Unicode codepoint for the indexed glyph sample.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
+        axes (tuple[StyleAxis, ...]): User-space variation axis settings for
+            the resolved style. Static fonts use an empty tuple.
 
     Examples:
         Inspect where the first sample came from::
@@ -102,6 +105,7 @@ class GlyphLocation(NamedTuple):
     codepoint: int
     style_idx: int
     content_idx: int
+    axes: tuple[StyleAxis, ...]
 
 
 class GlyphDataset(Dataset[GlyphSample]):
@@ -344,7 +348,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         idx = self._normalize_index(idx)
-        font_path, face_idx, instance_idx, codepoint, style_idx, content_idx = (
+        font_path, face_idx, instance_idx, codepoint, style_idx, content_idx, axes = (
             self._dataset.locate(idx)
         )
         return GlyphLocation(
@@ -354,6 +358,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             codepoint=int(codepoint),
             style_idx=int(style_idx),
             content_idx=int(content_idx),
+            axes=tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes),
         )
 
     @property
@@ -418,14 +423,24 @@ class GlyphDataset(Dataset[GlyphSample]):
             for idx, (_, char, _) in enumerate(self._dataset.content_metadata_rows())
         }
 
+    def _style_axes(self) -> list[tuple[StyleAxis, ...]]:
+        """Return style axis metadata aligned with ``style_classes`` order."""
+        return [
+            tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
+            for axes in self._dataset.style_axes
+        ]
+
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
+        style_meta_rows = self._dataset.style_metadata_rows(str(self.root))
+        style_axes = self._style_axes()
+        style_rows = [
+            (name, label_id, axes)
+            for (name, label_id), axes in zip(style_meta_rows, style_axes, strict=True)
+        ]
         return build_dataset_metadata(
-            style_rows=cast(
-                "list[StyleMetadataRow]",
-                self._dataset.style_metadata_rows(str(self.root)),
-            ),
+            style_rows=cast("list[StyleMetadataRow]", style_rows),
             content_rows=cast(
                 "list[ContentMetadataRow]",
                 self._dataset.content_metadata_rows(),
@@ -457,5 +472,6 @@ __all__ = [
     "GlyphDataset",
     "GlyphLocation",
     "GlyphSample",
+    "StyleAxis",
     "StyleLabel",
 ]

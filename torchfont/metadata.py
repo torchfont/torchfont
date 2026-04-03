@@ -3,12 +3,20 @@
 from typing import NamedTuple
 
 
+class StyleAxis(NamedTuple):
+    """One user-space variation axis value for a style."""
+
+    tag: str
+    value: float
+
+
 class StyleLabel(NamedTuple):
     """Metadata for a style label stored on a dataset."""
 
     idx: int
     label_id: str
     name: str
+    axes: tuple[StyleAxis, ...]
 
 
 class ContentLabel(NamedTuple):
@@ -43,7 +51,7 @@ class DatasetMetadata(NamedTuple):
     content_id_to_idx: dict[str, int]
 
 
-StyleMetadataRow = tuple[str, str]
+StyleMetadataRow = tuple[str, str, tuple[StyleAxis, ...]]
 ContentMetadataRow = tuple[str, str, int]
 
 
@@ -57,8 +65,8 @@ def build_dataset_metadata(
     Style rows already carry precomputed, collision-safe ``label_id`` values.
 
     Args:
-        style_rows: Tuples of ``(name, label_id)`` aligned to the dataset's
-            style indices.
+        style_rows: Tuples of ``(name, label_id, axes)`` aligned to the
+            dataset's style indices.
         content_rows: Tuples of ``(label_id, char, codepoint)`` aligned to the
             dataset's content indices.
 
@@ -72,8 +80,9 @@ def build_dataset_metadata(
             idx=idx,
             label_id=label_id,
             name=name,
+            axes=axes,
         )
-        for idx, (name, label_id) in enumerate(style_rows)
+        for idx, (name, label_id, axes) in enumerate(style_rows)
     )
     contents = tuple(
         ContentLabel(
