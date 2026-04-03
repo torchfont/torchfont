@@ -102,7 +102,10 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 ```
 
 TorchFont は checkout 済みディレクトリを通常のローカルフォルダとして扱います。
-Git などで更新したあとは Dataset インスタンスを作り直してください。
+Git などで更新したあとは、ネイティブな indexing state がディスク内容と
+ずれないように Dataset インスタンスを作り直してください。Dataset の利用中
+にファイルが変わった場合の結果は未定義で、不正な sample や runtime error
+につながることがあります。
 
 ## よくある最初の改善
 

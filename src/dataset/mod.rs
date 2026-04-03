@@ -9,6 +9,7 @@ use index::{DatasetIndex, load_entries_and_index};
 use io::{canonicalize_root, discover_font_files};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
+use std::path::Path;
 
 type LocateResult = (
     String,
@@ -57,9 +58,24 @@ impl FontDataset {
         self.index.content_classes.len()
     }
 
-    #[getter]
-    pub fn content_classes(&self) -> Vec<u32> {
-        self.index.content_classes.clone()
+    pub fn content_metadata_rows(&self) -> PyResult<Vec<(String, String, u32)>> {
+        self.index
+            .content_classes
+            .iter()
+            .copied()
+            .map(|codepoint| {
+                let ch = char::from_u32(codepoint).ok_or_else(|| {
+                    crate::error::py_err(format!(
+                        "indexed codepoint U+{codepoint:04X} is not a Unicode scalar value"
+                    ))
+                })?;
+                Ok((
+                    format!("content:U+{codepoint:04X}"),
+                    ch.to_string(),
+                    codepoint,
+                ))
+            })
+            .collect()
     }
 
     #[getter]
@@ -67,48 +83,17 @@ impl FontDataset {
         self.index.inst_offsets.last().copied().unwrap_or(0)
     }
 
-    #[getter]
-    pub fn style_classes(&self) -> Vec<String> {
-        let mut names = Vec::new();
-        for entry in self.entries.iter() {
-            let family_name = entry.family_name();
-            if entry.is_variable() {
-                let instance_names = entry.named_instance_names();
-                if instance_names.is_empty() {
-                    if let Some(subfamily) = entry.subfamily_name() {
-                        names.push(format!("{family_name} {subfamily}"));
-                    } else {
-                        names.push(family_name);
-                    }
-                } else {
-                    for name_opt in instance_names.iter() {
-                        let instance_name = name_opt.as_deref().unwrap_or("");
-                        if instance_name.is_empty() {
-                            names.push(family_name.clone());
-                        } else {
-                            names.push(format!("{family_name} {instance_name}"));
-                        }
-                    }
-                }
-            } else if let Some(subfamily) = entry.subfamily_name() {
-                names.push(format!("{family_name} {subfamily}"));
-            } else {
-                names.push(family_name);
-            }
-        }
-        names
-    }
-
-    #[getter]
-    pub fn style_sources(&self) -> Vec<(String, u32, Option<usize>)> {
-        let mut sources = Vec::new();
-        for entry in self.entries.iter() {
-            for inst_idx in 0..entry.instance_count() {
-                let instance = entry.is_variable().then_some(inst_idx);
-                sources.push((entry.path().to_owned(), entry.face_index(), instance));
-            }
-        }
-        sources
+    pub fn style_metadata_rows(&self, root: String) -> PyResult<Vec<(String, String)>> {
+        let root_path = Path::new(&root);
+        self.style_rows()
+            .into_iter()
+            .map(|(name, path, face_idx, instance_idx)| {
+                Ok((
+                    name,
+                    style_label_id(root_path, Path::new(&path), face_idx, instance_idx)?,
+                ))
+            })
+            .collect()
     }
 
     #[getter]
@@ -146,24 +131,65 @@ impl FontDataset {
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let total = self.sample_count();
-        let mut flat: Vec<i64> = Vec::with_capacity(total * 2);
+        let capacity = total
+            .checked_mul(2)
+            .and_then(|n| n.checked_mul(std::mem::size_of::<i64>()))
+            .ok_or_else(|| {
+                pyo3::exceptions::PyOverflowError::new_err("target buffer size overflowed usize")
+            })?;
+        let mut bytes = Vec::with_capacity(capacity);
         for (font_idx, entry) in self.entries.iter().enumerate() {
             let inst_offset = self.index.inst_offsets[font_idx];
             for inst_idx in 0..entry.instance_count() {
                 let style_idx = inst_offset + inst_idx;
                 for &cp in entry.codepoints() {
                     let content_idx = self.index.content_index(cp)?;
-                    flat.push(style_idx as i64);
-                    flat.push(content_idx as i64);
+                    bytes.extend_from_slice(&(style_idx as i64).to_ne_bytes());
+                    bytes.extend_from_slice(&(content_idx as i64).to_ne_bytes());
                 }
             }
         }
-        let bytes: Vec<u8> = flat.iter().flat_map(|&v| v.to_ne_bytes()).collect();
         Ok(PyBytes::new(py, &bytes))
     }
 }
 
 impl FontDataset {
+    fn style_rows(&self) -> Vec<(String, String, u32, Option<usize>)> {
+        let mut rows = Vec::new();
+        for entry in self.entries.iter() {
+            let path = entry.path().to_owned();
+            let face_idx = entry.face_index();
+            let family_name = entry.family_name();
+
+            if entry.is_variable() {
+                let instance_names = entry.named_instance_names();
+                if instance_names.is_empty() {
+                    let display_name = if let Some(subfamily) = entry.subfamily_name() {
+                        format!("{family_name} {subfamily}")
+                    } else {
+                        family_name
+                    };
+                    rows.push((display_name, path, face_idx, None));
+                } else {
+                    for (inst_idx, name_opt) in instance_names.iter().enumerate() {
+                        let instance_name = name_opt.as_deref().unwrap_or("");
+                        let display_name = if instance_name.is_empty() {
+                            family_name.clone()
+                        } else {
+                            format!("{family_name} {instance_name}")
+                        };
+                        rows.push((display_name, path.clone(), face_idx, Some(inst_idx)));
+                    }
+                }
+            } else if let Some(subfamily) = entry.subfamily_name() {
+                rows.push((format!("{family_name} {subfamily}"), path, face_idx, None));
+            } else {
+                rows.push((family_name, path, face_idx, None));
+            }
+        }
+        rows
+    }
+
     fn locate_parts(&self, idx: usize) -> PyResult<(usize, Option<usize>, u32, usize, usize)> {
         let total = self.sample_count();
         if idx >= total {
@@ -205,4 +231,28 @@ impl FontDataset {
 
         Ok((font_idx, instance, cp, style_idx, content_idx))
     }
+}
+
+fn style_label_id(
+    root: &Path,
+    font_path: &Path,
+    face_idx: u32,
+    instance_idx: Option<usize>,
+) -> PyResult<String> {
+    let relative_path = font_path.strip_prefix(root).map_err(|_| {
+        crate::error::py_err(format!(
+            "font path '{}' is not under dataset root '{}'",
+            font_path.display(),
+            root.display()
+        ))
+    })?;
+    let quoted_path = relative_path
+        .components()
+        .map(|component| urlencoding::encode(&component.as_os_str().to_string_lossy()).into_owned())
+        .collect::<Vec<_>>()
+        .join("/");
+    let instance_value = instance_idx.map_or_else(|| "static".to_string(), |idx| idx.to_string());
+    Ok(format!(
+        "style:path={quoted_path};face={face_idx};instance={instance_value}"
+    ))
 }

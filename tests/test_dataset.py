@@ -535,6 +535,20 @@ def test_content_classes() -> None:
     assert all(isinstance(c, str) and len(c) == 1 for c in dataset.content_classes)
 
 
+def test_content_classes_do_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError(
+            "content_classes should not materialize metadata",
+        )
+        assert dataset.content_classes == ["A", "B", "C"]
+
+
 def test_content_class_to_idx() -> None:
     """Test content_class_to_idx maps characters to indices."""
     dataset = GlyphDataset(
@@ -552,6 +566,30 @@ def test_content_class_to_idx() -> None:
         assert dataset.content_class_to_idx[char] == idx
 
 
+def test_content_class_to_idx_does_not_route_through_python_projections() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with (
+        patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata,
+        patch.object(
+            GlyphDataset,
+            "content_classes",
+            new_callable=PropertyMock,
+        ) as content_classes,
+    ):
+        metadata.side_effect = AssertionError(
+            "content_class_to_idx should not materialize metadata",
+        )
+        content_classes.side_effect = AssertionError(
+            "content_class_to_idx should not route through content_classes",
+        )
+        assert dataset.content_class_to_idx == {"A": 0, "B": 1, "C": 2}
+
+
 def test_style_classes() -> None:
     """Test style_classes returns descriptive names."""
     dataset = GlyphDataset(
@@ -564,6 +602,20 @@ def test_style_classes() -> None:
     assert all(isinstance(s, str) for s in dataset.style_classes)
 
 
+def test_style_classes_do_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError(
+            "style_classes should not materialize metadata",
+        )
+        assert dataset.style_classes
+
+
 def test_style_label_metadata_is_index_addressable() -> None:
     """Test metadata APIs are compatible with sample style/content indices."""
     dataset = GlyphDataset(
@@ -573,23 +625,24 @@ def test_style_label_metadata_is_index_addressable() -> None:
     )
 
     sample = dataset[0]
-    style_label = dataset.style_labels[sample.style_idx]
-    content_label = dataset.content_labels[sample.content_idx]
+    metadata = dataset.metadata
+    style_label = metadata.styles[sample.style_idx]
+    content_label = metadata.contents[sample.content_idx]
 
     assert style_label.idx == sample.style_idx
     assert style_label.label_id.startswith("style:path=")
     assert "instance=static" in style_label.label_id
     assert style_label.axes == ()
-    assert dataset.style_label_to_idx[style_label.label_id] == sample.style_idx
-    assert sample.style_idx in dataset.style_name_to_idxs[style_label.name]
+    assert metadata.style_id_to_idx[style_label.label_id] == sample.style_idx
+    assert sample.style_idx in metadata.style_name_to_idxs[style_label.name]
 
     assert content_label.idx == sample.content_idx
-    assert dataset.content_label_to_idx[content_label.label_id] == sample.content_idx
+    assert metadata.content_id_to_idx[content_label.label_id] == sample.content_idx
     assert dataset.content_class_to_idx[content_label.char] == sample.content_idx
 
 
 def test_dataset_metadata_consolidates_label_views() -> None:
-    """DatasetMetadata provides a structured source of label metadata."""
+    """DatasetMetadata is the canonical source of label metadata."""
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
@@ -600,113 +653,123 @@ def test_dataset_metadata_consolidates_label_views() -> None:
     sample = dataset[0]
 
     assert isinstance(metadata, DatasetMetadata)
-    assert metadata.styles[sample.style_idx] == dataset.style_labels[sample.style_idx]
+    assert metadata.styles[sample.style_idx].idx == sample.style_idx
+    assert metadata.contents[sample.content_idx].idx == sample.content_idx
     assert (
-        metadata.contents[sample.content_idx]
-        == dataset.content_labels[sample.content_idx]
+        metadata.style_id_to_idx[metadata.styles[sample.style_idx].label_id]
+        == sample.style_idx
     )
-    assert metadata.style_id_to_idx == dataset.style_label_to_idx
-    assert metadata.content_id_to_idx == dataset.content_label_to_idx
-    assert dict(metadata.style_name_to_idxs) == {
-        name: tuple(idxs) for name, idxs in dataset.style_name_to_idxs.items()
-    }
+    assert (
+        metadata.content_id_to_idx[metadata.contents[sample.content_idx].label_id]
+        == sample.content_idx
+    )
+
+
+def test_dataset_does_not_expose_redundant_metadata_projections() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    assert not hasattr(dataset, "style_labels")
+    assert not hasattr(dataset, "style_label_to_idx")
+    assert not hasattr(dataset, "style_name_to_idxs")
+    assert not hasattr(dataset, "content_labels")
+    assert not hasattr(dataset, "content_label_to_idx")
+
+
+def test_dataset_metadata_does_not_add_python_cache_state() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    assert "_metadata" not in dataset.__dict__
+
+    first = dataset.metadata
+    second = dataset.metadata
+
+    assert "_metadata" not in dataset.__dict__
+    assert first == second
+    assert first is not second
+
+
+def test_unpickling_drops_legacy_metadata_cache_state() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    state = dataset.__getstate__()
+    state["_metadata"] = "legacy-cache"
+
+    dataset.__setstate__(state)
+
+    assert "_metadata" not in dataset.__dict__
+
+
+def test_dataset_metadata_does_not_route_through_python_projections() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with (
+        patch.object(
+            GlyphDataset,
+            "style_classes",
+            new_callable=PropertyMock,
+        ) as style_classes,
+        patch.object(
+            GlyphDataset,
+            "content_classes",
+            new_callable=PropertyMock,
+        ) as content_classes,
+    ):
+        style_classes.side_effect = AssertionError(
+            "metadata should not materialize style_classes",
+        )
+        content_classes.side_effect = AssertionError(
+            "metadata should not materialize content_classes",
+        )
+        metadata = dataset.metadata
+
+    assert metadata.styles
+    assert metadata.contents
 
 
 def test_style_label_metadata_handles_duplicate_names() -> None:
     """Test duplicate style names are preserved in collision-safe metadata."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    raw_names = ["Shared", "Unique", "Shared"]
-    with (
-        patch.object(
-            GlyphDataset,
-            "style_classes",
-            new_callable=PropertyMock,
-            return_value=raw_names,
-        ),
-        patch.object(
-            GlyphDataset,
-            "_style_sources",
-            return_value=[
-                (dataset.root / "lato/Lato-Regular.ttf", 0, None),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
-            ],
-        ),
-        patch.object(
-            GlyphDataset,
-            "_style_axes",
-            return_value=[
-                (),
+    metadata = build_dataset_metadata(
+        style_rows=[
+            ("Shared", "style:path=lato/Lato-Regular.ttf;face=0;instance=static", ()),
+            (
+                "Unique",
+                "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=0",
                 (
                     StyleAxis(tag="wdth", value=100.0),
                     StyleAxis(tag="wght", value=100.0),
                 ),
+            ),
+            (
+                "Shared",
+                "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=1",
                 (
                     StyleAxis(tag="wdth", value=100.0),
                     StyleAxis(tag="wght", value=200.0),
                 ),
-            ],
-        ),
-    ):
-        labels = dataset.style_labels
-        grouped = dataset.style_name_to_idxs
-
-    assert len({label.label_id for label in labels}) == 3
-    assert grouped["Shared"] == [0, 2]
-    assert grouped["Unique"] == [1]
-    assert labels[1].axes == (
-        StyleAxis(tag="wdth", value=100.0),
-        StyleAxis(tag="wght", value=100.0),
+            ),
+        ],
+        content_rows=[
+            ("content:U+0041", "A", 0x41),
+            ("content:U+0042", "B", 0x42),
+            ("content:U+0043", "C", 0x43),
+        ],
     )
-
-
-def test_dataset_metadata_handles_duplicate_names() -> None:
-    """DatasetMetadata preserves all indices for duplicate style names."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    raw_names = ["Shared", "Unique", "Shared"]
-    with (
-        patch.object(
-            GlyphDataset,
-            "style_classes",
-            new_callable=PropertyMock,
-            return_value=raw_names,
-        ),
-        patch.object(
-            GlyphDataset,
-            "_style_sources",
-            return_value=[
-                (dataset.root / "lato/Lato-Regular.ttf", 0, None),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
-                (dataset.root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
-            ],
-        ),
-        patch.object(
-            GlyphDataset,
-            "_style_axes",
-            return_value=[
-                (),
-                (
-                    StyleAxis(tag="wdth", value=100.0),
-                    StyleAxis(tag="wght", value=100.0),
-                ),
-                (
-                    StyleAxis(tag="wdth", value=100.0),
-                    StyleAxis(tag="wght", value=200.0),
-                ),
-            ],
-        ),
-    ):
-        metadata = dataset.metadata
 
     assert len({label.label_id for label in metadata.styles}) == 3
     assert metadata.style_name_to_idxs["Shared"] == (0, 2)
@@ -717,24 +780,36 @@ def test_dataset_metadata_handles_duplicate_names() -> None:
     )
 
 
-def test_build_dataset_metadata_rejects_mismatched_style_inputs() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
+def test_build_dataset_metadata_uses_precomputed_style_label_ids() -> None:
+    metadata = build_dataset_metadata(
+        style_rows=[
+            (
+                "Lato Regular",
+                "style:path=lato/Lato-Regular.ttf;face=0;instance=static",
+                (),
+            ),
+        ],
+        content_rows=[
+            ("content:U+0041", "A", 0x41),
+        ],
     )
 
-    with pytest.raises(
-        ValueError,
-        match="style_names, style_sources, and style_axes must have the same length",
-    ):
-        build_dataset_metadata(
-            root=dataset.root,
-            style_names=["Lato Regular"],
-            style_sources=[],
-            style_axes=[()],
-            content_codepoints=[ord("A")],
-        )
+    assert metadata.styles[0].label_id == (
+        "style:path=lato/Lato-Regular.ttf;face=0;instance=static"
+    )
+
+
+def test_build_dataset_metadata_uses_precomputed_content_rows() -> None:
+    metadata = build_dataset_metadata(
+        style_rows=[],
+        content_rows=[
+            ("content:U+0041", "A", 0x41),
+        ],
+    )
+
+    assert metadata.contents[0].label_id == "content:U+0041"
+    assert metadata.contents[0].char == "A"
+    assert metadata.contents[0].codepoint == 0x41
 
 
 def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
@@ -749,8 +824,8 @@ def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
         codepoints=range(0x41, 0x46),
     )
 
-    assert [label.label_id for label in dataset_a.style_labels] == [
-        label.label_id for label in dataset_b.style_labels
+    assert [label.label_id for label in dataset_a.metadata.styles] == [
+        label.label_id for label in dataset_b.metadata.styles
     ]
 
 
@@ -761,7 +836,7 @@ def test_variable_font_style_axes_are_exposed_in_metadata() -> None:
         codepoints=range(0x41, 0x44),
     )
 
-    labels_by_name = {label.name: label for label in dataset.style_labels}
+    labels_by_name = {label.name: label for label in dataset.metadata.styles}
 
     assert labels_by_name["Roboto Thin"].axes == (
         StyleAxis(tag="wght", value=100.0),

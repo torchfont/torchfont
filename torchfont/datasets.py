@@ -1,9 +1,11 @@
 """Utilities for turning local font folders into indexed glyph datasets.
 
 Notes:
-    Glyph data is cached inside the native backend for the lifetime of each
-    dataset instance. Recreate the dataset when editing font files on disk to
-    ensure changes are observed.
+    Native indexing state is built for the lifetime of each dataset instance.
+    Keep that state in sync with the font files on disk by recreating the
+    dataset after editing font files. If files change while a dataset instance
+    is still in use, results are undefined and may include incorrect samples
+    or runtime errors.
 
 Examples:
     Iterate glyph samples from a directory of fonts::
@@ -19,7 +21,7 @@ Examples:
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
-from typing import NamedTuple, SupportsIndex
+from typing import NamedTuple, SupportsIndex, cast
 
 import torch
 from torch import Tensor
@@ -29,9 +31,11 @@ from torchfont import _torchfont
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
     ContentLabel,
+    ContentMetadataRow,
     DatasetMetadata,
     StyleAxis,
     StyleLabel,
+    StyleMetadataRow,
     build_dataset_metadata,
 )
 
@@ -125,16 +129,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             number of style classes.
         metadata (DatasetMetadata): Structured label metadata object that
             consolidates style/content labels and related lookup tables.
-        style_labels (list[StyleLabel]): Collision-safe style metadata with
-            explicit label IDs.
-        style_label_to_idx (dict[str, int]): Mapping from style label IDs to
-            style class indices.
-        style_name_to_idxs (dict[str, list[int]]): Mapping from style names to
-            all matching style indices.
-        content_labels (list[ContentLabel]): Content metadata with stable label
-            IDs and codepoints.
-        content_label_to_idx (dict[str, int]): Mapping from content label IDs
-            to content class indices.
         root (Path): Resolved root directory used for font discovery.
         patterns (tuple[str, ...] | None): Canonicalized path filter patterns.
         codepoints (tuple[int, ...] | None): Sorted unique Unicode code points
@@ -194,7 +188,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             self.codepoints,
             self.patterns,
         )
-        self._metadata: DatasetMetadata | None = None
 
     def __repr__(self) -> str:
         """Return a human-readable summary of this dataset.
@@ -229,6 +222,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
     def __setstate__(self, state: dict[str, object]) -> None:
         """Restore state and recreate the native backend after unpickling."""
+        state.pop("_metadata", None)
         self.__dict__.update(state)
         self._validate_root_dir(self.root)
         self._dataset = _torchfont.FontDataset(
@@ -236,8 +230,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             self.codepoints,
             self.patterns,
         )
-        if not hasattr(self, "_metadata"):
-            self._metadata = None
 
     @staticmethod
     def _validate_root_dir(root: Path) -> None:
@@ -412,7 +404,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             ['A', 'B', 'C']
 
         """
-        return [label.char for label in self.metadata.contents]
+        return [char for _, char, _ in self._dataset.content_metadata_rows()]
 
     @property
     def content_class_to_idx(self) -> dict[str, int]:
@@ -426,18 +418,10 @@ class GlyphDataset(Dataset[GlyphSample]):
             0
 
         """
-        return {label.char: label.idx for label in self.metadata.contents}
-
-    def _style_sources(self) -> list[tuple[Path, int, int | None]]:
-        """Return style source tuples aligned with ``style_classes`` order."""
-        return [
-            (
-                Path(font_path),
-                int(face_idx),
-                None if instance_idx is None else int(instance_idx),
-            )
-            for font_path, face_idx, instance_idx in self._dataset.style_sources
-        ]
+        return {
+            char: idx
+            for idx, (_, char, _) in enumerate(self._dataset.content_metadata_rows())
+        }
 
     def _style_axes(self) -> list[tuple[StyleAxis, ...]]:
         """Return style axis metadata aligned with ``style_classes`` order."""
@@ -449,35 +433,19 @@ class GlyphDataset(Dataset[GlyphSample]):
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
-        if self._metadata is None:
-            self._metadata = build_dataset_metadata(
-                root=self.root,
-                style_names=self.style_classes,
-                style_sources=self._style_sources(),
-                style_axes=self._style_axes(),
-                content_codepoints=self._dataset.content_classes,
-            )
-        return self._metadata
-
-    @property
-    def content_labels(self) -> list[ContentLabel]:
-        """Content label metadata with explicit IDs and Unicode codepoints.
-
-        Returns:
-            list[ContentLabel]: Metadata entries ordered by ``idx``.
-
-        """
-        return list(self.metadata.contents)
-
-    @property
-    def content_label_to_idx(self) -> dict[str, int]:
-        """Mapping from content label IDs to content class indices.
-
-        Returns:
-            dict[str, int]: Dictionary mapping ``label_id`` to content index.
-
-        """
-        return dict(self.metadata.content_id_to_idx)
+        style_meta_rows = self._dataset.style_metadata_rows(str(self.root))
+        style_axes = self._style_axes()
+        style_rows = [
+            (name, label_id, axes)
+            for (name, label_id), axes in zip(style_meta_rows, style_axes, strict=True)
+        ]
+        return build_dataset_metadata(
+            style_rows=cast("list[StyleMetadataRow]", style_rows),
+            content_rows=cast(
+                "list[ContentMetadataRow]",
+                self._dataset.content_metadata_rows(),
+            ),
+        )
 
     @property
     def style_classes(self) -> list[str]:
@@ -495,43 +463,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             ['Roboto Regular', 'Roboto Bold', 'Lato Regular']
 
         """
-        return list(self._dataset.style_classes)
-
-    @property
-    def style_labels(self) -> list[StyleLabel]:
-        """Style label metadata with explicit IDs.
-
-        Style names are not guaranteed to be unique, so each entry also includes
-        a source-based, collision-safe ``label_id``.
-
-        Returns:
-            list[StyleLabel]: Metadata entries ordered by ``idx``.
-
-        """
-        return list(self.metadata.styles)
-
-    @property
-    def style_label_to_idx(self) -> dict[str, int]:
-        """Mapping from style label IDs to style class indices.
-
-        Returns:
-            dict[str, int]: Dictionary mapping ``label_id`` to style index.
-
-        """
-        return dict(self.metadata.style_id_to_idx)
-
-    @property
-    def style_name_to_idxs(self) -> dict[str, list[int]]:
-        """Mapping from style names to all matching style indices.
-
-        Returns:
-            dict[str, list[int]]: Dictionary mapping style display name to a
-            list of all style indices that share that name.
-
-        """
-        return {
-            name: list(idxs) for name, idxs in self.metadata.style_name_to_idxs.items()
-        }
+        return [name for name, _ in self._dataset.style_metadata_rows(str(self.root))]
 
 
 __all__ = [
