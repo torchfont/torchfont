@@ -65,23 +65,27 @@ keep tensor shape fixed, `CommandType.QUAD_TO` uses
   `Family`)
 
 ```python
+metadata = dataset.metadata
+
 print(dataset.style_classes[:5])
-print(dataset.style_labels[:5])
-print(dataset.style_name_to_idxs)
+print(metadata.styles[:5])
+print(metadata.style_name_to_idxs)
 ```
 
-`style_labels` exposes source-based collision-safe IDs derived from relative
-font path / face / instance information, while `style_name_to_idxs` keeps every
-index for duplicate display names.
+`metadata.styles` exposes source-based collision-safe IDs derived from relative
+font path / face / instance information, while
+`metadata.style_name_to_idxs` keeps every index for duplicate display names.
 
 ### `content_idx`
 
 - one class per Unicode character
 
 ```python
+metadata = dataset.metadata
+
 print(dataset.content_classes[:5])
-print(dataset.content_labels[:5])
-print(dataset.content_label_to_idx)
+print(metadata.contents[:5])
+print(metadata.content_id_to_idx)
 ```
 
 ## `targets`

@@ -12,11 +12,8 @@ class FontDataset:
     style_class_count: int
     content_class_count: int
 
-    content_classes: list[int]
-
-    style_classes: list[str]
-    style_sources: list[tuple[str, int, int | None]]
-
+    def content_metadata_rows(self) -> list[tuple[str, str, int]]: ...
+    def style_metadata_rows(self, root: str) -> list[tuple[str, str]]: ...
     def item(
         self,
         idx: int,
