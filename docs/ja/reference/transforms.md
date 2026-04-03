@@ -2,8 +2,6 @@
 
 `torchfont.transforms` は `GlyphSample -> GlyphSample` の形で前処理を組み立てるためのモジュールです。
 
-移行メモ: 旧来の `(types, coords) -> (types, coords)` 契約は廃止されました。
-
 ## Compose
 
 ```python
