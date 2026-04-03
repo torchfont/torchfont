@@ -649,13 +649,17 @@ def test_dataset_metadata_does_not_route_through_python_projections() -> None:
 
 def test_style_label_metadata_handles_duplicate_names() -> None:
     """Test duplicate style names are preserved in collision-safe metadata."""
-    root = Path("tests/fonts").resolve()
     metadata = build_dataset_metadata(
-        root=root,
         style_rows=[
-            ("Shared", root / "lato/Lato-Regular.ttf", 0, None),
-            ("Unique", root / "roboto/Roboto[wdth,wght].ttf", 0, 0),
-            ("Shared", root / "roboto/Roboto[wdth,wght].ttf", 0, 1),
+            ("Shared", "style:path=lato/Lato-Regular.ttf;face=0;instance=static"),
+            (
+                "Unique",
+                "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=0",
+            ),
+            (
+                "Shared",
+                "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=1",
+            ),
         ],
         content_codepoints=[ord("A"), ord("B"), ord("C")],
     )
@@ -665,17 +669,17 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
     assert metadata.style_name_to_idxs["Unique"] == (1,)
 
 
-def test_build_dataset_metadata_rejects_style_row_outside_root() -> None:
-    root = Path("tests/fonts").resolve()
+def test_build_dataset_metadata_uses_precomputed_style_label_ids() -> None:
+    metadata = build_dataset_metadata(
+        style_rows=[
+            ("Lato Regular", "style:path=lato/Lato-Regular.ttf;face=0;instance=static"),
+        ],
+        content_codepoints=[ord("A")],
+    )
 
-    with pytest.raises(ValueError, match="is not under dataset root"):
-        build_dataset_metadata(
-            root=root,
-            style_rows=[
-                ("Outside", root.parent / "outside.ttf", 0, None),
-            ],
-            content_codepoints=[ord("A")],
-        )
+    assert metadata.styles[0].label_id == (
+        "style:path=lato/Lato-Regular.ttf;face=0;instance=static"
+    )
 
 
 def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
