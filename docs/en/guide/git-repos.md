@@ -85,8 +85,10 @@ git -C data/fortawesome/font-awesome fetch --depth 1 origin
 git -C data/fortawesome/font-awesome checkout 7.x
 ```
 
-TorchFont keeps native indexing state for the lifetime of a dataset object, so
-create a new dataset after files on disk change.
+TorchFont keeps native indexing state for the lifetime of a dataset object.
+Create a new dataset after files on disk change so that state stays in sync
+with the checkout. If files change while a dataset instance is still in use,
+results are undefined and may include incorrect samples or runtime errors.
 
 ## Reproducibility tip
 

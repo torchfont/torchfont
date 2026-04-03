@@ -2,8 +2,10 @@
 
 Notes:
     Native indexing state is built for the lifetime of each dataset instance.
-    Recreate the dataset when editing font files on disk to ensure changes are
-    observed.
+    Keep that state in sync with the font files on disk by recreating the
+    dataset after editing font files. If files change while a dataset instance
+    is still in use, results are undefined and may include incorrect samples
+    or runtime errors.
 
 Examples:
     Iterate glyph samples from a directory of fonts::

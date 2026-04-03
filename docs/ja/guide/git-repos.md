@@ -86,8 +86,10 @@ git -C data/fortawesome/font-awesome checkout 7.x
 ```
 
 TorchFont は Dataset オブジェクトの寿命中、ネイティブな indexing state を
-保持します。ディスク上のファイルが変わったら、Dataset も作り直して
-ください。
+保持します。ディスク上のファイルが変わったら、その state が checkout と
+ずれないように Dataset も作り直してください。Dataset の利用中にファイルが
+変わった場合の結果は未定義で、不正な sample や runtime error につながる
+ことがあります。
 
 ## 再現性のためのメモ
 

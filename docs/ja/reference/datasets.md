@@ -182,5 +182,7 @@ dataset = GlyphDataset(
 - TorchFont の外側で同期を管理する外部コーパス
 
 TorchFont から見れば、どれも通常のローカルディレクトリです。ディスク上の
-ファイルが更新されたら、ネイティブな indexing state を作り直すために
-Dataset インスタンスも作り直してください。
+ファイルが更新されたら、ネイティブな indexing state がディスクの内容と
+ずれないように Dataset インスタンスも作り直してください。Dataset の利用中
+にファイルが変わった場合の結果は未定義で、不正な sample や runtime error
+につながることがあります。
