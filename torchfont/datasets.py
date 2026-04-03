@@ -224,6 +224,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
     def __setstate__(self, state: dict[str, object]) -> None:
         """Restore state and recreate the native backend after unpickling."""
+        state.pop("_metadata", None)
         self.__dict__.update(state)
         self._validate_root_dir(self.root)
         self._dataset = _torchfont.FontDataset(
