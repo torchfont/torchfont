@@ -31,7 +31,9 @@ def test_examples_are_import_safe(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
-    assert callable(namespace.get("main")), f"{script_name} must define a callable main()"
+    assert callable(namespace.get("main")), (
+        f"{script_name} must define a callable main()"
+    )
 
 
 @pytest.mark.parametrize(
