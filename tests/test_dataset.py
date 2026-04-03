@@ -146,6 +146,25 @@ def test_glyph_dataset_locate_does_not_materialize_metadata() -> None:
     assert location.axes == ()
 
 
+def test_glyph_dataset_locate_variable_font_does_not_build_style_axis_view() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "_style_axes") as style_axes:
+        style_axes.side_effect = AssertionError(
+            "locate should read axes directly from the native sample lookup"
+        )
+        location = dataset.locate(0)
+
+    assert location.axes == (
+        StyleAxis(tag="wght", value=100.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
+
+
 def test_glyph_dataset_locate_tracks_variable_font_instance_index() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",

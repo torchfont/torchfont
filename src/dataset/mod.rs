@@ -10,6 +10,16 @@ use io::{canonicalize_root, discover_font_files};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 
+type LocateResult = (
+    String,
+    u32,
+    Option<usize>,
+    u32,
+    usize,
+    usize,
+    Vec<(String, f32)>,
+);
+
 #[pyclass]
 pub struct FontDataset {
     entries: Vec<FontEntry>,
@@ -110,9 +120,12 @@ impl FontDataset {
         axes
     }
 
-    pub fn locate(&self, idx: usize) -> PyResult<(String, u32, Option<usize>, u32, usize, usize)> {
+    pub fn locate(&self, idx: usize) -> PyResult<LocateResult> {
         let (font_idx, instance_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
         let entry = &self.entries[font_idx];
+        let axes = instance_idx
+            .map(|inst_idx| entry.style_axes()[inst_idx].clone())
+            .unwrap_or_default();
         Ok((
             entry.path().to_owned(),
             entry.face_index(),
@@ -120,6 +133,7 @@ impl FontDataset {
             codepoint,
             style_idx,
             content_idx,
+            axes,
         ))
     }
 
