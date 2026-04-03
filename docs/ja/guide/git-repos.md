@@ -85,9 +85,9 @@ git -C data/fortawesome/font-awesome fetch --depth 1 origin
 git -C data/fortawesome/font-awesome checkout 7.x
 ```
 
-TorchFont は Dataset オブジェクトの寿命中、ネイティブバックエンド内に
-glyph 情報をキャッシュします。ディスク上のファイルが変わったら、
-Dataset も作り直してください。
+TorchFont は Dataset オブジェクトの寿命中、ネイティブな indexing state を
+保持します。ディスク上のファイルが変わったら、Dataset も作り直して
+ください。
 
 ## 再現性のためのメモ
 

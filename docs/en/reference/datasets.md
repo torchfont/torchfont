@@ -187,4 +187,4 @@ dataset = GlyphDataset(
 - a cached copy of an external corpus managed outside TorchFont
 
 TorchFont treats all of those as ordinary directories. If files on disk change,
-recreate the dataset instance so the native cache is rebuilt.
+recreate the dataset instance so the native indexing state is rebuilt.

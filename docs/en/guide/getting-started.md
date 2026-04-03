@@ -103,7 +103,7 @@ print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
 
 TorchFont treats any checkout as a normal local directory. Use Git or another
 sync tool to refresh the checkout, then recreate the dataset instance so the
-native cache sees the updated files.
+native indexing state sees the updated files.
 
 ## Common Next Tweaks
 

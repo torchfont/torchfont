@@ -85,8 +85,8 @@ git -C data/fortawesome/font-awesome fetch --depth 1 origin
 git -C data/fortawesome/font-awesome checkout 7.x
 ```
 
-TorchFont caches glyph metadata inside the native backend for the lifetime of a
-dataset object, so create a new dataset after files on disk change.
+TorchFont keeps native indexing state for the lifetime of a dataset object, so
+create a new dataset after files on disk change.
 
 ## Reproducibility tip
 
