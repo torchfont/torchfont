@@ -44,11 +44,12 @@ class DatasetMetadata(NamedTuple):
 
 
 StyleMetadataRow = tuple[str, str]
+ContentMetadataRow = tuple[str, str, int]
 
 
 def build_dataset_metadata(
     style_rows: list[StyleMetadataRow],
-    content_codepoints: list[int],
+    content_rows: list[ContentMetadataRow],
 ) -> DatasetMetadata:
     """Build a DatasetMetadata object for a glyph dataset.
 
@@ -58,8 +59,8 @@ def build_dataset_metadata(
     Args:
         style_rows: Tuples of ``(name, label_id)`` aligned to the dataset's
             style indices.
-        content_codepoints: Unicode code points to turn into ``ContentLabel``
-            entries.
+        content_rows: Tuples of ``(label_id, char, codepoint)`` aligned to the
+            dataset's content indices.
 
     Returns:
         DatasetMetadata: Immutable metadata containing style and content label
@@ -77,11 +78,11 @@ def build_dataset_metadata(
     contents = tuple(
         ContentLabel(
             idx=idx,
-            label_id=f"content:U+{cp:04X}",
-            char=chr(cp),
-            codepoint=cp,
+            label_id=label_id,
+            char=char,
+            codepoint=codepoint,
         )
-        for idx, cp in enumerate(content_codepoints)
+        for idx, (label_id, char, codepoint) in enumerate(content_rows)
     )
 
     grouped_names: dict[str, list[int]] = {}

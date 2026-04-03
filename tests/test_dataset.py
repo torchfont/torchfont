@@ -661,7 +661,11 @@ def test_style_label_metadata_handles_duplicate_names() -> None:
                 "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=1",
             ),
         ],
-        content_codepoints=[ord("A"), ord("B"), ord("C")],
+        content_rows=[
+            ("content:U+0041", "A", 0x41),
+            ("content:U+0042", "B", 0x42),
+            ("content:U+0043", "C", 0x43),
+        ],
     )
 
     assert len({label.label_id for label in metadata.styles}) == 3
@@ -674,12 +678,27 @@ def test_build_dataset_metadata_uses_precomputed_style_label_ids() -> None:
         style_rows=[
             ("Lato Regular", "style:path=lato/Lato-Regular.ttf;face=0;instance=static"),
         ],
-        content_codepoints=[ord("A")],
+        content_rows=[
+            ("content:U+0041", "A", 0x41),
+        ],
     )
 
     assert metadata.styles[0].label_id == (
         "style:path=lato/Lato-Regular.ttf;face=0;instance=static"
     )
+
+
+def test_build_dataset_metadata_uses_precomputed_content_rows() -> None:
+    metadata = build_dataset_metadata(
+        style_rows=[],
+        content_rows=[
+            ("content:U+0041", "A", 0x41),
+        ],
+    )
+
+    assert metadata.contents[0].label_id == "content:U+0041"
+    assert metadata.contents[0].char == "A"
+    assert metadata.contents[0].codepoint == 0x41
 
 
 def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
