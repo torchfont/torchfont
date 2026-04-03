@@ -399,7 +399,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             ['A', 'B', 'C']
 
         """
-        return [label.char for label in self.metadata.contents]
+        return [char for _, char, _ in self._dataset.content_metadata_rows()]
 
     @property
     def content_class_to_idx(self) -> dict[str, int]:
@@ -413,7 +413,10 @@ class GlyphDataset(Dataset[GlyphSample]):
             0
 
         """
-        return {label.char: label.idx for label in self.metadata.contents}
+        return {
+            char: idx
+            for idx, (_, char, _) in enumerate(self._dataset.content_metadata_rows())
+        }
 
     @property
     def metadata(self) -> DatasetMetadata:
@@ -445,7 +448,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             ['Roboto Regular', 'Roboto Bold', 'Lato Regular']
 
         """
-        return list(self._dataset.style_classes)
+        return [name for name, _ in self._dataset.style_metadata_rows(str(self.root))]
 
 
 __all__ = [

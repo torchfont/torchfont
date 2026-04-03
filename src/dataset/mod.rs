@@ -48,11 +48,6 @@ impl FontDataset {
         self.index.content_classes.len()
     }
 
-    #[getter]
-    pub fn content_classes(&self) -> Vec<u32> {
-        self.index.content_classes.clone()
-    }
-
     pub fn content_metadata_rows(&self) -> PyResult<Vec<(String, String, u32)>> {
         self.index
             .content_classes
@@ -76,14 +71,6 @@ impl FontDataset {
     #[getter]
     pub fn style_class_count(&self) -> usize {
         self.index.inst_offsets.last().copied().unwrap_or(0)
-    }
-
-    #[getter]
-    pub fn style_classes(&self) -> Vec<String> {
-        self.style_rows()
-            .into_iter()
-            .map(|(name, _, _, _)| name)
-            .collect()
     }
 
     pub fn style_metadata_rows(&self, root: String) -> PyResult<Vec<(String, String)>> {

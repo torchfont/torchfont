@@ -491,6 +491,20 @@ def test_content_classes() -> None:
     assert all(isinstance(c, str) and len(c) == 1 for c in dataset.content_classes)
 
 
+def test_content_classes_do_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError(
+            "content_classes should not materialize metadata",
+        )
+        assert dataset.content_classes == ["A", "B", "C"]
+
+
 def test_content_class_to_idx() -> None:
     """Test content_class_to_idx maps characters to indices."""
     dataset = GlyphDataset(
@@ -508,6 +522,30 @@ def test_content_class_to_idx() -> None:
         assert dataset.content_class_to_idx[char] == idx
 
 
+def test_content_class_to_idx_does_not_route_through_python_projections() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with (
+        patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata,
+        patch.object(
+            GlyphDataset,
+            "content_classes",
+            new_callable=PropertyMock,
+        ) as content_classes,
+    ):
+        metadata.side_effect = AssertionError(
+            "content_class_to_idx should not materialize metadata",
+        )
+        content_classes.side_effect = AssertionError(
+            "content_class_to_idx should not route through content_classes",
+        )
+        assert dataset.content_class_to_idx == {"A": 0, "B": 1, "C": 2}
+
+
 def test_style_classes() -> None:
     """Test style_classes returns descriptive names."""
     dataset = GlyphDataset(
@@ -518,6 +556,20 @@ def test_style_classes() -> None:
 
     assert len(dataset.style_classes) > 0
     assert all(isinstance(s, str) for s in dataset.style_classes)
+
+
+def test_style_classes_do_not_materialize_metadata() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/*.ttf",),
+        codepoints=range(0x41, 0x44),
+    )
+
+    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
+        metadata.side_effect = AssertionError(
+            "style_classes should not materialize metadata",
+        )
+        assert dataset.style_classes
 
 
 def test_style_label_metadata_is_index_addressable() -> None:
