@@ -123,16 +123,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             number of style classes.
         metadata (DatasetMetadata): Structured label metadata object that
             consolidates style/content labels and related lookup tables.
-        style_labels (list[StyleLabel]): Collision-safe style metadata with
-            explicit label IDs.
-        style_label_to_idx (dict[str, int]): Mapping from style label IDs to
-            style class indices.
-        style_name_to_idxs (dict[str, list[int]]): Mapping from style names to
-            all matching style indices.
-        content_labels (list[ContentLabel]): Content metadata with stable label
-            IDs and codepoints.
-        content_label_to_idx (dict[str, int]): Mapping from content label IDs
-            to content class indices.
         root (Path): Resolved root directory used for font discovery.
         patterns (tuple[str, ...] | None): Canonicalized path filter patterns.
         codepoints (tuple[int, ...] | None): Sorted unique Unicode code points
@@ -445,26 +435,6 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
 
     @property
-    def content_labels(self) -> list[ContentLabel]:
-        """Content label metadata with explicit IDs and Unicode codepoints.
-
-        Returns:
-            list[ContentLabel]: Metadata entries ordered by ``idx``.
-
-        """
-        return list(self.metadata.contents)
-
-    @property
-    def content_label_to_idx(self) -> dict[str, int]:
-        """Mapping from content label IDs to content class indices.
-
-        Returns:
-            dict[str, int]: Dictionary mapping ``label_id`` to content index.
-
-        """
-        return dict(self.metadata.content_id_to_idx)
-
-    @property
     def style_classes(self) -> list[str]:
         """List of style variation instance names in the dataset.
 
@@ -481,42 +451,6 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         return list(self._dataset.style_classes)
-
-    @property
-    def style_labels(self) -> list[StyleLabel]:
-        """Style label metadata with explicit IDs.
-
-        Style names are not guaranteed to be unique, so each entry also includes
-        a source-based, collision-safe ``label_id``.
-
-        Returns:
-            list[StyleLabel]: Metadata entries ordered by ``idx``.
-
-        """
-        return list(self.metadata.styles)
-
-    @property
-    def style_label_to_idx(self) -> dict[str, int]:
-        """Mapping from style label IDs to style class indices.
-
-        Returns:
-            dict[str, int]: Dictionary mapping ``label_id`` to style index.
-
-        """
-        return dict(self.metadata.style_id_to_idx)
-
-    @property
-    def style_name_to_idxs(self) -> dict[str, list[int]]:
-        """Mapping from style names to all matching style indices.
-
-        Returns:
-            dict[str, list[int]]: Dictionary mapping style display name to a
-            list of all style indices that share that name.
-
-        """
-        return {
-            name: list(idxs) for name, idxs in self.metadata.style_name_to_idxs.items()
-        }
 
 
 __all__ = [
