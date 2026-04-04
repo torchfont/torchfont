@@ -91,6 +91,7 @@ def test_collate_fn_keeps_tensors_on_sample_device() -> None:
     glyph_batch = collate_fn(batch)
 
     assert glyph_batch.targets.device == glyph_batch.types.device
+    assert glyph_batch.metrics.device == glyph_batch.types.device
 
 
 def test_collate_fn_preserves_trailing_patch_dimensions() -> None:

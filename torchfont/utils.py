@@ -90,13 +90,18 @@ def collate_fn(
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
 
+    device = types_tensor.device
     targets_tensor = torch.tensor(
-        [(s.style_idx, s.content_idx) for s in batch], dtype=torch.long
+        [(s.style_idx, s.content_idx) for s in batch], dtype=torch.long, device=device
     )
-    metrics_tensor = torch.frombuffer(
-        bytearray(b"".join(s.metrics for s in batch)),
-        dtype=torch.float32,
-    ).view(len(batch), 15)
+    metrics_tensor = (
+        torch.frombuffer(
+            bytearray(b"".join(s.metrics for s in batch)),
+            dtype=torch.float32,
+        )
+        .view(len(batch), 15)
+        .to(device)
+    )
 
     return GlyphBatch(
         types=types_tensor,
