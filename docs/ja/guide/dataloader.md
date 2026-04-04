@@ -7,18 +7,15 @@ TorchFont の Dataset は `torch.utils.data.Dataset` を継承しているため
 ## まずは最小確認（`batch_size=1`）
 
 ```python
-from torch.utils.data import DataLoader
 from torchfont.datasets import GlyphDataset
 
 dataset = GlyphDataset(root="~/fonts")
-loader = DataLoader(dataset, batch_size=1, shuffle=True)
-
-sample = next(iter(loader))
-print(sample.types.shape, sample.coords.shape)  # (1, seq_len), (1, seq_len, 6)
-print(sample.targets.shape)  # (1, 2)
+sample = dataset[0]
+print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
+print(sample.style_idx, sample.content_idx)
 ```
 
-この例は動作確認用です。`batch_size > 1` では可変長シーケンスを扱うため、通常は padding 対応の `collate_fn` が必要です。
+この例は動作確認用です。バッチ化には `collate_fn` を使ってください。
 
 ## 学習向けの `collate_fn`
 

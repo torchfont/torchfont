@@ -6,19 +6,15 @@ PyTorch training loops.
 ## Quick sanity check (`batch_size=1`)
 
 ```python
-from torch.utils.data import DataLoader
 from torchfont.datasets import GlyphDataset
 
 dataset = GlyphDataset(root="~/fonts")
-loader = DataLoader(dataset, batch_size=1, shuffle=True)
-
-sample = next(iter(loader))
-print(sample.types.shape, sample.coords.shape)  # (1, seq_len), (1, seq_len, 6)
-print(sample.targets.shape)  # (1, 2)
+sample = dataset[0]
+print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
+print(sample.style_idx, sample.content_idx)
 ```
 
-Use this only to check end-to-end wiring. For `batch_size > 1`, variable-length
-glyph sequences usually require a padding-aware `collate_fn`.
+Use this only to check end-to-end wiring. For batching, use `collate_fn`.
 
 ## Recommended `collate_fn` for training
 

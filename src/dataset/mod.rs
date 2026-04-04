@@ -160,10 +160,10 @@ impl GlyphDataset {
             italic_angle,
             glyph_name,
         ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
-        let types_bytes: Vec<u8> = types
-            .iter()
-            .flat_map(|&t| (t as i64).to_ne_bytes())
-            .collect();
+        let mut types_bytes = Vec::with_capacity(types.len() * 8);
+        for &t in &types {
+            types_bytes.extend_from_slice(&(t as i64).to_ne_bytes());
+        }
         let coords_bytes: Vec<u8> = {
             let bytes: &[u8] = unsafe {
                 std::slice::from_raw_parts(coords.as_ptr().cast::<u8>(), coords.len() * 4)
