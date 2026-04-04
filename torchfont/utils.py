@@ -88,9 +88,6 @@ def collate_fn(
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
-    if types_tensor.shape[1] != coords_tensor.shape[1]:
-        msg = "padded types and coords must have matching sequence lengths"
-        raise ValueError(msg)
 
     style_label_tensor = torch.as_tensor(
         style_label_list,
