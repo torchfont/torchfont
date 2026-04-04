@@ -34,7 +34,6 @@ def main() -> None:
     print(f"{len(dataset.style_classes)=}")
     print(f"{batch.types.shape=}")
     print(f"{batch.coords.shape=}")
-    print(f"{batch.mask.shape=}")
 
 
 if __name__ == "__main__":

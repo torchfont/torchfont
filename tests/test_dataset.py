@@ -867,17 +867,15 @@ def test_glyph_dataset_dataloader_multiworker(
     assert batch.coords.ndim == 3  # batch_size x sequence_length x 6
     assert batch.coords.shape[2] == 6
 
-    # Validate indices tensors
-    assert batch.style_idx.dtype == torch.long
-    assert batch.content_idx.dtype == torch.long
-    assert batch.style_idx.ndim == 1  # batch_size
-    assert batch.content_idx.ndim == 1  # batch_size
+    # Validate targets tensor
+    assert batch.targets.dtype == torch.long
+    assert batch.targets.shape[1] == 2
 
     # Validate index values are in valid range
-    assert torch.all(batch.style_idx >= 0)
-    assert torch.all(batch.style_idx < len(dataset.style_classes))
-    assert torch.all(batch.content_idx >= 0)
-    assert torch.all(batch.content_idx < len(dataset.content_classes))
+    assert torch.all(batch.targets[:, 0] >= 0)
+    assert torch.all(batch.targets[:, 0] < len(dataset.style_classes))
+    assert torch.all(batch.targets[:, 1] >= 0)
+    assert torch.all(batch.targets[:, 1] < len(dataset.content_classes))
 
 
 def test_targets_shape_and_dtype() -> None:

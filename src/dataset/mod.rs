@@ -23,27 +23,17 @@ type LocateResult = (
 
 #[pyclass(get_all)]
 pub struct GlyphItem {
-    /// Raw little-endian ``i64`` bytes, one per pen command.
+    /// Raw native-endian ``i64`` bytes, one per pen command.
     pub types: Vec<u8>,
-    /// Raw little-endian ``f32`` bytes, six values per pen command.
+    /// Raw native-endian ``f32`` bytes, six values per pen command.
     pub coords: Vec<u8>,
     pub style_idx: usize,
     pub content_idx: usize,
-    pub advance_width: f32,
-    pub lsb: f32,
-    pub x_min: f32,
-    pub y_min: f32,
-    pub x_max: f32,
-    pub y_max: f32,
-    pub units_per_em: u16,
-    pub ascent: f32,
-    pub descent: f32,
-    pub leading: f32,
-    pub cap_height: f32,
-    pub x_height: f32,
-    pub average_width: f32,
-    pub is_monospace: bool,
-    pub italic_angle: f32,
+    /// Raw native-endian ``f32`` bytes for 15 float metrics (in order):
+    /// advance_width, lsb, x_min, y_min, x_max, y_max,
+    /// ascent, descent, leading, cap_height, x_height, average_width,
+    /// italic_angle, units_per_em (cast to f32), is_monospace (0.0 or 1.0).
+    pub metrics: Vec<u8>,
     pub glyph_name: String,
 }
 
@@ -178,26 +168,32 @@ impl GlyphDataset {
             .iter()
             .flat_map(|&c| c.to_bits().to_ne_bytes())
             .collect();
-        Ok(GlyphItem {
-            types: types_bytes,
-            coords: coords_bytes,
-            style_idx,
-            content_idx,
-            advance_width: adv_w,
+        let metrics_bytes: Vec<u8> = [
+            adv_w,
             lsb,
             x_min,
             y_min,
             x_max,
             y_max,
-            units_per_em: upem,
             ascent,
             descent,
             leading,
             cap_height,
             x_height,
-            average_width: avg_width,
-            is_monospace,
+            avg_width,
             italic_angle,
+            upem as f32,
+            if is_monospace { 1.0_f32 } else { 0.0_f32 },
+        ]
+        .iter()
+        .flat_map(|v| v.to_ne_bytes())
+        .collect();
+        Ok(GlyphItem {
+            types: types_bytes,
+            coords: coords_bytes,
+            style_idx,
+            content_idx,
+            metrics: metrics_bytes,
             glyph_name,
         })
     }

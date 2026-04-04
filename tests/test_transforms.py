@@ -5,6 +5,8 @@ from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
 
+_ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
+
 
 def test_quad_to_cubic_converts_quadratic_segments() -> None:
     transform = QuadToCubic()
@@ -32,27 +34,12 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    nan = float("nan")
     sample = GlyphSample(
         types=types,
         coords=coords,
         style_idx=3,
         content_idx=7,
-        advance_width=nan,
-        lsb=nan,
-        x_min=nan,
-        y_min=nan,
-        x_max=nan,
-        y_max=nan,
-        units_per_em=1000,
-        ascent=nan,
-        descent=nan,
-        leading=nan,
-        cap_height=nan,
-        x_height=nan,
-        average_width=nan,
-        is_monospace=False,
-        italic_angle=0.0,
+        metrics=_ZERO_METRICS,
         glyph_name="",
     )
     out = transform(sample)
@@ -102,27 +89,12 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    nan = float("nan")
     sample = GlyphSample(
         types=types,
         coords=coords,
         style_idx=1,
         content_idx=2,
-        advance_width=nan,
-        lsb=nan,
-        x_min=nan,
-        y_min=nan,
-        x_max=nan,
-        y_max=nan,
-        units_per_em=1000,
-        ascent=nan,
-        descent=nan,
-        leading=nan,
-        cap_height=nan,
-        x_height=nan,
-        average_width=nan,
-        is_monospace=False,
-        italic_angle=0.0,
+        metrics=_ZERO_METRICS,
         glyph_name="",
     )
     out = transform(sample)
@@ -148,27 +120,12 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         dtype=torch.float32,
     )
 
-    nan = float("nan")
     sample = GlyphSample(
         types=types,
         coords=coords,
         style_idx=4,
         content_idx=5,
-        advance_width=nan,
-        lsb=nan,
-        x_min=nan,
-        y_min=nan,
-        x_max=nan,
-        y_max=nan,
-        units_per_em=1000,
-        ascent=nan,
-        descent=nan,
-        leading=nan,
-        cap_height=nan,
-        x_height=nan,
-        average_width=nan,
-        is_monospace=False,
-        italic_angle=0.0,
+        metrics=_ZERO_METRICS,
         glyph_name="",
     )
     out = transform(sample)
@@ -187,7 +144,6 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
 def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
     transform = Compose((QuadToCubic(), LimitSequenceLength(max_len=2)))
 
-    nan = float("nan")
     sample = GlyphSample(
         types=torch.tensor(
             [
@@ -207,21 +163,7 @@ def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
         ),
         style_idx=11,
         content_idx=13,
-        advance_width=nan,
-        lsb=nan,
-        x_min=nan,
-        y_min=nan,
-        x_max=nan,
-        y_max=nan,
-        units_per_em=1000,
-        ascent=nan,
-        descent=nan,
-        leading=nan,
-        cap_height=nan,
-        x_height=nan,
-        average_width=nan,
-        is_monospace=False,
-        italic_angle=0.0,
+        metrics=_ZERO_METRICS,
         glyph_name="",
     )
 

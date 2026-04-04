@@ -5,21 +5,7 @@ class GlyphItem:
     coords: bytes
     style_idx: int
     content_idx: int
-    advance_width: float
-    lsb: float
-    x_min: float
-    y_min: float
-    x_max: float
-    y_max: float
-    units_per_em: int
-    ascent: float
-    descent: float
-    leading: float
-    cap_height: float
-    x_height: float
-    average_width: float
-    is_monospace: bool
-    italic_angle: float
+    metrics: bytes
     glyph_name: str
 
 class GlyphDataset:

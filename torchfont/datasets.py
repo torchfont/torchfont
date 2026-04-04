@@ -51,41 +51,16 @@ class GlyphSample:
             coordinate data for each command.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
-        advance_width (float): Horizontal advance width normalised by the font's
-            units-per-em value. ``float('nan')`` when not available.
-        lsb (float): Left side bearing normalised by units-per-em.
-            ``float('nan')`` when not available.
-        x_min (float): Glyph bounding-box left edge normalised by units-per-em.
-            ``float('nan')`` when not available.
-        y_min (float): Glyph bounding-box bottom edge normalised by units-per-em.
-            ``float('nan')`` when not available.
-        x_max (float): Glyph bounding-box right edge normalised by units-per-em.
-            ``float('nan')`` when not available.
-        y_max (float): Glyph bounding-box top edge normalised by units-per-em.
-            ``float('nan')`` when not available.
-        units_per_em (int): Raw units-per-em value of the font.
-        ascent (float): Distance from baseline to top of the alignment box,
-            normalised by units-per-em.
-        descent (float): Distance from baseline to bottom of the alignment box,
-            normalised by units-per-em.
-        leading (float): Recommended additional spacing between lines,
-            normalised by units-per-em.
-        cap_height (float): Distance from baseline to top of a typical capital
-            letter, normalised by units-per-em. ``float('nan')`` if not set.
-        x_height (float): Distance from baseline to top of the lowercase "x",
-            normalised by units-per-em. ``float('nan')`` if not set.
-        average_width (float): Average width of non-zero-width characters,
-            normalised by units-per-em. ``float('nan')`` if not set.
-        is_monospace (bool): ``True`` if the font is not proportionally spaced.
-        italic_angle (float): Italic angle in counter-clockwise degrees from
-            the vertical. Zero for upright text.
+        metrics (bytes): Raw native-endian ``f32`` bytes for 15 metrics.
+            Column order: ``advance_width``, ``lsb``, ``x_min``, ``y_min``,
+            ``x_max``, ``y_max``, ``ascent``, ``descent``, ``leading``,
+            ``cap_height``, ``x_height``, ``average_width``, ``italic_angle``,
+            ``units_per_em`` (cast to f32), ``is_monospace`` (0.0 or 1.0).
+            UPM-normalised where applicable; ``nan`` when missing.
+            Decode with
+            ``torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)``
+            to obtain a 1-D float tensor of shape ``(15,)``.
         glyph_name (str): PostScript name of the glyph.
-
-    Examples:
-        Access fields by name::
-
-            sample = dataset[0]
-            print(sample.types.shape, sample.advance_width)
 
     """
 
@@ -93,21 +68,7 @@ class GlyphSample:
     coords: Tensor
     style_idx: int
     content_idx: int
-    advance_width: float
-    lsb: float
-    x_min: float
-    y_min: float
-    x_max: float
-    y_max: float
-    units_per_em: int
-    ascent: float
-    descent: float
-    leading: float
-    cap_height: float
-    x_height: float
-    average_width: float
-    is_monospace: bool
-    italic_angle: float
+    metrics: bytes
     glyph_name: str
 
 
@@ -344,21 +305,7 @@ class GlyphDataset(Dataset[GlyphSample]):
             coords=coords,
             style_idx=item.style_idx,
             content_idx=item.content_idx,
-            advance_width=item.advance_width,
-            lsb=item.lsb,
-            x_min=item.x_min,
-            y_min=item.y_min,
-            x_max=item.x_max,
-            y_max=item.y_max,
-            units_per_em=item.units_per_em,
-            ascent=item.ascent,
-            descent=item.descent,
-            leading=item.leading,
-            cap_height=item.cap_height,
-            x_height=item.x_height,
-            average_width=item.average_width,
-            is_monospace=item.is_monospace,
-            italic_angle=item.italic_angle,
+            metrics=item.metrics,
             glyph_name=item.glyph_name,
         )
         if self.transform is not None:
