@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-class FontDataset:
+class GlyphDataset:
     def __init__(
         self,
         root: str,

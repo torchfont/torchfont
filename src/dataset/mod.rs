@@ -22,13 +22,13 @@ type LocateResult = (
 );
 
 #[pyclass]
-pub struct FontDataset {
+pub struct GlyphDataset {
     entries: Vec<FontEntry>,
     index: DatasetIndex,
 }
 
 #[pymethods]
-impl FontDataset {
+impl GlyphDataset {
     #[new]
     pub fn new(
         root: String,
@@ -153,7 +153,7 @@ impl FontDataset {
     }
 }
 
-impl FontDataset {
+impl GlyphDataset {
     fn style_rows(&self) -> Vec<(String, String, u32, Option<usize>)> {
         let mut rows = Vec::new();
         for entry in self.entries.iter() {
