@@ -40,7 +40,6 @@ from torchfont.metadata import (
 )
 
 
-
 class GlyphSample(NamedTuple):
     """One glyph sample returned by a dataset.
 
