@@ -183,7 +183,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
         self.codepoints = self._normalize_codepoints(codepoints)
 
-        self._dataset = _torchfont.FontDataset(
+        self._dataset = _torchfont.GlyphDataset(
             str(self.root),
             self.codepoints,
             self.patterns,
@@ -225,7 +225,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         state.pop("_metadata", None)
         self.__dict__.update(state)
         self._validate_root_dir(self.root)
-        self._dataset = _torchfont.FontDataset(
+        self._dataset = _torchfont.GlyphDataset(
             str(self.root),
             self.codepoints,
             self.patterns,
