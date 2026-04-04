@@ -7,18 +7,15 @@ TorchFont の Dataset は `torch.utils.data.Dataset` を継承しているため
 ## まずは最小確認（`batch_size=1`）
 
 ```python
-from torch.utils.data import DataLoader
 from torchfont.datasets import GlyphDataset
 
 dataset = GlyphDataset(root="~/fonts")
-loader = DataLoader(dataset, batch_size=1, shuffle=True)
-
-sample = next(iter(loader))
-print(sample.types.shape, sample.coords.shape)  # (1, seq_len), (1, seq_len, 6)
-print(sample.style_idx.shape, sample.content_idx.shape)  # (1,), (1,)
+sample = dataset[0]
+print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
+print(sample.style_idx, sample.content_idx)
 ```
 
-この例は動作確認用です。`batch_size > 1` では可変長シーケンスを扱うため、通常は padding 対応の `collate_fn` が必要です。
+この例は動作確認用です。バッチ化には `collate_fn` を使ってください。
 
 ## 学習向けの `collate_fn`
 
@@ -51,7 +48,8 @@ batch = next(iter(loader))
 
 print(batch.types.shape)
 print(batch.coords.shape)
-print(batch.mask.shape)
+print(batch.targets.shape)
+print(batch.metrics.shape)
 ```
 
 `num_workers > 0` のときだけ、プリフェッチと multiprocessing の設定を有効にします。`num_workers=0` なら、これらの引数は指定しないでください。
@@ -61,16 +59,6 @@ print(batch.mask.shape)
 |Linux|`"fork"`|
 |macOS|`"spawn"` または `"forkserver"`|
 |Windows|`"spawn"`|
-
-## パディングマスク
-
-組み込みの `collate_fn` は `GlyphBatch.mask` を返します。`True` が有効な
-シーケンス位置です。
-
-```python
-valid_mask = batch.mask
-padding_mask = ~batch.mask
-```
 
 ## `Patchify` を使う場合
 

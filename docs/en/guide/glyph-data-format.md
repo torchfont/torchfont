@@ -6,14 +6,28 @@ TorchFont datasets return each glyph sample as a `GlyphSample`:
 sample = dataset[i]
 ```
 
-| Element       | Type                | Shape          | Meaning              |
-| ------------- | ------------------- | -------------- | -------------------- |
-| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Pen command sequence |
-| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinate sequence  |
-| `sample.style_idx`   | `int`               | scalar         | Style class ID       |
-| `sample.content_idx` | `int`               | scalar         | Content class ID     |
+| Element              | Type                | Shape          | Meaning                          |
+| -------------------- | ------------------- | -------------- | -------------------------------- |
+| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Pen command sequence             |
+| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinate sequence              |
+| `sample.style_idx`   | `int`               | scalar         | Style class ID                   |
+| `sample.content_idx` | `int`               | scalar         | Content class ID                 |
+| `sample.metrics`     | `bytes`             | 15 × f32       | Per-glyph and font-level metrics |
+| `sample.glyph_name`  | `str`               | —              | PostScript glyph name            |
 
-`GlyphSample` is a NamedTuple, so field access by name is the intended API.
+`GlyphSample` is a dataclass; field access by name is the intended API.
+
+`sample.metrics` is a packed native-endian `f32` byte buffer (60 bytes). Decode with:
+
+```python
+import torch
+m = torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)
+# [adv_w, lsb, x_min, y_min, x_max, y_max,
+#  ascent, descent, leading, cap_height, x_height, avg_width,
+#  italic_angle, units_per_em, is_monospace]
+```
+
+Values are UPM-normalised where applicable; `nan` when missing.
 
 ## `types`
 

@@ -21,6 +21,22 @@ type LocateResult = (
     Vec<(String, f32)>,
 );
 
+#[pyclass(get_all)]
+pub struct GlyphItem {
+    /// Raw native-endian ``i64`` bytes, one per pen command.
+    pub types: Vec<u8>,
+    /// Raw native-endian ``f32`` bytes, six values per pen command.
+    pub coords: Vec<u8>,
+    pub style_idx: usize,
+    pub content_idx: usize,
+    /// Raw native-endian ``f32`` bytes for 15 float metrics (in order):
+    /// advance_width, lsb, x_min, y_min, x_max, y_max,
+    /// ascent, descent, leading, cap_height, x_height, average_width,
+    /// italic_angle, units_per_em (cast to f32), is_monospace (0.0 or 1.0).
+    pub metrics: Vec<u8>,
+    pub glyph_name: String,
+}
+
 #[pyclass]
 pub struct GlyphDataset {
     entries: Vec<FontEntry>,
@@ -122,11 +138,68 @@ impl GlyphDataset {
         ))
     }
 
-    pub fn item(&self, idx: usize) -> PyResult<(Vec<i32>, Vec<f32>, usize, usize)> {
+    pub fn item(&self, idx: usize) -> PyResult<GlyphItem> {
         let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
-        self.entries[font_idx]
-            .glyph(codepoint, inst_idx)
-            .map(|(types, coords)| (types, coords, style_idx, content_idx))
+        let (
+            types,
+            coords,
+            adv_w,
+            lsb,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            upem,
+            ascent,
+            descent,
+            leading,
+            cap_height,
+            x_height,
+            avg_width,
+            is_monospace,
+            italic_angle,
+            glyph_name,
+        ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
+        let mut types_bytes = Vec::with_capacity(types.len() * std::mem::size_of::<i64>());
+        for &t in &types {
+            types_bytes.extend_from_slice(&(t as i64).to_ne_bytes());
+        }
+        let coords_bytes: Vec<u8> = {
+            let bytes: &[u8] = unsafe {
+                std::slice::from_raw_parts(coords.as_ptr().cast::<u8>(), coords.len() * 4)
+            };
+            bytes.to_vec()
+        };
+        let metrics_f32: [f32; 15] = [
+            adv_w,
+            lsb,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            ascent,
+            descent,
+            leading,
+            cap_height,
+            x_height,
+            avg_width,
+            italic_angle,
+            upem as f32,
+            if is_monospace { 1.0_f32 } else { 0.0_f32 },
+        ];
+        let metrics_bytes: Vec<u8> = {
+            let bytes: &[u8] =
+                unsafe { std::slice::from_raw_parts(metrics_f32.as_ptr().cast::<u8>(), 15 * 4) };
+            bytes.to_vec()
+        };
+        Ok(GlyphItem {
+            types: types_bytes,
+            coords: coords_bytes,
+            style_idx,
+            content_idx,
+            metrics: metrics_bytes,
+            glyph_name,
+        })
     }
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {

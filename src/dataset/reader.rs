@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::{
     GlyphId, MetadataProvider,
@@ -6,19 +9,44 @@ use skrifa::{
 };
 
 use crate::{
-    dataset::io::map_font,
     error::{py_err, py_index_err},
     pen::SegmentPen,
 };
 
+pub(super) type GlyphItemData = (
+    Vec<i32>,
+    Vec<f32>,
+    f32,
+    f32,
+    f32,
+    f32,
+    f32,
+    f32,
+    u16,
+    f32,
+    f32,
+    f32,
+    f32,
+    f32,
+    f32,
+    bool,
+    f32,
+    String,
+);
+
 pub(super) struct GlyphReader {
     path: String,
     face_index: u32,
+    data: Arc<Mmap>,
 }
 
 impl GlyphReader {
-    pub(super) fn new(path: String, face_index: u32) -> Self {
-        Self { path, face_index }
+    pub(super) fn new(path: String, face_index: u32, data: Arc<Mmap>) -> Self {
+        Self {
+            path,
+            face_index,
+            data,
+        }
     }
 
     pub(super) fn path(&self) -> &str {
@@ -35,7 +63,7 @@ impl GlyphReader {
         units_per_em: f32,
         locations: &[Location],
         instance_index: Option<usize>,
-    ) -> PyResult<(Vec<i32>, Vec<f32>)> {
+    ) -> PyResult<GlyphItemData> {
         self.with_font_ref(|font| {
             let glyph = font.outline_glyphs().get(glyph_id).ok_or_else(|| {
                 py_err(format!(
@@ -45,18 +73,67 @@ impl GlyphReader {
                 ))
             })?;
 
+            let location_ref = self.location_ref(locations, instance_index)?;
+            let inv_upem = 1.0 / units_per_em;
+
             let mut pen = SegmentPen::new(units_per_em);
             glyph
                 .draw(
-                    DrawSettings::unhinted(
-                        Size::unscaled(),
-                        self.location_ref(locations, instance_index)?,
-                    ),
+                    DrawSettings::unhinted(Size::unscaled(), location_ref),
                     &mut pen,
                 )
                 .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
+            let (types, coords) = pen.finish();
 
-            Ok(pen.finish())
+            let glyph_metrics = font.glyph_metrics(Size::unscaled(), location_ref);
+            let advance_width = glyph_metrics
+                .advance_width(glyph_id)
+                .map(|v| v * inv_upem)
+                .unwrap_or(f32::NAN);
+            let lsb = glyph_metrics
+                .left_side_bearing(glyph_id)
+                .map(|v| v * inv_upem)
+                .unwrap_or(f32::NAN);
+            let (x_min, y_min, x_max, y_max) = glyph_metrics.bounds(glyph_id).map_or(
+                (f32::NAN, f32::NAN, f32::NAN, f32::NAN),
+                |bb| {
+                    (
+                        bb.x_min * inv_upem,
+                        bb.y_min * inv_upem,
+                        bb.x_max * inv_upem,
+                        bb.y_max * inv_upem,
+                    )
+                },
+            );
+
+            let m = font.metrics(Size::unscaled(), location_ref);
+
+            let glyph_name = font
+                .glyph_names()
+                .get(glyph_id)
+                .map(|n| n.to_string())
+                .unwrap_or_default();
+
+            Ok((
+                types,
+                coords,
+                advance_width,
+                lsb,
+                x_min,
+                y_min,
+                x_max,
+                y_max,
+                m.units_per_em,
+                m.ascent * inv_upem,
+                m.descent * inv_upem,
+                m.leading * inv_upem,
+                m.cap_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                m.x_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                m.average_width.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                m.is_monospace,
+                m.italic_angle,
+                glyph_name,
+            ))
         })
     }
 
@@ -111,8 +188,7 @@ impl GlyphReader {
     }
 
     fn with_font_ref<T>(&self, f: impl FnOnce(skrifa::FontRef<'_>) -> PyResult<T>) -> PyResult<T> {
-        let data = map_font(&self.path)?;
-        let font = skrifa::FontRef::from_index(&data[..], self.face_index).map_err(|err| {
+        let font = skrifa::FontRef::from_index(&self.data[..], self.face_index).map_err(|err| {
             py_err(format!(
                 "failed to parse '{}' (face {}): {err}",
                 self.path, self.face_index

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import multiprocessing as mp
 import pickle
 import shutil
@@ -22,6 +23,8 @@ from torchfont.datasets import (
 )
 from torchfont.io import CommandType
 from torchfont.metadata import build_dataset_metadata
+from torchfont.utils import GlyphBatch
+from torchfont.utils import collate_fn as collate_glyph_batch
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -109,6 +112,15 @@ def test_glyph_dataset_getitem() -> None:
     assert isinstance(sample.content_idx, int)
     assert 0 <= sample.style_idx < len(dataset.style_classes)
     assert 0 <= sample.content_idx < len(dataset.content_classes)
+
+    assert isinstance(sample.metrics, bytes)
+    assert len(sample.metrics) == 60  # 15 native-endian f32s
+    metrics = torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)
+    assert metrics.shape == (15,)
+    assert not torch.isnan(metrics[0])  # advance_width should be present
+
+    assert isinstance(sample.glyph_name, str)
+    assert len(sample.glyph_name) > 0
 
 
 def test_glyph_dataset_locate_returns_source_metadata() -> None:
@@ -238,11 +250,8 @@ def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
 
     def transform(sample: GlyphSample) -> GlyphSample:
         calls.append(sample)
-        return GlyphSample(
-            types=sample.types[:2],
-            coords=sample.coords[:2],
-            style_idx=sample.style_idx,
-            content_idx=sample.content_idx,
+        return dataclasses.replace(
+            sample, types=sample.types[:2], coords=sample.coords[:2]
         )
 
     dataset = GlyphDataset(
@@ -851,15 +860,14 @@ def test_glyph_dataset_dataloader_multiworker(
         num_workers=2,
         shuffle=False,
         multiprocessing_context=start_method,
+        collate_fn=collate_glyph_batch,
     )
 
     batch = next(iter(loader))
     assert batch is not None
+    assert isinstance(batch, GlyphBatch)
 
-    # DataLoader collates GlyphSample fields into a GlyphSample of batched tensors
-    assert isinstance(batch, GlyphSample)
-
-    # Validate types tensor (batch dimension added)
+    # Validate types tensor (batch dimension added by collate_fn)
     assert batch.types.dtype == torch.long
     assert batch.types.ndim == 2  # batch_size x sequence_length
 
@@ -868,17 +876,15 @@ def test_glyph_dataset_dataloader_multiworker(
     assert batch.coords.ndim == 3  # batch_size x sequence_length x 6
     assert batch.coords.shape[2] == 6
 
-    # Validate indices tensors
-    assert batch.style_idx.dtype == torch.long
-    assert batch.content_idx.dtype == torch.long
-    assert batch.style_idx.ndim == 1  # batch_size
-    assert batch.content_idx.ndim == 1  # batch_size
+    # Validate targets tensor
+    assert batch.targets.dtype == torch.long
+    assert batch.targets.shape[1] == 2
 
     # Validate index values are in valid range
-    assert torch.all(batch.style_idx >= 0)
-    assert torch.all(batch.style_idx < len(dataset.style_classes))
-    assert torch.all(batch.content_idx >= 0)
-    assert torch.all(batch.content_idx < len(dataset.content_classes))
+    assert torch.all(batch.targets[:, 0] >= 0)
+    assert torch.all(batch.targets[:, 0] < len(dataset.style_classes))
+    assert torch.all(batch.targets[:, 1] >= 0)
+    assert torch.all(batch.targets[:, 1] < len(dataset.content_classes))
 
 
 def test_targets_shape_and_dtype() -> None:

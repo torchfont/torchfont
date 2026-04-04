@@ -5,6 +5,8 @@ from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
 
+_ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
+
 
 def test_quad_to_cubic_converts_quadratic_segments() -> None:
     transform = QuadToCubic()
@@ -37,6 +39,8 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
         coords=coords,
         style_idx=3,
         content_idx=7,
+        metrics=_ZERO_METRICS,
+        glyph_name="",
     )
     out = transform(sample)
 
@@ -85,7 +89,14 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(types=types, coords=coords, style_idx=1, content_idx=2)
+    sample = GlyphSample(
+        types=types,
+        coords=coords,
+        style_idx=1,
+        content_idx=2,
+        metrics=_ZERO_METRICS,
+        glyph_name="",
+    )
     out = transform(sample)
 
     assert out is sample
@@ -109,7 +120,14 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(types=types, coords=coords, style_idx=4, content_idx=5)
+    sample = GlyphSample(
+        types=types,
+        coords=coords,
+        style_idx=4,
+        content_idx=5,
+        metrics=_ZERO_METRICS,
+        glyph_name="",
+    )
     out = transform(sample)
 
     assert out.types.shape == types.shape
@@ -145,6 +163,8 @@ def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
         ),
         style_idx=11,
         content_idx=13,
+        metrics=_ZERO_METRICS,
+        glyph_name="",
     )
 
     out = transform(sample)

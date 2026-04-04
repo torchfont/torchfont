@@ -36,18 +36,21 @@ class GlyphBatch(NamedTuple):
         coords (Tensor): Float tensor of shape ``(B, L, ...)`` holding padded
             coordinate values. Only the leading sequence dimension ``L`` is
             padded; trailing dimensions such as ``patch_size`` are preserved.
-        style_idx (Tensor): 1-D long tensor of style indices.
-        content_idx (Tensor): 1-D long tensor of content indices.
-        mask (Tensor): Boolean tensor marking valid, non-padding sequence
-            positions. Shape is ``(B, L)``.
+        targets (Tensor): Long tensor of shape ``(B, 2)`` where column 0 is
+            style indices and column 1 is content indices.
+        metrics (Tensor): Float tensor of shape ``(B, 15)`` holding per-sample
+            metrics in the same column order as ``GlyphSample.metrics``.
+
+    Note:
+        ``glyph_name`` is not included because it cannot be collated into a
+        tensor.
 
     """
 
     types: Tensor
     coords: Tensor
-    style_idx: Tensor
-    content_idx: Tensor
-    mask: Tensor
+    targets: Tensor
+    metrics: Tensor
 
 
 def collate_fn(
@@ -64,9 +67,9 @@ def collate_fn(
             returned by a TorchFont dataset.
 
     Returns:
-        GlyphBatch: Structured batch containing padded tensors plus a validity
-            mask for non-padding positions. Any trailing dimensions produced by
-            transforms such as ``Patchify`` are preserved.
+        GlyphBatch: Structured batch containing padded tensors. Any trailing
+            dimensions produced by transforms such as ``Patchify`` are
+            preserved.
 
     Examples:
         Plug directly into a DataLoader::
@@ -83,36 +86,28 @@ def collate_fn(
 
     types_list = [sample.types for sample in batch]
     coords_list = [sample.coords for sample in batch]
-    style_label_list = [sample.style_idx for sample in batch]
-    content_label_list = [sample.content_idx for sample in batch]
 
     types_tensor = pad_sequence(types_list, batch_first=True, padding_value=0)
     coords_tensor = pad_sequence(coords_list, batch_first=True, padding_value=0.0)
 
-    style_label_tensor = torch.as_tensor(
-        style_label_list,
-        dtype=torch.long,
-        device=types_tensor.device,
+    device = types_tensor.device
+    targets_tensor = torch.tensor(
+        [(s.style_idx, s.content_idx) for s in batch], dtype=torch.long, device=device
     )
-    content_label_tensor = torch.as_tensor(
-        content_label_list,
-        dtype=torch.long,
-        device=types_tensor.device,
+    metrics_tensor = (
+        torch.frombuffer(
+            bytearray().join(s.metrics for s in batch),
+            dtype=torch.float32,
+        )
+        .view(len(batch), 15)
+        .to(device)
     )
-    lengths = torch.as_tensor(
-        [t.shape[0] for t in types_list],
-        dtype=torch.long,
-        device=types_tensor.device,
-    )
-    steps = torch.arange(types_tensor.shape[1], device=types_tensor.device)
-    mask = steps.unsqueeze(0) < lengths.unsqueeze(1)
 
     return GlyphBatch(
         types=types_tensor,
         coords=coords_tensor,
-        style_idx=style_label_tensor,
-        content_idx=content_label_tensor,
-        mask=mask,
+        targets=targets_tensor,
+        metrics=metrics_tensor,
     )
 
 

@@ -18,6 +18,7 @@ Examples:
 
 """
 
+import dataclasses
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
@@ -40,29 +41,26 @@ from torchfont.metadata import (
 )
 
 
-class GlyphSample(NamedTuple):
+@dataclasses.dataclass
+class GlyphSample:
     """One glyph sample returned by a dataset.
-
-    Using a NamedTuple means fields can be accessed by name rather than by
-    position, so downstream code does not depend on tuple ordering.
-    PyTorch's default DataLoader collation handles NamedTuples natively.
 
     Attributes:
         types (Tensor): 1-D long tensor of pen command types.
         coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
             coordinate data for each command.
         style_idx (int): Index into the dataset's ``style_classes`` list.
-            When batches are formed by PyTorch's default DataLoader collation,
-            this field becomes a 1-D ``torch.LongTensor``.
         content_idx (int): Index into the dataset's ``content_classes`` list.
-            When batches are formed by PyTorch's default DataLoader collation,
-            this field becomes a 1-D ``torch.LongTensor``.
-
-    Examples:
-        Access fields by name rather than by position::
-
-            sample = dataset[0]
-            print(sample.types.shape, sample.style_idx)
+        metrics (bytes): Raw native-endian ``f32`` bytes for 15 metrics.
+            Column order: ``advance_width``, ``lsb``, ``x_min``, ``y_min``,
+            ``x_max``, ``y_max``, ``ascent``, ``descent``, ``leading``,
+            ``cap_height``, ``x_height``, ``average_width``, ``italic_angle``,
+            ``units_per_em`` (cast to f32), ``is_monospace`` (0.0 or 1.0).
+            UPM-normalised where applicable; ``nan`` when missing.
+            Decode with
+            ``torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)``
+            to obtain a 1-D float tensor of shape ``(15,)``.
+        glyph_name (str): PostScript name of the glyph.
 
     """
 
@@ -70,6 +68,8 @@ class GlyphSample(NamedTuple):
     coords: Tensor
     style_idx: int
     content_idx: int
+    metrics: bytes
+    glyph_name: str
 
 
 class GlyphLocation(NamedTuple):
@@ -281,7 +281,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         Returns:
             GlyphSample: Structured sample containing ``types``, ``coords``,
-            ``style_idx``, and ``content_idx``.
+            ``style_idx``, ``content_idx``, ``metrics``, and ``glyph_name``.
 
         Examples:
             Retrieve the first glyph sample and its target labels::
@@ -295,14 +295,18 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         idx = self._normalize_index(idx)
-        raw_types, raw_coords, style_idx, content_idx = self._dataset.item(idx)
-        types = torch.as_tensor(raw_types, dtype=torch.long)
-        coords = torch.as_tensor(raw_coords, dtype=torch.float32).view(-1, COORD_DIM)
+        item = self._dataset.item(idx)
+        types = torch.frombuffer(bytearray(item.types), dtype=torch.long)
+        coords = torch.frombuffer(bytearray(item.coords), dtype=torch.float32).view(
+            -1, COORD_DIM
+        )
         sample = GlyphSample(
             types=types,
             coords=coords,
-            style_idx=int(style_idx),
-            content_idx=int(content_idx),
+            style_idx=item.style_idx,
+            content_idx=item.content_idx,
+            metrics=item.metrics,
+            glyph_name=item.glyph_name,
         )
         if self.transform is not None:
             return self.transform(sample)

@@ -16,7 +16,7 @@ project.
   `GlyphDataset(root=...)` reads any local font directory or repository
   checkout already on disk.
 - **Sample-first output**:
-  `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx)`.
+  `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx, metrics, glyph_name)`.
 - **Built-in batching**:
   `torchfont.utils.collate_fn(batch) -> GlyphBatch`.
 - **Fast preprocessing**:
@@ -53,7 +53,8 @@ more time on model design.
   - `Compose`: chain transforms in order
 - **Batching utilities**
   - `collate_fn`: pads variable-length samples into `GlyphBatch`
-  - `GlyphBatch.mask`: marks valid, non-padding positions
+  - `GlyphBatch.targets`: style and content indices as `(B, 2)` tensor
+  - `GlyphBatch.metrics`: per-sample metrics as `(B, 15)` float tensor
 
 ## Minimal Example
 
@@ -68,6 +69,7 @@ sample = dataset[0]
 print(sample.types.shape)         # (seq_len,)
 print(sample.coords.shape)        # (seq_len, 6)
 print(sample.style_idx, sample.content_idx)
+print(sample.glyph_name)
 ```
 
 ## When It Is a Good Fit

@@ -59,13 +59,14 @@ batch = next(iter(loader))
 
 print(batch.types.shape)
 print(batch.coords.shape)
-print(batch.mask.shape)
+print(batch.targets.shape)
+print(batch.metrics.shape)
 ```
 
 ## What TorchFont Focuses On
 
 - local font directories and repository checkouts as the input boundary
-- Rust-backed outline decoding into `(types, coords, style_idx, content_idx)`
+- Rust-backed outline decoding into `GlyphSample` with outline tensors, metrics, and glyph name
 - sample-first transforms such as `QuadToCubic`, `LimitSequenceLength`, and `Patchify`
 - DataLoader integration through `GlyphBatch` and `collate_fn`
 

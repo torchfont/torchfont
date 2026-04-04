@@ -14,6 +14,7 @@ Examples:
 
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING
 
 import torch
@@ -123,12 +124,10 @@ class LimitSequenceLength:
                 sample = LimitSequenceLength(128)(sample)
 
         """
-        sample_type = type(sample)
-        return sample_type(
+        return dataclasses.replace(
+            sample,
             types=sample.types[: self.max_len],
             coords=sample.coords[: self.max_len],
-            style_idx=sample.style_idx,
-            content_idx=sample.content_idx,
         )
 
 
@@ -180,12 +179,10 @@ class QuadToCubic:
         out_coords[quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
         out_types[quad] = CommandType.CURVE_TO.value
 
-        sample_type = type(sample)
-        return sample_type(
+        return dataclasses.replace(
+            sample,
             types=out_types.view_as(types),
             coords=out_coords.view_as(coords),
-            style_idx=sample.style_idx,
-            content_idx=sample.content_idx,
         )
 
 
@@ -251,12 +248,10 @@ class Patchify:
         patch_types = pad_types.view(num_patches, self.patch_size)
         patch_coords = pad_coords.view(num_patches, self.patch_size, coords.size(1))
 
-        sample_type = type(sample)
-        return sample_type(
+        return dataclasses.replace(
+            sample,
             types=patch_types,
             coords=patch_coords,
-            style_idx=sample.style_idx,
-            content_idx=sample.content_idx,
         )
 
 
