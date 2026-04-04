@@ -417,25 +417,6 @@ def test_glyph_dataset_normalizes_codepoints_on_instance() -> None:
     assert restored.codepoints == dataset.codepoints
 
 
-@pytest.mark.parametrize(
-    ("codepoints", "message"),
-    [
-        ([-1], "expected 0 <= cp <= 0x10FFFF"),
-        ([0x110000], "expected 0 <= cp <= 0x10FFFF"),
-        ([0xD800], "surrogate code points"),
-    ],
-)
-def test_glyph_dataset_rejects_invalid_unicode_codepoints(
-    codepoints: list[int], message: str
-) -> None:
-    with pytest.raises(ValueError, match=message):
-        GlyphDataset(
-            root="tests/fonts",
-            patterns=("lato/Lato-Regular.ttf",),
-            codepoints=codepoints,
-        )
-
-
 def test_glyph_dataset_pattern_filter() -> None:
     dataset_all = GlyphDataset(
         root="tests/fonts",

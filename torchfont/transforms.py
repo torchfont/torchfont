@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from torchfont.io import COORD_DIM, CommandType
+from torchfont.io import CommandType
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -103,38 +103,6 @@ class LimitSequenceLength:
             raise ValueError(msg)
         self.max_len = max_len
 
-    @staticmethod
-    def _validate_sample(sample: GlyphSample) -> None:
-        """Validate the untruncated sample contract required by the transform."""
-        expected_types_ndim = 1
-        expected_coords_ndim = 2
-
-        if sample.types.ndim != expected_types_ndim:
-            msg = (
-                f"LimitSequenceLength expects types.ndim == "
-                f"{expected_types_ndim}; got {sample.types.ndim}"
-            )
-            raise ValueError(msg)
-        if sample.coords.ndim != expected_coords_ndim:
-            msg = (
-                f"LimitSequenceLength expects coords.ndim == "
-                f"{expected_coords_ndim}; got {sample.coords.ndim}"
-            )
-            raise ValueError(msg)
-        if sample.coords.shape[1] != COORD_DIM:
-            msg = (
-                f"LimitSequenceLength expects coords.shape[1] == {COORD_DIM}; "
-                f"got {sample.coords.shape[1]}"
-            )
-            raise ValueError(msg)
-        if sample.types.shape[0] != sample.coords.shape[0]:
-            msg = (
-                "LimitSequenceLength expects types.shape[0] and "
-                "coords.shape[0] to match; "
-                f"got {sample.types.shape[0]} and {sample.coords.shape[0]}"
-            )
-            raise ValueError(msg)
-
     def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Clip the sequence and coordinate tensors to the specified length.
 
@@ -155,7 +123,6 @@ class LimitSequenceLength:
                 sample = LimitSequenceLength(128)(sample)
 
         """
-        self._validate_sample(sample)
         sample_type = type(sample)
         return sample_type(
             types=sample.types[: self.max_len],
@@ -250,37 +217,6 @@ class Patchify:
             raise ValueError(msg)
         self.patch_size = patch_size
 
-    @staticmethod
-    def _validate_sample(sample: GlyphSample) -> None:
-        """Validate the unpatchified sample contract required by Patchify."""
-        expected_types_ndim = 1
-        expected_coords_ndim = 2
-
-        if sample.types.ndim != expected_types_ndim:
-            msg = (
-                f"Patchify expects types.ndim == {expected_types_ndim}; "
-                f"got {sample.types.ndim}"
-            )
-            raise ValueError(msg)
-        if sample.coords.ndim != expected_coords_ndim:
-            msg = (
-                f"Patchify expects coords.ndim == {expected_coords_ndim}; "
-                f"got {sample.coords.ndim}"
-            )
-            raise ValueError(msg)
-        if sample.coords.shape[1] != COORD_DIM:
-            msg = (
-                f"Patchify expects coords.shape[1] == {COORD_DIM}; "
-                f"got {sample.coords.shape[1]}"
-            )
-            raise ValueError(msg)
-        if sample.types.shape[0] != sample.coords.shape[0]:
-            msg = (
-                "Patchify expects types.shape[0] and coords.shape[0] to match; "
-                f"got {sample.types.shape[0]} and {sample.coords.shape[0]}"
-            )
-            raise ValueError(msg)
-
     def __call__(self, sample: GlyphSample) -> GlyphSample:
         """Pad and reshape sequences into contiguous patches.
 
@@ -303,7 +239,6 @@ class Patchify:
                 patch_sample = Patchify(64)(sample)
 
         """
-        self._validate_sample(sample)
         types = sample.types
         coords = sample.coords
         seq_len = types.size(0)
