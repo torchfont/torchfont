@@ -64,9 +64,14 @@ impl GlyphDataset {
             .iter()
             .copied()
             .map(|codepoint| {
+                let ch = char::from_u32(codepoint).ok_or_else(|| {
+                    crate::error::py_err(format!(
+                        "indexed codepoint U+{codepoint:04X} is not a Unicode scalar value"
+                    ))
+                })?;
                 Ok((
                     format!("content:U+{codepoint:04X}"),
-                    char::from_u32(codepoint).unwrap().to_string(),
+                    ch.to_string(),
                     codepoint,
                 ))
             })
