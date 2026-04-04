@@ -27,7 +27,7 @@ def main() -> None:
 
     dataloader = DataLoader(
         dataset,
-        batch_size=128,
+        batch_size=64,
         shuffle=True,
         num_workers=8,
         prefetch_factor=2,
