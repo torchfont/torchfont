@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import multiprocessing as mp
 import pickle
 import shutil
@@ -22,6 +23,8 @@ from torchfont.datasets import (
 )
 from torchfont.io import CommandType
 from torchfont.metadata import build_dataset_metadata
+from torchfont.utils import GlyphBatch
+from torchfont.utils import collate_fn as collate_glyph_batch
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -238,11 +241,8 @@ def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
 
     def transform(sample: GlyphSample) -> GlyphSample:
         calls.append(sample)
-        return GlyphSample(
-            types=sample.types[:2],
-            coords=sample.coords[:2],
-            style_idx=sample.style_idx,
-            content_idx=sample.content_idx,
+        return dataclasses.replace(
+            sample, types=sample.types[:2], coords=sample.coords[:2]
         )
 
     dataset = GlyphDataset(
@@ -851,15 +851,14 @@ def test_glyph_dataset_dataloader_multiworker(
         num_workers=2,
         shuffle=False,
         multiprocessing_context=start_method,
+        collate_fn=collate_glyph_batch,
     )
 
     batch = next(iter(loader))
     assert batch is not None
+    assert isinstance(batch, GlyphBatch)
 
-    # DataLoader collates GlyphSample fields into a GlyphSample of batched tensors
-    assert isinstance(batch, GlyphSample)
-
-    # Validate types tensor (batch dimension added)
+    # Validate types tensor (batch dimension added by collate_fn)
     assert batch.types.dtype == torch.long
     assert batch.types.ndim == 2  # batch_size x sequence_length
 

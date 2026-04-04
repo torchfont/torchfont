@@ -21,6 +21,32 @@ type LocateResult = (
     Vec<(String, f32)>,
 );
 
+#[pyclass(get_all)]
+pub struct GlyphItem {
+    /// Raw little-endian ``i64`` bytes, one per pen command.
+    pub types: Vec<u8>,
+    /// Raw little-endian ``f32`` bytes, six values per pen command.
+    pub coords: Vec<u8>,
+    pub style_idx: usize,
+    pub content_idx: usize,
+    pub advance_width: f32,
+    pub lsb: f32,
+    pub x_min: f32,
+    pub y_min: f32,
+    pub x_max: f32,
+    pub y_max: f32,
+    pub units_per_em: u16,
+    pub ascent: f32,
+    pub descent: f32,
+    pub leading: f32,
+    pub cap_height: f32,
+    pub x_height: f32,
+    pub average_width: f32,
+    pub is_monospace: bool,
+    pub italic_angle: f32,
+    pub glyph_name: String,
+}
+
 #[pyclass]
 pub struct GlyphDataset {
     entries: Vec<FontEntry>,
@@ -122,11 +148,58 @@ impl GlyphDataset {
         ))
     }
 
-    pub fn item(&self, idx: usize) -> PyResult<(Vec<i32>, Vec<f32>, usize, usize)> {
+    pub fn item(&self, idx: usize) -> PyResult<GlyphItem> {
         let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
-        self.entries[font_idx]
-            .glyph(codepoint, inst_idx)
-            .map(|(types, coords)| (types, coords, style_idx, content_idx))
+        let (
+            types,
+            coords,
+            adv_w,
+            lsb,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            upem,
+            ascent,
+            descent,
+            leading,
+            cap_height,
+            x_height,
+            avg_width,
+            is_monospace,
+            italic_angle,
+            glyph_name,
+        ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
+        let types_bytes: Vec<u8> = types
+            .iter()
+            .flat_map(|&t| (t as i64).to_ne_bytes())
+            .collect();
+        let coords_bytes: Vec<u8> = coords
+            .iter()
+            .flat_map(|&c| c.to_bits().to_ne_bytes())
+            .collect();
+        Ok(GlyphItem {
+            types: types_bytes,
+            coords: coords_bytes,
+            style_idx,
+            content_idx,
+            advance_width: adv_w,
+            lsb,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            units_per_em: upem,
+            ascent,
+            descent,
+            leading,
+            cap_height,
+            x_height,
+            average_width: avg_width,
+            is_monospace,
+            italic_angle,
+            glyph_name,
+        })
     }
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {

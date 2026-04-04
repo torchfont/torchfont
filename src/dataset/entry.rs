@@ -2,8 +2,13 @@ use pyo3::prelude::*;
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::{GlyphId, MetadataProvider, instance::Location};
 
-use super::{io::map_font, reader::GlyphReader};
+use super::{
+    io::map_font,
+    reader::{GlyphItemData, GlyphReader},
+};
 use crate::error::{py_err, py_index_err};
+
+pub(super) type GlyphCompleteResult = GlyphItemData;
 
 pub(super) struct GlyphIndex {
     codepoints: Vec<u32>,
@@ -46,12 +51,14 @@ impl FontEntry {
         Ok(entries)
     }
 
-    pub(super) fn glyph(
+    pub(super) fn glyph_complete(
         &self,
         codepoint: u32,
         instance_index: Option<usize>,
-    ) -> PyResult<(Vec<i32>, Vec<f32>)> {
-        let glyph_id = self.lookup_glyph(codepoint)?;
+    ) -> PyResult<GlyphCompleteResult> {
+        let glyph_idx = self.lookup_glyph_index(codepoint)?;
+        let glyph_id = self.index.glyph_ids[glyph_idx];
+
         self.reader
             .draw_glyph(glyph_id, self.units_per_em, &self.locations, instance_index)
     }
@@ -155,18 +162,17 @@ impl FontEntry {
                 codepoints,
                 glyph_ids,
             },
-            reader: GlyphReader::new(base_path.to_string(), face_index),
+            reader: GlyphReader::new(base_path.to_string(), face_index)?,
             units_per_em: upem as f32,
             locations,
             style_axes,
         })
     }
 
-    fn lookup_glyph(&self, codepoint: u32) -> PyResult<GlyphId> {
+    fn lookup_glyph_index(&self, codepoint: u32) -> PyResult<usize> {
         self.index
             .codepoints
             .binary_search(&codepoint)
-            .map(|idx| self.index.glyph_ids[idx])
             .map_err(|_| {
                 py_index_err(format!(
                     "codepoint U+{codepoint:04X} missing from '{}'",

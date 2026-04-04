@@ -18,6 +18,7 @@ Examples:
 
 """
 
+import dataclasses
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
@@ -40,29 +41,51 @@ from torchfont.metadata import (
 )
 
 
-class GlyphSample(NamedTuple):
+@dataclasses.dataclass
+class GlyphSample:
     """One glyph sample returned by a dataset.
-
-    Using a NamedTuple means fields can be accessed by name rather than by
-    position, so downstream code does not depend on tuple ordering.
-    PyTorch's default DataLoader collation handles NamedTuples natively.
 
     Attributes:
         types (Tensor): 1-D long tensor of pen command types.
         coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
             coordinate data for each command.
         style_idx (int): Index into the dataset's ``style_classes`` list.
-            When batches are formed by PyTorch's default DataLoader collation,
-            this field becomes a 1-D ``torch.LongTensor``.
         content_idx (int): Index into the dataset's ``content_classes`` list.
-            When batches are formed by PyTorch's default DataLoader collation,
-            this field becomes a 1-D ``torch.LongTensor``.
+        advance_width (float): Horizontal advance width normalised by the font's
+            units-per-em value. ``float('nan')`` when not available.
+        lsb (float): Left side bearing normalised by units-per-em.
+            ``float('nan')`` when not available.
+        x_min (float): Glyph bounding-box left edge normalised by units-per-em.
+            ``float('nan')`` when not available.
+        y_min (float): Glyph bounding-box bottom edge normalised by units-per-em.
+            ``float('nan')`` when not available.
+        x_max (float): Glyph bounding-box right edge normalised by units-per-em.
+            ``float('nan')`` when not available.
+        y_max (float): Glyph bounding-box top edge normalised by units-per-em.
+            ``float('nan')`` when not available.
+        units_per_em (int): Raw units-per-em value of the font.
+        ascent (float): Distance from baseline to top of the alignment box,
+            normalised by units-per-em.
+        descent (float): Distance from baseline to bottom of the alignment box,
+            normalised by units-per-em.
+        leading (float): Recommended additional spacing between lines,
+            normalised by units-per-em.
+        cap_height (float): Distance from baseline to top of a typical capital
+            letter, normalised by units-per-em. ``float('nan')`` if not set.
+        x_height (float): Distance from baseline to top of the lowercase "x",
+            normalised by units-per-em. ``float('nan')`` if not set.
+        average_width (float): Average width of non-zero-width characters,
+            normalised by units-per-em. ``float('nan')`` if not set.
+        is_monospace (bool): ``True`` if the font is not proportionally spaced.
+        italic_angle (float): Italic angle in counter-clockwise degrees from
+            the vertical. Zero for upright text.
+        glyph_name (str): PostScript name of the glyph.
 
     Examples:
-        Access fields by name rather than by position::
+        Access fields by name::
 
             sample = dataset[0]
-            print(sample.types.shape, sample.style_idx)
+            print(sample.types.shape, sample.advance_width)
 
     """
 
@@ -70,6 +93,22 @@ class GlyphSample(NamedTuple):
     coords: Tensor
     style_idx: int
     content_idx: int
+    advance_width: float
+    lsb: float
+    x_min: float
+    y_min: float
+    x_max: float
+    y_max: float
+    units_per_em: int
+    ascent: float
+    descent: float
+    leading: float
+    cap_height: float
+    x_height: float
+    average_width: float
+    is_monospace: bool
+    italic_angle: float
+    glyph_name: str
 
 
 class GlyphLocation(NamedTuple):
@@ -295,14 +334,32 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         """
         idx = self._normalize_index(idx)
-        raw_types, raw_coords, style_idx, content_idx = self._dataset.item(idx)
-        types = torch.as_tensor(raw_types, dtype=torch.long)
-        coords = torch.as_tensor(raw_coords, dtype=torch.float32).view(-1, COORD_DIM)
+        item = self._dataset.item(idx)
+        types = torch.frombuffer(bytearray(item.types), dtype=torch.long)
+        coords = torch.frombuffer(bytearray(item.coords), dtype=torch.float32).view(
+            -1, COORD_DIM
+        )
         sample = GlyphSample(
             types=types,
             coords=coords,
-            style_idx=int(style_idx),
-            content_idx=int(content_idx),
+            style_idx=item.style_idx,
+            content_idx=item.content_idx,
+            advance_width=item.advance_width,
+            lsb=item.lsb,
+            x_min=item.x_min,
+            y_min=item.y_min,
+            x_max=item.x_max,
+            y_max=item.y_max,
+            units_per_em=item.units_per_em,
+            ascent=item.ascent,
+            descent=item.descent,
+            leading=item.leading,
+            cap_height=item.cap_height,
+            x_height=item.x_height,
+            average_width=item.average_width,
+            is_monospace=item.is_monospace,
+            italic_angle=item.italic_angle,
+            glyph_name=item.glyph_name,
         )
         if self.transform is not None:
             return self.transform(sample)

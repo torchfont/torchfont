@@ -20,11 +20,10 @@ pub struct SegmentPen {
 impl SegmentPen {
     pub fn new(units_per_em: f32) -> Self {
         debug_assert!(units_per_em > 0.0, "units_per_em must be positive");
-        let scale = units_per_em.recip();
         Self {
             commands: Vec::new(),
             coords: Vec::new(),
-            scale,
+            scale: units_per_em.recip(),
         }
     }
 
@@ -35,7 +34,7 @@ impl SegmentPen {
 
     fn push(&mut self, command: Command, values: [f32; 6]) {
         self.commands.push(command as i32);
-        let scaled = values.map(|value| value * self.scale);
+        let scaled = values.map(|v| v * self.scale);
         self.coords.extend_from_slice(&scaled);
     }
 
