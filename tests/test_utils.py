@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import torchfont.utils as utils_module
-from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.datasets import GlyphDataset
 from torchfont.transforms import Patchify
 from torchfont.utils import GlyphBatch, collate_fn
 
@@ -123,5 +123,3 @@ def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
 def test_collate_fn_rejects_empty_batch() -> None:
     with pytest.raises(ValueError, match="batch must be non-empty"):
         collate_fn([])
-
-

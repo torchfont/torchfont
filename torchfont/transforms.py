@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from torchfont.io import COORD_DIM, CommandType
+from torchfont.io import CommandType
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
