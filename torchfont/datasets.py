@@ -148,8 +148,11 @@ class GlyphDataset(Dataset[GlyphSample]):
             codepoints (Sequence[SupportsIndex] | None): Optional iterable
                 of Unicode code points used to restrict the dataset content.
                 Duplicate values are ignored and the effective filter is stored
-                as sorted unique integers on ``dataset.codepoints``. Values
-                must be Unicode scalar values.
+                as sorted unique integers on ``dataset.codepoints``.
+                Values that do not appear in any font charmap (including
+                surrogates or values outside the Unicode range) simply
+                produce no samples. Negative values will fail during
+                conversion to the native unsigned integer type.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
                 describing which font paths to include. No implicit filtering
                 from hidden directories or ignore files (such as ``.gitignore``,
