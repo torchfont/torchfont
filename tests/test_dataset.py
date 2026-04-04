@@ -113,6 +113,15 @@ def test_glyph_dataset_getitem() -> None:
     assert 0 <= sample.style_idx < len(dataset.style_classes)
     assert 0 <= sample.content_idx < len(dataset.content_classes)
 
+    assert isinstance(sample.metrics, bytes)
+    assert len(sample.metrics) == 60  # 15 native-endian f32s
+    metrics = torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)
+    assert metrics.shape == (15,)
+    assert not torch.isnan(metrics[0])  # advance_width should be present
+
+    assert isinstance(sample.glyph_name, str)
+    assert len(sample.glyph_name) > 0
+
 
 def test_glyph_dataset_locate_returns_source_metadata() -> None:
     dataset = GlyphDataset(

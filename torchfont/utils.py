@@ -96,7 +96,7 @@ def collate_fn(
     )
     metrics_tensor = (
         torch.frombuffer(
-            bytearray(b"".join(s.metrics for s in batch)),
+            bytearray().join(s.metrics for s in batch),
             dtype=torch.float32,
         )
         .view(len(batch), 15)
