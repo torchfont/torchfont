@@ -164,11 +164,13 @@ impl GlyphDataset {
             .iter()
             .flat_map(|&t| (t as i64).to_ne_bytes())
             .collect();
-        let coords_bytes: Vec<u8> = coords
-            .iter()
-            .flat_map(|&c| c.to_bits().to_ne_bytes())
-            .collect();
-        let metrics_bytes: Vec<u8> = [
+        let coords_bytes: Vec<u8> = {
+            let bytes: &[u8] = unsafe {
+                std::slice::from_raw_parts(coords.as_ptr().cast::<u8>(), coords.len() * 4)
+            };
+            bytes.to_vec()
+        };
+        let metrics_f32: [f32; 15] = [
             adv_w,
             lsb,
             x_min,
@@ -184,10 +186,12 @@ impl GlyphDataset {
             italic_angle,
             upem as f32,
             if is_monospace { 1.0_f32 } else { 0.0_f32 },
-        ]
-        .iter()
-        .flat_map(|v| v.to_ne_bytes())
-        .collect();
+        ];
+        let metrics_bytes: Vec<u8> = {
+            let bytes: &[u8] =
+                unsafe { std::slice::from_raw_parts(metrics_f32.as_ptr().cast::<u8>(), 15 * 4) };
+            bytes.to_vec()
+        };
         Ok(GlyphItem {
             types: types_bytes,
             coords: coords_bytes,

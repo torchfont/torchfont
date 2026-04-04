@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::{
@@ -7,7 +9,6 @@ use skrifa::{
 };
 
 use crate::{
-    dataset::io::map_font,
     error::{py_err, py_index_err},
     pen::SegmentPen,
 };
@@ -36,17 +37,16 @@ pub(super) type GlyphItemData = (
 pub(super) struct GlyphReader {
     path: String,
     face_index: u32,
-    data: Mmap,
+    data: Arc<Mmap>,
 }
 
 impl GlyphReader {
-    pub(super) fn new(path: String, face_index: u32) -> PyResult<Self> {
-        let data = map_font(&path)?;
-        Ok(Self {
+    pub(super) fn new(path: String, face_index: u32, data: Arc<Mmap>) -> Self {
+        Self {
             path,
             face_index,
             data,
-        })
+        }
     }
 
     pub(super) fn path(&self) -> &str {

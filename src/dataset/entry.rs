@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use memmap2::Mmap;
 use pyo3::prelude::*;
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::{GlyphId, MetadataProvider, instance::Location};
@@ -25,7 +28,7 @@ pub(super) struct FontEntry {
 
 impl FontEntry {
     pub(super) fn load_faces(path: &str, filter: Option<&[u32]>) -> PyResult<Vec<Self>> {
-        let mapped = map_font(path)?;
+        let mapped = Arc::new(map_font(path)?);
         let parsed = FileRef::new(&mapped[..])
             .map_err(|err| py_err(format!("failed to parse '{path}': {err}")))?;
 
@@ -39,7 +42,7 @@ impl FontEntry {
                         face_index = face_index
                     ))
                 })?;
-                Self::from_face(path, face_index as u32, &font, filter)
+                Self::from_face(path, face_index as u32, Arc::clone(&mapped), &font, filter)
             })
             .collect::<PyResult<Vec<_>>>()?;
 
@@ -109,6 +112,7 @@ impl FontEntry {
     fn from_face(
         base_path: &str,
         face_index: u32,
+        data: Arc<Mmap>,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
     ) -> PyResult<Self> {
@@ -162,7 +166,7 @@ impl FontEntry {
                 codepoints,
                 glyph_ids,
             },
-            reader: GlyphReader::new(base_path.to_string(), face_index)?,
+            reader: GlyphReader::new(base_path.to_string(), face_index, data),
             units_per_em: upem as f32,
             locations,
             style_axes,

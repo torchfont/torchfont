@@ -35,8 +35,8 @@ features:
   - icon: 🧱
     title: Sample + batch primitives
     details:
-      "`GlyphSample` represents one glyph, and `collate_fn` builds
-      `GlyphBatch` with padded tensors plus a validity mask."
+      "`GlyphSample` represents one glyph with outline, metrics, and name.
+      `collate_fn` builds a padded `GlyphBatch` ready for training."
   - icon: 🧩
     title: Composable preprocessing
     details:
