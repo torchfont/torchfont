@@ -39,9 +39,6 @@ from torchfont.metadata import (
     build_dataset_metadata,
 )
 
-UNICODE_MAX_CODEPOINT = 0x10FFFF
-UNICODE_SURROGATE_START = 0xD800
-UNICODE_SURROGATE_END = 0xDFFF
 
 
 class GlyphSample(NamedTuple):
@@ -245,26 +242,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         """Convert an optional codepoint filter into a canonical tuple."""
         if codepoints is None:
             return None
-        return tuple(
-            sorted({GlyphDataset._validate_codepoint(index(cp)) for cp in codepoints})
-        )
-
-    @staticmethod
-    def _validate_codepoint(codepoint: int) -> int:
-        """Validate one Unicode scalar value for dataset indexing."""
-        if codepoint < 0 or codepoint > UNICODE_MAX_CODEPOINT:
-            msg = (
-                "invalid Unicode codepoint "
-                f"{codepoint}: expected 0 <= cp <= 0x{UNICODE_MAX_CODEPOINT:06X}"
-            )
-            raise ValueError(msg)
-        if UNICODE_SURROGATE_START <= codepoint <= UNICODE_SURROGATE_END:
-            msg = (
-                "invalid Unicode codepoint "
-                f"U+{codepoint:04X}: surrogate code points are not valid scalar values"
-            )
-            raise ValueError(msg)
-        return codepoint
+        return tuple(sorted({index(cp) for cp in codepoints}))
 
     def _normalize_index(self, idx: SupportsIndex) -> int:
         """Resolve one dataset index, including negative indices."""
