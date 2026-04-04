@@ -281,7 +281,7 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         Returns:
             GlyphSample: Structured sample containing ``types``, ``coords``,
-            ``style_idx``, and ``content_idx``.
+            ``style_idx``, ``content_idx``, ``metrics``, and ``glyph_name``.
 
         Examples:
             Retrieve the first glyph sample and its target labels::

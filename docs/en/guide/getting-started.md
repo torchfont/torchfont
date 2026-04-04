@@ -73,7 +73,8 @@ loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 batch = next(iter(loader))
 print(batch.types.shape)
 print(batch.coords.shape)
-print(batch.mask.shape)
+print(batch.targets.shape)
+print(batch.metrics.shape)
 ```
 
 ## 4. Scale up with a local checkout

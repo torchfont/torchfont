@@ -14,7 +14,7 @@ loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
 sample = next(iter(loader))
 print(sample.types.shape, sample.coords.shape)  # (1, seq_len), (1, seq_len, 6)
-print(sample.style_idx.shape, sample.content_idx.shape)  # (1,), (1,)
+print(sample.targets.shape)  # (1, 2)
 ```
 
 Use this only to check end-to-end wiring. For `batch_size > 1`, variable-length
@@ -51,7 +51,8 @@ batch = next(iter(loader))
 
 print(batch.types.shape)
 print(batch.coords.shape)
-print(batch.mask.shape)
+print(batch.targets.shape)
+print(batch.metrics.shape)
 ```
 
 `num_workers > 0` enables worker prefetching and multiprocessing context.
@@ -62,16 +63,6 @@ Keep those options unset when `num_workers=0`.
 | Linux    | `"fork"`                              |
 | macOS    | `"spawn"` or `"forkserver"`           |
 | Windows  | `"spawn"`                             |
-
-## Padding mask
-
-The built-in `collate_fn` returns `GlyphBatch.mask`, where `True` means a valid
-sequence position.
-
-```python
-valid_mask = batch.mask
-padding_mask = ~batch.mask
-```
 
 ## Using `Patchify`
 
