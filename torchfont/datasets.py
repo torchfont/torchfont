@@ -22,7 +22,7 @@ import dataclasses
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
-from typing import NamedTuple, SupportsIndex, cast
+from typing import SupportsIndex, cast
 
 import torch
 from torch import Tensor
@@ -70,38 +70,6 @@ class GlyphSample:
     content_idx: int
     metrics: bytes
     glyph_name: str
-
-
-class GlyphLocation(NamedTuple):
-    """Source metadata for one dataset index.
-
-    Attributes:
-        font_path (Path): Resolved path to the font file containing the glyph.
-        face_idx (int): Zero-based face index within the font file. Collection
-            formats such as TTC/OTC can expose multiple faces from one file.
-        instance_idx (int | None): Zero-based named-instance index for variable
-            fonts, or ``None`` for static fonts.
-        codepoint (int): Unicode codepoint for the indexed glyph sample.
-        style_idx (int): Index into the dataset's ``style_classes`` list.
-        content_idx (int): Index into the dataset's ``content_classes`` list.
-        axes (tuple[StyleAxis, ...]): User-space variation axis settings for
-            the resolved style. Static fonts use an empty tuple.
-
-    Examples:
-        Inspect where the first sample came from::
-
-            location = dataset.locate(0)
-            print(location.font_path, hex(location.codepoint))
-
-    """
-
-    font_path: Path
-    face_idx: int
-    instance_idx: int | None
-    codepoint: int
-    style_idx: int
-    content_idx: int
-    axes: tuple[StyleAxis, ...]
 
 
 class GlyphDataset(Dataset[GlyphSample]):
@@ -312,39 +280,6 @@ class GlyphDataset(Dataset[GlyphSample]):
             return self.transform(sample)
         return sample
 
-    def locate(self, idx: SupportsIndex) -> GlyphLocation:
-        """Return source metadata for one dataset index.
-
-        Args:
-            idx (SupportsIndex): Zero-based index locating a sample across all
-                fonts, faces, variation instances, and codepoints. Negative
-                indices are supported and count from the end of the dataset.
-
-        Returns:
-            GlyphLocation: Source metadata describing the underlying font file,
-            face, variation instance, Unicode codepoint, and label indices.
-
-        Examples:
-            Inspect the first sample's origin::
-
-                location = dataset.locate(0)
-                print(location.font_path.name, hex(location.codepoint))
-
-        """
-        idx = self._normalize_index(idx)
-        font_path, face_idx, instance_idx, codepoint, style_idx, content_idx, axes = (
-            self._dataset.locate(idx)
-        )
-        return GlyphLocation(
-            font_path=Path(font_path),
-            face_idx=int(face_idx),
-            instance_idx=None if instance_idx is None else int(instance_idx),
-            codepoint=int(codepoint),
-            style_idx=int(style_idx),
-            content_idx=int(content_idx),
-            axes=tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes),
-        )
-
     @property
     def targets(self) -> Tensor:
         """Label matrix pairing every sample with its style and content class.
@@ -454,7 +389,6 @@ __all__ = [
     "ContentLabel",
     "DatasetMetadata",
     "GlyphDataset",
-    "GlyphLocation",
     "GlyphSample",
     "StyleAxis",
     "StyleLabel",
