@@ -13,14 +13,6 @@ from torchfont.datasets import GlyphSample
 `GlyphDataset.__getitem__` の返り値であり、`torchfont.transforms` 全体で使う
 sample 型です。
 
-## GlyphLocation
-
-```python
-from torchfont.datasets import GlyphLocation
-```
-
-`GlyphDataset.locate(idx)` が返す、サンプルの出自 metadata 型です。
-
 ## DatasetMetadata
 
 ```python
@@ -91,19 +83,6 @@ sample = dataset[idx]
 | `sample.glyph_name`  | `str`               | —             |
 
 `sample` 自体の型は `GlyphSample` です。
-
-### メソッド
-
-#### `locate(idx) -> GlyphLocation`
-
-dataset index を、そのサンプル元になった font source の位置情報へ戻します。
-
-- `font_path`: フォントファイルの解決済みパス
-- `face_idx`: ファイル内の 0 始まり face index
-- `instance_idx`: 可変フォントの named instance index、静的フォントなら `None`
-- `codepoint`: その glyph sample の Unicode codepoint
-- `style_idx`: style class index
-- `content_idx`: content class index
 
 ### プロパティ
 

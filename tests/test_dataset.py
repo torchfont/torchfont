@@ -17,7 +17,6 @@ import torchfont.datasets as datasets_module
 from torchfont.datasets import (
     DatasetMetadata,
     GlyphDataset,
-    GlyphLocation,
     GlyphSample,
     StyleAxis,
 )
@@ -123,101 +122,17 @@ def test_glyph_dataset_getitem() -> None:
     assert len(sample.glyph_name) > 0
 
 
-def test_glyph_dataset_locate_returns_source_metadata() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    sample = dataset[0]
-    location = dataset.locate(0)
-
-    assert isinstance(location, GlyphLocation)
-    assert location.font_path == dataset.root / "lato/Lato-Regular.ttf"
-    assert location.font_path.is_absolute()
-    assert location.face_idx == 0
-    assert location.instance_idx is None
-    assert location.codepoint == ord("A")
-    assert location.style_idx == sample.style_idx
-    assert location.content_idx == sample.content_idx
-    assert location.axes == ()
-
-
-def test_glyph_dataset_locate_does_not_materialize_metadata() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
-        metadata.side_effect = AssertionError("locate should not materialize metadata")
-        location = dataset.locate(0)
-
-    assert location.axes == ()
-
-
-def test_glyph_dataset_locate_variable_font_does_not_build_style_axis_view() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    with patch.object(GlyphDataset, "_style_axes") as style_axes:
-        style_axes.side_effect = AssertionError(
-            "locate should read axes directly from the native sample lookup"
-        )
-        location = dataset.locate(0)
-
-    assert location.axes == (
-        StyleAxis(tag="wght", value=100.0),
-        StyleAxis(tag="wdth", value=100.0),
-    )
-
-
-def test_glyph_dataset_locate_tracks_variable_font_instance_index() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    assert len(dataset.style_classes) > 1
-    codepoint_count = len(dataset.content_classes)
-
-    first = dataset.locate(0)
-    second = dataset.locate(codepoint_count)
-
-    assert first.instance_idx == 0
-    assert second.instance_idx == 1
-    assert first.codepoint == ord("A")
-    assert second.codepoint == ord("A")
-    assert first.style_idx != second.style_idx
-    assert first.axes == (
-        StyleAxis(tag="wght", value=100.0),
-        StyleAxis(tag="wdth", value=100.0),
-    )
-    assert second.axes == (
-        StyleAxis(tag="wght", value=200.0),
-        StyleAxis(tag="wdth", value=100.0),
-    )
-
-
 def test_datasets_public_api_is_glyphdataset_centered() -> None:
     assert datasets_module.__all__ == [
         "ContentLabel",
         "DatasetMetadata",
         "GlyphDataset",
-        "GlyphLocation",
         "GlyphSample",
         "StyleAxis",
         "StyleLabel",
     ]
     assert datasets_module.DatasetMetadata is DatasetMetadata
     assert datasets_module.GlyphDataset is GlyphDataset
-    assert datasets_module.GlyphLocation is GlyphLocation
     assert datasets_module.GlyphSample is GlyphSample
     assert not hasattr(datasets_module, "FontFolder")
     assert not hasattr(datasets_module, "FontRepo")
@@ -243,6 +158,7 @@ def test_glyph_dataset_is_primary_local_api() -> None:
     assert isinstance(dataset, GlyphDataset)
     assert isinstance(sample, GlyphSample)
     assert len(dataset) > 0
+    assert not hasattr(dataset, "locate")
 
 
 def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
@@ -337,22 +253,6 @@ def test_glyph_dataset_index_out_of_bounds() -> None:
 
     with pytest.raises(IndexError):
         dataset[-len(dataset) - 100]
-
-
-def test_glyph_dataset_locate_index_out_of_bounds() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-    )
-
-    assert len(dataset) > 0
-
-    with pytest.raises(IndexError):
-        dataset.locate(len(dataset))
-
-    with pytest.raises(IndexError):
-        dataset.locate(-len(dataset) - 1)
 
 
 def test_glyph_dataset_cjk_support() -> None:
@@ -475,7 +375,12 @@ def test_glyph_dataset_discovers_fonts_in_hidden_directories(
     dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
 
     assert len(dataset) > 0
-    assert dataset.locate(0).font_path == hidden_font.resolve()
+    assert any(
+        label.label_id.startswith(
+            "style:path=.fonts/Lato-Regular.ttf;face=0;instance=static"
+        )
+        for label in dataset.metadata.styles
+    )
 
 
 def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
@@ -496,7 +401,10 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
     dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
 
     assert len(dataset) > 0
-    assert dataset.locate(0).font_path == font_path.resolve()
+    assert any(
+        label.label_id.startswith("style:path=Lato-Regular.ttf;face=0;instance=static")
+        for label in dataset.metadata.styles
+    )
 
 
 def test_glyph_dataset_skips_vcs_metadata_directories(tmp_path: Path) -> None:
