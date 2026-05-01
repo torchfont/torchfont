@@ -14,6 +14,7 @@ from torchfont.utils import GlyphBatch
 | ----------------- | ------------------- | ------------- |
 | `batch.types`     | `torch.LongTensor`  | `(B, L, ...)` |
 | `batch.coords`    | `torch.FloatTensor` | `(B, L, ...)` |
+| `batch.bitmap`    | `torch.ByteTensor`  | `(B, 64, 64)` |
 | `batch.targets`   | `torch.LongTensor`  | `(B, 2)`      |
 | `batch.metrics`   | `torch.FloatTensor` | `(B, 15)`     |
 

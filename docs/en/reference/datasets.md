@@ -77,8 +77,11 @@ sample = dataset[idx]
 | ------------- | ------------------- | -------------- |
 | `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
+| `sample.bitmap`      | `torch.ByteTensor`  | `(64, 64)`     |
 | `sample.style_idx`   | `int`               | scalar         |
 | `sample.content_idx` | `int`               | scalar         |
+| `sample.metrics`     | `bytes`             | 15 × f32       |
+| `sample.glyph_name`  | `str`               | —              |
 
 `sample` is a `GlyphSample`.
 

@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: TorchFont
-  text: Learn from vector fonts<br>without rasterization
+  text: Learn from vector fonts<br>without preprocessing sprawl
   tagline:
     "Convert TTF / OTF / TTC / OTC glyph outlines into PyTorch tensors and plug
     them into your DataLoader pipeline end-to-end."
@@ -35,7 +35,7 @@ features:
   - icon: 🧱
     title: Sample + batch primitives
     details:
-      "`GlyphSample` represents one glyph with outline, metrics, and name.
+      "`GlyphSample` represents one glyph with outline, bitmap, metrics, and name.
       `collate_fn` builds a padded `GlyphBatch` ready for training."
   - icon: 🧩
     title: Composable preprocessing

@@ -1,9 +1,9 @@
 # What is TorchFont
 
 TorchFont is a **PyTorch library for treating font glyph outlines as
-machine-learning tensors**. Instead of rasterizing glyphs into images first, it
-works directly with path commands such as move, line, quadratic, and cubic
-segments.
+machine-learning tensors**. It keeps path commands such as move, line,
+quadratic, and cubic segments available directly while also emitting a small
+bitmap view for default samples.
 
 ::: info
 TorchFont is an unofficial library and is not affiliated with the PyTorch
@@ -16,7 +16,7 @@ project.
   `GlyphDataset(root=...)` reads any local font directory or repository
   checkout already on disk.
 - **Sample-first output**:
-  `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx, metrics, glyph_name)`.
+  `dataset[i] -> GlyphSample(types, coords, bitmap, style_idx, content_idx, metrics, glyph_name)`.
 - **Built-in batching**:
   `torchfont.utils.collate_fn(batch) -> GlyphBatch`.
 - **Fast preprocessing**:
@@ -30,7 +30,7 @@ Common pain points in font ML workflows:
 
 - the boundary between "how fonts are collected" and "how glyphs are read" is
   often blurry
-- rasterization-heavy preprocessing makes experiments harder to compare
+- image preprocessing pipelines often diverge across experiments
 - static and variable fonts are often handled with separate logic
 
 TorchFont standardizes tensorization, labeling, and batching so you can spend
@@ -44,6 +44,7 @@ more time on model design.
 - **Rust backend**
   - maps charmap codepoints to glyphs
   - converts outlines into command sequences + 6D coordinate sequences
+  - renders a fixed 64 x 64 grayscale bitmap for each default sample
   - normalizes coordinates by `units_per_em`
   - keeps quadratic and cubic Beziers as distinct command types
 - **Transform layer**
@@ -68,6 +69,7 @@ dataset = GlyphDataset(root="~/fonts")
 sample = dataset[0]
 print(sample.types.shape)         # (seq_len,)
 print(sample.coords.shape)        # (seq_len, 6)
+print(sample.bitmap.shape)        # (64, 64)
 print(sample.style_idx, sample.content_idx)
 print(sample.glyph_name)
 ```

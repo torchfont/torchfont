@@ -12,10 +12,16 @@ sample = dataset[i]
 | --- | --- | --- | --- |
 | `sample.types` | `torch.LongTensor` | `(seq_len,)` | ペンコマンド列 |
 | `sample.coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各コマンドの座標 |
+| `sample.bitmap` | `torch.ByteTensor` | `(64, 64)` | グレースケールのグリフ bitmap |
 | `sample.style_idx` | `int` | スカラー | 書体スタイルのクラスID |
 | `sample.content_idx` | `int` | スカラー | 文字内容のクラスID |
+| `sample.metrics` | `bytes` | 15 × f32 | グリフ/フォントのメトリクス |
+| `sample.glyph_name` | `str` | — | PostScript グリフ名 |
 
-`GlyphSample` は NamedTuple なので、名前付きフィールドでアクセスする使い方が前提です。
+`GlyphSample` は dataclass なので、名前付きフィールドでアクセスする使い方が前提です。
+
+`sample.bitmap` はアウトラインから生成した row-major の `uint8` テンソルです。値は
+背景の `0` から完全に塗られた画素の `255` までを取ります。
 
 ## `types` の定義
 
@@ -100,4 +106,4 @@ content_all = t[:, 1]  # 2 列目: content_idx
 - 変換後: `types=(num_patches, patch_size)`,
   `coords=(num_patches, patch_size, 6)`
 
-この場合も `style_idx` / `content_idx` は同じです。
+この場合も `style_idx` / `content_idx` / `bitmap` は同じです。

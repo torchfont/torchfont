@@ -10,6 +10,7 @@ sample = dataset[i]
 | -------------------- | ------------------- | -------------- | -------------------------------- |
 | `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Pen command sequence             |
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinate sequence              |
+| `sample.bitmap`      | `torch.ByteTensor`  | `(64, 64)`     | Grayscale glyph coverage bitmap  |
 | `sample.style_idx`   | `int`               | scalar         | Style class ID                   |
 | `sample.content_idx` | `int`               | scalar         | Content class ID                 |
 | `sample.metrics`     | `bytes`             | 15 × f32       | Per-glyph and font-level metrics |
@@ -28,6 +29,9 @@ m = torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)
 ```
 
 Values are UPM-normalised where applicable; `nan` when missing.
+
+`sample.bitmap` is a row-major `uint8` tensor rendered from the glyph outline.
+Pixel values range from `0` for background to `255` for fully covered pixels.
 
 ## `types`
 
@@ -119,4 +123,4 @@ With `Patchify`:
 - after: `types=(num_patches, patch_size)`,
   `coords=(num_patches, patch_size, 6)`
 
-`style_idx` and `content_idx` stay unchanged.
+`style_idx`, `content_idx`, and `bitmap` stay unchanged.

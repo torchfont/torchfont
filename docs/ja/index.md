@@ -28,7 +28,7 @@ features:
     details: "skrifa + PyO3 による実装で、グリフアウトラインを command + coordinate テンソルへ高速に変換します。"
   - icon: 🧱
     title: Sample / Batch の基本型
-    details: "`GlyphSample` が 1 グリフ、`collate_fn` が padded tensor と mask を持つ `GlyphBatch` を返します。"
+    details: "`GlyphSample` が 1 グリフの outline・bitmap・metrics・glyph name を持ち、`collate_fn` が `GlyphBatch` を返します。"
   - icon: 🧩
     title: 合成可能な前処理
     details: "`Compose` / `LimitSequenceLength` / `Patchify` を組み合わせ、モデルに合わせた入力形式へ調整できます。"

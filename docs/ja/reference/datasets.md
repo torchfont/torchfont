@@ -77,6 +77,7 @@ sample = dataset[idx]
 | -------------------- | ------------------- | -------------- |
 | `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
+| `sample.bitmap`      | `torch.ByteTensor`  | `(64, 64)`    |
 | `sample.style_idx`   | `int`               | スカラー       |
 | `sample.content_idx` | `int`               | スカラー       |
 | `sample.metrics`     | `bytes`             | 15 × f32      |
