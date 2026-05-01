@@ -27,7 +27,8 @@ from torchfont.utils import collate_fn as collate_glyph_batch
 
 
 def _read_first_sample_from_pickled_dataset(
-    payload: bytes, queue: mp.Queue[tuple[int, int, int, tuple[int, int]]]
+    payload: bytes,
+    queue: mp.Queue[tuple[int, int, int, tuple[int, int], tuple[int, int]]],
 ) -> None:
     dataset = pickle.loads(payload)  # noqa: S301
     sample = dataset[0]
@@ -37,6 +38,7 @@ def _read_first_sample_from_pickled_dataset(
             sample.content_idx,
             sample.types.numel(),
             tuple(sample.coords.shape),
+            tuple(sample.bitmap.shape),
         )
     )
 
@@ -120,6 +122,12 @@ def test_glyph_dataset_getitem() -> None:
 
     assert isinstance(sample.glyph_name, str)
     assert len(sample.glyph_name) > 0
+
+    assert sample.bitmap.dtype == torch.uint8
+    assert sample.bitmap.shape == (64, 64)
+    assert torch.any(sample.bitmap > 0)
+    assert sample.bitmap.min().item() >= 0
+    assert sample.bitmap.max().item() <= 255
 
 
 def test_datasets_public_api_is_glyphdataset_centered() -> None:
@@ -216,6 +224,7 @@ def test_glyph_dataset_negative_indexing() -> None:
     # Verify that negative indexing returns the same result as positive indexing
     assert torch.equal(sample_last.types, sample_explicit.types)
     assert torch.equal(sample_last.coords, sample_explicit.coords)
+    assert torch.equal(sample_last.bitmap, sample_explicit.bitmap)
     assert sample_last.style_idx == sample_explicit.style_idx
     assert sample_last.content_idx == sample_explicit.content_idx
 
@@ -226,6 +235,7 @@ def test_glyph_dataset_negative_indexing() -> None:
 
         assert torch.equal(sample_sl.types, sample_exp2.types)
         assert torch.equal(sample_sl.coords, sample_exp2.coords)
+        assert torch.equal(sample_sl.bitmap, sample_exp2.bitmap)
         assert sample_sl.style_idx == sample_exp2.style_idx
         assert sample_sl.content_idx == sample_exp2.content_idx
 
@@ -271,6 +281,8 @@ def test_glyph_dataset_cjk_support() -> None:
     assert sample.coords.dtype == torch.float32
     assert sample.coords.ndim == 2
     assert sample.coords.shape[1] == 6
+    assert sample.bitmap.dtype == torch.uint8
+    assert sample.bitmap.shape == (64, 64)
     assert isinstance(sample.style_idx, int)
     assert isinstance(sample.content_idx, int)
     assert 0 <= sample.style_idx < len(dataset.style_classes)
@@ -927,7 +939,9 @@ def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
 
     payload = pickle.dumps(dataset)
     ctx = mp.get_context("spawn")
-    queue: mp.Queue[tuple[int, int, int, tuple[int, int]]] = ctx.Queue()
+    queue: mp.Queue[tuple[int, int, int, tuple[int, int], tuple[int, int]]] = (
+        ctx.Queue()
+    )
     proc = ctx.Process(
         target=_read_first_sample_from_pickled_dataset,
         args=(payload, queue),
@@ -936,11 +950,12 @@ def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
     proc.join(timeout=30)
 
     assert proc.exitcode == 0
-    style_idx, content_idx, types_len, coords_shape = queue.get(timeout=5)
+    style_idx, content_idx, types_len, coords_shape, bitmap_shape = queue.get(timeout=5)
     assert style_idx >= 0
     assert content_idx >= 0
     assert types_len > 0
     assert coords_shape[1] == 6
+    assert bitmap_shape == (64, 64)
 
 
 def test_glyph_dataset_filters_outline_less_glyphs() -> None:

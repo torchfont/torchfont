@@ -6,6 +6,7 @@ from torchfont.io import CommandType
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
 
 _ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
+_ZERO_BITMAP = torch.zeros(64, 64, dtype=torch.uint8)
 
 
 def test_quad_to_cubic_converts_quadratic_segments() -> None:
@@ -41,6 +42,7 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
         content_idx=7,
         metrics=_ZERO_METRICS,
         glyph_name="",
+        bitmap=_ZERO_BITMAP,
     )
     out = transform(sample)
 
@@ -96,6 +98,7 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
         content_idx=2,
         metrics=_ZERO_METRICS,
         glyph_name="",
+        bitmap=_ZERO_BITMAP,
     )
     out = transform(sample)
 
@@ -127,6 +130,7 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         content_idx=5,
         metrics=_ZERO_METRICS,
         glyph_name="",
+        bitmap=_ZERO_BITMAP,
     )
     out = transform(sample)
 
@@ -165,12 +169,14 @@ def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
         content_idx=13,
         metrics=_ZERO_METRICS,
         glyph_name="",
+        bitmap=_ZERO_BITMAP,
     )
 
     out = transform(sample)
 
     assert out.style_idx == sample.style_idx
     assert out.content_idx == sample.content_idx
+    assert out.bitmap is sample.bitmap
     assert out.types.shape[0] == 2
     assert out.coords.shape[0] == 2
 

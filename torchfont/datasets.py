@@ -40,6 +40,8 @@ from torchfont.metadata import (
     build_dataset_metadata,
 )
 
+BITMAP_SIZE = 64
+
 
 @dataclasses.dataclass
 class GlyphSample:
@@ -49,6 +51,8 @@ class GlyphSample:
         types (Tensor): 1-D long tensor of pen command types.
         coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
             coordinate data for each command.
+        bitmap (Tensor): 2-D uint8 tensor of shape ``(64, 64)`` holding
+            grayscale coverage values rendered from the glyph outline.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
         metrics (bytes): Raw native-endian ``f32`` bytes for 15 metrics.
@@ -66,6 +70,7 @@ class GlyphSample:
 
     types: Tensor
     coords: Tensor
+    bitmap: Tensor
     style_idx: int
     content_idx: int
     metrics: bytes
@@ -249,7 +254,8 @@ class GlyphDataset(Dataset[GlyphSample]):
 
         Returns:
             GlyphSample: Structured sample containing ``types``, ``coords``,
-            ``style_idx``, ``content_idx``, ``metrics``, and ``glyph_name``.
+            ``bitmap``, ``style_idx``, ``content_idx``, ``metrics``, and
+            ``glyph_name``.
 
         Examples:
             Retrieve the first glyph sample and its target labels::
@@ -268,9 +274,14 @@ class GlyphDataset(Dataset[GlyphSample]):
         coords = torch.frombuffer(bytearray(item.coords), dtype=torch.float32).view(
             -1, COORD_DIM
         )
+        bitmap = torch.frombuffer(bytearray(item.bitmap), dtype=torch.uint8).view(
+            BITMAP_SIZE,
+            BITMAP_SIZE,
+        )
         sample = GlyphSample(
             types=types,
             coords=coords,
+            bitmap=bitmap,
             style_idx=item.style_idx,
             content_idx=item.content_idx,
             metrics=item.metrics,

@@ -8,31 +8,33 @@ use skrifa::{
     outline::DrawSettings,
 };
 
+use super::bitmap::render_bitmap;
 use crate::{
     error::{py_err, py_index_err},
     pen::SegmentPen,
 };
 
-pub(super) type GlyphItemData = (
-    Vec<i32>,
-    Vec<f32>,
-    f32,
-    f32,
-    f32,
-    f32,
-    f32,
-    f32,
-    u16,
-    f32,
-    f32,
-    f32,
-    f32,
-    f32,
-    f32,
-    bool,
-    f32,
-    String,
-);
+pub(super) struct GlyphItemData {
+    pub(super) types: Vec<i32>,
+    pub(super) coords: Vec<f32>,
+    pub(super) bitmap: Vec<u8>,
+    pub(super) advance_width: f32,
+    pub(super) lsb: f32,
+    pub(super) x_min: f32,
+    pub(super) y_min: f32,
+    pub(super) x_max: f32,
+    pub(super) y_max: f32,
+    pub(super) units_per_em: u16,
+    pub(super) ascent: f32,
+    pub(super) descent: f32,
+    pub(super) leading: f32,
+    pub(super) cap_height: f32,
+    pub(super) x_height: f32,
+    pub(super) average_width: f32,
+    pub(super) is_monospace: bool,
+    pub(super) italic_angle: f32,
+    pub(super) glyph_name: String,
+}
 
 pub(super) struct GlyphReader {
     path: String,
@@ -84,6 +86,7 @@ impl GlyphReader {
                 )
                 .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
             let (types, coords) = pen.finish();
+            let bitmap = render_bitmap(&types, &coords);
 
             let glyph_metrics = font.glyph_metrics(Size::unscaled(), location_ref);
             let advance_width = glyph_metrics
@@ -114,26 +117,27 @@ impl GlyphReader {
                 .map(|n| n.to_string())
                 .unwrap_or_default();
 
-            Ok((
+            Ok(GlyphItemData {
                 types,
                 coords,
+                bitmap,
                 advance_width,
                 lsb,
                 x_min,
                 y_min,
                 x_max,
                 y_max,
-                m.units_per_em,
-                m.ascent * inv_upem,
-                m.descent * inv_upem,
-                m.leading * inv_upem,
-                m.cap_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
-                m.x_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
-                m.average_width.map(|v| v * inv_upem).unwrap_or(f32::NAN),
-                m.is_monospace,
-                m.italic_angle,
+                units_per_em: m.units_per_em,
+                ascent: m.ascent * inv_upem,
+                descent: m.descent * inv_upem,
+                leading: m.leading * inv_upem,
+                cap_height: m.cap_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                x_height: m.x_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                average_width: m.average_width.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                is_monospace: m.is_monospace,
+                italic_angle: m.italic_angle,
                 glyph_name,
-            ))
+            })
         })
     }
 

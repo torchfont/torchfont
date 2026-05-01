@@ -1,3 +1,4 @@
+mod bitmap;
 mod entry;
 mod index;
 mod io;
@@ -17,6 +18,8 @@ pub struct GlyphItem {
     pub types: Vec<u8>,
     /// Raw native-endian ``f32`` bytes, six values per pen command.
     pub coords: Vec<u8>,
+    /// Row-major 64 x 64 grayscale coverage bytes.
+    pub bitmap: Vec<u8>,
     pub style_idx: usize,
     pub content_idx: usize,
     /// Raw native-endian ``f32`` bytes for 15 float metrics (in order):
@@ -113,52 +116,36 @@ impl GlyphDataset {
 
     pub fn item(&self, idx: usize) -> PyResult<GlyphItem> {
         let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
-        let (
-            types,
-            coords,
-            adv_w,
-            lsb,
-            x_min,
-            y_min,
-            x_max,
-            y_max,
-            upem,
-            ascent,
-            descent,
-            leading,
-            cap_height,
-            x_height,
-            avg_width,
-            is_monospace,
-            italic_angle,
-            glyph_name,
-        ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
-        let mut types_bytes = Vec::with_capacity(types.len() * std::mem::size_of::<i64>());
-        for &t in &types {
+        let glyph = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
+        let mut types_bytes = Vec::with_capacity(glyph.types.len() * std::mem::size_of::<i64>());
+        for &t in &glyph.types {
             types_bytes.extend_from_slice(&(t as i64).to_ne_bytes());
         }
         let coords_bytes: Vec<u8> = {
             let bytes: &[u8] = unsafe {
-                std::slice::from_raw_parts(coords.as_ptr().cast::<u8>(), coords.len() * 4)
+                std::slice::from_raw_parts(
+                    glyph.coords.as_ptr().cast::<u8>(),
+                    glyph.coords.len() * 4,
+                )
             };
             bytes.to_vec()
         };
         let metrics_f32: [f32; 15] = [
-            adv_w,
-            lsb,
-            x_min,
-            y_min,
-            x_max,
-            y_max,
-            ascent,
-            descent,
-            leading,
-            cap_height,
-            x_height,
-            avg_width,
-            italic_angle,
-            upem as f32,
-            if is_monospace { 1.0_f32 } else { 0.0_f32 },
+            glyph.advance_width,
+            glyph.lsb,
+            glyph.x_min,
+            glyph.y_min,
+            glyph.x_max,
+            glyph.y_max,
+            glyph.ascent,
+            glyph.descent,
+            glyph.leading,
+            glyph.cap_height,
+            glyph.x_height,
+            glyph.average_width,
+            glyph.italic_angle,
+            glyph.units_per_em as f32,
+            if glyph.is_monospace { 1.0_f32 } else { 0.0_f32 },
         ];
         let metrics_bytes: Vec<u8> = {
             let bytes: &[u8] =
@@ -168,10 +155,11 @@ impl GlyphDataset {
         Ok(GlyphItem {
             types: types_bytes,
             coords: coords_bytes,
+            bitmap: glyph.bitmap,
             style_idx,
             content_idx,
             metrics: metrics_bytes,
-            glyph_name,
+            glyph_name: glyph.glyph_name,
         })
     }
 

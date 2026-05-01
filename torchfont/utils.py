@@ -36,6 +36,8 @@ class GlyphBatch(NamedTuple):
         coords (Tensor): Float tensor of shape ``(B, L, ...)`` holding padded
             coordinate values. Only the leading sequence dimension ``L`` is
             padded; trailing dimensions such as ``patch_size`` are preserved.
+        bitmap (Tensor): Uint8 tensor of shape ``(B, 64, 64)`` holding
+            per-sample grayscale coverage bitmaps.
         targets (Tensor): Long tensor of shape ``(B, 2)`` where column 0 is
             style indices and column 1 is content indices.
         metrics (Tensor): Float tensor of shape ``(B, 15)`` holding per-sample
@@ -49,6 +51,7 @@ class GlyphBatch(NamedTuple):
 
     types: Tensor
     coords: Tensor
+    bitmap: Tensor
     targets: Tensor
     metrics: Tensor
 
@@ -102,10 +105,12 @@ def collate_fn(
         .view(len(batch), 15)
         .to(device)
     )
+    bitmap_tensor = torch.stack([sample.bitmap for sample in batch]).to(device)
 
     return GlyphBatch(
         types=types_tensor,
         coords=coords_tensor,
+        bitmap=bitmap_tensor,
         targets=targets_tensor,
         metrics=metrics_tensor,
     )

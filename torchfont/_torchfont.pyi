@@ -3,6 +3,7 @@ from collections.abc import Sequence
 class GlyphItem:
     types: bytes
     coords: bytes
+    bitmap: bytes
     style_idx: int
     content_idx: int
     metrics: bytes

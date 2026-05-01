@@ -35,6 +35,8 @@ def test_collate_fn_basic() -> None:
     assert glyph_batch.targets.shape == (2, 2)
     assert glyph_batch.metrics.dtype == torch.float32
     assert glyph_batch.metrics.shape == (2, 15)
+    assert glyph_batch.bitmap.dtype == torch.uint8
+    assert glyph_batch.bitmap.shape == (2, 64, 64)
 
 
 def test_collate_fn_with_dataloader() -> None:
@@ -53,6 +55,8 @@ def test_collate_fn_with_dataloader() -> None:
     assert batch.coords.ndim == 3
     assert batch.targets.ndim == 2
     assert batch.targets.shape[1] == 2
+    assert batch.bitmap.ndim == 3
+    assert batch.bitmap.shape[1:] == (64, 64)
 
 
 def test_collate_fn_pads_to_longest() -> None:
@@ -92,6 +96,7 @@ def test_collate_fn_keeps_tensors_on_sample_device() -> None:
 
     assert glyph_batch.targets.device == glyph_batch.types.device
     assert glyph_batch.metrics.device == glyph_batch.types.device
+    assert glyph_batch.bitmap.device == glyph_batch.types.device
 
 
 def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
