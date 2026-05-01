@@ -2,7 +2,7 @@ use skrifa::outline::OutlinePen;
 
 #[derive(Clone, Copy)]
 #[repr(i32)]
-enum Command {
+pub(crate) enum Command {
     MoveTo = 1,
     LineTo = 2,
     QuadTo = 3,
@@ -12,7 +12,7 @@ enum Command {
 }
 
 pub struct SegmentPen {
-    commands: Vec<i32>,
+    commands: Vec<Command>,
     coords: Vec<f32>,
     scale: f32,
 }
@@ -27,13 +27,13 @@ impl SegmentPen {
         }
     }
 
-    pub fn finish(mut self) -> (Vec<i32>, Vec<f32>) {
+    pub fn finish(mut self) -> (Vec<Command>, Vec<f32>) {
         self.push(Command::End, [0.0; 6]);
         (self.commands, self.coords)
     }
 
     fn push(&mut self, command: Command, values: [f32; 6]) {
-        self.commands.push(command as i32);
+        self.commands.push(command);
         let scaled = values.map(|v| v * self.scale);
         self.coords.extend_from_slice(&scaled);
     }

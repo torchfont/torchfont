@@ -1,16 +1,11 @@
 use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
 
+use crate::pen::Command;
+
 const BITMAP_SIZE: u32 = 64;
 const PADDING: f32 = 4.0;
 
-const MOVE_TO: i32 = 1;
-const LINE_TO: i32 = 2;
-const QUAD_TO: i32 = 3;
-const CURVE_TO: i32 = 4;
-const CLOSE: i32 = 5;
-const END: i32 = 6;
-
-pub(super) fn render_bitmap(types: &[i32], coords: &[f32]) -> Vec<u8> {
+pub(super) fn render_bitmap(types: &[Command], coords: &[f32]) -> Vec<u8> {
     let Some(path) = build_path(types, coords) else {
         return blank_bitmap();
     };
@@ -44,20 +39,19 @@ fn blank_bitmap() -> Vec<u8> {
     vec![0; (BITMAP_SIZE * BITMAP_SIZE) as usize]
 }
 
-fn build_path(types: &[i32], coords: &[f32]) -> Option<Path> {
+fn build_path(types: &[Command], coords: &[f32]) -> Option<Path> {
     let mut builder = PathBuilder::with_capacity(types.len(), coords.len() / 2);
 
     for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
         match command {
-            MOVE_TO => builder.move_to(values[4], values[5]),
-            LINE_TO => builder.line_to(values[4], values[5]),
-            QUAD_TO => builder.quad_to(values[0], values[1], values[4], values[5]),
-            CURVE_TO => builder.cubic_to(
+            Command::MoveTo => builder.move_to(values[4], values[5]),
+            Command::LineTo => builder.line_to(values[4], values[5]),
+            Command::QuadTo => builder.quad_to(values[0], values[1], values[4], values[5]),
+            Command::CurveTo => builder.cubic_to(
                 values[0], values[1], values[2], values[3], values[4], values[5],
             ),
-            CLOSE => builder.close(),
-            END => break,
-            _ => {}
+            Command::Close => builder.close(),
+            Command::End => break,
         }
     }
 

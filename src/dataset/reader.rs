@@ -11,11 +11,11 @@ use skrifa::{
 use super::bitmap::render_bitmap;
 use crate::{
     error::{py_err, py_index_err},
-    pen::SegmentPen,
+    pen::{Command, SegmentPen},
 };
 
 pub(super) struct GlyphItemData {
-    pub(super) types: Vec<i32>,
+    pub(super) types: Vec<Command>,
     pub(super) coords: Vec<f32>,
     pub(super) bitmap: Vec<u8>,
     pub(super) advance_width: f32,
