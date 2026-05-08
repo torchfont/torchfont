@@ -3,7 +3,13 @@ import torch
 
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic, RenderBitmap
+from torchfont.transforms import (
+    Compose,
+    LimitSequenceLength,
+    Patchify,
+    QuadToCubic,
+    RenderBitmap,
+)
 
 _ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
 
@@ -218,8 +224,10 @@ def test_render_bitmap_respects_size_parameter() -> None:
 
     out32 = RenderBitmap(32)(sample)
     out128 = RenderBitmap(128)(sample)
-    assert out32.bitmap is not None and out32.bitmap.shape == (32, 32)
-    assert out128.bitmap is not None and out128.bitmap.shape == (128, 128)
+    assert out32.bitmap is not None
+    assert out32.bitmap.shape == (32, 32)
+    assert out128.bitmap is not None
+    assert out128.bitmap.shape == (128, 128)
 
 
 def test_render_bitmap_rejects_invalid_size() -> None:

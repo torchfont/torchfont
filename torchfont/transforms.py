@@ -271,7 +271,7 @@ class RenderBitmap:
             Defaults to ``64``.
 
     Examples:
-        Add 128×128 bitmaps to every sample::
+        Add 128x128 bitmaps to every sample::
 
             dataset = GlyphDataset(root="fonts", transform=RenderBitmap(128))
 
@@ -302,7 +302,7 @@ class RenderBitmap:
             ``(size, size)`` and dtype ``torch.uint8``.
 
         Examples:
-            Render at the default 64×64 resolution::
+            Render at the default 64x64 resolution::
 
                 sample = RenderBitmap()(sample)
                 assert sample.bitmap.shape == (64, 64)

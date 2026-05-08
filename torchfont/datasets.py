@@ -28,8 +28,6 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from typing import Optional
-
 from torchfont import _torchfont
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
@@ -75,7 +73,7 @@ class GlyphSample:
     content_idx: int
     metrics: bytes
     glyph_name: str
-    bitmap: Optional[Tensor] = None
+    bitmap: Tensor | None = None
 
 
 class GlyphDataset(Dataset[GlyphSample]):
