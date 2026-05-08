@@ -28,6 +28,8 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from typing import Optional
+
 from torchfont import _torchfont
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
@@ -61,6 +63,9 @@ class GlyphSample:
             ``torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)``
             to obtain a 1-D float tensor of shape ``(15,)``.
         glyph_name (str): PostScript name of the glyph.
+        bitmap (Tensor | None): 2-D uint8 tensor produced by
+            :class:`~torchfont.transforms.RenderBitmap`.  ``None`` unless
+            that transform has been applied.
 
     """
 
@@ -70,6 +75,7 @@ class GlyphSample:
     content_idx: int
     metrics: bytes
     glyph_name: str
+    bitmap: Optional[Tensor] = None
 
 
 class GlyphDataset(Dataset[GlyphSample]):

@@ -18,7 +18,9 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 import torch
+from torch import Tensor
 
+from torchfont import _torchfont
 from torchfont.io import CommandType
 
 if TYPE_CHECKING:
@@ -255,9 +257,70 @@ class Patchify:
         )
 
 
+class RenderBitmap:
+    """Render a grayscale bitmap from the glyph outline on demand.
+
+    Adds a ``bitmap`` field of shape ``(size, size)`` as a ``torch.uint8``
+    tensor to the sample by rasterising the pen commands stored in ``types``
+    and ``coords``.  Applying this as a dataset transform rather than
+    pre-rendering at index time lets callers choose the resolution and skip
+    rendering entirely when they do not need the bitmap.
+
+    Args:
+        size (int): Edge length in pixels of the square output bitmap.
+            Defaults to ``64``.
+
+    Examples:
+        Add 128×128 bitmaps to every sample::
+
+            dataset = GlyphDataset(root="fonts", transform=RenderBitmap(128))
+
+    """
+
+    def __init__(self, size: int = 64) -> None:
+        """Configure the output bitmap resolution.
+
+        Args:
+            size (int): Edge length in pixels. Must be positive.
+
+        """
+        if size < 1:
+            msg = "size must be >= 1"
+            raise ValueError(msg)
+        self.size = size
+
+    def __call__(self, sample: GlyphSample) -> GlyphSample:
+        """Rasterise the glyph outline and attach the bitmap to the sample.
+
+        Args:
+            sample (GlyphSample): Input sample. ``types`` must be a 1-D
+                ``torch.int64`` tensor and ``coords`` a 2-D ``torch.float32``
+                tensor of shape ``(N, 6)``.
+
+        Returns:
+            GlyphSample: Sample with a new ``bitmap`` field of shape
+            ``(size, size)`` and dtype ``torch.uint8``.
+
+        Examples:
+            Render at the default 64×64 resolution::
+
+                sample = RenderBitmap()(sample)
+                assert sample.bitmap.shape == (64, 64)
+
+        """
+        types_bytes = bytes(sample.types.numpy().view("uint8"))
+        coords_bytes = bytes(sample.coords.numpy().view("uint8"))
+        raw = _torchfont.render_bitmap(types_bytes, coords_bytes, self.size)
+        bitmap: Tensor = torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(
+            self.size, self.size
+        )
+        return dataclasses.replace(sample, bitmap=bitmap)
+
+
 __all__ = [
     "Compose",
     "LimitSequenceLength",
     "Patchify",
     "QuadToCubic",
+    "RenderBitmap",
 ]

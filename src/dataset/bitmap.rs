@@ -1,0 +1,76 @@
+use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
+
+use crate::pen::Command;
+
+const PADDING: f32 = 4.0;
+
+pub(super) fn render_bitmap(types: &[i32], coords: &[f32], size: u32) -> Vec<u8> {
+    let Some(path) = build_path(types, coords) else {
+        return blank_bitmap(size);
+    };
+    let bounds = path.compute_tight_bounds().unwrap_or_else(|| path.bounds());
+    let width = bounds.width();
+    let height = bounds.height();
+    if width <= f32::EPSILON || height <= f32::EPSILON {
+        return blank_bitmap(size);
+    }
+
+    let bitmap_size = size as f32;
+    let content_size = bitmap_size - PADDING.mul_add(2.0, 0.0);
+    let scale = content_size / width.max(height);
+    let offset_x = (bitmap_size - width * scale) * 0.5;
+    let offset_y = (bitmap_size - height * scale) * 0.5;
+    let transform = Transform::from_row(
+        scale,
+        0.0,
+        0.0,
+        -scale,
+        offset_x - bounds.left() * scale,
+        offset_y + bounds.bottom() * scale,
+    );
+
+    let mut mask = Mask::new(size, size).expect("bitmap size is valid");
+    mask.fill_path(&path, FillRule::EvenOdd, true, transform);
+    mask.data().to_vec()
+}
+
+fn blank_bitmap(size: u32) -> Vec<u8> {
+    vec![0; (size * size) as usize]
+}
+
+fn build_path(types: &[i32], coords: &[f32]) -> Option<Path> {
+    let mut builder = PathBuilder::with_capacity(types.len(), coords.len() / 2);
+
+    for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
+        match command {
+            v if v == Command::MoveTo as i32 => builder.move_to(values[4], values[5]),
+            v if v == Command::LineTo as i32 => builder.line_to(values[4], values[5]),
+            v if v == Command::QuadTo as i32 => {
+                builder.quad_to(values[0], values[1], values[4], values[5])
+            }
+            v if v == Command::CurveTo as i32 => builder.cubic_to(
+                values[0], values[1], values[2], values[3], values[4], values[5],
+            ),
+            v if v == Command::Close as i32 => builder.close(),
+            _ => break,
+        }
+    }
+
+    builder.finish()
+}
+
+pub(crate) fn render_bitmap_from_bytes(
+    types_bytes: &[u8],
+    coords_bytes: &[u8],
+    size: u32,
+) -> Vec<u8> {
+    let types: Vec<i32> = types_bytes
+        .chunks_exact(8)
+        .map(|b| i64::from_ne_bytes(b.try_into().unwrap()) as i32)
+        .collect();
+    let coords: Vec<f32> = coords_bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_ne_bytes(b.try_into().unwrap()))
+        .collect();
+    render_bitmap(&types, &coords, size)
+}
