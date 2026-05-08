@@ -231,8 +231,10 @@ def test_render_bitmap_respects_size_parameter() -> None:
 
 
 def test_render_bitmap_rejects_invalid_size() -> None:
-    with pytest.raises(ValueError, match="size must be >= 1"):
+    with pytest.raises(ValueError, match="size must be between 1 and 4096"):
         RenderBitmap(0)
+    with pytest.raises(ValueError, match="size must be between 1 and 4096"):
+        RenderBitmap(4097)
 
 
 def test_render_bitmap_as_dataset_transform() -> None:

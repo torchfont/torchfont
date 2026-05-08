@@ -16,7 +16,10 @@ pub(super) fn render_bitmap(types: &[i32], coords: &[f32], size: u32) -> Vec<u8>
     }
 
     let bitmap_size = size as f32;
-    let content_size = bitmap_size - PADDING.mul_add(2.0, 0.0);
+    let content_size = bitmap_size - 2.0 * PADDING;
+    if content_size <= 0.0 {
+        return blank_bitmap(size);
+    }
     let scale = content_size / width.max(height);
     let offset_x = (bitmap_size - width * scale) * 0.5;
     let offset_y = (bitmap_size - height * scale) * 0.5;
@@ -29,13 +32,15 @@ pub(super) fn render_bitmap(types: &[i32], coords: &[f32], size: u32) -> Vec<u8>
         offset_y + bounds.bottom() * scale,
     );
 
-    let mut mask = Mask::new(size, size).expect("bitmap size is valid");
+    let Some(mut mask) = Mask::new(size, size) else {
+        return blank_bitmap(size);
+    };
     mask.fill_path(&path, FillRule::EvenOdd, true, transform);
     mask.data().to_vec()
 }
 
 fn blank_bitmap(size: u32) -> Vec<u8> {
-    vec![0; (size * size) as usize]
+    vec![0u8; (size as usize).saturating_mul(size as usize)]
 }
 
 fn build_path(types: &[i32], coords: &[f32]) -> Option<Path> {

@@ -257,6 +257,9 @@ class Patchify:
         )
 
 
+_BITMAP_MAX_SIZE = 4096
+
+
 class RenderBitmap:
     """Render a grayscale bitmap from the glyph outline on demand.
 
@@ -284,8 +287,8 @@ class RenderBitmap:
             size (int): Edge length in pixels. Must be positive.
 
         """
-        if size < 1:
-            msg = "size must be >= 1"
+        if size < 1 or size > _BITMAP_MAX_SIZE:
+            msg = f"size must be between 1 and {_BITMAP_MAX_SIZE}"
             raise ValueError(msg)
         self.size = size
 
@@ -308,8 +311,8 @@ class RenderBitmap:
                 assert sample.bitmap.shape == (64, 64)
 
         """
-        types_bytes = bytes(sample.types.numpy().view("uint8"))
-        coords_bytes = bytes(sample.coords.numpy().view("uint8"))
+        types_bytes = bytes(sample.types.cpu().contiguous().numpy().view("uint8"))
+        coords_bytes = bytes(sample.coords.cpu().contiguous().numpy().view("uint8"))
         raw = _torchfont.render_bitmap(types_bytes, coords_bytes, self.size)
         bitmap: Tensor = torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(
             self.size, self.size
