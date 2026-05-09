@@ -30,6 +30,6 @@ features:
     title: Sample / Batch の基本型
     details: "`GlyphSample` が 1 グリフ、`collate_fn` が padded tensor と mask を持つ `GlyphBatch` を返します。"
   - icon: 🧩
-    title: 合成可能な前処理
-    details: "`Compose` / `LimitSequenceLength` / `Patchify` を組み合わせ、モデルに合わせた入力形式へ調整できます。"
+    title: 柔軟な前処理
+    details: "`QuadToCubic` のような小さな utility を使い、tensor 整形は dataset やモデル固有コードで調整できます。"
 ---

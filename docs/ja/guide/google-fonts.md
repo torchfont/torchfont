@@ -76,22 +76,24 @@ git -C data/google/fonts rev-parse HEAD
 
 ```python
 import sys
+import dataclasses
 
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import QuadToCubic
 from torchfont.utils import collate_fn
 
-transform = Compose([
-    LimitSequenceLength(max_len=512),
-    Patchify(patch_size=32),
-])
+
+def normalize_curves(sample: GlyphSample) -> GlyphSample:
+    types, coords = QuadToCubic(sample.types, sample.coords)
+    return dataclasses.replace(sample, types=types, coords=coords)
+
 
 dataset = GlyphDataset(
     root="data/google/fonts",
     patterns=("ofl/*/*.ttf",),
-    transform=transform,
+    transform=normalize_curves,
 )
 
 num_workers = 8

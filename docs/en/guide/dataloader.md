@@ -60,20 +60,7 @@ Keep those options unset when `num_workers=0`.
 | macOS    | `"spawn"` or `"forkserver"`           |
 | Windows  | `"spawn"`                             |
 
-## Using `Patchify`
+## Custom Sample Shapes
 
-`Patchify` splits each sample into fixed-size patches, which simplifies batching
-logic.
-
-```python
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
-
-transform = Compose([
-    LimitSequenceLength(max_len=512),
-    Patchify(patch_size=32),
-])
-```
-
-After this transform, `types.shape` becomes `(num_patches, 32)`. If you still
-batch whole samples, `num_patches` can vary across samples, so `collate_fn`
-may still need to pad at the sample level.
+`collate_fn` pads only the leading sequence dimension. If your dataset transform
+returns extra trailing dimensions, those dimensions are preserved while batching.

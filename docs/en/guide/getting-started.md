@@ -110,9 +110,8 @@ incorrect samples or runtime errors.
 
 ## Common Next Tweaks
 
-- Limit long sequences: `LimitSequenceLength(max_len=...)`
-- Convert quadratic segments to cubic: `QuadToCubic()`
-- Use fixed-size inputs: `Patchify(patch_size=...)`
+- Convert quadratic segments to cubic: `QuadToCubic(types, coords)`
+- Shape or limit tensors in your dataset or model-specific utility code
 - Narrow the dataset scope: `codepoints=` and `patterns=`
 
 ## Read Next

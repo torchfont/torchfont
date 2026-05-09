@@ -27,7 +27,7 @@ print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 ```
 
 - `CommandType.END` はシーケンス終端
-- `CommandType.PAD` は主に `pad_sequence` や `Patchify` によるパディングで出現
+- `CommandType.PAD` は主に `pad_sequence` や独自 padding で出現
 
 ## `coords` の定義
 
@@ -92,12 +92,8 @@ style_all = t[:, 0]    # 1 列目: style_idx
 content_all = t[:, 1]  # 2 列目: content_idx
 ```
 
-## Transform 後の形状
+## Utility 後の形状
 
-`Patchify` を使うと `types` / `coords` の次元が増えます。
-
-- 変換前: `types=(seq_len,)`, `coords=(seq_len, 6)`
-- 変換後: `types=(num_patches, patch_size)`,
-  `coords=(num_patches, patch_size, 6)`
-
-この場合も `style_idx` / `content_idx` は同じです。
+`QuadToCubic` は `types` / `coords` の形状を保持します。モデル固有の整形を
+dataset transform として追加する場合も、返す sample の `style_idx` /
+`content_idx` との対応を保ってください。

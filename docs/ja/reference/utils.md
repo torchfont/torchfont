@@ -19,7 +19,7 @@ from torchfont.utils import GlyphBatch
 
 `batch.targets[:, 0]` が style インデックス、`batch.targets[:, 1]` が content
 インデックスです。`batch.metrics` の列順序は `GlyphSample.metrics` と同じです。
-`collate_fn` が padding するのは先頭のシーケンス次元 `L` のみで、`Patchify`
+`collate_fn` が padding するのは先頭のシーケンス次元 `L` のみで、sample tensor
 などの前処理で増えた末尾次元はそのまま保持されます。
 
 ## `collate_fn`
