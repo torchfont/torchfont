@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import pickle
 import runpy
 from pathlib import Path
 
 import pytest
+
+from examples.google_fonts import collate_fn as google_fonts_collate_fn
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
 
@@ -45,3 +48,7 @@ def test_examples_are_import_safe(
 )
 def test_local_examples_run_as_scripts(script_name: str) -> None:
     runpy.run_path(str(EXAMPLES_DIR / script_name), run_name="__main__")
+
+
+def test_google_fonts_collate_fn_is_picklable_for_dataloader_workers() -> None:
+    pickle.dumps(google_fonts_collate_fn)

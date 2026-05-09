@@ -1,9 +1,15 @@
 import pytest
 import torch
 
-from torchfont.datasets import GlyphSample
+from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
+from torchfont.transforms import (
+    Compose,
+    LimitSequenceLength,
+    Patchify,
+    QuadToCubic,
+    render_bitmap,
+)
 
 _ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
 
@@ -190,3 +196,40 @@ def test_transform_constructors_validate_invalid_arguments(
 ) -> None:
     with pytest.raises(ValueError, match=expected_message):
         transform_cls(**kwargs)
+
+
+def test_render_bitmap_produces_correct_shape_and_dtype() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=[ord("A")],
+    )
+    sample = dataset[0]
+
+    bitmap = render_bitmap(sample.types, sample.coords, size=64)
+    assert bitmap.dtype == torch.uint8
+    assert bitmap.shape == (64, 64)
+    assert torch.any(bitmap > 0)
+
+
+def test_render_bitmap_respects_size_parameter() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=[ord("A")],
+    )
+    sample = dataset[0]
+
+    out32 = render_bitmap(sample.types, sample.coords, size=32)
+    out128 = render_bitmap(sample.types, sample.coords, size=128)
+    assert out32.shape == (32, 32)
+    assert out128.shape == (128, 128)
+
+
+def test_render_bitmap_rejects_invalid_size() -> None:
+    types = torch.tensor([1], dtype=torch.long)
+    coords = torch.zeros(1, 6)
+    with pytest.raises(ValueError, match="size must be between 1 and 4096"):
+        render_bitmap(types, coords, size=0)
+    with pytest.raises(ValueError, match="size must be between 1 and 4096"):
+        render_bitmap(types, coords, size=4097)

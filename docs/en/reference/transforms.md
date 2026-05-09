@@ -17,7 +17,7 @@ Compose(
 
 Applies transforms in order.
 
-### Example (`Compose`)
+## Example (`Compose`)
 
 ```python
 from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
@@ -113,7 +113,22 @@ into patches.
   unpatchified tensors with `types.ndim == 1`, `coords.ndim == 2`,
   `coords.shape[1] == 6`, and aligned leading sequence lengths
 
-### Example (`Patchify`)
+## `render_bitmap`
+
+```python
+from torchfont.transforms import render_bitmap
+
+bitmap = render_bitmap(types, coords, size=64)
+```
+
+Renders a grayscale bitmap from the outline tensors and returns a
+`torch.uint8` tensor of shape `(size, size)`.
+
+- `size` must be between 1 and 4096
+- `types` must be a 1-D `torch.int64` tensor
+- `coords` must be a 2-D `torch.float32` tensor of shape `(N, 6)`
+
+## Example (`Patchify`)
 
 ```python
 patchify = Patchify(patch_size=32)

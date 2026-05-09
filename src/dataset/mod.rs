@@ -1,9 +1,11 @@
+mod bitmap;
 mod entry;
 mod index;
 mod io;
 mod reader;
 
 use crate::error::py_index_err;
+pub(crate) use bitmap::render_bitmap_from_bytes;
 use entry::FontEntry;
 use index::{DatasetIndex, load_entries_and_index};
 use io::{canonicalize_root, discover_font_files};

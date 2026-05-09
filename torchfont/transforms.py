@@ -18,7 +18,9 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 import torch
+from torch import Tensor
 
+from torchfont import _torchfont
 from torchfont.io import CommandType
 
 if TYPE_CHECKING:
@@ -255,9 +257,47 @@ class Patchify:
         )
 
 
+_BITMAP_MAX_SIZE = 4096
+
+
+def render_bitmap(types: Tensor, coords: Tensor, size: int = 64) -> Tensor:
+    """Render a grayscale bitmap from a glyph outline.
+
+    Args:
+        types: 1-D ``torch.int64`` command type tensor.
+        coords: 2-D ``torch.float32`` coordinate tensor of shape ``(N, 6)``.
+        size: Edge length in pixels of the square output bitmap.
+
+    Returns:
+        A ``torch.uint8`` tensor of shape ``(size, size)``.
+
+    """
+    if size < 1 or size > _BITMAP_MAX_SIZE:
+        msg = f"size must be between 1 and {_BITMAP_MAX_SIZE}"
+        raise ValueError(msg)
+    if types.dtype != torch.int64 or types.ndim != 1:
+        msg = "types must be a 1-D torch.int64 tensor"
+        raise ValueError(msg)
+    _coord_cols = 6
+    _coord_ndim = 2
+    if (
+        coords.dtype != torch.float32
+        or coords.ndim != _coord_ndim
+        or coords.shape != (types.shape[0], _coord_cols)
+    ):
+        msg = "coords must be a 2-D torch.float32 tensor of shape (N, 6) matching types"
+        raise ValueError(msg)
+
+    types_bytes = bytes(types.cpu().contiguous().numpy().view("uint8"))
+    coords_bytes = bytes(coords.cpu().contiguous().numpy().view("uint8"))
+    raw = _torchfont.render_bitmap(types_bytes, coords_bytes, size)
+    return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(size, size)
+
+
 __all__ = [
     "Compose",
     "LimitSequenceLength",
     "Patchify",
     "QuadToCubic",
+    "render_bitmap",
 ]

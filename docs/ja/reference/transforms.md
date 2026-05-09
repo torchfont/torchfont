@@ -116,3 +116,17 @@ Patchify(patch_size: int)
 patchify = Patchify(patch_size=32)
 patch_sample = patchify(sample)
 ```
+
+## `render_bitmap`
+
+```python
+from torchfont.transforms import render_bitmap
+
+bitmap = render_bitmap(types, coords, size=64)
+```
+
+アウトラインテンソルからグレースケールビットマップをレンダリングし、`(size, size)` 形状の `torch.uint8` テンソルを返します。
+
+- `size` は 1 以上 4096 以下
+- `types`: 1-D `torch.int64` テンソル
+- `coords`: `(N, 6)` 形状の `torch.float32` テンソル
