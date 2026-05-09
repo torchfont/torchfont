@@ -1,7 +1,7 @@
 mod dataset;
 mod error;
 mod pen;
-mod render;
+mod bitmap;
 mod outline;
 
 use dataset::{GlyphDataset, GlyphItem};
@@ -19,7 +19,7 @@ fn render_bitmap(
             "size must be between 1 and 4096",
         ));
     }
-    Ok(render::render_bitmap(types.as_slice()?, coords.as_slice()?, size))
+    Ok(bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size))
 }
 
 /// Convert QUAD_TO commands to CURVE_TO in-place via a zero-copy numpy bridge.
