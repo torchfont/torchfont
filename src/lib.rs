@@ -1,8 +1,8 @@
+mod bitmap;
 mod dataset;
 mod error;
-mod pen;
-mod bitmap;
 mod outline;
+mod pen;
 
 use dataset::{GlyphDataset, GlyphItem};
 use numpy::{PyReadonlyArray1, PyReadwriteArray1};
@@ -19,7 +19,11 @@ fn render_bitmap(
             "size must be between 1 and 4096",
         ));
     }
-    Ok(bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size))
+    Ok(bitmap::render_bitmap(
+        types.as_slice()?,
+        coords.as_slice()?,
+        size,
+    ))
 }
 
 #[pyfunction]
