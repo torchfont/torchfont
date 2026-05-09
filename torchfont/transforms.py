@@ -28,13 +28,18 @@ def QuadToCubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:  # noqa
     prev = torch.zeros_like(out_coords[..., 0:2])
     prev[..., 1:, :] = out_coords[..., :-1, 4:6]
 
-    q_prev = prev[quad]
-    q_ctrl = out_coords[quad, 0:2]
-    q_end = out_coords[quad, 4:6]
+    flat_quad = quad.reshape(-1)
+    flat_types = out_types.reshape(-1)
+    flat_coords = out_coords.reshape(-1, coords.size(-1))
+    flat_prev = prev.reshape(-1, 2)
 
-    out_coords[quad, 0:2] = q_prev + (2.0 / 3.0) * (q_ctrl - q_prev)
-    out_coords[quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
-    out_types[quad] = CommandType.CURVE_TO.value
+    q_prev = flat_prev[flat_quad]
+    q_ctrl = flat_coords[flat_quad, 0:2]
+    q_end = flat_coords[flat_quad, 4:6]
+
+    flat_coords[flat_quad, 0:2] = q_prev + (2.0 / 3.0) * (q_ctrl - q_prev)
+    flat_coords[flat_quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
+    flat_types[flat_quad] = CommandType.CURVE_TO.value
 
     return out_types, out_coords
 
