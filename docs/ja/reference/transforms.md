@@ -3,14 +3,14 @@
 `torchfont.transforms` は glyph tensor を調整するための小さな utility 関数を提供します。
 dataset item の整形は利用側の前処理コードで行います。
 
-## QuadToCubic
+## quad_to_cubic
 
 ```python
-from torchfont.transforms import QuadToCubic
+from torchfont.transforms import quad_to_cubic
 ```
 
 ```python
-types, coords = QuadToCubic(types, coords)
+types, coords = quad_to_cubic(types, coords)
 ```
 
 `CommandType.QUAD_TO` を `CommandType.CURVE_TO` へ変換します。

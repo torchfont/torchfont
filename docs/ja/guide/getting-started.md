@@ -110,7 +110,7 @@ Git などで更新したあとは、ネイティブな indexing state がディ
 
 ## よくある最初の改善
 
-- 2 次セグメントを 3 次へ統一する: `QuadToCubic(types, coords)`
+- 2 次セグメントを 3 次へ統一する: `quad_to_cubic(types, coords)`
 - シーケンス長の制限や整形は dataset transform やモデル固有 utility で行う
 - 学習対象を絞る: `codepoints=` や `patterns=`
 

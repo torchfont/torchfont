@@ -3,14 +3,14 @@
 `torchfont.transforms` provides small utility functions for adapting glyph
 tensors. Keep dataset item shaping in your own preprocessing code.
 
-## QuadToCubic
+## quad_to_cubic
 
 ```python
-from torchfont.transforms import QuadToCubic
+from torchfont.transforms import quad_to_cubic
 ```
 
 ```python
-types, coords = QuadToCubic(types, coords)
+types, coords = quad_to_cubic(types, coords)
 ```
 
 Converts `CommandType.QUAD_TO` commands to `CommandType.CURVE_TO`.

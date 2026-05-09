@@ -31,5 +31,5 @@ features:
     details: "`GlyphSample` が 1 グリフ、`collate_fn` が padded tensor と mask を持つ `GlyphBatch` を返します。"
   - icon: 🧩
     title: 柔軟な前処理
-    details: "`QuadToCubic` のような小さな utility を使い、tensor 整形は dataset やモデル固有コードで調整できます。"
+    details: "`quad_to_cubic` のような小さな utility を使い、tensor 整形は dataset やモデル固有コードで調整できます。"
 ---

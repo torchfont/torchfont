@@ -2,7 +2,7 @@ import torch
 
 from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import QuadToCubic
+from torchfont.transforms import quad_to_cubic
 
 _ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
 
@@ -31,7 +31,7 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    out_types, out_coords = QuadToCubic(types, coords)
+    out_types, out_coords = quad_to_cubic(types, coords)
 
     expected_types = torch.tensor(
         [
@@ -74,7 +74,7 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    out_types, out_coords = QuadToCubic(types, coords)
+    out_types, out_coords = quad_to_cubic(types, coords)
 
     assert out_types is types
     assert out_coords is coords
@@ -104,7 +104,7 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         metrics=_ZERO_METRICS,
         glyph_name="",
     )
-    out_types, out_coords = QuadToCubic(sample.types, sample.coords)
+    out_types, out_coords = quad_to_cubic(sample.types, sample.coords)
 
     assert out_types.shape == types.shape
     assert out_coords.shape == coords.shape
@@ -147,7 +147,7 @@ def test_quad_to_cubic_keeps_batched_sequences_independent() -> None:
         dtype=torch.float32,
     )
 
-    out_types, out_coords = QuadToCubic(types, coords)
+    out_types, out_coords = quad_to_cubic(types, coords)
 
     assert out_types[1, 0].item() == CommandType.CURVE_TO.value
     assert torch.allclose(

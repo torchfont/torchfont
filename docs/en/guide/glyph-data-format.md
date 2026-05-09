@@ -113,6 +113,6 @@ content_all = t[:, 1]  # column 1: content_idx
 
 ## Shapes after utilities
 
-`QuadToCubic` preserves both `types` and `coords` shapes. If you add custom
+`quad_to_cubic` preserves both `types` and `coords` shapes. If you add custom
 dataset transforms for model-specific shaping, keep `style_idx` and
 `content_idx` aligned with the returned sample.

@@ -110,7 +110,7 @@ incorrect samples or runtime errors.
 
 ## Common Next Tweaks
 
-- Convert quadratic segments to cubic: `QuadToCubic(types, coords)`
+- Convert quadratic segments to cubic: `quad_to_cubic(types, coords)`
 - Shape or limit tensors in your dataset or model-specific utility code
 - Narrow the dataset scope: `codepoints=` and `patterns=`
 

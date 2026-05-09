@@ -8,7 +8,7 @@ from torch import Tensor
 from torchfont.io import CommandType
 
 
-def QuadToCubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:  # noqa: N802
+def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Convert ``CommandType.QUAD_TO`` entries to ``CommandType.CURVE_TO``.
 
     The command and coordinate shapes are preserved. Coordinate rows use the
@@ -44,4 +44,4 @@ def QuadToCubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:  # noqa
     return out_types, out_coords
 
 
-__all__ = ["QuadToCubic"]
+__all__ = ["quad_to_cubic"]

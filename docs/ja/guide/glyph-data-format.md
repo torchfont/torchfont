@@ -94,6 +94,6 @@ content_all = t[:, 1]  # 2 列目: content_idx
 
 ## Utility 後の形状
 
-`QuadToCubic` は `types` / `coords` の形状を保持します。モデル固有の整形を
+`quad_to_cubic` は `types` / `coords` の形状を保持します。モデル固有の整形を
 dataset transform として追加する場合も、返す sample の `style_idx` /
 `content_idx` との対応を保ってください。

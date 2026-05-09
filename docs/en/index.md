@@ -40,6 +40,6 @@ features:
   - icon: 🧩
     title: Flexible preprocessing
     details:
-      "Use small transform utilities such as `QuadToCubic`, then shape tensors
+      "Use small transform utilities such as `quad_to_cubic`, then shape tensors
       in your dataset or model-specific code."
 ---
