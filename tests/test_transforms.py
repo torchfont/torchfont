@@ -80,7 +80,7 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
     assert out_coords is coords
 
 
-def test_quad_to_cubic_supports_patchified_shapes() -> None:
+def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:
     types = torch.tensor(
         [
             [CommandType.MOVE_TO.value, CommandType.QUAD_TO.value],

@@ -14,6 +14,10 @@ def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     The command and coordinate shapes are preserved. Coordinate rows use the
     ``[cx0, cy0, cx1, cy1, x, y]`` layout, with quadratic control points read
     from ``[cx0, cy0]`` and endpoints from ``[x, y]``.
+
+    The last dimension of ``types`` is treated as the sequence dimension. Any
+    leading dimensions are independent sequences, so call this before chunking a
+    continuous outline if endpoint continuity must cross chunk boundaries.
     """
     quad = types == CommandType.QUAD_TO.value
 
