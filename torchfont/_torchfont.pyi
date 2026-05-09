@@ -1,5 +1,7 @@
 from collections.abc import Sequence
 
+def render_bitmap(types_bytes: bytes, coords_bytes: bytes, size: int) -> bytes: ...
+
 class GlyphItem:
     types: bytes
     coords: bytes

@@ -1,16 +1,15 @@
-import dataclasses
-
+from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_fn
+from torchfont.transforms import render_bitmap
 
 
-def transform(sample: GlyphSample) -> GlyphSample:
-    return dataclasses.replace(
-        sample, types=sample.types[:512], coords=sample.coords[:512]
-    )
+def transform(sample: GlyphSample) -> Tensor:
+    types = sample.types[:512]
+    coords = sample.coords[:512]
+    return render_bitmap(types, coords)
 
 
 def main() -> None:
@@ -31,7 +30,6 @@ def main() -> None:
         shuffle=True,
         num_workers=8,
         prefetch_factor=2,
-        collate_fn=collate_fn,
     )
 
     print(f"{len(dataset)=}")

@@ -2,7 +2,7 @@ use skrifa::outline::OutlinePen;
 
 #[derive(Clone, Copy)]
 #[repr(i32)]
-enum Command {
+pub(crate) enum Command {
     MoveTo = 1,
     LineTo = 2,
     QuadTo = 3,
