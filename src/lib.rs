@@ -2,8 +2,10 @@ mod dataset;
 mod error;
 mod pen;
 mod render;
+mod transforms;
 
 use dataset::{GlyphDataset, GlyphItem};
+use numpy::PyReadwriteArray1;
 use pyo3::{Bound, prelude::*, types::PyModule};
 
 #[pyfunction]
@@ -20,10 +22,26 @@ fn render_bitmap(types_bytes: &[u8], coords_bytes: &[u8], size: u32) -> PyResult
     ))
 }
 
+/// Convert QUAD_TO commands to CURVE_TO in-place via a zero-copy numpy bridge.
+/// Python caller is responsible for cloning the arrays before passing them.
+/// `seq_len` is the length of each independent sequence (last dimension size).
+#[pyfunction]
+fn quad_to_cubic_inplace<'py>(
+    mut types: PyReadwriteArray1<'py, i64>,
+    mut coords: PyReadwriteArray1<'py, f32>,
+    seq_len: usize,
+) -> PyResult<()> {
+    let t = types.as_slice_mut()?;
+    let c = coords.as_slice_mut()?;
+    transforms::quad_to_cubic(t, c, seq_len);
+    Ok(())
+}
+
 #[pymodule]
 fn _torchfont(_py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GlyphDataset>()?;
     m.add_class::<GlyphItem>()?;
     m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
+    m.add_function(wrap_pyfunction!(quad_to_cubic_inplace, &m)?)?;
     Ok(())
 }
