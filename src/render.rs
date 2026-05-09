@@ -4,23 +4,7 @@ use crate::pen::Command;
 
 const PADDING: f32 = 4.0;
 
-pub(crate) fn render_bitmap_from_bytes(
-    types_bytes: &[u8],
-    coords_bytes: &[u8],
-    size: u32,
-) -> Vec<u8> {
-    let types: Vec<i32> = types_bytes
-        .chunks_exact(8)
-        .map(|b| i64::from_ne_bytes(b.try_into().unwrap()) as i32)
-        .collect();
-    let coords: Vec<f32> = coords_bytes
-        .chunks_exact(4)
-        .map(|b| f32::from_ne_bytes(b.try_into().unwrap()))
-        .collect();
-    render_bitmap(&types, &coords, size)
-}
-
-fn render_bitmap(types: &[i32], coords: &[f32], size: u32) -> Vec<u8> {
+pub(crate) fn render_bitmap(types: &[i64], coords: &[f32], size: u32) -> Vec<u8> {
     let Some(path) = build_path(types, coords) else {
         return blank_bitmap(size);
     };
@@ -55,19 +39,19 @@ fn render_bitmap(types: &[i32], coords: &[f32], size: u32) -> Vec<u8> {
     mask.data().to_vec()
 }
 
-fn build_path(types: &[i32], coords: &[f32]) -> Option<Path> {
+fn build_path(types: &[i64], coords: &[f32]) -> Option<Path> {
     let mut builder = PathBuilder::with_capacity(types.len(), coords.len() / 2);
     for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
         match command {
-            v if v == Command::MoveTo as i32 => builder.move_to(values[4], values[5]),
-            v if v == Command::LineTo as i32 => builder.line_to(values[4], values[5]),
-            v if v == Command::QuadTo as i32 => {
+            v if v == Command::MoveTo as i64 => builder.move_to(values[4], values[5]),
+            v if v == Command::LineTo as i64 => builder.line_to(values[4], values[5]),
+            v if v == Command::QuadTo as i64 => {
                 builder.quad_to(values[0], values[1], values[4], values[5])
             }
-            v if v == Command::CurveTo as i32 => builder.cubic_to(
+            v if v == Command::CurveTo as i64 => builder.cubic_to(
                 values[0], values[1], values[2], values[3], values[4], values[5],
             ),
-            v if v == Command::Close as i32 => builder.close(),
+            v if v == Command::Close as i64 => builder.close(),
             _ => break,
         }
     }

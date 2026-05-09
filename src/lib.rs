@@ -2,24 +2,24 @@ mod dataset;
 mod error;
 mod pen;
 mod render;
-mod transforms;
+mod outline;
 
 use dataset::{GlyphDataset, GlyphItem};
-use numpy::PyReadwriteArray1;
+use numpy::{PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 
 #[pyfunction]
-fn render_bitmap(types_bytes: &[u8], coords_bytes: &[u8], size: u32) -> PyResult<Vec<u8>> {
+fn render_bitmap(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    size: u32,
+) -> PyResult<Vec<u8>> {
     if size == 0 || size > 4096 {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "size must be between 1 and 4096",
         ));
     }
-    Ok(render::render_bitmap_from_bytes(
-        types_bytes,
-        coords_bytes,
-        size,
-    ))
+    Ok(render::render_bitmap(types.as_slice()?, coords.as_slice()?, size))
 }
 
 /// Convert QUAD_TO commands to CURVE_TO in-place via a zero-copy numpy bridge.
@@ -33,7 +33,7 @@ fn quad_to_cubic_inplace<'py>(
 ) -> PyResult<()> {
     let t = types.as_slice_mut()?;
     let c = coords.as_slice_mut()?;
-    transforms::quad_to_cubic(t, c, seq_len);
+    outline::quad_to_cubic(t, c, seq_len);
     Ok(())
 }
 

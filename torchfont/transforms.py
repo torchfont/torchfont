@@ -51,9 +51,9 @@ def render_bitmap(types: Tensor, coords: Tensor, size: int = 64) -> Tensor:
         uint8 tensor of shape ``(size, size)`` with values in ``[0, 255]``.
 
     """
-    types_bytes = bytes(types.cpu().contiguous().numpy().view("uint8"))
-    coords_bytes = bytes(coords.cpu().contiguous().numpy().view("uint8"))
-    raw = _torchfont.render_bitmap(types_bytes, coords_bytes, size)
+    types_c = types.cpu().contiguous()
+    coords_c = coords.cpu().contiguous()
+    raw = _torchfont.render_bitmap(types_c.numpy(), coords_c.reshape(-1).numpy(), size)
     return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(size, size)
 
 
