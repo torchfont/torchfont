@@ -22,9 +22,6 @@ fn render_bitmap(
     Ok(bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size))
 }
 
-/// Convert QUAD_TO commands to CURVE_TO in-place via a zero-copy numpy bridge.
-/// Python caller is responsible for cloning the arrays before passing them.
-/// `seq_len` is the length of each independent sequence (last dimension size).
 #[pyfunction]
 fn quad_to_cubic_inplace<'py>(
     mut types: PyReadwriteArray1<'py, i64>,
