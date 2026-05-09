@@ -186,6 +186,28 @@ def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
     assert sample.coords.shape[0] == 2
 
 
+def test_glyph_dataset_transform_can_change_return_type() -> None:
+    def transform(sample: GlyphSample) -> tuple[torch.Tensor, int]:
+        return sample.types[:2], sample.content_idx
+
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x5B),
+        transform=transform,
+    )
+    typed_dataset: GlyphDataset[tuple[torch.Tensor, int]] = dataset
+    typed_item: tuple[torch.Tensor, int] = dataset[0]
+    typed_item_from_dataset: tuple[torch.Tensor, int] = typed_dataset[0]
+
+    types, content_idx = typed_item
+
+    assert types.shape[0] == 2
+    assert isinstance(content_idx, int)
+    assert torch.equal(types, typed_item_from_dataset[0])
+    assert content_idx == typed_item_from_dataset[1]
+
+
 def test_glyph_dataset_preserves_quadratic_curves() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
