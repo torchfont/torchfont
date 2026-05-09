@@ -113,3 +113,44 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         out_coords[0, 1],
         torch.tensor([0.0, 2.0 / 3.0, 1.0 / 3.0, 1.0, 1.0, 1.0], dtype=torch.float32),
     )
+
+
+def test_quad_to_cubic_keeps_batched_sequences_independent() -> None:
+    types = torch.tensor(
+        [
+            [
+                CommandType.MOVE_TO.value,
+                CommandType.LINE_TO.value,
+                CommandType.END.value,
+            ],
+            [
+                CommandType.QUAD_TO.value,
+                CommandType.LINE_TO.value,
+                CommandType.END.value,
+            ],
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [
+                [0.0, 0.0, 0.0, 0.0, 7.0, 7.0],
+                [0.0, 0.0, 0.0, 0.0, 9.0, 9.0],
+                [0.0, 0.0, 0.0, 0.0, 9.0, 9.0],
+            ],
+            [
+                [0.0, 3.0, 0.0, 0.0, 3.0, 3.0],
+                [0.0, 0.0, 0.0, 0.0, 4.0, 3.0],
+                [0.0, 0.0, 0.0, 0.0, 4.0, 3.0],
+            ],
+        ],
+        dtype=torch.float32,
+    )
+
+    out_types, out_coords = QuadToCubic(types, coords)
+
+    assert out_types[1, 0].item() == CommandType.CURVE_TO.value
+    assert torch.allclose(
+        out_coords[1, 0],
+        torch.tensor([0.0, 2.0, 1.0, 3.0, 3.0, 3.0], dtype=torch.float32),
+    )

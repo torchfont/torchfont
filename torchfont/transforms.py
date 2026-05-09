@@ -15,20 +15,18 @@ def QuadToCubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:  # noqa
     ``[cx0, cy0, cx1, cy1, x, y]`` layout, with quadratic control points read
     from ``[cx0, cy0]`` and endpoints from ``[x, y]``.
     """
-    flat_types = types.reshape(-1)
-    flat_coords = coords.reshape(-1, coords.size(-1))
-    quad = flat_types == CommandType.QUAD_TO.value
+    quad = types == CommandType.QUAD_TO.value
 
     if not torch.any(quad):
         return types, coords
 
-    out_types = flat_types.clone()
-    out_coords = flat_coords.clone()
+    out_types = types.clone()
+    out_coords = coords.clone()
 
     # In valid outline streams, the previous command endpoint is the current
-    # point for a quadratic segment.
-    prev = torch.zeros_like(out_coords[:, 0:2])
-    prev[1:] = out_coords[:-1, 4:6]
+    # point for a quadratic segment. Leading dimensions are independent samples.
+    prev = torch.zeros_like(out_coords[..., 0:2])
+    prev[..., 1:, :] = out_coords[..., :-1, 4:6]
 
     q_prev = prev[quad]
     q_ctrl = out_coords[quad, 0:2]
@@ -38,7 +36,7 @@ def QuadToCubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:  # noqa
     out_coords[quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
     out_types[quad] = CommandType.CURVE_TO.value
 
-    return out_types.view_as(types), out_coords.view_as(coords)
+    return out_types, out_coords
 
 
 __all__ = ["QuadToCubic"]
