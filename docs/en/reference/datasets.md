@@ -10,8 +10,8 @@
 from torchfont.datasets import GlyphSample
 ```
 
-Structured return type for `GlyphDataset.__getitem__` and the sample type used
-throughout `torchfont.transforms`.
+Default return type for `GlyphDataset.__getitem__`, and the input sample type
+for dataset transforms and `torchfont.transforms`.
 
 ## DatasetMetadata
 
@@ -35,16 +35,18 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    transform: Callable[[GlyphSample], GlyphSample] | None = None,
+    transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
+
+`T` is the transform return type and therefore the dataset item type.
 
 | Parameter          | Type                              | Description                         |
 | ------------------ | --------------------------------- | ----------------------------------- |
 | `root`             | `Path \| str`                     | root directory for font discovery   |
 | `codepoints` | `Sequence[SupportsIndex] \| None` | restrict indexed Unicode codepoints |
 | `patterns`         | `Sequence[str] \| None`           | gitignore-style path filtering      |
-| `transform`        | `Callable \| None`                | sample-first preprocessing (`GlyphSample -> GlyphSample`) |
+| `transform`        | `Callable \| None`                | sample-first preprocessing (`GlyphSample -> T`) |
 
 ### Behavior
 
@@ -80,7 +82,8 @@ sample = dataset[idx]
 | `sample.style_idx`   | `int`               | scalar         |
 | `sample.content_idx` | `int`               | scalar         |
 
-`sample` is a `GlyphSample`.
+Without `transform`, `sample` is a `GlyphSample`. With `transform`, the
+dataset item type is inferred from the transform return type.
 
 ### Properties
 

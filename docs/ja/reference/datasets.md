@@ -10,8 +10,8 @@
 from torchfont.datasets import GlyphSample
 ```
 
-`GlyphDataset.__getitem__` の返り値であり、`torchfont.transforms` 全体で使う
-sample 型です。
+`transform` なしの `GlyphDataset.__getitem__` の返り値であり、dataset
+transform や `torchfont.transforms` へ渡す入力 sample 型です。
 
 ## DatasetMetadata
 
@@ -35,16 +35,18 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    transform: Callable[[GlyphSample], GlyphSample] | None = None,
+    transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
+
+`T` は transform の返り値型であり、そのまま dataset item の型になります。
 
 | 引数               | 型                                | 説明                               |
 | ------------------ | --------------------------------- | ---------------------------------- |
 | `root`             | `Path \| str`                     | フォント探索の起点ディレクトリ     |
 | `codepoints` | `Sequence[SupportsIndex] \| None` | 対象 Unicode codepoint を制限      |
 | `patterns`         | `Sequence[str] \| None`           | gitignore 互換パターンでパスを絞る |
-| `transform`        | `Callable \| None`                | sample-first 前処理（`GlyphSample -> GlyphSample`） |
+| `transform`        | `Callable \| None`                | sample-first 前処理（`GlyphSample -> T`） |
 
 ### 振る舞い
 
@@ -82,7 +84,8 @@ sample = dataset[idx]
 | `sample.metrics`     | `bytes`             | 15 × f32      |
 | `sample.glyph_name`  | `str`               | —             |
 
-`sample` 自体の型は `GlyphSample` です。
+`transform` なしでは `sample` 自体の型は `GlyphSample` です。`transform`
+ありでは、dataset item の型は transform の返り値型から推論されます。
 
 ### プロパティ
 

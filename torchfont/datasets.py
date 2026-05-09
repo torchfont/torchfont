@@ -22,7 +22,7 @@ import dataclasses
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
-from typing import SupportsIndex, cast
+from typing import Generic, SupportsIndex, TypeVar, cast, overload
 
 import torch
 from torch import Tensor
@@ -39,6 +39,8 @@ from torchfont.metadata import (
     StyleMetadataRow,
     build_dataset_metadata,
 )
+
+_T = TypeVar("_T")
 
 
 @dataclasses.dataclass
@@ -72,12 +74,13 @@ class GlyphSample:
     glyph_name: str
 
 
-class GlyphDataset(Dataset[GlyphSample]):
-    """Dataset that yields glyph samples from a directory of font files.
+class GlyphDataset(Dataset[_T], Generic[_T]):
+    """Dataset that yields glyph samples or transform outputs from font files.
 
     The dataset flattens every available code point and variation instance into
-    a single indexable sequence. Each item returns the loader output along with
-    style and content targets.
+    a single indexable sequence. By default, each item returns the loader output
+    along with style and content targets as a ``GlyphSample``. When ``transform``
+    is provided, each item returns the transform output instead.
 
     Attributes:
         targets (torch.LongTensor): Label matrix of shape ``(N, 2)`` where
@@ -100,13 +103,33 @@ class GlyphDataset(Dataset[GlyphSample]):
 
     """
 
+    @overload
+    def __init__(
+        self: "GlyphDataset[GlyphSample]",
+        root: Path | str,
+        *,
+        codepoints: Sequence[SupportsIndex] | None = None,
+        patterns: Sequence[str] | None = None,
+        transform: None = None,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: "GlyphDataset[_T]",
+        root: Path | str,
+        *,
+        codepoints: Sequence[SupportsIndex] | None = None,
+        patterns: Sequence[str] | None = None,
+        transform: Callable[[GlyphSample], _T],
+    ) -> None: ...
+
     def __init__(
         self,
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
-        transform: (Callable[[GlyphSample], GlyphSample] | None) = None,
+        transform: (Callable[[GlyphSample], _T] | None) = None,
     ) -> None:
         """Initialize the dataset by scanning font files and indexing samples.
 
@@ -127,9 +150,10 @@ class GlyphDataset(Dataset[GlyphSample]):
                 ``.ignore``, global gitignore, or git exclude rules) is applied;
                 all such behavior must be expressed via ``patterns``. VCS metadata
                 directories such as ``.git`` remain excluded.
-            transform (Callable[[GlyphSample], GlyphSample] | None):
-                Optional transformation applied to each sample before the item
-                is returned.
+            transform (Callable[[GlyphSample], _T] | None): Optional
+                transformation applied to each sample before the item is returned.
+                When provided, ``_T`` is inferred from the transform return type
+                and becomes the dataset item type.
 
         Examples:
             Restrict the dataset to uppercase ASCII glyphs::
@@ -238,7 +262,16 @@ class GlyphDataset(Dataset[GlyphSample]):
         """
         return int(self._dataset.sample_count)
 
-    def __getitem__(self, idx: SupportsIndex) -> GlyphSample:
+    @overload
+    def __getitem__(
+        self: "GlyphDataset[GlyphSample]",
+        idx: SupportsIndex,
+    ) -> GlyphSample: ...
+
+    @overload
+    def __getitem__(self, idx: SupportsIndex) -> _T: ...
+
+    def __getitem__(self, idx: SupportsIndex) -> _T:
         """Load a glyph sample and its associated targets.
 
         Args:
@@ -248,8 +281,8 @@ class GlyphDataset(Dataset[GlyphSample]):
                 count from the end of the dataset.
 
         Returns:
-            GlyphSample: Structured sample containing ``types``, ``coords``,
-            ``style_idx``, ``content_idx``, ``metrics``, and ``glyph_name``.
+            _T: A ``GlyphSample`` when no transform is provided; otherwise the
+            value returned by ``transform``.
 
         Examples:
             Retrieve the first glyph sample and its target labels::
@@ -278,7 +311,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
         if self.transform is not None:
             return self.transform(sample)
-        return sample
+        return cast("_T", sample)
 
     @property
     def targets(self) -> Tensor:
