@@ -39,7 +39,7 @@ print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 ```
 
 - `CommandType.END` marks end of sequence
-- `CommandType.PAD` is mainly introduced by `pad_sequence` or `Patchify`
+- `CommandType.PAD` is mainly introduced by `pad_sequence` or custom padding
 
 ## `coords`
 
@@ -111,12 +111,8 @@ style_all = t[:, 0]    # column 0: style_idx
 content_all = t[:, 1]  # column 1: content_idx
 ```
 
-## Shapes after transforms
+## Shapes after utilities
 
-With `Patchify`:
-
-- before: `types=(seq_len,)`, `coords=(seq_len, 6)`
-- after: `types=(num_patches, patch_size)`,
-  `coords=(num_patches, patch_size, 6)`
-
-`style_idx` and `content_idx` stay unchanged.
+`quad_to_cubic` preserves both `types` and `coords` shapes. If you add custom
+dataset transforms for model-specific shaping, keep `style_idx` and
+`content_idx` aligned with the returned sample.

@@ -35,7 +35,7 @@ class GlyphBatch(NamedTuple):
             any trailing dimensions are preserved.
         coords (Tensor): Float tensor of shape ``(B, L, ...)`` holding padded
             coordinate values. Only the leading sequence dimension ``L`` is
-            padded; trailing dimensions such as ``patch_size`` are preserved.
+            padded; any trailing dimensions are preserved.
         targets (Tensor): Long tensor of shape ``(B, 2)`` where column 0 is
             style indices and column 1 is content indices.
         metrics (Tensor): Float tensor of shape ``(B, 15)`` holding per-sample
@@ -68,8 +68,7 @@ def collate_fn(
 
     Returns:
         GlyphBatch: Structured batch containing padded tensors. Any trailing
-            dimensions produced by transforms such as ``Patchify`` are
-            preserved.
+            dimensions are preserved.
 
     Examples:
         Plug directly into a DataLoader::

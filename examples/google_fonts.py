@@ -1,19 +1,19 @@
+import dataclasses
+
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from torchfont.datasets import GlyphDataset
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import quad_to_cubic
 from torchfont.utils import collate_fn
 
 
-def main() -> None:
-    transform = Compose(
-        (
-            LimitSequenceLength(max_len=512),
-            Patchify(patch_size=32),
-        ),
-    )
+def normalize_curves(sample: GlyphSample) -> GlyphSample:
+    types, coords = quad_to_cubic(sample.types, sample.coords)
+    return dataclasses.replace(sample, types=types, coords=coords)
 
+
+def main() -> None:
     dataset = GlyphDataset(
         root="data/google/fonts",
         patterns=(
@@ -22,7 +22,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        transform=transform,
+        transform=normalize_curves,
     )
 
     dataloader = DataLoader(

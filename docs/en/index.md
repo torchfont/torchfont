@@ -38,8 +38,8 @@ features:
       "`GlyphSample` represents one glyph with outline, metrics, and name.
       `collate_fn` builds a padded `GlyphBatch` ready for training."
   - icon: 🧩
-    title: Composable preprocessing
+    title: Flexible preprocessing
     details:
-      "Combine `Compose`, `LimitSequenceLength`, and `Patchify` to match your
-      model input format."
+      "Use small transform utilities such as `quad_to_cubic`, then shape tensors
+      in your dataset or model-specific code."
 ---

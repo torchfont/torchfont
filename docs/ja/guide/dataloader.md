@@ -60,19 +60,7 @@ print(batch.metrics.shape)
 |macOS|`"spawn"` または `"forkserver"`|
 |Windows|`"spawn"`|
 
-## `Patchify` を使う場合
+## カスタム sample 形状
 
-`Patchify` で固定長パッチへ分割しておくと、バッチ時の扱いが単純になります。
-
-```python
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
-
-transform = Compose([
-    LimitSequenceLength(max_len=512),
-    Patchify(patch_size=32),
-])
-```
-
-この場合、`types.shape` は `(num_patches, 32)` になります。サンプルごとに
-`num_patches` が異なる可能性は残るため、サンプル単位でバッチ化するなら
-`collate_fn` 側で padding が必要になることがあります。
+`collate_fn` は先頭のシーケンス次元だけを padding します。dataset transform が
+末尾次元を増やす場合、その末尾次元は batch 化後も保持されます。

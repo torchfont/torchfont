@@ -1,263 +1,51 @@
-"""Composable transforms for polishing tensor glyph sequences before training.
-
-Notes:
-    Each transform is intentionally small and deterministic, allowing you to mix
-    and match them in :class:`torch.utils.data.Dataset` pipelines without losing
-    track of where normalization occurs.
-
-Examples:
-    Normalize and patch glyph tensors in a single pipeline::
-
-        pipeline = Compose([QuadToCubic(), LimitSequenceLength(256), Patchify(32)])
-
-"""
+"""Utility functions for polishing glyph tensors before training."""
 
 from __future__ import annotations
 
-import dataclasses
-from typing import TYPE_CHECKING
-
 import torch
+from torch import Tensor
 
 from torchfont.io import CommandType
 
-if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
 
-    from torchfont.datasets import GlyphSample
+def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    """Convert ``CommandType.QUAD_TO`` entries to ``CommandType.CURVE_TO``.
 
+    The command and coordinate shapes are preserved. Coordinate rows use the
+    ``[cx0, cy0, cx1, cy1, x, y]`` layout, with quadratic control points read
+    from ``[cx0, cy0]`` and endpoints from ``[x, y]``.
 
-class Compose:
-    """Apply a curated list of transform callables to every sample.
-
-    See Also:
-        LimitSequenceLength: Useful when a hard cap is required before adding
-        more expensive stages.
-
+    The last dimension of ``types`` is treated as the sequence dimension. Any
+    leading dimensions are independent sequences, so call this before chunking a
+    continuous outline if endpoint continuity must cross chunk boundaries.
     """
+    quad = types == CommandType.QUAD_TO.value
 
-    def __init__(
-        self,
-        transforms: Sequence[Callable[[GlyphSample], GlyphSample]],
-    ) -> None:
-        """Store the ordered transform pipeline.
+    if not torch.any(quad):
+        return types, coords
 
-        Args:
-            transforms (Sequence[Callable]): Operations that accept and return
-                compatible sample types.
-                Ordering matters, so place
-                stateful or lossy transforms later in the list.
+    out_types = types.clone()
+    out_coords = coords.clone()
 
-        Examples:
-            Combine truncation with patching::
+    # In valid outline streams, the previous command endpoint is the current
+    # point for a quadratic segment. Leading dimensions are independent samples.
+    prev = torch.zeros_like(out_coords[..., 0:2])
+    prev[..., 1:, :] = out_coords[..., :-1, 4:6]
 
-                Compose([LimitSequenceLength(256), Patchify(32)])
+    flat_quad = quad.reshape(-1)
+    flat_types = out_types.reshape(-1)
+    flat_coords = out_coords.reshape(-1, coords.size(-1))
+    flat_prev = prev.reshape(-1, 2)
 
-        """
-        self.transforms = transforms
+    q_prev = flat_prev[flat_quad]
+    q_ctrl = flat_coords[flat_quad, 0:2]
+    q_end = flat_coords[flat_quad, 4:6]
 
-    def __call__(self, sample: GlyphSample) -> GlyphSample:
-        """Apply every transform in order to the provided sample.
+    flat_coords[flat_quad, 0:2] = q_prev + (2.0 / 3.0) * (q_ctrl - q_prev)
+    flat_coords[flat_quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
+    flat_types[flat_quad] = CommandType.CURVE_TO.value
 
-        Args:
-            sample (GlyphSample): Input sample.
-
-        Returns:
-            GlyphSample: Resulting sample after all transformations are applied.
-
-        Examples:
-            Run the composed pipeline on a glyph sample::
-
-                sample = pipeline(sample)
-
-        """
-        for t in self.transforms:
-            sample = t(sample)
-        return sample
+    return out_types, out_coords
 
 
-class LimitSequenceLength:
-    """Trim glyph sequences to a predictable maximum length.
-
-    See Also:
-        Patchify: Converts sequences into fixed-size blocks after truncation so
-        transformer-style models see a uniform layout.
-
-    """
-
-    def __init__(self, max_len: int) -> None:
-        """Initialize the transform with the desired maximum length.
-
-        Args:
-            max_len (int): Maximum number of time steps to keep. Must be
-                non-negative. Any surplus command or coordinate pairs are
-                discarded.
-
-        Examples:
-            Cap sequences at 512 steps::
-
-                LimitSequenceLength(512)
-
-        """
-        if max_len < 0:
-            msg = "max_len must be >= 0"
-            raise ValueError(msg)
-        self.max_len = max_len
-
-    def __call__(self, sample: GlyphSample) -> GlyphSample:
-        """Clip the sequence and coordinate tensors to the specified length.
-
-        Args:
-            sample (GlyphSample): Input sample.
-
-        Returns:
-            GlyphSample: Sample with ``types`` and ``coords`` truncated to
-            ``max_len`` steps.
-
-        Warnings:
-            Elements beyond ``max_len`` are removed rather than padded or
-            aggregated, so downstream code should account for the shorter tail.
-
-        Examples:
-            Clamp a sample to 128 steps::
-
-                sample = LimitSequenceLength(128)(sample)
-
-        """
-        return dataclasses.replace(
-            sample,
-            types=sample.types[: self.max_len],
-            coords=sample.coords[: self.max_len],
-        )
-
-
-class QuadToCubic:
-    """Convert quadratic segments into cubic segments in tensor form.
-
-    Notes:
-        This transform rewrites only `CommandType.QUAD_TO` rows and leaves all
-        other commands untouched. Coordinate dimensionality stays at 6.
-
-    """
-
-    def __call__(self, sample: GlyphSample) -> GlyphSample:
-        """Convert `QUAD_TO` entries to `CURVE_TO`.
-
-        Args:
-            sample (GlyphSample): Input sample whose ``types`` values follow
-                `CommandType` and whose ``coords`` last dimension is at least
-                6 and layout `[cx0, cy0, cx1, cy1, x, y]`.
-
-        Returns:
-            GlyphSample: Sample with quadratic segments rewritten as cubic
-            segments. Returns the original sample unchanged if no ``QUAD_TO``
-            commands are present.
-
-        """
-        types = sample.types
-        coords = sample.coords
-        flat_types = types.reshape(-1)
-        flat_coords = coords.reshape(-1, coords.size(-1))
-        quad = flat_types == CommandType.QUAD_TO.value
-
-        if not torch.any(quad):
-            return sample
-
-        out_types = flat_types.clone()
-        out_coords = flat_coords.clone()
-
-        # In valid outline streams, the previous command endpoint is the
-        # current point for a quadratic segment.
-        prev = torch.zeros_like(out_coords[:, 0:2])
-        prev[1:] = out_coords[:-1, 4:6]
-
-        q_prev = prev[quad]
-        q_ctrl = out_coords[quad, 0:2]
-        q_end = out_coords[quad, 4:6]
-
-        out_coords[quad, 0:2] = q_prev + (2.0 / 3.0) * (q_ctrl - q_prev)
-        out_coords[quad, 2:4] = q_end + (2.0 / 3.0) * (q_ctrl - q_end)
-        out_types[quad] = CommandType.CURVE_TO.value
-
-        return dataclasses.replace(
-            sample,
-            types=out_types.view_as(types),
-            coords=out_coords.view_as(coords),
-        )
-
-
-class Patchify:
-    """Pad glyph sequences and reshape them into uniform, model-friendly patches.
-
-    See Also:
-        LimitSequenceLength: Apply beforehand when you need a strict ceiling on
-        the number of emitted patches.
-
-    """
-
-    def __init__(self, patch_size: int) -> None:
-        """Configure the patch length for reshaping sequences.
-
-        Args:
-            patch_size (int): Number of time steps captured in each patch. Must
-                be positive. Choose values that align with the receptive field
-                of your downstream model.
-
-        Examples:
-            Create 32-step patches for transformer models::
-
-                Patchify(32)
-
-        """
-        if patch_size < 1:
-            msg = "patch_size must be >= 1"
-            raise ValueError(msg)
-        self.patch_size = patch_size
-
-    def __call__(self, sample: GlyphSample) -> GlyphSample:
-        """Pad and reshape sequences into contiguous patches.
-
-        Args:
-            sample (GlyphSample): Input sample.
-
-        Returns:
-            GlyphSample: Sample whose ``types`` have shape
-            ``(num_patches, patch_size)`` and ``coords`` have shape
-            ``(num_patches, patch_size, 6)``. Trailing zeros are added
-            only when needed for alignment.
-
-        Tips:
-            Pair with :class:`LimitSequenceLength` to bound the worst-case number
-            of patches in a batch.
-
-        Examples:
-            Reshape a glyph sequence into patches of 64 steps::
-
-                patch_sample = Patchify(64)(sample)
-
-        """
-        types = sample.types
-        coords = sample.coords
-        seq_len = types.size(0)
-        pad = (-seq_len) % self.patch_size
-        num_patches = (seq_len + pad) // self.patch_size
-
-        pad_types = torch.cat([types, types.new_zeros(pad)], 0)
-        pad_coords = torch.cat([coords, coords.new_zeros(pad, coords.size(1))], 0)
-
-        patch_types = pad_types.view(num_patches, self.patch_size)
-        patch_coords = pad_coords.view(num_patches, self.patch_size, coords.size(1))
-
-        return dataclasses.replace(
-            sample,
-            types=patch_types,
-            coords=patch_coords,
-        )
-
-
-__all__ = [
-    "Compose",
-    "LimitSequenceLength",
-    "Patchify",
-    "QuadToCubic",
-]
+__all__ = ["quad_to_cubic"]
