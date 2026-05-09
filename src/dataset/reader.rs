@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub(super) type GlyphItemData = (
-    Vec<i32>,
+    Vec<i64>,
     Vec<f32>,
     f32,
     f32,

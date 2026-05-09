@@ -133,16 +133,8 @@ impl GlyphDataset {
             italic_angle,
             glyph_name,
         ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
-        let mut types_bytes = Vec::with_capacity(types.len() * std::mem::size_of::<i64>());
-        for &t in &types {
-            types_bytes.extend_from_slice(&(t as i64).to_ne_bytes());
-        }
-        let coords_bytes: Vec<u8> = {
-            let bytes: &[u8] = unsafe {
-                std::slice::from_raw_parts(coords.as_ptr().cast::<u8>(), coords.len() * 4)
-            };
-            bytes.to_vec()
-        };
+        let types_bytes = bytes_from_slice(&types);
+        let coords_bytes = bytes_from_slice(&coords);
         let metrics_f32: [f32; 15] = [
             adv_w,
             lsb,
@@ -160,11 +152,7 @@ impl GlyphDataset {
             upem as f32,
             if is_monospace { 1.0_f32 } else { 0.0_f32 },
         ];
-        let metrics_bytes: Vec<u8> = {
-            let bytes: &[u8] =
-                unsafe { std::slice::from_raw_parts(metrics_f32.as_ptr().cast::<u8>(), 15 * 4) };
-            bytes.to_vec()
-        };
+        let metrics_bytes = bytes_from_slice(&metrics_f32);
         Ok(GlyphItem {
             types: types_bytes,
             coords: coords_bytes,
@@ -277,6 +265,13 @@ impl GlyphDataset {
 
         Ok((font_idx, instance, cp, style_idx, content_idx))
     }
+}
+
+fn bytes_from_slice<T: Copy>(values: &[T]) -> Vec<u8> {
+    let bytes = unsafe {
+        std::slice::from_raw_parts(values.as_ptr().cast::<u8>(), std::mem::size_of_val(values))
+    };
+    bytes.to_vec()
 }
 
 fn style_label_id(
