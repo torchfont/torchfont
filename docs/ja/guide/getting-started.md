@@ -110,9 +110,9 @@ Git などで更新したあとは、ネイティブな indexing state がディ
 
 ## よくある最初の改善
 
-- 長すぎるシーケンスを制限する: `LimitSequenceLength(max_len=...)`
-- 2 次セグメントを 3 次へ統一する: `QuadToCubic()`
-- 固定長の入力へ揃える: `Patchify(patch_size=...)`
+- 長すぎるシーケンスを制限する: `limit_sequence_length(types, coords, max_len=...)`
+- 2 次セグメントを 3 次へ統一する: `quad_to_cubic(types, coords)`
+- 固定長の入力へ揃える: `patchify(types, coords, patch_size=...)`
 - 学習対象を絞る: `codepoints=` や `patterns=`
 
 ## 次に読むページ

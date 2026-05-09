@@ -60,18 +60,21 @@ Keep those options unset when `num_workers=0`.
 | macOS    | `"spawn"` or `"forkserver"`           |
 | Windows  | `"spawn"`                             |
 
-## Using `Patchify`
+## Using `patchify`
 
-`Patchify` splits each sample into fixed-size patches, which simplifies batching
+`patchify` splits each sample into fixed-size patches, which simplifies batching
 logic.
 
 ```python
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+import dataclasses
 
-transform = Compose([
-    LimitSequenceLength(max_len=512),
-    Patchify(patch_size=32),
-])
+from torchfont.transforms import limit_sequence_length, patchify
+
+
+def transform(sample):
+    types, coords = limit_sequence_length(sample.types, sample.coords, max_len=512)
+    types, coords = patchify(types, coords, patch_size=32)
+    return dataclasses.replace(sample, types=types, coords=coords)
 ```
 
 After this transform, `types.shape` becomes `(num_patches, 32)`. If you still

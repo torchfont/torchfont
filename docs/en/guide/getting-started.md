@@ -110,9 +110,9 @@ incorrect samples or runtime errors.
 
 ## Common Next Tweaks
 
-- Limit long sequences: `LimitSequenceLength(max_len=...)`
-- Convert quadratic segments to cubic: `QuadToCubic()`
-- Use fixed-size inputs: `Patchify(patch_size=...)`
+- Limit long sequences: `limit_sequence_length(types, coords, max_len=...)`
+- Convert quadratic segments to cubic: `quad_to_cubic(types, coords)`
+- Use fixed-size inputs: `patchify(types, coords, patch_size=...)`
 - Narrow the dataset scope: `codepoints=` and `patterns=`
 
 ## Read Next

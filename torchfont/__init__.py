@@ -7,9 +7,9 @@ Notes:
 
 Features:
     * A primary ``GlyphDataset`` API for local font directories and checkouts.
-    * A Rust backend that renders glyph outlines directly into PyTorch-ready
+    * A Rust backend that decodes glyph outlines directly into PyTorch-ready
       tensors.
-    * Composable transform primitives for truncation and patch-based reshaping.
+    * Stateless transform utilities for truncation, patching, and curve conversion.
     * A built-in ``collate_fn`` that emits ``GlyphBatch`` values with masks.
 
 Examples:

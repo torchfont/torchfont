@@ -22,7 +22,7 @@ import dataclasses
 from collections.abc import Callable, Sequence
 from operator import index
 from pathlib import Path
-from typing import SupportsIndex, cast
+from typing import SupportsIndex, TypeVar, cast, overload
 
 import torch
 from torch import Tensor
@@ -39,6 +39,8 @@ from torchfont.metadata import (
     StyleMetadataRow,
     build_dataset_metadata,
 )
+
+_T = TypeVar("_T")
 
 
 @dataclasses.dataclass
@@ -72,7 +74,7 @@ class GlyphSample:
     glyph_name: str
 
 
-class GlyphDataset(Dataset[GlyphSample]):
+class GlyphDataset(Dataset[_T]):
     """Dataset that yields glyph samples from a directory of font files.
 
     The dataset flattens every available code point and variation instance into
@@ -100,13 +102,33 @@ class GlyphDataset(Dataset[GlyphSample]):
 
     """
 
+    @overload
+    def __init__(
+        self: "GlyphDataset[GlyphSample]",
+        root: Path | str,
+        *,
+        codepoints: Sequence[SupportsIndex] | None = ...,
+        patterns: Sequence[str] | None = ...,
+        transform: None = ...,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: "GlyphDataset[_T]",
+        root: Path | str,
+        *,
+        codepoints: Sequence[SupportsIndex] | None = ...,
+        patterns: Sequence[str] | None = ...,
+        transform: Callable[[GlyphSample], _T],
+    ) -> None: ...
+
     def __init__(
         self,
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
-        transform: (Callable[[GlyphSample], GlyphSample] | None) = None,
+        transform: Callable[[GlyphSample], _T] | None = None,
     ) -> None:
         """Initialize the dataset by scanning font files and indexing samples.
 
@@ -127,9 +149,10 @@ class GlyphDataset(Dataset[GlyphSample]):
                 ``.ignore``, global gitignore, or git exclude rules) is applied;
                 all such behavior must be expressed via ``patterns``. VCS metadata
                 directories such as ``.git`` remain excluded.
-            transform (Callable[[GlyphSample], GlyphSample] | None):
+            transform (Callable[[GlyphSample], _T] | None):
                 Optional transformation applied to each sample before the item
-                is returned.
+                is returned. When provided, ``__getitem__`` returns ``_T`` instead
+                of ``GlyphSample``.
 
         Examples:
             Restrict the dataset to uppercase ASCII glyphs::
@@ -238,7 +261,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         """
         return int(self._dataset.sample_count)
 
-    def __getitem__(self, idx: SupportsIndex) -> GlyphSample:
+    def __getitem__(self, idx: SupportsIndex) -> _T:
         """Load a glyph sample and its associated targets.
 
         Args:
@@ -248,8 +271,8 @@ class GlyphDataset(Dataset[GlyphSample]):
                 count from the end of the dataset.
 
         Returns:
-            GlyphSample: Structured sample containing ``types``, ``coords``,
-            ``style_idx``, ``content_idx``, ``metrics``, and ``glyph_name``.
+            GlyphSample | _T: The raw ``GlyphSample`` when no transform is
+            set, or the result of applying ``transform`` to the sample.
 
         Examples:
             Retrieve the first glyph sample and its target labels::
@@ -278,7 +301,7 @@ class GlyphDataset(Dataset[GlyphSample]):
         )
         if self.transform is not None:
             return self.transform(sample)
-        return sample
+        return sample  # type: ignore[return-value]
 
     @property
     def targets(self) -> Tensor:

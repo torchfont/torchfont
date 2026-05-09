@@ -39,7 +39,7 @@ print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 ```
 
 - `CommandType.END` marks end of sequence
-- `CommandType.PAD` is mainly introduced by `pad_sequence` or `Patchify`
+- `CommandType.PAD` is mainly introduced by `pad_sequence` or `patchify`
 
 ## `coords`
 
@@ -113,7 +113,7 @@ content_all = t[:, 1]  # column 1: content_idx
 
 ## Shapes after transforms
 
-With `Patchify`:
+With `patchify`:
 
 - before: `types=(seq_len,)`, `coords=(seq_len, 6)`
 - after: `types=(num_patches, patch_size)`,

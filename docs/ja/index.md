@@ -31,5 +31,5 @@ features:
     details: "`GlyphSample` が 1 グリフ、`collate_fn` が padded tensor と mask を持つ `GlyphBatch` を返します。"
   - icon: 🧩
     title: 合成可能な前処理
-    details: "`Compose` / `LimitSequenceLength` / `Patchify` を組み合わせ、モデルに合わせた入力形式へ調整できます。"
+    details: "`limit_sequence_length` / `patchify` と独自の transform callable を組み合わせ、モデルに合わせた入力形式へ調整できます。"
 ---

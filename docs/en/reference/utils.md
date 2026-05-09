@@ -20,7 +20,7 @@ Structured return type for `collate_fn`.
 `batch.targets[:, 0]` holds style indices and `batch.targets[:, 1]` holds content
 indices. `batch.metrics` columns follow the same order as `GlyphSample.metrics`.
 `collate_fn` only pads along the sequence dimension `L`; trailing dimensions
-produced by transforms like `Patchify` are preserved.
+produced by utilities like `patchify` are preserved.
 
 ## `collate_fn`
 

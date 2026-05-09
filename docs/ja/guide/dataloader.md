@@ -60,17 +60,20 @@ print(batch.metrics.shape)
 |macOS|`"spawn"` または `"forkserver"`|
 |Windows|`"spawn"`|
 
-## `Patchify` を使う場合
+## `patchify` を使う場合
 
-`Patchify` で固定長パッチへ分割しておくと、バッチ時の扱いが単純になります。
+`patchify` で固定長パッチへ分割しておくと、バッチ時の扱いが単純になります。
 
 ```python
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+import dataclasses
 
-transform = Compose([
-    LimitSequenceLength(max_len=512),
-    Patchify(patch_size=32),
-])
+from torchfont.transforms import limit_sequence_length, patchify
+
+
+def transform(sample):
+    types, coords = limit_sequence_length(sample.types, sample.coords, max_len=512)
+    types, coords = patchify(types, coords, patch_size=32)
+    return dataclasses.replace(sample, types=types, coords=coords)
 ```
 
 この場合、`types.shape` は `(num_patches, 32)` になります。サンプルごとに

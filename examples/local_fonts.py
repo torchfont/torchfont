@@ -1,18 +1,19 @@
+import dataclasses
+
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import patchify
 from torchfont.utils import collate_fn
 
 
-def main() -> None:
-    transform = Compose(
-        (
-            LimitSequenceLength(max_len=256),
-            Patchify(patch_size=32),
-        ),
-    )
+def transform(sample: GlyphSample) -> GlyphSample:
+    types, coords = sample.types[:256], sample.coords[:256]
+    types, coords = patchify(types, coords, patch_size=32)
+    return dataclasses.replace(sample, types=types, coords=coords)
 
+
+def main() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("*.ttf",),

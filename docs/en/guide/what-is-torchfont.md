@@ -47,10 +47,9 @@ more time on model design.
   - normalizes coordinates by `units_per_em`
   - keeps quadratic and cubic Beziers as distinct command types
 - **Transform layer**
-  - `QuadToCubic`: normalize `QUAD_TO` into `CURVE_TO`
-  - `LimitSequenceLength`: truncate long sequences
-  - `Patchify`: reshape into fixed-length patches
-  - `Compose`: chain transforms in order
+  - `quad_to_cubic`: normalize `QUAD_TO` into `CURVE_TO`
+  - `limit_sequence_length`: truncate long sequences
+  - `patchify`: reshape into fixed-length patches
 - **Batching utilities**
   - `collate_fn`: pads variable-length samples into `GlyphBatch`
   - `GlyphBatch.targets`: style and content indices as `(B, 2)` tensor

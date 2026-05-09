@@ -75,18 +75,20 @@ git -C data/google/fonts rev-parse HEAD
 ## 学習パイプライン例
 
 ```python
+import dataclasses
 import sys
 
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify
+from torchfont.transforms import limit_sequence_length, patchify
 from torchfont.utils import collate_fn
 
-transform = Compose([
-    LimitSequenceLength(max_len=512),
-    Patchify(patch_size=32),
-])
+
+def transform(sample):
+    types, coords = limit_sequence_length(sample.types, sample.coords, max_len=512)
+    types, coords = patchify(types, coords, patch_size=32)
+    return dataclasses.replace(sample, types=types, coords=coords)
 
 dataset = GlyphDataset(
     root="data/google/fonts",

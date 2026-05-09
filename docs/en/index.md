@@ -40,6 +40,6 @@ features:
   - icon: 🧩
     title: Composable preprocessing
     details:
-      "Combine `Compose`, `LimitSequenceLength`, and `Patchify` to match your
+      "Combine `limit_sequence_length`, `patchify`, and your own transform callable to match your
       model input format."
 ---

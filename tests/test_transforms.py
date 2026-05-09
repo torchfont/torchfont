@@ -1,16 +1,14 @@
 import pytest
 import torch
 
-from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import Compose, LimitSequenceLength, Patchify, QuadToCubic
-
-_ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
+from torchfont.transforms import (
+    patchify,
+    quad_to_cubic,
+)
 
 
 def test_quad_to_cubic_converts_quadratic_segments() -> None:
-    transform = QuadToCubic()
-
     types = torch.tensor(
         [
             CommandType.MOVE_TO.value,
@@ -34,15 +32,7 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(
-        types=types,
-        coords=coords,
-        style_idx=3,
-        content_idx=7,
-        metrics=_ZERO_METRICS,
-        glyph_name="",
-    )
-    out = transform(sample)
+    out_types, out_coords = quad_to_cubic(types, coords)
 
     expected_types = torch.tensor(
         [
@@ -67,15 +57,11 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    assert torch.equal(out.types, expected_types)
-    assert torch.allclose(out.coords, expected_coords)
-    assert out.style_idx == sample.style_idx
-    assert out.content_idx == sample.content_idx
+    assert torch.equal(out_types, expected_types)
+    assert torch.allclose(out_coords, expected_coords)
 
 
 def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
-    transform = QuadToCubic()
-
     types = torch.tensor(
         [CommandType.MOVE_TO.value, CommandType.LINE_TO.value, CommandType.END.value],
         dtype=torch.long,
@@ -89,22 +75,13 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(
-        types=types,
-        coords=coords,
-        style_idx=1,
-        content_idx=2,
-        metrics=_ZERO_METRICS,
-        glyph_name="",
-    )
-    out = transform(sample)
+    out_types, out_coords = quad_to_cubic(types, coords)
 
-    assert out is sample
+    assert out_types is types
+    assert out_coords is coords
 
 
 def test_quad_to_cubic_supports_patchified_shapes() -> None:
-    transform = QuadToCubic()
-
     types = torch.tensor(
         [
             [CommandType.MOVE_TO.value, CommandType.QUAD_TO.value],
@@ -120,73 +97,45 @@ def test_quad_to_cubic_supports_patchified_shapes() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(
-        types=types,
-        coords=coords,
-        style_idx=4,
-        content_idx=5,
-        metrics=_ZERO_METRICS,
-        glyph_name="",
-    )
-    out = transform(sample)
+    out_types, out_coords = quad_to_cubic(types, coords)
 
-    assert out.types.shape == types.shape
-    assert out.coords.shape == coords.shape
-    assert out.types[0, 1].item() == CommandType.CURVE_TO.value
+    assert out_types.shape == types.shape
+    assert out_coords.shape == coords.shape
+    assert out_types[0, 1].item() == CommandType.CURVE_TO.value
     assert torch.allclose(
-        out.coords[0, 1],
+        out_coords[0, 1],
         torch.tensor([0.0, 2.0 / 3.0, 1.0 / 3.0, 1.0, 1.0, 1.0], dtype=torch.float32),
     )
-    assert out.style_idx == sample.style_idx
-    assert out.content_idx == sample.content_idx
 
 
-def test_compose_preserves_metadata_across_sample_first_pipeline() -> None:
-    transform = Compose((QuadToCubic(), LimitSequenceLength(max_len=2)))
-
-    sample = GlyphSample(
-        types=torch.tensor(
-            [
-                CommandType.MOVE_TO.value,
-                CommandType.QUAD_TO.value,
-                CommandType.END.value,
-            ],
-            dtype=torch.long,
-        ),
-        coords=torch.tensor(
-            [
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 1.0, 1.0],
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            ],
-            dtype=torch.float32,
-        ),
-        style_idx=11,
-        content_idx=13,
-        metrics=_ZERO_METRICS,
-        glyph_name="",
+def test_transform_functions_return_types_and_coords() -> None:
+    types = torch.tensor(
+        [
+            CommandType.MOVE_TO.value,
+            CommandType.QUAD_TO.value,
+            CommandType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
     )
 
-    out = transform(sample)
+    out_types, out_coords = quad_to_cubic(types, coords)
+    out_types, out_coords = out_types[:2], out_coords[:2]
 
-    assert out.style_idx == sample.style_idx
-    assert out.content_idx == sample.content_idx
-    assert out.types.shape[0] == 2
-    assert out.coords.shape[0] == 2
+    assert out_types.shape[0] == 2
+    assert out_coords.shape[0] == 2
 
 
-@pytest.mark.parametrize(
-    ("transform_cls", "kwargs", "expected_message"),
-    [
-        (LimitSequenceLength, {"max_len": -1}, "max_len must be >= 0"),
-        (Patchify, {"patch_size": 0}, "patch_size must be >= 1"),
-        (Patchify, {"patch_size": -1}, "patch_size must be >= 1"),
-    ],
-)
-def test_transform_constructors_validate_invalid_arguments(
-    transform_cls: type[LimitSequenceLength] | type[Patchify],
-    kwargs: dict[str, int],
-    expected_message: str,
-) -> None:
-    with pytest.raises(ValueError, match=expected_message):
-        transform_cls(**kwargs)
+@pytest.mark.parametrize("patch_size", [0, -1])
+def test_patchify_rejects_invalid_patch_size(patch_size: int) -> None:
+    types = torch.tensor([CommandType.END.value], dtype=torch.long)
+    coords = torch.zeros(1, 6)
+    with pytest.raises(ValueError, match="patch_size must be >= 1"):
+        patchify(types, coords, patch_size=patch_size)

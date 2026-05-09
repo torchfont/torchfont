@@ -68,7 +68,7 @@ def collate_fn(
 
     Returns:
         GlyphBatch: Structured batch containing padded tensors. Any trailing
-            dimensions produced by transforms such as ``Patchify`` are
+            dimensions produced by utilities such as ``patchify`` are
             preserved.
 
     Examples:

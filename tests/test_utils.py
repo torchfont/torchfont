@@ -1,10 +1,12 @@
+import dataclasses
+
 import pytest
 import torch
 from torch.utils.data import DataLoader
 
 import torchfont.utils as utils_module
-from torchfont.datasets import GlyphDataset
-from torchfont.transforms import Patchify
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import patchify
 from torchfont.utils import GlyphBatch, collate_fn
 
 
@@ -95,11 +97,15 @@ def test_collate_fn_keeps_tensors_on_sample_device() -> None:
 
 
 def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
+    def transform(sample: GlyphSample) -> GlyphSample:
+        types, coords = patchify(sample.types, sample.coords, patch_size=4)
+        return dataclasses.replace(sample, types=types, coords=coords)
+
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x45),
-        transform=Patchify(4),
+        transform=transform,
     )
 
     batch = [dataset[i] for i in range(2)]
