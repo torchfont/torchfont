@@ -31,7 +31,7 @@ def collate_outline(
 
     Pads the leading variable-length sequence dimension of ``types`` and
     ``coords`` to the longest sample in the batch. Suitable for use as the
-    ``collate_outline`` argument of :class:`~torch.utils.data.DataLoader`.
+    ``collate_fn`` argument of :class:`~torch.utils.data.DataLoader`.
 
     Args:
         batch: Sequence of ``(types, coords)`` pairs as returned by a dataset
