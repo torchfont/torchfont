@@ -8,11 +8,11 @@ def quad_to_cubic_inplace(
 ) -> None: ...
 
 class GlyphItem:
-    types: bytes
-    coords: bytes
+    types: np.ndarray
+    coords: np.ndarray
     style_idx: int
     content_idx: int
-    metrics: bytes
+    metrics: np.ndarray
     glyph_name: str
 
 class GlyphDataset:
@@ -31,4 +31,4 @@ class GlyphDataset:
     def style_metadata_rows(self, root: str) -> list[tuple[str, str]]: ...
     style_axes: list[list[tuple[str, float]]]
     def item(self, idx: int) -> GlyphItem: ...
-    def targets(self) -> bytes: ...
+    def targets(self) -> np.ndarray: ...

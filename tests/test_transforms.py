@@ -4,7 +4,7 @@ from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
 from torchfont.transforms import quad_to_cubic
 
-_ZERO_METRICS = bytes(60)  # 15 x 0.0 as f32, placeholder for transform tests
+_ZERO_METRICS = torch.zeros(15, dtype=torch.float32)  # placeholder for transform tests
 
 
 def test_quad_to_cubic_converts_quadratic_segments() -> None:

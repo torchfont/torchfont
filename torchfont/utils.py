@@ -93,14 +93,7 @@ def collate_fn(
     targets_tensor = torch.tensor(
         [(s.style_idx, s.content_idx) for s in batch], dtype=torch.long, device=device
     )
-    metrics_tensor = (
-        torch.frombuffer(
-            bytearray().join(s.metrics for s in batch),
-            dtype=torch.float32,
-        )
-        .view(len(batch), 15)
-        .to(device)
-    )
+    metrics_tensor = torch.stack([s.metrics for s in batch]).to(device)
 
     return GlyphBatch(
         types=types_tensor,

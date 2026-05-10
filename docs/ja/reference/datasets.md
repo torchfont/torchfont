@@ -81,7 +81,7 @@ sample = dataset[idx]
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
 | `sample.style_idx`   | `int`               | スカラー       |
 | `sample.content_idx` | `int`               | スカラー       |
-| `sample.metrics`     | `bytes`             | 15 × f32      |
+| `sample.metrics`     | `torch.FloatTensor` | `(15,)`       |
 | `sample.glyph_name`  | `str`               | —             |
 
 `transform` なしでは `sample` 自体の型は `GlyphSample` です。`transform`

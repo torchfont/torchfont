@@ -53,15 +53,13 @@ class GlyphSample:
             coordinate data for each command.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
-        metrics (bytes): Raw native-endian ``f32`` bytes for 15 metrics.
-            Column order: ``advance_width``, ``lsb``, ``x_min``, ``y_min``,
-            ``x_max``, ``y_max``, ``ascent``, ``descent``, ``leading``,
-            ``cap_height``, ``x_height``, ``average_width``, ``italic_angle``,
-            ``units_per_em`` (cast to f32), ``is_monospace`` (0.0 or 1.0).
-            UPM-normalised where applicable; ``nan`` when missing.
-            Decode with
-            ``torch.frombuffer(bytearray(sample.metrics), dtype=torch.float32)``
-            to obtain a 1-D float tensor of shape ``(15,)``.
+        metrics (Tensor): 1-D float tensor of shape ``(15,)`` holding per-sample
+            metrics. Column order: ``advance_width``, ``lsb``, ``x_min``,
+            ``y_min``, ``x_max``, ``y_max``, ``ascent``, ``descent``,
+            ``leading``, ``cap_height``, ``x_height``, ``average_width``,
+            ``italic_angle``, ``units_per_em`` (cast to f32),
+            ``is_monospace`` (0.0 or 1.0). UPM-normalised where applicable;
+            ``nan`` when missing.
         glyph_name (str): PostScript name of the glyph.
 
     """
@@ -70,7 +68,7 @@ class GlyphSample:
     coords: Tensor
     style_idx: int
     content_idx: int
-    metrics: bytes
+    metrics: Tensor
     glyph_name: str
 
 
@@ -297,16 +295,15 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         """
         idx = self._normalize_index(idx)
         item = self._dataset.item(idx)
-        types = torch.frombuffer(bytearray(item.types), dtype=torch.long)
-        coords = torch.frombuffer(bytearray(item.coords), dtype=torch.float32).view(
-            -1, COORD_DIM
-        )
+        types = torch.from_numpy(item.types)
+        coords = torch.from_numpy(item.coords).view(-1, COORD_DIM)
+        metrics = torch.from_numpy(item.metrics)
         sample = GlyphSample(
             types=types,
             coords=coords,
             style_idx=item.style_idx,
             content_idx=item.content_idx,
-            metrics=item.metrics,
+            metrics=metrics,
             glyph_name=item.glyph_name,
         )
         if self.transform is not None:
@@ -332,10 +329,10 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             tensor([style_idx, content_idx])
 
         """
-        raw = self._dataset.targets()
-        if not raw:
+        arr = self._dataset.targets()
+        if arr.size == 0:
             return torch.empty(0, 2, dtype=torch.long)
-        return torch.frombuffer(bytearray(raw), dtype=torch.long).view(-1, 2)
+        return torch.from_numpy(arr).view(-1, 2)
 
     @property
     def content_classes(self) -> list[str]:

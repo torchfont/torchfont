@@ -7,23 +7,22 @@ use crate::error::py_index_err;
 use entry::FontEntry;
 use index::{DatasetIndex, load_entries_and_index};
 use io::{canonicalize_root, discover_font_files};
+use numpy::{IntoPyArray as _, PyArray1};
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
 use std::path::Path;
 
 #[pyclass(get_all)]
 pub struct GlyphItem {
-    /// Raw native-endian ``i64`` bytes, one per pen command.
-    pub types: Vec<u8>,
-    /// Raw native-endian ``f32`` bytes, six values per pen command.
-    pub coords: Vec<u8>,
+    /// One ``i64`` per pen command.
+    pub types: Py<PyArray1<i64>>,
+    /// Six ``f32`` values per pen command (flat).
+    pub coords: Py<PyArray1<f32>>,
     pub style_idx: usize,
     pub content_idx: usize,
-    /// Raw native-endian ``f32`` bytes for 15 float metrics (in order):
-    /// advance_width, lsb, x_min, y_min, x_max, y_max,
+    /// 15 ``f32`` metrics: advance_width, lsb, x_min, y_min, x_max, y_max,
     /// ascent, descent, leading, cap_height, x_height, average_width,
     /// italic_angle, units_per_em (cast to f32), is_monospace (0.0 or 1.0).
-    pub metrics: Vec<u8>,
+    pub metrics: Py<PyArray1<f32>>,
     pub glyph_name: String,
 }
 
@@ -111,7 +110,7 @@ impl GlyphDataset {
         axes
     }
 
-    pub fn item(&self, idx: usize) -> PyResult<GlyphItem> {
+    pub fn item(&self, py: Python<'_>, idx: usize) -> PyResult<GlyphItem> {
         let (font_idx, inst_idx, codepoint, style_idx, content_idx) = self.locate_parts(idx)?;
         let (
             types,
@@ -133,17 +132,13 @@ impl GlyphDataset {
             italic_angle,
             glyph_name,
         ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
-        let mut types_bytes = Vec::with_capacity(types.len() * std::mem::size_of::<i64>());
-        for &t in &types {
-            types_bytes.extend_from_slice(&(t as i64).to_ne_bytes());
-        }
-        let coords_bytes: Vec<u8> = {
-            let bytes: &[u8] = unsafe {
-                std::slice::from_raw_parts(coords.as_ptr().cast::<u8>(), coords.len() * 4)
-            };
-            bytes.to_vec()
-        };
-        let metrics_f32: [f32; 15] = [
+
+        let types_i64: Vec<i64> = types.iter().map(|&t| t as i64).collect();
+        let types_arr = types_i64.into_pyarray(py).unbind();
+
+        let coords_arr = coords.into_pyarray(py).unbind();
+
+        let metrics: Vec<f32> = vec![
             adv_w,
             lsb,
             x_min,
@@ -160,42 +155,36 @@ impl GlyphDataset {
             upem as f32,
             if is_monospace { 1.0_f32 } else { 0.0_f32 },
         ];
-        let metrics_bytes: Vec<u8> = {
-            let bytes: &[u8] =
-                unsafe { std::slice::from_raw_parts(metrics_f32.as_ptr().cast::<u8>(), 15 * 4) };
-            bytes.to_vec()
-        };
+        let metrics_arr = metrics.into_pyarray(py).unbind();
+
         Ok(GlyphItem {
-            types: types_bytes,
-            coords: coords_bytes,
+            types: types_arr,
+            coords: coords_arr,
             style_idx,
             content_idx,
-            metrics: metrics_bytes,
+            metrics: metrics_arr,
             glyph_name,
         })
     }
 
-    pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+    pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<i64>>> {
         let total = self.sample_count();
-        let capacity = total
-            .checked_mul(2)
-            .and_then(|n| n.checked_mul(std::mem::size_of::<i64>()))
-            .ok_or_else(|| {
-                pyo3::exceptions::PyOverflowError::new_err("target buffer size overflowed usize")
-            })?;
-        let mut bytes = Vec::with_capacity(capacity);
+        let capacity = total.checked_mul(2).ok_or_else(|| {
+            pyo3::exceptions::PyOverflowError::new_err("target buffer size overflowed usize")
+        })?;
+        let mut pairs: Vec<i64> = Vec::with_capacity(capacity);
         for (font_idx, entry) in self.entries.iter().enumerate() {
             let inst_offset = self.index.inst_offsets[font_idx];
             for inst_idx in 0..entry.instance_count() {
                 let style_idx = inst_offset + inst_idx;
                 for &cp in entry.codepoints() {
                     let content_idx = self.index.content_index(cp)?;
-                    bytes.extend_from_slice(&(style_idx as i64).to_ne_bytes());
-                    bytes.extend_from_slice(&(content_idx as i64).to_ne_bytes());
+                    pairs.push(style_idx as i64);
+                    pairs.push(content_idx as i64);
                 }
             }
         }
-        Ok(PyBytes::new(py, &bytes))
+        Ok(pairs.into_pyarray(py).unbind())
     }
 }
 
