@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarks._helpers import copy_font_copies
+from tests.benchmarks._helpers import copy_font_copies
 
 if TYPE_CHECKING:
     from pathlib import Path

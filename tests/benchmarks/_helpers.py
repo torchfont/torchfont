@@ -11,7 +11,7 @@ BENCH_FONT_PATTERNS = (
 
 
 def fonts_dir() -> Path:
-    return Path(__file__).parent.parent / "tests" / "fonts"
+    return Path(__file__).parent.parent / "fonts"
 
 
 def copy_font_copies(root: Path, n_copies: int) -> None:

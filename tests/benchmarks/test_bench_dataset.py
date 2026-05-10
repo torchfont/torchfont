@@ -2,24 +2,19 @@
 
 Run locally with pytest-benchmark::
 
-    pytest benchmarks/test_bench_dataset.py --benchmark-only
-
-Run with asv::
-
-    asv run --bench DatasetInit
-    asv run --bench DatasetIter
+    pytest tests/benchmarks/test_bench_dataset.py --benchmark-only
 """
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-from benchmarks._helpers import BENCH_FONT_PATTERNS, copy_font_copies, fonts_dir
+from tests.benchmarks._helpers import BENCH_FONT_PATTERNS, fonts_dir
 from torchfont.datasets import GlyphDataset
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_benchmark.fixture import BenchmarkFixture
 
 # Codepoints kept small so benchmarks focus on I/O and indexing, not rendering
@@ -85,56 +80,3 @@ def test_bench_dataset_iter_large(
             pass
 
     benchmark(_iterate)
-
-
-# ---------------------------------------------------------------------------
-# asv benchmark classes
-# (discovered by `asv run`; ignored by pytest)
-# ---------------------------------------------------------------------------
-
-
-class DatasetInit:
-    """asv benchmark for GlyphDataset construction."""
-
-    params = [1, 50]
-    param_names = ["n_copies"]
-
-    def setup(self, n_copies: int) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        root = Path(self._tmpdir.name)
-        copy_font_copies(root, n_copies)
-        self._root = root
-
-    def teardown(self, n_copies: int) -> None:
-        self._tmpdir.cleanup()
-
-    def time_init(self, n_copies: int) -> None:
-        GlyphDataset(
-            root=self._root,
-            patterns=("**/*.ttf",),
-            codepoints=_CODEPOINTS,
-        )
-
-
-class DatasetIter:
-    """asv benchmark for iterating through an entire GlyphDataset."""
-
-    params = [1, 50]
-    param_names = ["n_copies"]
-
-    def setup(self, n_copies: int) -> None:
-        self._tmpdir = tempfile.TemporaryDirectory()
-        root = Path(self._tmpdir.name)
-        copy_font_copies(root, n_copies)
-        self._dataset = GlyphDataset(
-            root=root,
-            patterns=("**/*.ttf",),
-            codepoints=_CODEPOINTS,
-        )
-
-    def teardown(self, n_copies: int) -> None:
-        self._tmpdir.cleanup()
-
-    def time_iter(self, n_copies: int) -> None:
-        for _ in self._dataset:
-            pass
