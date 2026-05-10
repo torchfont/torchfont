@@ -54,17 +54,24 @@ print(sample.coords.shape)  # (seq_len, 6)
 
 ## 3. DataLoader に渡す
 
-グリフは可変長なので、組み込みの `torchfont.utils.collate_outline` を使うのが基本です。
+グリフは可変長なので、batch ごとに outline tensor を padding する小さな
+`collate_fn` を定義します。
 
 ```python
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_outline
 
 
 def transform(sample: GlyphSample):
     return sample.types, sample.coords
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
 
 
 dataset = GlyphDataset(
@@ -73,7 +80,7 @@ dataset = GlyphDataset(
     codepoints=range(0x20, 0x7F),
     transform=transform,
 )
-loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_outline)
+loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
 types_t, coords_t = next(iter(loader))
 print(types_t.shape)   # (32, L)

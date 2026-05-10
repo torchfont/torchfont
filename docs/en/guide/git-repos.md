@@ -100,5 +100,5 @@ git -C data/fortawesome/font-awesome rev-parse HEAD
 
 ## DataLoader integration
 
-Use the same `collate_outline` pattern described in
+Use the same local `collate_fn` pattern described in
 [DataLoader Integration](/en/guide/dataloader).

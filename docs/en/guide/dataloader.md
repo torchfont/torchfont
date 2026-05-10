@@ -14,21 +14,28 @@ print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
 print(sample.style_idx, sample.content_idx)
 ```
 
-Use this only to check end-to-end wiring. For batching, use `collate_outline`.
+Use this only to check end-to-end wiring. For batching, provide a small
+`collate_fn` that pads the variable-length outline tensors.
 
-## Recommended `collate_outline` for training
+## Recommended `collate_fn` for training
 
 ```python
 import sys
 
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_outline
 
 
 def transform(sample: GlyphSample):
     return sample.types, sample.coords
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
 
 
 dataset = GlyphDataset(root="~/fonts", transform=transform)
@@ -39,7 +46,7 @@ loader_kwargs = {
     "batch_size": 64,
     "shuffle": True,
     "num_workers": num_workers,
-    "collate_fn": collate_outline,
+    "collate_fn": collate_fn,
 }
 
 if num_workers > 0:
@@ -64,5 +71,6 @@ Keep those options unset when `num_workers=0`.
 
 ## Custom Sample Shapes
 
-`collate_outline` pads only the leading sequence dimension. If your dataset transform
-returns extra trailing dimensions, those dimensions are preserved while batching.
+This `collate_fn` pads only the leading sequence dimension. If your
+dataset transform returns extra trailing dimensions, those dimensions are
+preserved while batching.

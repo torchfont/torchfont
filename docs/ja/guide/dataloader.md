@@ -15,21 +15,28 @@ print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
 print(sample.style_idx, sample.content_idx)
 ```
 
-この例は動作確認用です。バッチ化には `collate_outline` を使ってください。
+この例は動作確認用です。バッチ化には、可変長の outline tensor を padding する
+小さな `collate_fn` を渡してください。
 
-## 学習向けの `collate_outline`
+## 学習向けの `collate_fn`
 
 ```python
 import sys
 
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_outline
 
 
 def transform(sample: GlyphSample):
     return sample.types, sample.coords
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
 
 
 dataset = GlyphDataset(root="~/fonts", transform=transform)
@@ -40,7 +47,7 @@ loader_kwargs = {
     "batch_size": 64,
     "shuffle": True,
     "num_workers": num_workers,
-    "collate_fn": collate_outline,
+    "collate_fn": collate_fn,
 }
 
 if num_workers > 0:
@@ -64,5 +71,5 @@ print(coords_t.shape)  # (64, L, 6)
 
 ## カスタム sample 形状
 
-`collate_outline` は先頭のシーケンス次元だけを padding します。dataset transform が
+この `collate_fn` は先頭のシーケンス次元だけを padding します。dataset transform が
 末尾次元を増やす場合、その末尾次元は batch 化後も保持されます。
