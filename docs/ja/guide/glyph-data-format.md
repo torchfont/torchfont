@@ -14,8 +14,21 @@ sample = dataset[i]
 | `sample.coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各コマンドの座標 |
 | `sample.style_idx` | `int` | スカラー | 書体スタイルのクラスID |
 | `sample.content_idx` | `int` | スカラー | 文字内容のクラスID |
+| `sample.metrics` | `torch.FloatTensor` | `(15,)` | グリフ・フォント単位のメトリクス |
+| `sample.glyph_name` | `str` | — | PostScript グリフ名 |
 
 `GlyphSample` は dataclass なので、名前付きフィールドでアクセスする使い方が前提です。
+
+`sample.metrics` は形状 `(15,)` の 1-D `float32` テンソルです:
+
+```python
+# [adv_w, lsb, x_min, y_min, x_max, y_max,
+#  ascent, descent, leading, cap_height, x_height, avg_width,
+#  italic_angle, units_per_em, is_monospace]
+m = sample.metrics
+```
+
+値は UPM で正規化済み（該当する場合）。欠損時は `nan`。
 
 ## `types` の定義
 
