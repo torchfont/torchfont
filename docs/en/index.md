@@ -33,11 +33,10 @@ features:
       "A skrifa + PyO3 backend converts glyph outlines into command + coordinate
       tensors efficiently."
   - icon: 🧱
-    title: Sample + batch primitives
+    title: Sample-first data model
     details:
-      "`GlyphSample` represents one glyph with outline, metrics, and name.
-      `collate_outline` pads variable-length `(types, coords)` pairs into
-      batch tensors ready for training."
+      "`GlyphSample` represents one glyph with outline, metrics, and name, so
+      batching policy can stay in your training code."
   - icon: 🧩
     title: Flexible preprocessing
     details:

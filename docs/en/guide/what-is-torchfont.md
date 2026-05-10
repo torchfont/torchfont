@@ -17,8 +17,8 @@ project.
   checkout already on disk.
 - **Sample-first output**:
   `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx, metrics, glyph_name)`.
-- **Built-in batching**:
-  `torchfont.utils.collate_outline(batch) -> tuple[Tensor, Tensor]`.
+- **DataLoader-friendly outputs**:
+  outline tensors can be padded by a small user-defined `collate_fn`.
 - **Fast preprocessing**:
   Rust backend (`skrifa` + PyO3) reduces Python-side overhead.
 - **DataLoader-friendly**:
@@ -33,7 +33,7 @@ Common pain points in font ML workflows:
 - rasterization-heavy preprocessing makes experiments harder to compare
 - static and variable fonts are often handled with separate logic
 
-TorchFont standardizes tensorization, labeling, and batching so you can spend
+TorchFont standardizes tensorization and labeling so you can spend
 more time on model design.
 
 ## How It Works
@@ -49,9 +49,9 @@ more time on model design.
 - **Transform utilities**
   - `quad_to_cubic`: normalize `QUAD_TO` into `CURVE_TO`
   - model-specific tensor shaping can live in your dataset transform or training code
-- **Batching utilities**
-  - `collate_outline`: pads variable-length `(types, coords)` pairs into
-    batch tensors `(B, L, ...)` ready for training
+- **Batching**
+  - variable-length `(types, coords)` pairs can be padded in your training code
+    with `torch.nn.utils.rnn.pad_sequence`
 
 ## Minimal Example
 

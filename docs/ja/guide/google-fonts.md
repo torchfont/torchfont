@@ -76,24 +76,38 @@ git -C data/google/fonts rev-parse HEAD
 
 ```python
 import sys
-import dataclasses
 
+import torch
+from torch import Tensor
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import quad_to_cubic
-from torchfont.utils import collate_outline
+from torchfont.transforms import patchify, quad_to_cubic, render_bitmap
 
 
-def normalize_curves(sample: GlyphSample) -> GlyphSample:
-    types, coords = quad_to_cubic(sample.types, sample.coords)
-    return dataclasses.replace(sample, types=types, coords=coords)
+def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
+    types = sample.types[:512]
+    coords = sample.coords[:512]
+    types, coords = quad_to_cubic(types, coords)
+    bitmap = render_bitmap(types, coords)
+    patch_types, patch_coords = patchify(types, coords, patch_size=32)
+    return patch_types, patch_coords, bitmap
+
+
+def collate_fn(
+    batch: list[tuple[Tensor, Tensor, Tensor]],
+) -> tuple[Tensor, Tensor, Tensor]:
+    types = pad_sequence([types for types, _, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords, _ in batch], batch_first=True)
+    bitmaps = torch.stack([bitmap for _, _, bitmap in batch])
+    return types, coords, bitmaps
 
 
 dataset = GlyphDataset(
     root="data/google/fonts",
     patterns=("ofl/*/*.ttf",),
-    transform=normalize_curves,
+    transform=transform,
 )
 
 num_workers = 8
@@ -101,7 +115,7 @@ loader_kwargs = {
     "batch_size": 64,
     "shuffle": True,
     "num_workers": num_workers,
-    "collate_fn": collate_outline,
+    "collate_fn": collate_fn,
 }
 
 if num_workers > 0:

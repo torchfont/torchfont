@@ -53,18 +53,24 @@ path does not exist, initialization fails.
 
 ## 3. Plug into DataLoader
 
-Glyph sequences are variable-length, so the built-in
-`torchfont.utils.collate_outline` is the standard starting point.
+Glyph sequences are variable-length, so define a small `collate_fn` that pads
+the outline tensors for each batch.
 
 ```python
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_outline
 
 
 def transform(sample: GlyphSample):
     return sample.types, sample.coords
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
 
 
 dataset = GlyphDataset(
@@ -73,7 +79,7 @@ dataset = GlyphDataset(
     codepoints=range(0x20, 0x7F),
     transform=transform,
 )
-loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_outline)
+loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
 
 types_t, coords_t = next(iter(loader))
 print(types_t.shape)   # (32, L)

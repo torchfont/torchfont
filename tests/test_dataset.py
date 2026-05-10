@@ -10,6 +10,7 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 import torchfont
@@ -22,11 +23,18 @@ from torchfont.datasets import (
 )
 from torchfont.io import CommandType
 from torchfont.metadata import build_dataset_metadata
-from torchfont.utils import collate_outline
 
 
 def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
     return sample.types, sample.coords
+
+
+def _collate_outline(
+    batch: list[tuple[torch.Tensor, torch.Tensor]],
+) -> tuple[torch.Tensor, torch.Tensor]:
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -793,7 +801,7 @@ def test_glyph_dataset_dataloader_multiworker(
         num_workers=2,
         shuffle=False,
         multiprocessing_context=start_method,
-        collate_fn=collate_outline,
+        collate_fn=_collate_outline,
     )
 
     types_t, coords_t = next(iter(loader))

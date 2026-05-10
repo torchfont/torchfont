@@ -14,7 +14,7 @@
 
 |用途|スクリプト (`examples/`)|要点|
 |---|---|---|
-|Pipeline|`local_fonts.py`|`GlyphDataset` + 組み込み `collate_outline` のオフライン例|
+|Pipeline|`local_fonts.py`|`GlyphDataset` + ローカルな `collate_fn` のオフライン例|
 |Corpus checkout|`google_fonts.py`|Google Fonts checkout + Transform + DataLoader|
 |Corpus checkout|`font_awesome.py`|Font Awesome の checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons の checkout|

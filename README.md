@@ -44,13 +44,19 @@ pip install torchfont
 
 ```python
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_outline
 
 
 def transform(sample: GlyphSample):
     return sample.types, sample.coords
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
 
 
 dataset = GlyphDataset(
@@ -60,7 +66,7 @@ dataset = GlyphDataset(
     transform=transform,
 )
 
-loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_outline)
+loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
 types_t, coords_t = next(iter(loader))
 
 print(types_t.shape)   # (8, L)
@@ -72,7 +78,7 @@ print(coords_t.shape)  # (8, L, 6)
 - local font directories and repository checkouts as the input boundary
 - Rust-backed outline decoding into `GlyphSample` with outline tensors, metrics, and glyph name
 - transform utilities such as `quad_to_cubic` for adapting glyph samples
-- DataLoader integration through `collate_outline`
+- PyTorch `DataLoader` integration through ordinary user-defined `collate_fn` functions
 
 TorchFont does not need to own Git clone / fetch / checkout in the main
 workflow. Sync repositories with Git or another tool, then point

@@ -27,8 +27,8 @@ features:
     title: Rust バックエンド
     details: "skrifa + PyO3 による実装で、グリフアウトラインを command + coordinate テンソルへ高速に変換します。"
   - icon: 🧱
-    title: Sample / Batch の基本型
-    details: "`GlyphSample` が 1 グリフ。`collate_outline` が可変長 `(types, coords)` ペアをバッチテンソルへまとめます。"
+    title: Sample-first なデータモデル
+    details: "`GlyphSample` が 1 グリフを outline・metrics・名前つきで表し、batch 化方針は学習コード側に置けます。"
   - icon: 🧩
     title: 柔軟な前処理
     details: "`quad_to_cubic` のような小さな utility を使い、tensor 整形は dataset やモデル固有コードで調整できます。"
