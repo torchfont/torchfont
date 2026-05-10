@@ -8,7 +8,7 @@ node = "lts"
 run = ["mise install", { tasks = ["setup-uv", "setup-npm"] }]
 
 [tasks.setup-uv]
-run = "mise exec -- uv sync"
+run = ["mise exec -- uv sync", "mise exec -- uv run maturin develop"]
 
 [tasks.setup-npm]
 run = "mise exec -- npm install"
