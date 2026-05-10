@@ -1,15 +1,12 @@
-import dataclasses
-
+from torch import Tensor
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import collate_fn
+from torchfont.utils import collate_outline
 
 
-def transform(sample: GlyphSample) -> GlyphSample:
-    return dataclasses.replace(
-        sample, types=sample.types[:512], coords=sample.coords[:512]
-    )
+def transform(sample: GlyphSample) -> tuple[Tensor, Tensor]:
+    return sample.types[:512], sample.coords[:512]
 
 
 def main() -> None:
@@ -24,16 +21,16 @@ def main() -> None:
         dataset,
         batch_size=8,
         shuffle=True,
-        collate_fn=collate_fn,
+        collate_fn=collate_outline,
     )
 
-    batch = next(iter(dataloader))
+    types_t, coords_t = next(iter(dataloader))
 
     print(f"{len(dataset)=}")
     print(f"{len(dataset.content_classes)=}")
     print(f"{len(dataset.style_classes)=}")
-    print(f"{batch.types.shape=}")
-    print(f"{batch.coords.shape=}")
+    print(f"{types_t.shape=}")
+    print(f"{coords_t.shape=}")
 
 
 if __name__ == "__main__":

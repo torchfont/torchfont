@@ -112,6 +112,9 @@ content_all = t[:, 1]  # column 1: content_idx
 
 ## Shapes after utilities
 
-`quad_to_cubic` preserves both `types` and `coords` shapes. If you add custom
-dataset transforms for model-specific shaping, keep `style_idx` and
-`content_idx` aligned with the returned sample.
+`quad_to_cubic` preserves both `types` and `coords` shapes.
+
+`patchify` changes the shape: a sequence of length `N` becomes
+`(num_patches, patch_size)` for `types` and `(num_patches, patch_size, 6)` for
+`coords`. If you add custom dataset transforms for model-specific shaping, keep
+`style_idx` and `content_idx` aligned with the returned sample.

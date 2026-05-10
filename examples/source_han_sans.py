@@ -1,13 +1,19 @@
+from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
-from torchfont.utils import collate_fn
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.utils import collate_outline
+
+
+def transform(sample: GlyphSample) -> tuple[Tensor, Tensor]:
+    return sample.types, sample.coords
 
 
 def main() -> None:
     dataset = GlyphDataset(
         root="data/adobe-fonts/source-han-sans",
         patterns=("*.ttf.ttc",),
+        transform=transform,
     )
 
     dataloader = DataLoader(
@@ -16,7 +22,7 @@ def main() -> None:
         shuffle=True,
         num_workers=8,
         prefetch_factor=2,
-        collate_fn=collate_fn,
+        collate_fn=collate_outline,
     )
 
     print(f"{len(dataset)=}")

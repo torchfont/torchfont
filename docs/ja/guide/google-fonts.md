@@ -82,7 +82,7 @@ from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.transforms import quad_to_cubic
-from torchfont.utils import collate_fn
+from torchfont.utils import collate_outline
 
 
 def normalize_curves(sample: GlyphSample) -> GlyphSample:
@@ -101,7 +101,7 @@ loader_kwargs = {
     "batch_size": 64,
     "shuffle": True,
     "num_workers": num_workers,
-    "collate_fn": collate_fn,
+    "collate_fn": collate_outline,
 }
 
 if num_workers > 0:

@@ -15,7 +15,7 @@ sample = dataset[i]
 | `sample.style_idx` | `int` | スカラー | 書体スタイルのクラスID |
 | `sample.content_idx` | `int` | スカラー | 文字内容のクラスID |
 
-`GlyphSample` は NamedTuple なので、名前付きフィールドでアクセスする使い方が前提です。
+`GlyphSample` は dataclass なので、名前付きフィールドでアクセスする使い方が前提です。
 
 ## `types` の定義
 
@@ -94,6 +94,9 @@ content_all = t[:, 1]  # 2 列目: content_idx
 
 ## Utility 後の形状
 
-`quad_to_cubic` は `types` / `coords` の形状を保持します。モデル固有の整形を
-dataset transform として追加する場合も、返す sample の `style_idx` /
-`content_idx` との対応を保ってください。
+`quad_to_cubic` は `types` / `coords` の形状を保持します。
+
+`patchify` は形状を変更します。長さ `N` のシーケンスは `types` が
+`(num_patches, patch_size)`、`coords` が `(num_patches, patch_size, 6)` になります。
+モデル固有の整形を dataset transform として追加する場合も、返す sample の
+`style_idx` / `content_idx` との対応を保ってください。

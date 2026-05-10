@@ -22,7 +22,7 @@ It is not affiliated with or endorsed by the PyTorch project.
 
 TorchFont is local-first: point `GlyphDataset` at a font directory or a
 repository checkout that already exists on disk, and TorchFont turns glyph
-outlines into `GlyphSample` / `GlyphBatch` objects for PyTorch pipelines.
+outlines into `GlyphSample` objects for PyTorch pipelines.
 
 ## Installation
 
@@ -45,22 +45,26 @@ pip install torchfont
 ```python
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
-from torchfont.utils import collate_fn
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.utils import collate_outline
+
+
+def transform(sample: GlyphSample):
+    return sample.types, sample.coords
+
 
 dataset = GlyphDataset(
     root="~/fonts",  # or "tests/fonts" in this repository
     patterns=("*.ttf",),
     codepoints=range(0x20, 0x7F),  # printable ASCII
+    transform=transform,
 )
 
-loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
-batch = next(iter(loader))
+loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_outline)
+types_t, coords_t = next(iter(loader))
 
-print(batch.types.shape)
-print(batch.coords.shape)
-print(batch.targets.shape)
-print(batch.metrics.shape)
+print(types_t.shape)   # (8, L)
+print(coords_t.shape)  # (8, L, 6)
 ```
 
 ## What TorchFont Focuses On
@@ -68,7 +72,7 @@ print(batch.metrics.shape)
 - local font directories and repository checkouts as the input boundary
 - Rust-backed outline decoding into `GlyphSample` with outline tensors, metrics, and glyph name
 - transform utilities such as `quad_to_cubic` for adapting glyph samples
-- DataLoader integration through `GlyphBatch` and `collate_fn`
+- DataLoader integration through `collate_outline`
 
 TorchFont does not need to own Git clone / fetch / checkout in the main
 workflow. Sync repositories with Git or another tool, then point

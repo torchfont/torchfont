@@ -22,8 +22,11 @@ from torchfont.datasets import (
 )
 from torchfont.io import CommandType
 from torchfont.metadata import build_dataset_metadata
-from torchfont.utils import GlyphBatch
-from torchfont.utils import collate_fn as collate_glyph_batch
+from torchfont.utils import collate_outline
+
+
+def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
+    return sample.types, sample.coords
 
 
 def _read_first_sample_from_pickled_dataset(
@@ -779,6 +782,7 @@ def test_glyph_dataset_dataloader_multiworker(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x5B),
+        transform=_to_pair,
     )
 
     assert len(dataset) > 0
@@ -789,31 +793,16 @@ def test_glyph_dataset_dataloader_multiworker(
         num_workers=2,
         shuffle=False,
         multiprocessing_context=start_method,
-        collate_fn=collate_glyph_batch,
+        collate_fn=collate_outline,
     )
 
-    batch = next(iter(loader))
-    assert batch is not None
-    assert isinstance(batch, GlyphBatch)
+    types_t, coords_t = next(iter(loader))
 
-    # Validate types tensor (batch dimension added by collate_fn)
-    assert batch.types.dtype == torch.long
-    assert batch.types.ndim == 2  # batch_size x sequence_length
-
-    # Validate coords tensor (batch dimension added)
-    assert batch.coords.dtype == torch.float32
-    assert batch.coords.ndim == 3  # batch_size x sequence_length x 6
-    assert batch.coords.shape[2] == 6
-
-    # Validate targets tensor
-    assert batch.targets.dtype == torch.long
-    assert batch.targets.shape[1] == 2
-
-    # Validate index values are in valid range
-    assert torch.all(batch.targets[:, 0] >= 0)
-    assert torch.all(batch.targets[:, 0] < len(dataset.style_classes))
-    assert torch.all(batch.targets[:, 1] >= 0)
-    assert torch.all(batch.targets[:, 1] < len(dataset.content_classes))
+    assert types_t.dtype == torch.long
+    assert types_t.ndim == 2
+    assert coords_t.dtype == torch.float32
+    assert coords_t.ndim == 3
+    assert coords_t.shape[2] == 6
 
 
 def test_targets_shape_and_dtype() -> None:

@@ -15,20 +15,24 @@ print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
 print(sample.style_idx, sample.content_idx)
 ```
 
-この例は動作確認用です。バッチ化には `collate_fn` を使ってください。
+この例は動作確認用です。バッチ化には `collate_outline` を使ってください。
 
-## 学習向けの `collate_fn`
+## 学習向けの `collate_outline`
 
 ```python
 import sys
 
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
-from torchfont.utils import collate_fn
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.utils import collate_outline
 
 
-dataset = GlyphDataset(root="~/fonts")
+def transform(sample: GlyphSample):
+    return sample.types, sample.coords
+
+
+dataset = GlyphDataset(root="~/fonts", transform=transform)
 num_workers = 8
 mp_context = "fork" if sys.platform.startswith("linux") else "spawn"
 
@@ -36,7 +40,7 @@ loader_kwargs = {
     "batch_size": 64,
     "shuffle": True,
     "num_workers": num_workers,
-    "collate_fn": collate_fn,
+    "collate_fn": collate_outline,
 }
 
 if num_workers > 0:
@@ -44,12 +48,10 @@ if num_workers > 0:
     loader_kwargs["multiprocessing_context"] = mp_context
 
 loader = DataLoader(dataset, **loader_kwargs)
-batch = next(iter(loader))
+types_t, coords_t = next(iter(loader))
 
-print(batch.types.shape)
-print(batch.coords.shape)
-print(batch.targets.shape)
-print(batch.metrics.shape)
+print(types_t.shape)   # (64, L)
+print(coords_t.shape)  # (64, L, 6)
 ```
 
 `num_workers > 0` のときだけ、プリフェッチと multiprocessing の設定を有効にします。`num_workers=0` なら、これらの引数は指定しないでください。
@@ -62,5 +64,5 @@ print(batch.metrics.shape)
 
 ## カスタム sample 形状
 
-`collate_fn` は先頭のシーケンス次元だけを padding します。dataset transform が
+`collate_outline` は先頭のシーケンス次元だけを padding します。dataset transform が
 末尾次元を増やす場合、その末尾次元は batch 化後も保持されます。

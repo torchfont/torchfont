@@ -102,4 +102,4 @@ git -C data/fortawesome/font-awesome rev-parse HEAD
 ## DataLoader との統合
 
 [DataLoader との統合](/ja/guide/dataloader)で紹介している
-`collate_fn` をそのまま使えます。
+`collate_outline` をそのまま使えます。

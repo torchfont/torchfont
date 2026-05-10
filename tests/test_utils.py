@@ -1,92 +1,69 @@
-import dataclasses
-
 import pytest
 import torch
+from torch import Tensor
 from torch.utils.data import DataLoader
 
 import torchfont.utils as utils_module
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.utils import GlyphBatch, collate_fn
+from torchfont.transforms import patchify
+from torchfont.utils import collate_outline
 
 
-def _reshape_to_patches(sample: GlyphSample, patch_size: int = 4) -> GlyphSample:
-    types = sample.types
-    coords = sample.coords
-    seq_len = types.size(0)
-    pad = (-seq_len) % patch_size
-    num_patches = (seq_len + pad) // patch_size
-
-    pad_types = torch.cat([types, types.new_zeros(pad)], 0)
-    pad_coords = torch.cat([coords, coords.new_zeros(pad, coords.size(1))], 0)
-
-    return dataclasses.replace(
-        sample,
-        types=pad_types.view(num_patches, patch_size),
-        coords=pad_coords.view(num_patches, patch_size, coords.size(1)),
-    )
+def _to_pair(sample: GlyphSample) -> tuple[Tensor, Tensor]:
+    return sample.types, sample.coords
 
 
 def test_utils_public_api_is_batching_centered() -> None:
-    assert utils_module.__all__ == ["GlyphBatch", "collate_fn"]
-    assert utils_module.GlyphBatch is GlyphBatch
+    assert utils_module.__all__ == ["collate_outline"]
+    assert utils_module.collate_outline is collate_outline
 
 
-def test_collate_fn_basic() -> None:
-    """collate_fn returns correctly shaped and typed tensors."""
+def test_collate_outline_basic() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
+        transform=_to_pair,
     )
 
     assert len(dataset) >= 2
     batch = [dataset[i] for i in range(2)]
-    glyph_batch = collate_fn(batch)
+    types_t, coords_t = collate_outline(batch)
 
-    assert isinstance(glyph_batch, GlyphBatch)
-    assert glyph_batch.types.dtype == torch.long
-    assert glyph_batch.types.ndim == 2
-    assert glyph_batch.coords.dtype == torch.float32
-    assert glyph_batch.coords.ndim == 3
-    assert glyph_batch.coords.shape[2] == 6
-    assert glyph_batch.targets.dtype == torch.long
-    assert glyph_batch.targets.shape == (2, 2)
-    assert glyph_batch.metrics.dtype == torch.float32
-    assert glyph_batch.metrics.shape == (2, 15)
+    assert types_t.dtype == torch.long
+    assert types_t.ndim == 2
+    assert coords_t.dtype == torch.float32
+    assert coords_t.ndim == 3
+    assert coords_t.shape[2] == 6
 
 
-def test_collate_fn_with_dataloader() -> None:
-    """collate_fn works as the collate_fn argument of DataLoader."""
+def test_collate_outline_with_dataloader() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
+        transform=_to_pair,
     )
 
-    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_fn)
-    batch = next(iter(loader))
+    loader = DataLoader(dataset, batch_size=2, collate_fn=collate_outline)
+    types_t, coords_t = next(iter(loader))
 
-    assert isinstance(batch, GlyphBatch)
-    assert batch.types.ndim == 2
-    assert batch.coords.ndim == 3
-    assert batch.targets.ndim == 2
-    assert batch.targets.shape[1] == 2
+    assert types_t.ndim == 2
+    assert coords_t.ndim == 3
 
 
-def test_collate_fn_pads_to_longest() -> None:
-    """collate_fn zero-pads shorter sequences to match the longest in batch."""
+def test_collate_outline_pads_to_longest() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x5B),
+        transform=_to_pair,
     )
 
     batch = [dataset[i] for i in range(len(dataset))]
-    glyph_batch = collate_fn(batch)
-    types_t = glyph_batch.types
-    coords_t = glyph_batch.coords
+    types_t, coords_t = collate_outline(batch)
 
-    lengths = [sample.types.shape[0] for sample in batch]
+    lengths = [item[0].shape[0] for item in batch]
     max_len = max(lengths)
     assert types_t.shape[1] == max_len
     assert coords_t.shape[1] == max_len
@@ -97,38 +74,40 @@ def test_collate_fn_pads_to_longest() -> None:
             assert torch.all(coords_t[b, orig_len:, :] == 0.0)
 
 
-def test_collate_fn_keeps_tensors_on_sample_device() -> None:
-    """collate_fn keeps tensors on the same device as sample tensors."""
+def test_collate_outline_keeps_tensors_on_same_device() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
+        transform=_to_pair,
     )
 
     batch = [dataset[i] for i in range(2)]
-    glyph_batch = collate_fn(batch)
+    types_t, coords_t = collate_outline(batch)
 
-    assert glyph_batch.targets.device == glyph_batch.types.device
-    assert glyph_batch.metrics.device == glyph_batch.types.device
+    assert types_t.device == coords_t.device
 
 
-def test_collate_fn_preserves_trailing_patch_dimensions() -> None:
+def test_collate_outline_preserves_trailing_patch_dimensions() -> None:
+    def patchify_transform(sample: GlyphSample) -> tuple[Tensor, Tensor]:
+        return patchify(sample.types, sample.coords, patch_size=4)
+
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x45),
-        transform=_reshape_to_patches,
+        transform=patchify_transform,
     )
 
     batch = [dataset[i] for i in range(2)]
-    glyph_batch = collate_fn(batch)
+    types_t, coords_t = collate_outline(batch)
 
-    assert glyph_batch.types.ndim == 3
-    assert glyph_batch.coords.ndim == 4
-    assert glyph_batch.types.shape[2] == 4
-    assert glyph_batch.coords.shape[2:] == (4, 6)
+    assert types_t.ndim == 3
+    assert coords_t.ndim == 4
+    assert types_t.shape[2] == 4
+    assert coords_t.shape[2:] == (4, 6)
 
 
-def test_collate_fn_rejects_empty_batch() -> None:
+def test_collate_outline_rejects_empty_batch() -> None:
     with pytest.raises(ValueError, match="batch must be non-empty"):
-        collate_fn([])
+        collate_outline([])

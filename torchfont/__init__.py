@@ -10,7 +10,8 @@ Features:
     * A Rust backend that renders glyph outlines directly into PyTorch-ready
       tensors.
     * Small transform utilities for adapting glyph samples.
-    * A built-in ``collate_fn`` that emits ``GlyphBatch`` values with masks.
+    * A built-in ``collate_outline`` that pads ``(types, coords)`` pairs into
+      batch tensors.
 
 Examples:
     Assemble a dataset from local fonts::
@@ -21,7 +22,7 @@ Examples:
 
     Build padded batches with the utility module::
 
-        from torchfont.utils import collate_fn
+        from torchfont.utils import collate_outline
 
 References:
     The project README covers installation, advanced usage, and contribution

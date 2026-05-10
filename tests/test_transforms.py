@@ -1,8 +1,9 @@
+import pytest
 import torch
 
 from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import quad_to_cubic
+from torchfont.transforms import patchify, quad_to_cubic
 
 _ZERO_METRICS = torch.zeros(15, dtype=torch.float32)  # placeholder for transform tests
 
@@ -154,3 +155,33 @@ def test_quad_to_cubic_keeps_batched_sequences_independent() -> None:
         out_coords[1, 0],
         torch.tensor([0.0, 2.0, 1.0, 3.0, 3.0, 3.0], dtype=torch.float32),
     )
+
+
+def test_patchify_reshapes_exact_multiple() -> None:
+    types = torch.tensor([1, 2, 3, 4], dtype=torch.long)
+    coords = torch.zeros(4, 6, dtype=torch.float32)
+
+    out_types, out_coords = patchify(types, coords, patch_size=2)
+
+    assert out_types.shape == (2, 2)
+    assert out_coords.shape == (2, 2, 6)
+    assert torch.equal(out_types, types.view(2, 2))
+
+
+def test_patchify_pads_when_not_exact_multiple() -> None:
+    types = torch.tensor([1, 2, 3], dtype=torch.long)
+    coords = torch.zeros(3, 6, dtype=torch.float32)
+
+    out_types, out_coords = patchify(types, coords, patch_size=2)
+
+    assert out_types.shape == (2, 2)
+    assert out_coords.shape == (2, 2, 6)
+    assert out_types[1, 1].item() == 0
+
+
+def test_patchify_raises_for_invalid_patch_size() -> None:
+    types = torch.tensor([1], dtype=torch.long)
+    coords = torch.zeros(1, 6, dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="patch_size must be >= 1"):
+        patchify(types, coords, patch_size=0)

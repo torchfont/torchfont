@@ -13,7 +13,7 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 
 |Use case|Script (`examples/`)|Summary|
 |---|---|---|
-|Pipeline|`local_fonts.py`|Offline local-font pipeline with `GlyphDataset` + built-in `collate_fn`|
+|Pipeline|`local_fonts.py`|Offline local-font pipeline with `GlyphDataset` + built-in `collate_outline`|
 |Corpus checkout|`google_fonts.py`|Google Fonts checkout + transforms + DataLoader|
 |Corpus checkout|`font_awesome.py`|Font Awesome checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons checkout|

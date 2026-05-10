@@ -54,27 +54,30 @@ print(sample.coords.shape)  # (seq_len, 6)
 
 ## 3. DataLoader に渡す
 
-グリフは可変長なので、組み込みの `torchfont.utils.collate_fn` を使うのが基本です。
+グリフは可変長なので、組み込みの `torchfont.utils.collate_outline` を使うのが基本です。
 
 ```python
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
-from torchfont.utils import collate_fn
+from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.utils import collate_outline
+
+
+def transform(sample: GlyphSample):
+    return sample.types, sample.coords
 
 
 dataset = GlyphDataset(
     root="~/fonts",
     patterns=("*.ttf",),
     codepoints=range(0x20, 0x7F),
+    transform=transform,
 )
-loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
+loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_outline)
 
-batch = next(iter(loader))
-print(batch.types.shape)
-print(batch.coords.shape)
-print(batch.targets.shape)
-print(batch.metrics.shape)
+types_t, coords_t = next(iter(loader))
+print(types_t.shape)   # (32, L)
+print(coords_t.shape)  # (32, L, 6)
 ```
 
 ## 4. ローカル checkout を大きなコーパスに向ける

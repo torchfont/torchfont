@@ -18,7 +18,7 @@ project.
 - **Sample-first output**:
   `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx, metrics, glyph_name)`.
 - **Built-in batching**:
-  `torchfont.utils.collate_fn(batch) -> GlyphBatch`.
+  `torchfont.utils.collate_outline(batch) -> tuple[Tensor, Tensor]`.
 - **Fast preprocessing**:
   Rust backend (`skrifa` + PyO3) reduces Python-side overhead.
 - **DataLoader-friendly**:
@@ -50,9 +50,8 @@ more time on model design.
   - `quad_to_cubic`: normalize `QUAD_TO` into `CURVE_TO`
   - model-specific tensor shaping can live in your dataset transform or training code
 - **Batching utilities**
-  - `collate_fn`: pads variable-length samples into `GlyphBatch`
-  - `GlyphBatch.targets`: style and content indices as `(B, 2)` tensor
-  - `GlyphBatch.metrics`: per-sample metrics as `(B, 15)` float tensor
+  - `collate_outline`: pads variable-length `(types, coords)` pairs into
+    batch tensors `(B, L, ...)` ready for training
 
 ## Minimal Example
 

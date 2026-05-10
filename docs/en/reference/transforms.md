@@ -29,3 +29,47 @@ endpoint continuity must cross chunk boundaries.
 
 - input: `types=(...)`, `coords=(..., 6)`
 - output: `types=(...)`, `coords=(..., 6)`
+
+## patchify
+
+```python
+from torchfont.transforms import patchify
+```
+
+```python
+patch_types, patch_coords = patchify(types, coords, patch_size=32)
+```
+
+Pads a 1-D glyph sequence with zeros to the nearest multiple of `patch_size`,
+then splits it into contiguous patches.
+
+- `patch_size` must be >= 1
+- padding is zero-filled and appended only when `seq_len % patch_size != 0`
+- call `quad_to_cubic` before `patchify` when endpoint continuity must cross
+  patch boundaries
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, 6)`
+
+## render_bitmap
+
+```python
+from torchfont.transforms import render_bitmap
+```
+
+```python
+bitmap = render_bitmap(types, coords, size=64)
+```
+
+Renders a glyph outline to a greyscale bitmap tensor. The glyph is auto-scaled
+and centred to fill the canvas with a fixed 4-pixel padding on each side.
+
+- `size` must be between 1 and 4096 (default: 64)
+- rendering uses the clipped / pre-patchified outline for faithful shape
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `uint8` tensor of shape `(size, size)` with values in `[0, 255]`

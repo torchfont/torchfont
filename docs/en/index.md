@@ -36,7 +36,8 @@ features:
     title: Sample + batch primitives
     details:
       "`GlyphSample` represents one glyph with outline, metrics, and name.
-      `collate_fn` builds a padded `GlyphBatch` ready for training."
+      `collate_outline` pads variable-length `(types, coords)` pairs into
+      batch tensors ready for training."
   - icon: 🧩
     title: Flexible preprocessing
     details:
