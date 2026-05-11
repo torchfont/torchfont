@@ -60,16 +60,20 @@ from torchfont.transforms import render_bitmap
 ```
 
 ```python
-bitmap = render_bitmap(types, coords, size=64)
+bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
 ```
 
 グリフアウトラインをグレースケールビットマップテンソルへレンダリングします。
-グリフは自動スケーリングされ、各辺 4 ピクセルのパディングを持つキャンバスに中央配置されます。
+各辺 4 ピクセルのパディングを持つ出力ビットマップへ、`mode` に応じた座標変換で配置します。
 
 - `size` は 1〜4096 の整数（デフォルト: 64）
+- `mode="fixed"` は UPM 正規化済みの固定範囲 `[-0.25, 1.25] x [-0.25, 1.25]` に配置
+- `mode="bbox"` は fixed と同じ座標スケールを保ち、tight bbox に合わせた可変サイズのビットマップを返します
+- `mode="bbox_square"` は tight bbox を縦横比を保って正方形内に中央配置（デフォルト）
 - patchify 前のクリップ済みアウトラインを渡すと元の形状を正確に再現できます
 
 ### 入出力
 
 - 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `uint8` テンソル、形状 `(size, size)`、値域 `[0, 255]`
+- 出力: `uint8` テンソル、値域 `[0, 255]`。`fixed` / `bbox_square` は
+  `(size, size)`、`bbox` は可変の `(height, width)`

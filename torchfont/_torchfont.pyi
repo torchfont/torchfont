@@ -2,7 +2,9 @@ from collections.abc import Sequence
 
 import numpy as np
 
-def render_bitmap(types: np.ndarray, coords: np.ndarray, size: int) -> bytes: ...
+def render_bitmap(
+    types: np.ndarray, coords: np.ndarray, size: int, mode: str
+) -> tuple[bytes, int, int]: ...
 def quad_to_cubic_inplace(
     types: np.ndarray, coords: np.ndarray, seq_len: int
 ) -> None: ...
