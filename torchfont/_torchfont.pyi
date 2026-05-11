@@ -1,9 +1,12 @@
 from collections.abc import Sequence
+from typing import Literal, TypeAlias
 
 import numpy as np
 
+_BitmapMode: TypeAlias = Literal["fixed", "bbox", "bbox_square", "bbox-square"]
+
 def render_bitmap(
-    types: np.ndarray, coords: np.ndarray, size: int, mode: str
+    types: np.ndarray, coords: np.ndarray, size: int, mode: _BitmapMode
 ) -> tuple[bytes, int, int]: ...
 def quad_to_cubic_inplace(
     types: np.ndarray, coords: np.ndarray, seq_len: int

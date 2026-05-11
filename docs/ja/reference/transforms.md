@@ -68,7 +68,7 @@ bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
 
 - `size` は 1〜4096 の整数（デフォルト: 64）
 - `mode="fixed"` は UPM 正規化済みの固定範囲 `[-0.25, 1.25] x [-0.25, 1.25]` に配置
-- `mode="bbox"` は fixed と同じ座標スケールを保ち、tight bbox に合わせた可変サイズのビットマップを返します
+- `mode="bbox"` は fixed と同じ座標スケールを保ち、tight bbox にパディングを加えた可変サイズのビットマップを返します
 - `mode="bbox_square"` は tight bbox を縦横比を保って正方形内に中央配置（デフォルト）
 - patchify 前のクリップ済みアウトラインを渡すと元の形状を正確に再現できます
 

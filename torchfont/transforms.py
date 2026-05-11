@@ -84,12 +84,13 @@ def render_bitmap(
         size: Output image side length in pixels for ``"fixed"`` and
             ``"bbox_square"``. For ``"bbox"``, this sets the coordinate scale
             using the same fixed ``[-0.25, 1.25]`` range, then crops the output to
-            the tight glyph bounding box. Must be between 1 and 4096.
+            the tight glyph bounding box plus padding. Must be between 1 and 4096.
         mode: Coordinate mapping mode. ``"fixed"`` maps the fixed UPM-normalised
             range ``[-0.25, 1.25] x [-0.25, 1.25]`` to the canvas. ``"bbox"`` scales
             with the fixed-mode scale and returns a variable-size bitmap
-            cropped to the tight glyph bounding box. ``"bbox_square"`` scales
-            the tight glyph bounding box uniformly and centres it.
+            cropped to the tight glyph bounding box plus padding.
+            ``"bbox_square"`` scales the tight glyph bounding box uniformly and
+            centres it.
 
     Returns:
         uint8 tensor with values in ``[0, 255]``. Shape is ``(size, size)`` for
