@@ -389,11 +389,8 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             for (name, label_id), axes in zip(style_meta_rows, style_axes, strict=True)
         ]
         return build_dataset_metadata(
-            style_rows=cast("list[StyleMetadataRow]", style_rows),
-            content_rows=cast(
-                "list[ContentMetadataRow]",
-                self._dataset.content_metadata_rows(),
-            ),
+            style_rows=style_rows,
+            content_rows=self._dataset.content_metadata_rows(),
         )
 
     @property
