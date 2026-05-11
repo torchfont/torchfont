@@ -3,7 +3,7 @@ from typing import Literal, TypeAlias
 
 import numpy as np
 
-_BitmapMode: TypeAlias = Literal["fixed", "bbox", "bbox_square", "bbox-square"]
+_BitmapMode: TypeAlias = Literal["fixed", "bbox", "bbox_square"]
 
 def render_bitmap(
     types: np.ndarray, coords: np.ndarray, size: int, mode: _BitmapMode

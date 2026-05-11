@@ -23,14 +23,19 @@ fn render_bitmap(
     let mode = match mode {
         "fixed" => bitmap::RenderMode::Fixed,
         "bbox" => bitmap::RenderMode::Bbox,
-        "bbox_square" | "bbox-square" => bitmap::RenderMode::BboxSquare,
+        "bbox_square" => bitmap::RenderMode::BboxSquare,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "mode must be one of 'fixed', 'bbox', or 'bbox_square'",
             ));
         }
     };
-    let rendered = bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size, mode);
+    let rendered = bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size, mode)
+        .map_err(|err| match err {
+            bitmap::RenderBitmapError::BboxTooLarge => pyo3::exceptions::PyValueError::new_err(
+                "bbox output dimensions must be between 1 and 4096",
+            ),
+        })?;
     Ok((rendered.data, rendered.width, rendered.height))
 }
 

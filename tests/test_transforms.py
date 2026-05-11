@@ -263,6 +263,43 @@ def test_render_bitmap_rejects_unknown_mode() -> None:
         render_bitmap(types, coords, mode="unknown")  # type: ignore[arg-type]
 
 
+def test_render_bitmap_bbox_empty_outline_returns_empty_bitmap() -> None:
+    types = torch.tensor([CommandType.END.value], dtype=torch.long)
+    coords = torch.zeros(1, 6, dtype=torch.float32)
+
+    bitmap = render_bitmap(types, coords, mode="bbox")
+
+    assert bitmap.shape == (0, 0)
+
+
+def test_render_bitmap_bbox_rejects_oversized_output() -> None:
+    types = torch.tensor(
+        [
+            CommandType.MOVE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 200.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 200.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
+    )
+
+    with pytest.raises(ValueError, match="bbox output dimensions"):
+        render_bitmap(types, coords, mode="bbox")
+
+
 def _occupied_size(bitmap: torch.Tensor) -> tuple[int, int]:
     ys, xs = torch.nonzero(bitmap > 0, as_tuple=True)
     width = int(xs.max().item()) - int(xs.min().item()) + 1

@@ -19,33 +19,41 @@ pub(crate) struct RenderedBitmap {
     pub(crate) height: u32,
 }
 
+pub(crate) enum RenderBitmapError {
+    BboxTooLarge,
+}
+
 pub(crate) fn render_bitmap(
     types: &[i64],
     coords: &[f32],
     size: u32,
     mode: RenderMode,
-) -> RenderedBitmap {
+) -> Result<RenderedBitmap, RenderBitmapError> {
     let Some(path) = build_path(types, coords) else {
-        return blank_bitmap(size, size);
+        return Ok(blank_for_mode(size, mode));
     };
 
     let bitmap_size = size as f32;
-    let Some((width, height, transform)) = render_target(&path, bitmap_size, mode) else {
-        return blank_bitmap(size, size);
+    let Some((width, height, transform)) = render_target(&path, bitmap_size, mode)? else {
+        return Ok(blank_for_mode(size, mode));
     };
 
     let Some(mut mask) = Mask::new(width, height) else {
-        return blank_bitmap(width, height);
+        return Ok(blank_bitmap(width, height));
     };
     mask.fill_path(&path, FillRule::Winding, true, transform);
-    RenderedBitmap {
+    Ok(RenderedBitmap {
         data: mask.data().to_vec(),
         width,
         height,
-    }
+    })
 }
 
-fn render_target(path: &Path, bitmap_size: f32, mode: RenderMode) -> Option<(u32, u32, Transform)> {
+fn render_target(
+    path: &Path,
+    bitmap_size: f32,
+    mode: RenderMode,
+) -> Result<Option<(u32, u32, Transform)>, RenderBitmapError> {
     match mode {
         RenderMode::Fixed => {
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
@@ -57,24 +65,23 @@ fn render_target(path: &Path, bitmap_size: f32, mode: RenderMode) -> Option<(u32
                 -FIXED_MIN * scale,
                 bitmap_size + FIXED_MIN * scale,
             );
-            Some((bitmap_size as u32, bitmap_size as u32, transform))
+            Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
         RenderMode::Bbox => {
             let bounds = path.compute_tight_bounds().unwrap_or_else(|| path.bounds());
             let width = bounds.width();
             let height = bounds.height();
             if width <= f32::EPSILON || height <= f32::EPSILON {
-                return None;
+                return Ok(None);
             }
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
             let bitmap_width = (width * scale).ceil() as u32;
             let bitmap_height = (height * scale).ceil() as u32;
-            if bitmap_width == 0
-                || bitmap_height == 0
-                || bitmap_width > MAX_BITMAP_SIDE
-                || bitmap_height > MAX_BITMAP_SIDE
-            {
-                return None;
+            if bitmap_width == 0 || bitmap_height == 0 {
+                return Ok(None);
+            }
+            if bitmap_width > MAX_BITMAP_SIDE || bitmap_height > MAX_BITMAP_SIDE {
+                return Err(RenderBitmapError::BboxTooLarge);
             }
             let transform = Transform::from_row(
                 scale,
@@ -84,14 +91,14 @@ fn render_target(path: &Path, bitmap_size: f32, mode: RenderMode) -> Option<(u32
                 -bounds.left() * scale,
                 bounds.bottom() * scale,
             );
-            Some((bitmap_width, bitmap_height, transform))
+            Ok(Some((bitmap_width, bitmap_height, transform)))
         }
         RenderMode::BboxSquare => {
             let bounds = path.compute_tight_bounds().unwrap_or_else(|| path.bounds());
             let width = bounds.width();
             let height = bounds.height();
             if width <= f32::EPSILON || height <= f32::EPSILON {
-                return None;
+                return Ok(None);
             }
             let scale = bitmap_size / width.max(height);
             let offset_x = (bitmap_size - width * scale) * 0.5;
@@ -104,7 +111,7 @@ fn render_target(path: &Path, bitmap_size: f32, mode: RenderMode) -> Option<(u32
                 offset_x - bounds.left() * scale,
                 offset_y + bounds.bottom() * scale,
             );
-            Some((bitmap_size as u32, bitmap_size as u32, transform))
+            Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
     }
 }
@@ -133,5 +140,12 @@ fn blank_bitmap(width: u32, height: u32) -> RenderedBitmap {
         data: vec![0u8; (width as usize).saturating_mul(height as usize)],
         width,
         height,
+    }
+}
+
+fn blank_for_mode(size: u32, mode: RenderMode) -> RenderedBitmap {
+    match mode {
+        RenderMode::Bbox => blank_bitmap(0, 0),
+        RenderMode::Fixed | RenderMode::BboxSquare => blank_bitmap(size, size),
     }
 }
