@@ -2,7 +2,6 @@ use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
 
 use crate::pen::Command;
 
-const PADDING: f32 = 4.0;
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
 const MAX_BITMAP_SIDE: u32 = 4096;
@@ -31,12 +30,7 @@ pub(crate) fn render_bitmap(
     };
 
     let bitmap_size = size as f32;
-    let content_size = bitmap_size - 2.0 * PADDING;
-    if content_size <= 0.0 {
-        return blank_bitmap(size, size);
-    }
-    let Some((width, height, transform)) = render_target(&path, bitmap_size, content_size, mode)
-    else {
+    let Some((width, height, transform)) = render_target(&path, bitmap_size, mode) else {
         return blank_bitmap(size, size);
     };
 
@@ -51,22 +45,17 @@ pub(crate) fn render_bitmap(
     }
 }
 
-fn render_target(
-    path: &Path,
-    bitmap_size: f32,
-    content_size: f32,
-    mode: RenderMode,
-) -> Option<(u32, u32, Transform)> {
+fn render_target(path: &Path, bitmap_size: f32, mode: RenderMode) -> Option<(u32, u32, Transform)> {
     match mode {
         RenderMode::Fixed => {
-            let scale = content_size / (FIXED_MAX - FIXED_MIN);
+            let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
             let transform = Transform::from_row(
                 scale,
                 0.0,
                 0.0,
                 -scale,
-                PADDING - FIXED_MIN * scale,
-                bitmap_size - PADDING + FIXED_MIN * scale,
+                -FIXED_MIN * scale,
+                bitmap_size + FIXED_MIN * scale,
             );
             Some((bitmap_size as u32, bitmap_size as u32, transform))
         }
@@ -77,9 +66,9 @@ fn render_target(
             if width <= f32::EPSILON || height <= f32::EPSILON {
                 return None;
             }
-            let scale = content_size / (FIXED_MAX - FIXED_MIN);
-            let bitmap_width = (width * scale + 2.0 * PADDING).ceil() as u32;
-            let bitmap_height = (height * scale + 2.0 * PADDING).ceil() as u32;
+            let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
+            let bitmap_width = (width * scale).ceil() as u32;
+            let bitmap_height = (height * scale).ceil() as u32;
             if bitmap_width == 0
                 || bitmap_height == 0
                 || bitmap_width > MAX_BITMAP_SIDE
@@ -92,8 +81,8 @@ fn render_target(
                 0.0,
                 0.0,
                 -scale,
-                PADDING - bounds.left() * scale,
-                PADDING + bounds.bottom() * scale,
+                -bounds.left() * scale,
+                bounds.bottom() * scale,
             );
             Some((bitmap_width, bitmap_height, transform))
         }
@@ -104,7 +93,7 @@ fn render_target(
             if width <= f32::EPSILON || height <= f32::EPSILON {
                 return None;
             }
-            let scale = content_size / width.max(height);
+            let scale = bitmap_size / width.max(height);
             let offset_x = (bitmap_size - width * scale) * 0.5;
             let offset_y = (bitmap_size - height * scale) * 0.5;
             let transform = Transform::from_row(

@@ -218,9 +218,9 @@ def test_render_bitmap_supports_coordinate_mapping_modes() -> None:
     )
     default = render_bitmap(types, coords, size=64)
 
-    assert fixed == (20, 10)
-    assert bbox == (19, 10)
-    assert bbox_square == (56, 28)
+    assert fixed == (22, 11)
+    assert bbox == (22, 11)
+    assert bbox_square == (64, 32)
     assert torch.equal(
         default, render_bitmap(types, coords, size=64, mode="bbox_square")
     )
@@ -252,7 +252,7 @@ def test_render_bitmap_bbox_returns_variable_size() -> None:
 
     bitmap = render_bitmap(types, coords, size=64, mode="bbox")
 
-    assert bitmap.shape == (18, 27)
+    assert bitmap.shape == (11, 22)
 
 
 def test_render_bitmap_rejects_unknown_mode() -> None:

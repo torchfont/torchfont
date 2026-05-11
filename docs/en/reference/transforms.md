@@ -63,14 +63,13 @@ from torchfont.transforms import render_bitmap
 bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
 ```
 
-Renders a glyph outline to a greyscale bitmap tensor with a fixed 4-pixel
-padding on each side. `mode` controls how coordinates are mapped to the output
-bitmap.
+Renders a glyph outline to a greyscale bitmap tensor. `mode` controls how
+coordinates are mapped to the output bitmap.
 
 - `size` must be between 1 and 4096 (default: 64)
 - `mode="fixed"` maps the fixed UPM-normalised range `[-0.25, 1.25] x [-0.25, 1.25]`
 - `mode="bbox"` keeps the fixed-mode scale and returns a variable-size bitmap
-  cropped to the tight glyph bounding box plus padding
+  cropped to the tight glyph bounding box
 - `mode="bbox_square"` scales the tight glyph bounding box uniformly and centres
   it (default)
 - rendering uses the clipped / pre-patchified outline for faithful shape
