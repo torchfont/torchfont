@@ -13,17 +13,30 @@ fn render_bitmap(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
     size: u32,
-) -> PyResult<Vec<u8>> {
+    mode: &str,
+) -> PyResult<(Vec<u8>, u32, u32)> {
     if size == 0 || size > 4096 {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "size must be between 1 and 4096",
         ));
     }
-    Ok(bitmap::render_bitmap(
-        types.as_slice()?,
-        coords.as_slice()?,
-        size,
-    ))
+    let mode = match mode {
+        "fixed" => bitmap::RenderMode::Fixed,
+        "bbox" => bitmap::RenderMode::Bbox,
+        "bbox_square" => bitmap::RenderMode::BboxSquare,
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "mode must be one of 'fixed', 'bbox', or 'bbox_square'",
+            ));
+        }
+    };
+    let rendered = bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size, mode)
+        .map_err(|err| match err {
+            bitmap::RenderBitmapError::BboxTooLarge => pyo3::exceptions::PyValueError::new_err(
+                "bbox output dimensions must be between 1 and 4096",
+            ),
+        })?;
+    Ok((rendered.data, rendered.width, rendered.height))
 }
 
 #[pyfunction]

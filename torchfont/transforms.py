@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
 from torch import Tensor
 
 from torchfont import _torchfont
 from torchfont.io import CommandType
+
+BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 
 
 def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
@@ -65,27 +69,41 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
     )
 
 
-def render_bitmap(types: Tensor, coords: Tensor, size: int = 64) -> Tensor:
+def render_bitmap(
+    types: Tensor, coords: Tensor, size: int = 64, mode: BitmapMode = "bbox_square"
+) -> Tensor:
     """Render a glyph outline to a greyscale bitmap tensor.
 
-    The glyph is auto-scaled and centred to fill the canvas with a fixed
-    4-pixel padding on each side.
+    ``mode`` controls how outline coordinates are mapped to the output bitmap.
 
     Args:
         types: 1-D ``torch.int64`` tensor of pen command types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)`` holding
             UPM-normalised coordinate data for each command.
-        size: Output image side length in pixels (square). Must be between 1
-            and 4096.
+        size: Output image side length in pixels for ``"fixed"`` and
+            ``"bbox_square"``. For ``"bbox"``, this sets the coordinate scale
+            using the same fixed ``[-0.25, 1.25]`` range, then crops the output to
+            the tight glyph bounding box. Must be between 1 and 4096.
+        mode: Coordinate mapping mode. ``"fixed"`` maps the fixed UPM-normalised
+            range ``[-0.25, 1.25] x [-0.25, 1.25]`` to the canvas. ``"bbox"`` scales
+            with the fixed-mode scale and returns a variable-size bitmap
+            cropped to the tight glyph bounding box. ``"bbox_square"`` scales
+            the tight glyph bounding box uniformly and centres it.
 
     Returns:
-        uint8 tensor of shape ``(size, size)`` with values in ``[0, 255]``.
+        uint8 tensor with values in ``[0, 255]``. Shape is ``(size, size)`` for
+        ``"fixed"`` and ``"bbox_square"``, and variable ``(height, width)`` for
+        ``"bbox"``.
 
     """
     types_c = types.cpu().contiguous()
     coords_c = coords.cpu().contiguous()
-    raw = _torchfont.render_bitmap(types_c.numpy(), coords_c.reshape(-1).numpy(), size)
-    return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(size, size)
+    raw, width, height = _torchfont.render_bitmap(
+        types_c.numpy(), coords_c.reshape(-1).numpy(), size, mode
+    )
+    if width == 0 or height == 0:
+        return torch.empty((height, width), dtype=torch.uint8)
+    return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(height, width)
 
 
-__all__ = ["patchify", "quad_to_cubic", "render_bitmap"]
+__all__ = ["BitmapMode", "patchify", "quad_to_cubic", "render_bitmap"]
