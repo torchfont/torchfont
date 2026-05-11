@@ -32,11 +32,9 @@ from torchfont import _torchfont
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
     ContentLabel,
-    ContentMetadataRow,
     DatasetMetadata,
     StyleAxis,
     StyleLabel,
-    StyleMetadataRow,
     build_dataset_metadata,
 )
 
