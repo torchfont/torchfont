@@ -260,7 +260,7 @@ def test_render_bitmap_rejects_unknown_mode() -> None:
     coords = torch.zeros(1, 6, dtype=torch.float32)
 
     with pytest.raises(ValueError, match="mode must be one of"):
-        render_bitmap(types, coords, mode="unknown")  # type: ignore[arg-type]
+        render_bitmap(types, coords, mode="unknown")  # ty: ignore[invalid-argument-type]
 
 
 def test_render_bitmap_bbox_empty_outline_returns_empty_bitmap() -> None:
