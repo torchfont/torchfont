@@ -1,7 +1,10 @@
 [package]
 name = "torchfont"
-version = "0.8.1"
+version = "0.9.0"
 edition = "2024"
+description = "Datasets, Transforms and Models specific to Vector Fonts"
+license = "MIT"
+repository = "https://github.com/torchfont/torchfont"
 
 [lib]
 name = "_torchfont"
