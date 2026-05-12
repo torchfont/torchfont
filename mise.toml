@@ -41,9 +41,8 @@ run = [
 [tasks.data-update]
 run = [
   "git submodule sync --recursive",
-  "git submodule update --remote --merge --recursive",
   "git submodule foreach --recursive 'git fetch --prune origin'",
-  "git submodule update --remote --merge --recursive",
+  "git submodule update --remote --recursive",
 ]
 
 [tasks.bench]
