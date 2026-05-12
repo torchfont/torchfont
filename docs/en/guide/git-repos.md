@@ -1,8 +1,8 @@
 # Using Git Repository Checkouts
 
-TorchFont does not need to synchronize Git repositories itself in the main
-workflow. Clone or update the repository outside TorchFont, then point
-`GlyphDataset` at the checked-out directory.
+TorchFont does not synchronize Git repositories itself in the main workflow.
+Use Git (for example, submodule commands in this repository) to update the
+checkout, then point `GlyphDataset` at that local directory.
 
 ## Basic form
 

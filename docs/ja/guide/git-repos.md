@@ -1,8 +1,8 @@
 # checkout 済み Git リポジトリを使う
 
 TorchFont の中心ワークフローでは、Git リポジトリの同期自体は
-TorchFont の外で行います。clone / update した checkout を
-`GlyphDataset` に渡してください。
+TorchFont ではなく Git 側で行います（このリポジトリの submodule
+コマンドなど）。更新した checkout を `GlyphDataset` に渡してください。
 
 ## 基本形
 
