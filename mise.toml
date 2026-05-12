@@ -33,16 +33,10 @@ run = [
 ]
 
 [tasks.data-setup]
-run = [
-  "git submodule sync --recursive",
-  "git submodule update --init --depth 1 --recursive",
-]
+run = "git submodule update --init --depth 1 --recursive"
 
 [tasks.data-update]
-run = [
-  "git submodule sync --recursive",
-  "git submodule update --remote --depth 1 --recursive",
-]
+run = "git submodule update --init --remote --depth 1 --recursive"
 
 [tasks.bench]
 run = [
