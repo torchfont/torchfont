@@ -32,6 +32,20 @@ run = [
   "mise exec -- uv run pytest tests",
 ]
 
+[tasks.data-setup]
+run = [
+  "git submodule sync --recursive",
+  "git submodule update --init --depth 1 --recursive",
+]
+
+[tasks.data-update]
+run = [
+  "git submodule sync --recursive",
+  "git submodule update --remote --merge --recursive",
+  "git submodule foreach --recursive 'git fetch --prune origin'",
+  "git submodule update --remote --merge --recursive",
+]
+
 [tasks.bench]
 run = [
   "mise exec -- uv run pytest tests/benchmarks --benchmark-only --benchmark-sort=mean",

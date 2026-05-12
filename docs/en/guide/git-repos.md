@@ -7,8 +7,7 @@ workflow. Clone or update the repository outside TorchFont, then point
 ## Basic form
 
 ```bash
-git clone --depth 1 https://github.com/FortAwesome/Font-Awesome \
-  data/fortawesome/font-awesome
+git submodule update --init --depth 1 -- data/fortawesome/font-awesome
 ```
 
 ```python
@@ -58,31 +57,25 @@ GlyphDataset(
 ```python
 GlyphDataset(
     root="data/google/material_design_icons",
-    patterns=("variablefont/*.ttf",),
+    patterns=("font/*.ttf", "font/*.otf"),
 )
 ```
 
-### Source Han Sans (with TTC)
+### Source Han Code JP (TTC)
 
 ```python
 GlyphDataset(
-    root="data/adobe-fonts/source-han-sans",
-    patterns=("*.ttf.ttc",),
+    root="data/adobe/source-han-code-jp",
+    patterns=("OTC/*.ttc",),
 )
 ```
 
-::: info
-The `*.ttf.ttc` pattern is intentional. This repository contains TTC files with
-names like `Something.ttf.ttc`.
-:::
-
 ## Refresh workflow
 
-Update the checkout with Git, then recreate the dataset instance:
+Update the submodule checkout with Git, then recreate the dataset instance:
 
 ```bash
-git -C data/fortawesome/font-awesome fetch --depth 1 origin
-git -C data/fortawesome/font-awesome checkout 7.x
+git submodule update --remote --depth 1 -- data/fortawesome/font-awesome
 ```
 
 TorchFont keeps native indexing state for the lifetime of a dataset object.

@@ -1,0 +1,20 @@
+[submodule "data/google/fonts"]
+	path = data/google/fonts
+	url = https://github.com/google/fonts.git
+	branch = main
+	shallow = true
+[submodule "data/fortawesome/font-awesome"]
+	path = data/fortawesome/font-awesome
+	url = https://github.com/FortAwesome/Font-Awesome.git
+	branch = 7.x
+	shallow = true
+[submodule "data/google/material_design_icons"]
+	path = data/google/material_design_icons
+	url = https://github.com/google/material-design-icons.git
+	branch = main
+	shallow = true
+[submodule "data/adobe/source-han-code-jp"]
+	path = data/adobe/source-han-code-jp
+	url = https://github.com/adobe-fonts/source-han-code-jp.git
+	branch = release
+	shallow = true

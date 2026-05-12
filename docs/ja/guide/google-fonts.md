@@ -6,7 +6,7 @@ Google Fonts リポジトリをローカルに checkout し、そのディレク
 ## 最小例
 
 ```bash
-git clone --depth 1 https://github.com/google/fonts data/google/fonts
+git submodule update --init --depth 1 -- data/google/fonts
 ```
 
 ```python
@@ -63,10 +63,10 @@ dataset = GlyphDataset(
 
 ## 更新フロー
 
-checkout は Git 側で更新し、そのあと Dataset を作り直してください。
+submodule checkout は Git 側で更新し、そのあと Dataset を作り直してください。
 
 ```bash
-git -C data/google/fonts pull --ff-only
+git submodule update --remote --depth 1 -- data/google/fonts
 git -C data/google/fonts rev-parse HEAD
 ```
 

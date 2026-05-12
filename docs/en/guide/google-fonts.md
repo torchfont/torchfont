@@ -6,7 +6,7 @@ Use a local checkout of the Google Fonts repository, then open it with
 ## Minimal example
 
 ```bash
-git clone --depth 1 https://github.com/google/fonts data/google/fonts
+git submodule update --init --depth 1 -- data/google/fonts
 ```
 
 ```python
@@ -64,10 +64,10 @@ dataset = GlyphDataset(
 
 ## Update workflow
 
-Update the checkout with Git, then recreate the dataset:
+Update the submodule checkout with Git, then recreate the dataset:
 
 ```bash
-git -C data/google/fonts pull --ff-only
+git submodule update --remote --depth 1 -- data/google/fonts
 git -C data/google/fonts rev-parse HEAD
 ```
 

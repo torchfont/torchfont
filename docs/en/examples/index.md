@@ -5,6 +5,9 @@ Runnable examples live in the repository `examples/` directory.
 ::: tip Before running
 Run from the repository root, e.g. `python examples/local_fonts.py`.
 
+Examples backed by external font repositories use Git submodules. Initialize
+them with `mise run data-setup`.
+
 Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 `prefetch_factor`.
 :::
@@ -17,7 +20,7 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 |Corpus checkout|`google_fonts.py`|Google Fonts checkout + transforms + DataLoader|
 |Corpus checkout|`font_awesome.py`|Font Awesome checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons checkout|
-|Corpus checkout|`source_han_sans.py`|Source Han Sans checkout (TTC included)|
+|Corpus checkout|`source_han_code_jp.py`|Source Han Code JP TTC checkout|
 |Subsetting|`subset_by_targets.py`|Filter with style/content `targets`|
 
 ## Suggested reading order
@@ -25,5 +28,5 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 1. `local_fonts.py`
 2. `subset_by_targets.py`
 3. `google_fonts.py`
-4. `font_awesome.py` / `material_design_icons.py` / `source_han_sans.py` as
+4. `font_awesome.py` / `material_design_icons.py` / `source_han_code_jp.py` as
    needed

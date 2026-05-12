@@ -20,7 +20,7 @@ def collate_fn(
 def main() -> None:
     dataset = GlyphDataset(
         root="data/google/material_design_icons",
-        patterns=("variablefont/*.ttf",),
+        patterns=("font/*.ttf", "font/*.otf"),
         transform=transform,
     )
 

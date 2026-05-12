@@ -19,8 +19,8 @@ def collate_fn(
 
 def main() -> None:
     dataset = GlyphDataset(
-        root="data/adobe-fonts/source-han-sans",
-        patterns=("*.ttf.ttc",),
+        root="data/adobe/source-han-code-jp",
+        patterns=("OTC/*.ttc",),
         transform=transform,
     )
 

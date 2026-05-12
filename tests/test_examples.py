@@ -13,7 +13,7 @@ EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
     [
         "google_fonts.py",
         "local_fonts.py",
-        "source_han_sans.py",
+        "source_han_code_jp.py",
         "subset_by_targets.py",
         "font_awesome.py",
         "material_design_icons.py",
