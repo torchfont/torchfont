@@ -1,6 +1,7 @@
 use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
 
-use crate::pen::Command;
+use crate::bounds::{Bounds, BoundsPen};
+use crate::outline::Command;
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
@@ -29,12 +30,12 @@ pub(crate) fn render_bitmap(
     size: u32,
     mode: RenderMode,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let Some(path) = build_path(types, coords) else {
+    let Some((path, bounds)) = build_path(types, coords, !matches!(mode, RenderMode::Fixed)) else {
         return Ok(blank_for_mode(size, mode));
     };
 
     let bitmap_size = size as f32;
-    let Some((width, height, transform)) = render_target(&path, bitmap_size, mode)? else {
+    let Some((width, height, transform)) = render_target(bounds, bitmap_size, mode)? else {
         return Ok(blank_for_mode(size, mode));
     };
 
@@ -50,7 +51,7 @@ pub(crate) fn render_bitmap(
 }
 
 fn render_target(
-    path: &Path,
+    bounds: Option<Bounds>,
     bitmap_size: f32,
     mode: RenderMode,
 ) -> Result<Option<(u32, u32, Transform)>, RenderBitmapError> {
@@ -68,7 +69,9 @@ fn render_target(
             Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
         RenderMode::Bbox => {
-            let bounds = path.compute_tight_bounds().unwrap_or_else(|| path.bounds());
+            let Some(bounds) = bounds else {
+                return Ok(None);
+            };
             let width = bounds.width();
             let height = bounds.height();
             if width <= f32::EPSILON || height <= f32::EPSILON {
@@ -88,13 +91,15 @@ fn render_target(
                 0.0,
                 0.0,
                 -scale,
-                -bounds.left() * scale,
-                bounds.bottom() * scale,
+                -bounds.x_min * scale,
+                bounds.y_max * scale,
             );
             Ok(Some((bitmap_width, bitmap_height, transform)))
         }
         RenderMode::BboxSquare => {
-            let bounds = path.compute_tight_bounds().unwrap_or_else(|| path.bounds());
+            let Some(bounds) = bounds else {
+                return Ok(None);
+            };
             let width = bounds.width();
             let height = bounds.height();
             if width <= f32::EPSILON || height <= f32::EPSILON {
@@ -108,31 +113,59 @@ fn render_target(
                 0.0,
                 0.0,
                 -scale,
-                offset_x - bounds.left() * scale,
-                offset_y + bounds.bottom() * scale,
+                offset_x - bounds.x_min * scale,
+                offset_y + bounds.y_max * scale,
             );
             Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
     }
 }
 
-fn build_path(types: &[i64], coords: &[f32]) -> Option<Path> {
+fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path, Option<Bounds>)> {
     let mut builder = PathBuilder::with_capacity(types.len(), coords.len() / 2);
+    let mut bounds = track_bounds.then(BoundsPen::default);
     for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
         match command {
-            v if v == Command::MoveTo as i64 => builder.move_to(values[4], values[5]),
-            v if v == Command::LineTo as i64 => builder.line_to(values[4], values[5]),
-            v if v == Command::QuadTo as i64 => {
-                builder.quad_to(values[0], values[1], values[4], values[5])
+            v if v == Command::MoveTo as i64 => {
+                if let Some(bounds) = &mut bounds {
+                    bounds.move_to(values[4], values[5]);
+                }
+                builder.move_to(values[4], values[5]);
             }
-            v if v == Command::CurveTo as i64 => builder.cubic_to(
-                values[0], values[1], values[2], values[3], values[4], values[5],
-            ),
-            v if v == Command::Close as i64 => builder.close(),
+            v if v == Command::LineTo as i64 => {
+                if let Some(bounds) = &mut bounds {
+                    bounds.line_to(values[4], values[5]);
+                }
+                builder.line_to(values[4], values[5]);
+            }
+            v if v == Command::QuadTo as i64 => {
+                if let Some(bounds) = &mut bounds {
+                    bounds.quad_to(values[0], values[1], values[4], values[5]);
+                }
+                builder.quad_to(values[0], values[1], values[4], values[5]);
+            }
+            v if v == Command::CurveTo as i64 => {
+                if let Some(bounds) = &mut bounds {
+                    bounds.curve_to(
+                        values[0], values[1], values[2], values[3], values[4], values[5],
+                    );
+                }
+                builder.cubic_to(
+                    values[0], values[1], values[2], values[3], values[4], values[5],
+                );
+            }
+            v if v == Command::Close as i64 => {
+                if let Some(bounds) = &mut bounds {
+                    bounds.close();
+                }
+                builder.close();
+            }
             _ => break,
         }
     }
-    builder.finish()
+    builder
+        .finish()
+        .map(|path| (path, bounds.and_then(BoundsPen::finish)))
 }
 
 fn blank_bitmap(width: u32, height: u32) -> RenderedBitmap {

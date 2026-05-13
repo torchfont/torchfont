@@ -6,11 +6,13 @@ use skrifa::{
     GlyphId, MetadataProvider,
     instance::{Location, LocationRef, Size},
     outline::DrawSettings,
+    raw::TableProvider,
 };
 
 use crate::{
+    bounds,
     error::{py_err, py_index_err},
-    pen::SegmentPen,
+    outline,
 };
 
 pub(super) type GlyphItemData = (
@@ -76,14 +78,12 @@ impl GlyphReader {
             let location_ref = self.location_ref(locations, instance_index)?;
             let inv_upem = 1.0 / units_per_em;
 
-            let mut pen = SegmentPen::new(units_per_em);
-            glyph
-                .draw(
-                    DrawSettings::unhinted(Size::unscaled(), location_ref),
-                    &mut pen,
-                )
-                .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
-            let (types, coords) = pen.finish();
+            let (types, coords) = outline::extract_glyph_segments(
+                &glyph,
+                DrawSettings::unhinted(Size::unscaled(), location_ref),
+                units_per_em,
+            )
+            .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
 
             let glyph_metrics = font.glyph_metrics(Size::unscaled(), location_ref);
             let advance_width = glyph_metrics
@@ -94,17 +94,24 @@ impl GlyphReader {
                 .left_side_bearing(glyph_id)
                 .map(|v| v * inv_upem)
                 .unwrap_or(f32::NAN);
-            let (x_min, y_min, x_max, y_max) = glyph_metrics.bounds(glyph_id).map_or(
-                (f32::NAN, f32::NAN, f32::NAN, f32::NAN),
-                |bb| {
-                    (
-                        bb.x_min * inv_upem,
-                        bb.y_min * inv_upem,
-                        bb.x_max * inv_upem,
-                        bb.y_max * inv_upem,
-                    )
-                },
-            );
+            let (x_min, y_min, x_max, y_max) = if metrics_bounds_are_outline_based(&font) {
+                bounds::bounds_from_i32_segments(&types, &coords)
+                    .map_or((f32::NAN, f32::NAN, f32::NAN, f32::NAN), |bb| {
+                        (bb.x_min, bb.y_min, bb.x_max, bb.y_max)
+                    })
+            } else {
+                glyph_metrics.bounds(glyph_id).map_or(
+                    (f32::NAN, f32::NAN, f32::NAN, f32::NAN),
+                    |bb| {
+                        (
+                            bb.x_min * inv_upem,
+                            bb.y_min * inv_upem,
+                            bb.x_max * inv_upem,
+                            bb.y_max * inv_upem,
+                        )
+                    },
+                )
+            };
 
             let m = font.metrics(Size::unscaled(), location_ref);
 
@@ -214,4 +221,8 @@ impl GlyphReader {
             Ok(LocationRef::default())
         }
     }
+}
+
+fn metrics_bounds_are_outline_based(font: &skrifa::FontRef<'_>) -> bool {
+    font.gvar().is_ok() || font.cff().is_ok() || font.cff2().is_ok()
 }
