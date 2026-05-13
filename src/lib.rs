@@ -1,8 +1,8 @@
 mod bitmap;
+mod bounds;
 mod dataset;
 mod error;
 mod outline;
-mod pen;
 
 use dataset::{GlyphDataset, GlyphItem};
 use numpy::{PyReadonlyArray1, PyReadwriteArray1};
