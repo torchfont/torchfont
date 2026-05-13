@@ -14,7 +14,7 @@ on:
       - 'Cargo.lock'
       - 'pyproject.toml'
       - 'uv.lock'
-      - '.github/workflows/*.yml'
+      - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - '**/*.rs'
@@ -24,7 +24,7 @@ on:
       - 'Cargo.lock'
       - 'pyproject.toml'
       - 'uv.lock'
-      - '.github/workflows/*.yml'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 permissions:
