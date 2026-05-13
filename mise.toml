@@ -4,8 +4,11 @@ rust = { version = "stable", profile = "default", components = "rust-src" }
 npm = "latest"
 node = "lts"
 
+[settings]
+lockfile = true
+
 [tasks.setup]
-sources = ["mise.toml"]
+sources = ["mise.toml", "mise.lock"]
 run = "mise install"
 
 [tasks.uv-sync]
