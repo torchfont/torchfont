@@ -37,7 +37,7 @@ version = "11.14.1"
 backend = "npm:npm"
 
 [[tools.rust]]
-version = "1.94.1"
+version = "stable"
 backend = "core:rust"
 
 [[tools.uv]]
