@@ -9,6 +9,6 @@ build:
       - npm ci
     build:
       html:
-        - npm run docs:build
+        - npx vitepress build docs
         - mkdir -p $READTHEDOCS_OUTPUT/
         - mv docs/.vitepress/dist $READTHEDOCS_OUTPUT/html
