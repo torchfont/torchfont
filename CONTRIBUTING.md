@@ -19,6 +19,13 @@ data-backed examples or tests, sync submodules with:
 mise run data-sync
 ```
 
+When you update tool versions in `mise.toml`, regenerate and commit `mise.lock`
+in the same change:
+
+```bash
+mise lock
+```
+
 ## Coding Standards
 
 - The minimum supported Python version is 3.10. Avoid syntax that would break on
