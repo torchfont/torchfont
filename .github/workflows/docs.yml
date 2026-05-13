@@ -9,7 +9,6 @@ on:
       - 'README.md'
       - 'package.json'
       - 'package-lock.json'
-      - 'mise.toml'
       - '.readthedocs.yaml'
       - '.github/workflows/docs.yml'
   pull_request:
@@ -18,7 +17,6 @@ on:
       - 'README.md'
       - 'package.json'
       - 'package-lock.json'
-      - 'mise.toml'
       - '.readthedocs.yaml'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
@@ -32,6 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v4
-      - run: mise exec -- npm ci
-      - run: mise run docs-build
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run docs:build
