@@ -57,7 +57,8 @@ uv run pytest tests --runslow --runnetwork
 Docs use VitePress. Build them with:
 
 ```bash
-mise run docs-build
+npm ci
+npm run docs:build
 ```
 
 Keep `docs/en/` and `docs/ja/` aligned when changing user-facing docs.

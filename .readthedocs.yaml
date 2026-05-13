@@ -6,7 +6,7 @@ build:
     nodejs: "22"
   jobs:
     install:
-      - npm install
+      - npm ci
     build:
       html:
         - npx vitepress build docs
