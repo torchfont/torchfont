@@ -6,18 +6,14 @@ on:
       - main
     paths:
       - 'docs/**'
-      - 'README.md'
       - 'package.json'
       - 'package-lock.json'
-      - '.readthedocs.yaml'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
-      - 'README.md'
       - 'package.json'
       - 'package-lock.json'
-      - '.readthedocs.yaml'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
