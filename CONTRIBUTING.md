@@ -44,14 +44,6 @@ mise run test
 `mise run test` builds the Rust extension with `maturin develop` before running
 pytest.
 
-By default, pytest skips slow and network-dependent tests. To include them, use:
-
-```bash
-uv run pytest tests --runslow
-uv run pytest tests --runnetwork
-uv run pytest tests --runslow --runnetwork
-```
-
 ## Documentation
 
 Docs use VitePress. Build them with:
