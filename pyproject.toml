@@ -70,6 +70,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 unsafe-fixes = true
+exclude = ["data"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -88,3 +89,6 @@ module-name = "torchfont._torchfont"
 
 [tool.ty.rules]
 invalid-method-override = "ignore"
+
+[tool.ty.src]
+exclude = ["data"]

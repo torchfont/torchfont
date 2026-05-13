@@ -6,7 +6,7 @@ Runnable examples live in the repository `examples/` directory.
 Run from the repository root, e.g. `python examples/local_fonts.py`.
 
 Examples backed by external font repositories use Git submodules. Initialize
-them with `mise run data-setup`.
+them with `mise run data-sync`.
 
 Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 `prefetch_factor`.

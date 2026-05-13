@@ -8,7 +8,7 @@
 リポジトリのルートで実行してください（例: `python examples/local_fonts.py`）。
 
 外部フォントリポジトリを使うサンプルは Git submodule を使います。
-`mise run data-setup` で初期化してください。
+`mise run data-sync` で初期化してください。
 
 一部スクリプトは `num_workers=8` を前提にしています。`num_workers=0` にする場合は `prefetch_factor` も削除してください。
 :::
