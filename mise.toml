@@ -72,7 +72,12 @@ depends = ["build"]
 run = "uv run pytest tests"
 
 [tasks.docs-build]
-sources = ["docs/**/*", "package.json", "package-lock.json"]
+sources = [
+  "docs/**/*",
+  "!docs/.vitepress/dist/**",
+  "package.json",
+  "package-lock.json",
+]
 depends = ["npm-sync"]
 run = "npm run docs:build"
 
