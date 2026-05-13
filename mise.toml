@@ -64,9 +64,8 @@ sources = [
   "src/**/*.rs",
   "torchfont/**/*.py",
 ]
-outputs = ["target/wheels/*.whl"]
 depends = ["check"]
-run = "uv run maturin build"
+run = "uv run maturin develop --release"
 
 [tasks.test]
 depends = ["build"]
