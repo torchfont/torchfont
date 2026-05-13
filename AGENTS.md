@@ -13,7 +13,6 @@
 - Prefer existing `mise` tasks over ad hoc commands.
 - Add new repeatable project-wide workflows to `mise.toml`.
 - Run formatting, checks, and relevant tests after code changes.
-- Check `tests/conftest.py` for optional slow or network test flags.
 - Docs use VitePress. Keep `docs/en/` and `docs/ja/` aligned.
 
 ## GitHub
