@@ -5,34 +5,79 @@ npm = "latest"
 node = "lts"
 
 [tasks.setup]
-run = ["mise install", { tasks = ["setup-uv", "setup-npm"] }]
+sources = ["mise.toml"]
+run = "mise install"
 
-[tasks.setup-uv]
-run = "mise exec -- uv sync"
+[tasks.uv-sync]
+sources = ["pyproject.toml", "uv.lock"]
+depends = ["setup"]
+run = "uv sync"
 
-[tasks.setup-npm]
-run = "mise exec -- npm install"
+[tasks.npm-sync]
+sources = ["package.json", "package-lock.json"]
+depends = ["setup"]
+run = "npm ci"
+
+[tasks.sync]
+depends = ["uv-sync", "npm-sync"]
+
+[tasks.rust-format]
+sources = ["src/**/*.rs"]
+run = "cargo fmt --all"
+
+[tasks.python-format]
+sources = ["examples/**/*.py", "tests/**/*.py", "torchfont/**/*.py"]
+depends = ["uv-sync"]
+run = "uv run ruff format"
 
 [tasks.format]
-run = ["mise exec -- uv run ruff format", "mise exec -- cargo fmt --all"]
+depends = ["rust-format", "python-format"]
+
+[tasks.rust-check]
+sources = ["Cargo.toml", "Cargo.lock", "src/**/*.rs"]
+run = [
+  "cargo fmt --all -- --check",
+  "cargo clippy --all-targets --all-features -- -D warnings",
+  "cargo check --all-targets --all-features",
+]
+
+[tasks.python-check]
+sources = [
+  "pyproject.toml",
+  "uv.lock",
+  "examples/**/*.py",
+  "tests/**/*.py",
+  "torchfont/**/*.py",
+]
+depends = ["uv-sync"]
+run = ["uv run ruff format --check", "uv run ruff check", "uv run ty check"]
 
 [tasks.check]
-run = [
-  "mise exec -- uv run ruff format --diff",
-  "mise exec -- uv run ruff check",
-  "mise exec -- uv run ty check",
-  "mise exec -- cargo fmt --all -- --check",
-  "mise exec -- cargo clippy --all-targets --all-features -- -D warnings",
-  "mise exec -- cargo check --all-targets --all-features",
+depends = ["rust-check", "python-check"]
+
+[tasks.build]
+sources = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "pyproject.toml",
+  "uv.lock",
+  "src/**/*.rs",
+  "torchfont/**/*.py",
 ]
+outputs = ["target/wheels/*.whl"]
+depends = ["check"]
+run = "uv run maturin build"
 
 [tasks.test]
-run = [
-  "mise exec -- uv run maturin develop",
-  "mise exec -- uv run pytest tests",
-]
+depends = ["build"]
+run = "uv run pytest tests"
 
-[tasks.data-setup]
+[tasks.docs-build]
+sources = ["docs/**/*", "package.json", "package-lock.json"]
+depends = ["npm-sync"]
+run = "npm run docs:build"
+
+[tasks.data-sync]
 run = [
   "git submodule sync --recursive",
   "git submodule update --init --depth 1 --recursive",
@@ -43,11 +88,3 @@ run = [
   "git submodule sync --recursive",
   "git submodule update --remote --depth 1 --recursive",
 ]
-
-[tasks.bench]
-run = [
-  "mise exec -- uv run pytest tests/benchmarks --benchmark-only --benchmark-sort=mean",
-]
-
-[tasks.docs-build]
-run = "mise exec -- npm run docs:build"
