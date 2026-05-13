@@ -7,6 +7,11 @@ const faviconPath = `${rtdBase}/brand/torchfont-logomark.svg`
 
 export default defineConfig({
   base: rtdBase,
+  vite: {
+    build: {
+      target: 'esnext',
+    },
+  },
 
   title: 'TorchFont',
   head: [
