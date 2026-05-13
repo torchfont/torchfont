@@ -620,7 +620,7 @@ dependencies = [
 
 [[package]]
 name = "torchfont"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "ignore",
  "memmap2",
