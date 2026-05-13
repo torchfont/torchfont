@@ -30,7 +30,7 @@ pub(crate) fn render_bitmap(
     size: u32,
     mode: RenderMode,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let Some((path, bounds)) = build_path(types, coords) else {
+    let Some((path, bounds)) = build_path(types, coords, !matches!(mode, RenderMode::Fixed)) else {
         return Ok(blank_for_mode(size, mode));
     };
 
@@ -121,39 +121,51 @@ fn render_target(
     }
 }
 
-fn build_path(types: &[i64], coords: &[f32]) -> Option<(Path, Option<Bounds>)> {
+fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path, Option<Bounds>)> {
     let mut builder = PathBuilder::with_capacity(types.len(), coords.len() / 2);
-    let mut bounds = BoundsPen::default();
+    let mut bounds = track_bounds.then(BoundsPen::default);
     for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
         match command {
             v if v == Command::MoveTo as i64 => {
-                bounds.move_to(values[4], values[5]);
+                if let Some(bounds) = &mut bounds {
+                    bounds.move_to(values[4], values[5]);
+                }
                 builder.move_to(values[4], values[5]);
             }
             v if v == Command::LineTo as i64 => {
-                bounds.line_to(values[4], values[5]);
+                if let Some(bounds) = &mut bounds {
+                    bounds.line_to(values[4], values[5]);
+                }
                 builder.line_to(values[4], values[5]);
             }
             v if v == Command::QuadTo as i64 => {
-                bounds.quad_to(values[0], values[1], values[4], values[5]);
+                if let Some(bounds) = &mut bounds {
+                    bounds.quad_to(values[0], values[1], values[4], values[5]);
+                }
                 builder.quad_to(values[0], values[1], values[4], values[5]);
             }
             v if v == Command::CurveTo as i64 => {
-                bounds.curve_to(
-                    values[0], values[1], values[2], values[3], values[4], values[5],
-                );
+                if let Some(bounds) = &mut bounds {
+                    bounds.curve_to(
+                        values[0], values[1], values[2], values[3], values[4], values[5],
+                    );
+                }
                 builder.cubic_to(
                     values[0], values[1], values[2], values[3], values[4], values[5],
                 );
             }
             v if v == Command::Close as i64 => {
-                bounds.close();
+                if let Some(bounds) = &mut bounds {
+                    bounds.close();
+                }
                 builder.close();
             }
             _ => break,
         }
     }
-    builder.finish().map(|path| (path, bounds.finish()))
+    builder
+        .finish()
+        .map(|path| (path, bounds.and_then(BoundsPen::finish)))
 }
 
 fn blank_bitmap(width: u32, height: u32) -> RenderedBitmap {

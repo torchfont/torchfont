@@ -103,7 +103,8 @@ impl BoundsPen {
         self.include(p3.0, p3.1);
         for t in cubic_extrema(p0.0, p1.0, p2.0, p3.0)
             .into_iter()
-            .chain(cubic_extrema(p0.1, p1.1, p2.1, p3.1))
+            .flatten()
+            .chain(cubic_extrema(p0.1, p1.1, p2.1, p3.1).into_iter().flatten())
         {
             self.include(
                 cubic_at(p0.0, p1.0, p2.0, p3.0, t),
@@ -145,32 +146,29 @@ fn quad_extremum(p0: f32, p1: f32, p2: f32) -> Option<f32> {
     (t > 0.0 && t < 1.0).then_some(t)
 }
 
-fn cubic_extrema(p0: f32, p1: f32, p2: f32, p3: f32) -> Vec<f32> {
+fn cubic_extrema(p0: f32, p1: f32, p2: f32, p3: f32) -> [Option<f32>; 2] {
     let a = -p0 + 3.0 * p1 - 3.0 * p2 + p3;
     let b = 2.0 * (p0 - 2.0 * p1 + p2);
     let c = p1 - p0;
-    solve_quadratic(a, b, c)
-        .into_iter()
-        .filter(|t| *t > 0.0 && *t < 1.0)
-        .collect()
+    solve_quadratic(a, b, c).map(|t| t.filter(|t| *t > 0.0 && *t < 1.0))
 }
 
-fn solve_quadratic(a: f32, b: f32, c: f32) -> Vec<f32> {
+fn solve_quadratic(a: f32, b: f32, c: f32) -> [Option<f32>; 2] {
     if a.abs() <= f32::EPSILON {
         if b.abs() <= f32::EPSILON {
-            return Vec::new();
+            return [None, None];
         }
-        return vec![-c / b];
+        return [Some(-c / b), None];
     }
     let disc = b.mul_add(b, -4.0 * a * c);
     if disc < 0.0 {
-        return Vec::new();
+        return [None, None];
     }
     if disc <= f32::EPSILON {
-        return vec![-b / (2.0 * a)];
+        return [Some(-b / (2.0 * a)), None];
     }
     let root = disc.sqrt();
-    vec![(-b + root) / (2.0 * a), (-b - root) / (2.0 * a)]
+    [Some((-b + root) / (2.0 * a)), Some((-b - root) / (2.0 * a))]
 }
 
 fn quad_at(p0: f32, p1: f32, p2: f32, t: f32) -> f32 {
