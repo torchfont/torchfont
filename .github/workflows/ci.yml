@@ -42,6 +42,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Install skia-safe native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libssl-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: "true"
@@ -72,6 +80,14 @@ jobs:
             torch-version: "2.10.*"
     steps:
       - uses: actions/checkout@v6
+      - name: Install skia-safe native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libssl-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
