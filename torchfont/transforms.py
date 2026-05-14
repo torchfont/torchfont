@@ -30,7 +30,7 @@ def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     seq_len = types.size(-1)
     out_types = types.cpu().contiguous().clone()
     out_coords = coords.cpu().contiguous().clone()
-    _torchfont.quad_to_cubic_inplace(
+    _torchfont.quad_to_cubic(
         out_types.reshape(-1).numpy(),
         out_coords.reshape(-1).numpy(),
         seq_len,
