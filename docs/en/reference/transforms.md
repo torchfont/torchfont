@@ -30,6 +30,31 @@ endpoint continuity must cross chunk boundaries.
 - input: `types=(...)`, `coords=(..., 6)`
 - output: `types=(...)`, `coords=(..., 6)`
 
+## remove_overlaps
+
+```python
+from torchfont.transforms import remove_overlaps
+```
+
+```python
+types, coords = remove_overlaps(types, coords)
+```
+
+Removes overlapping regions from closed outline paths with a curve-preserving
+boolean union.
+The result may have a different sequence length.
+
+- input must be a single 1-D outline sequence
+- line, quadratic, and cubic segments stay vector segments; paths are not
+  flattened to polylines
+- call this before `patchify`, because the operation needs the continuous
+  outline and may change sequence length
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
+
 ## patchify
 
 ```python
@@ -47,6 +72,8 @@ then splits it into contiguous patches.
 - padding is zero-filled and appended only when `seq_len % patch_size != 0`
 - call `quad_to_cubic` before `patchify` when endpoint continuity must cross
   patch boundaries
+- call `remove_overlaps` before `patchify`, because overlap removal needs the
+  continuous outline and may change sequence length
 
 ### I/O Shape
 

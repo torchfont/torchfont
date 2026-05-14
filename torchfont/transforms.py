@@ -8,9 +8,10 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.io import CommandType
+from torchfont.io import COORD_DIM, CommandType
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
+_COORD_NDIM = 2
 
 
 def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
@@ -69,6 +70,41 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
     )
 
 
+def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    """Remove overlapping regions from closed outline paths.
+
+    The output sequence length may change. Line, quadratic, and cubic segments
+    stay vector segments; paths are not flattened to polylines.
+
+    Args:
+        types: 1-D ``torch.int64`` tensor of pen command types.
+        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+
+    Returns:
+        Tuple ``(out_types, out_coords)`` with a 1-D command tensor and a
+        ``(M, 6)`` coordinate tensor.
+
+    """
+    if types.dim() != 1:
+        msg = "types must be a 1-D tensor"
+        raise ValueError(msg)
+    if coords.dim() != _COORD_NDIM or coords.size(1) != COORD_DIM:
+        msg = "coords must have shape (N, 6)"
+        raise ValueError(msg)
+    if types.size(0) != coords.size(0):
+        msg = "types and coords must have the same sequence length"
+        raise ValueError(msg)
+    types_c = types.cpu().contiguous()
+    coords_c = coords.cpu().contiguous()
+    raw_types, raw_coords = _torchfont.remove_overlaps(
+        types_c.numpy(), coords_c.reshape(-1).numpy()
+    )
+    return (
+        torch.tensor(raw_types, dtype=torch.long),
+        torch.tensor(raw_coords, dtype=torch.float32).view(-1, COORD_DIM),
+    )
+
+
 def render_bitmap(
     types: Tensor, coords: Tensor, size: int = 64, mode: BitmapMode = "bbox_square"
 ) -> Tensor:
@@ -106,4 +142,10 @@ def render_bitmap(
     return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(height, width)
 
 
-__all__ = ["BitmapMode", "patchify", "quad_to_cubic", "render_bitmap"]
+__all__ = [
+    "BitmapMode",
+    "patchify",
+    "quad_to_cubic",
+    "remove_overlaps",
+    "render_bitmap",
+]

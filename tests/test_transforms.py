@@ -3,7 +3,7 @@ import torch
 
 from torchfont.datasets import GlyphSample
 from torchfont.io import CommandType
-from torchfont.transforms import patchify, quad_to_cubic, render_bitmap
+from torchfont.transforms import patchify, quad_to_cubic, remove_overlaps, render_bitmap
 
 _ZERO_METRICS = torch.zeros(15, dtype=torch.float32)  # placeholder for transform tests
 
@@ -185,6 +185,176 @@ def test_patchify_raises_for_invalid_patch_size() -> None:
 
     with pytest.raises(ValueError, match="patch_size must be >= 1"):
         patchify(types, coords, patch_size=0)
+
+
+def test_remove_overlaps_unions_overlapping_rectangles() -> None:
+    types = torch.tensor(
+        [
+            CommandType.MOVE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.MOVE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.6, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.6, 0.6],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.6],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.4, 0.2],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 0.2],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 0.8],
+            [0.0, 0.0, 0.0, 0.0, 0.4, 0.8],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
+    )
+
+    out_types, out_coords = remove_overlaps(types, coords)
+    before = render_bitmap(types, coords, size=96, mode="fixed")
+    after = render_bitmap(out_types, out_coords, size=96, mode="fixed")
+
+    assert out_types[-1].item() == CommandType.END.value
+    assert torch.count_nonzero(out_types == CommandType.MOVE_TO).item() == 1
+    assert torch.equal(before, after)
+
+
+def test_remove_overlaps_keeps_disjoint_contours_unchanged() -> None:
+    types = torch.tensor(
+        [
+            CommandType.MOVE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.MOVE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.LINE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.2, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.2, 0.2],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.2],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.8, 0.8],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 0.8],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.8, 1.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
+    )
+
+    out_types, out_coords = remove_overlaps(types, coords)
+
+    assert torch.equal(out_types, types)
+    assert torch.equal(out_coords, coords)
+
+
+def test_remove_overlaps_preserves_curves() -> None:
+    types = torch.tensor(
+        [
+            CommandType.MOVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.2, 0.5],
+            [0.2, 0.6657, 0.3343, 0.8, 0.5, 0.8],
+            [0.6657, 0.8, 0.8, 0.6657, 0.8, 0.5],
+            [0.8, 0.3343, 0.6657, 0.2, 0.5, 0.2],
+            [0.3343, 0.2, 0.2, 0.3343, 0.2, 0.5],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
+    )
+
+    out_types, _ = remove_overlaps(types, coords)
+
+    assert CommandType.CURVE_TO.value in out_types.tolist()
+
+
+def test_remove_overlaps_unions_overlapping_cubic_outlines() -> None:
+    types = torch.tensor(
+        [
+            CommandType.MOVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.MOVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CURVE_TO.value,
+            CommandType.CLOSE.value,
+            CommandType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.20, 0.50],
+            [0.20, 0.6657, 0.3343, 0.80, 0.50, 0.80],
+            [0.6657, 0.80, 0.80, 0.6657, 0.80, 0.50],
+            [0.80, 0.3343, 0.6657, 0.20, 0.50, 0.20],
+            [0.3343, 0.20, 0.20, 0.3343, 0.20, 0.50],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.40, 0.50],
+            [0.40, 0.6657, 0.5343, 0.80, 0.70, 0.80],
+            [0.8657, 0.80, 1.00, 0.6657, 1.00, 0.50],
+            [1.00, 0.3343, 0.8657, 0.20, 0.70, 0.20],
+            [0.5343, 0.20, 0.40, 0.3343, 0.40, 0.50],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
+    )
+
+    out_types, out_coords = remove_overlaps(types, coords)
+
+    assert CommandType.CURVE_TO.value in out_types.tolist()
+    assert (
+        torch.count_nonzero(out_types == CommandType.MOVE_TO).item()
+        < torch.count_nonzero(types == CommandType.MOVE_TO).item()
+    )
+    assert torch.count_nonzero(render_bitmap(out_types, out_coords)).item() > 0
+
+
+def test_remove_overlaps_rejects_batched_input() -> None:
+    types = torch.tensor([[CommandType.END.value]], dtype=torch.long)
+    coords = torch.zeros(1, 1, 6, dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="types must be a 1-D tensor"):
+        remove_overlaps(types, coords)
 
 
 def test_render_bitmap_supports_coordinate_mapping_modes() -> None:

@@ -83,12 +83,14 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import patchify, quad_to_cubic, render_bitmap
+from torchfont.transforms import patchify, quad_to_cubic, remove_overlaps, render_bitmap
 
 
 def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
-    types = sample.types[:512]
-    coords = sample.coords[:512]
+    types = sample.types
+    coords = sample.coords
+    types, coords = remove_overlaps(types, coords)
+    types, coords = types[:512], coords[:512]
     types, coords = quad_to_cubic(types, coords)
     bitmap = render_bitmap(types, coords)
     patch_types, patch_coords = patchify(types, coords, patch_size=32)

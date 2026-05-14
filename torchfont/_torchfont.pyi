@@ -9,6 +9,9 @@ def render_bitmap(
     types: np.ndarray, coords: np.ndarray, size: int, mode: _BitmapMode
 ) -> tuple[bytes, int, int]: ...
 def quad_to_cubic(types: np.ndarray, coords: np.ndarray, seq_len: int) -> None: ...
+def remove_overlaps(
+    types: np.ndarray, coords: np.ndarray
+) -> tuple[list[int], list[float]]: ...
 
 class GlyphItem:
     types: np.ndarray

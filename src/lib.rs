@@ -3,6 +3,7 @@ mod bounds;
 mod dataset;
 mod error;
 mod outline;
+mod overlap;
 
 use dataset::{GlyphDataset, GlyphItem};
 use numpy::{PyReadonlyArray1, PyReadwriteArray1};
@@ -51,11 +52,28 @@ fn quad_to_cubic<'py>(
     Ok(())
 }
 
+#[pyfunction]
+fn remove_overlaps(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    overlap::remove_overlaps(types.as_slice()?, coords.as_slice()?).map_err(|err| match err {
+        overlap::RemoveOverlapsError::InvalidShape => {
+            pyo3::exceptions::PyValueError::new_err("coords must contain 6 values for each command")
+        }
+    })
+}
+
 #[pymodule]
 fn _torchfont(_py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
+    // Suppress panic output: panics from flo_curves are caught by catch_unwind in overlap.rs
+    // and silently fall back to returning original data. Without this, a panic hook fires for
+    // every glyph that triggers the flo_curves sort bug, flooding stderr and blocking workers.
+    std::panic::set_hook(Box::new(|_| {}));
     m.add_class::<GlyphDataset>()?;
     m.add_class::<GlyphItem>()?;
     m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
     m.add_function(wrap_pyfunction!(quad_to_cubic, &m)?)?;
+    m.add_function(wrap_pyfunction!(remove_overlaps, &m)?)?;
     Ok(())
 }

@@ -11,6 +11,7 @@ name = "_torchfont"
 crate-type = ["cdylib"]
 
 [dependencies]
+flo_curves = "0.8.0"
 ignore = "0.4.25"
 memmap2 = "0.9.10"
 numpy = "0.28.0"

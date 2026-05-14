@@ -30,6 +30,28 @@ types, coords = quad_to_cubic(types, coords)
 - 入力: `types=(...)`, `coords=(..., 6)`
 - 出力: `types=(...)`, `coords=(..., 6)`
 
+## remove_overlaps
+
+```python
+from torchfont.transforms import remove_overlaps
+```
+
+```python
+types, coords = remove_overlaps(types, coords)
+```
+
+閉じた outline path 同士の重なりを、曲線を保つ Boolean union で取り除きます。
+出力のシーケンス長は入力と変わることがあります。
+
+- 入力は 1-D の単一 outline シーケンスです
+- line / quadratic / cubic は vector segment のまま扱い、polyline へ直線化しません
+- 連続した outline が必要で、シーケンス長も変わるため、`patchify` の前に呼び出してください
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(M,)`, `coords=(M, 6)`
+
 ## patchify
 
 ```python
@@ -47,6 +69,8 @@ patch_types, patch_coords = patchify(types, coords, patch_size=32)
 - `seq_len % patch_size != 0` の場合のみ末尾にゼロが追加されます
 - patch 境界をまたいだ終点の連続性が必要な場合は、`patchify` の前に
   `quad_to_cubic` を呼び出してください
+- overlap removal は連続した outline が必要で、シーケンス長も変わるため、
+  `patchify` の前に `remove_overlaps` を呼び出してください
 
 ### 入出力
 
