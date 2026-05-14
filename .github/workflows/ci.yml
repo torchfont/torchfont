@@ -18,6 +18,7 @@ on:
       - 'README.md'
       - '.python-version'
       - '.github/workflows/ci.yml'
+      - '.github/scripts/**'
   pull_request:
     paths:
       - '**/*.rs'
@@ -31,6 +32,7 @@ on:
       - 'README.md'
       - '.python-version'
       - '.github/workflows/ci.yml'
+      - '.github/scripts/**'
   workflow_dispatch:
 
 permissions:
@@ -115,24 +117,7 @@ jobs:
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist
-          before-script-linux: |
-            if command -v yum >/dev/null 2>&1; then
-              yum install -y freetype-devel fontconfig-devel pkgconfig
-            else
-              . /etc/os-release
-              dpkg --add-architecture arm64
-              sed -i -E 's#^deb (http://archive.ubuntu.com/ubuntu|http://security.ubuntu.com/ubuntu)#deb [arch=amd64] \1#' /etc/apt/sources.list
-              printf '%s\n' \
-                "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME} main universe restricted multiverse" \
-                "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-updates main universe restricted multiverse" \
-                "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main universe restricted multiverse" \
-                >/etc/apt/sources.list.d/arm64.list
-              apt-get update
-              apt-get install -y --no-install-recommends pkg-config libfreetype6-dev:arm64 libfontconfig1-dev:arm64
-              export PKG_CONFIG_ALLOW_CROSS=1
-              export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-              export RUSTFLAGS="${RUSTFLAGS:-} -L native=/usr/lib/aarch64-linux-gnu -C link-arg=-Wl,-rpath-link,/usr/lib/aarch64-linux-gnu"
-            fi
+          before-script-linux: . .github/scripts/install-linux-wheel-deps.sh ${{ matrix.platform.target }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
       - name: Build free-threaded wheels
@@ -140,24 +125,7 @@ jobs:
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist -i python3.14t
-          before-script-linux: |
-            if command -v yum >/dev/null 2>&1; then
-              yum install -y freetype-devel fontconfig-devel pkgconfig
-            else
-              . /etc/os-release
-              dpkg --add-architecture arm64
-              sed -i -E 's#^deb (http://archive.ubuntu.com/ubuntu|http://security.ubuntu.com/ubuntu)#deb [arch=amd64] \1#' /etc/apt/sources.list
-              printf '%s\n' \
-                "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME} main universe restricted multiverse" \
-                "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-updates main universe restricted multiverse" \
-                "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main universe restricted multiverse" \
-                >/etc/apt/sources.list.d/arm64.list
-              apt-get update
-              apt-get install -y --no-install-recommends pkg-config libfreetype6-dev:arm64 libfontconfig1-dev:arm64
-              export PKG_CONFIG_ALLOW_CROSS=1
-              export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-              export RUSTFLAGS="${RUSTFLAGS:-} -L native=/usr/lib/aarch64-linux-gnu -C link-arg=-Wl,-rpath-link,/usr/lib/aarch64-linux-gnu"
-            fi
+          before-script-linux: . .github/scripts/install-linux-wheel-deps.sh ${{ matrix.platform.target }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
       - name: Upload wheels
