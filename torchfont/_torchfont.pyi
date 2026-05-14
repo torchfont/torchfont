@@ -8,9 +8,7 @@ _BitmapMode: TypeAlias = Literal["fixed", "bbox", "bbox_square"]
 def render_bitmap(
     types: np.ndarray, coords: np.ndarray, size: int, mode: _BitmapMode
 ) -> tuple[bytes, int, int]: ...
-def quad_to_cubic(
-    types: np.ndarray, coords: np.ndarray, seq_len: int
-) -> None: ...
+def quad_to_cubic(types: np.ndarray, coords: np.ndarray, seq_len: int) -> None: ...
 
 class GlyphItem:
     types: np.ndarray
