@@ -1,4 +1,7 @@
-use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
+use skia_safe::{
+    AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, Path, PathBuilder, PathFillType,
+    surfaces,
+};
 
 use crate::bounds::{Bounds, BoundsPen};
 use crate::outline::Command;
@@ -24,6 +27,14 @@ pub(crate) enum RenderBitmapError {
     BboxTooLarge,
 }
 
+struct RenderTransform {
+    sx: f32,
+    ky: f32,
+    sy: f32,
+    tx: f32,
+    ty: f32,
+}
+
 pub(crate) fn render_bitmap(
     types: &[i64],
     coords: &[f32],
@@ -39,12 +50,29 @@ pub(crate) fn render_bitmap(
         return Ok(blank_for_mode(size, mode));
     };
 
-    let Some(mut mask) = Mask::new(width, height) else {
+    let mut data = vec![0u8; (width as usize).saturating_mul(height as usize)];
+    let image_info = ImageInfo::new(
+        (width as i32, height as i32),
+        ColorType::Alpha8,
+        AlphaType::Premul,
+        None,
+    );
+    let Some(mut surface) = surfaces::wrap_pixels(&image_info, &mut data, width as usize, None)
+    else {
         return Ok(blank_bitmap(width, height));
     };
-    mask.fill_path(&path, FillRule::Winding, true, transform);
+    let canvas = surface.canvas();
+    canvas.clear(Color::TRANSPARENT);
+    canvas.concat(&transform.matrix());
+
+    let mut paint = Paint::default();
+    paint.set_anti_alias(true);
+    paint.set_color(Color::WHITE);
+    canvas.draw_path(&path, &paint);
+    drop(surface);
+
     Ok(RenderedBitmap {
-        data: mask.data().to_vec(),
+        data,
         width,
         height,
     })
@@ -54,18 +82,17 @@ fn render_target(
     bounds: Option<Bounds>,
     bitmap_size: f32,
     mode: RenderMode,
-) -> Result<Option<(u32, u32, Transform)>, RenderBitmapError> {
+) -> Result<Option<(u32, u32, RenderTransform)>, RenderBitmapError> {
     match mode {
         RenderMode::Fixed => {
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
-            let transform = Transform::from_row(
-                scale,
-                0.0,
-                0.0,
-                -scale,
-                -FIXED_MIN * scale,
-                bitmap_size + FIXED_MIN * scale,
-            );
+            let transform = RenderTransform {
+                sx: scale,
+                ky: 0.0,
+                sy: -scale,
+                tx: -FIXED_MIN * scale,
+                ty: bitmap_size + FIXED_MIN * scale,
+            };
             Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
         RenderMode::Bbox => {
@@ -86,14 +113,13 @@ fn render_target(
             if bitmap_width > MAX_BITMAP_SIDE || bitmap_height > MAX_BITMAP_SIDE {
                 return Err(RenderBitmapError::BboxTooLarge);
             }
-            let transform = Transform::from_row(
-                scale,
-                0.0,
-                0.0,
-                -scale,
-                -bounds.x_min * scale,
-                bounds.y_max * scale,
-            );
+            let transform = RenderTransform {
+                sx: scale,
+                ky: 0.0,
+                sy: -scale,
+                tx: -bounds.x_min * scale,
+                ty: bounds.y_max * scale,
+            };
             Ok(Some((bitmap_width, bitmap_height, transform)))
         }
         RenderMode::BboxSquare => {
@@ -108,21 +134,20 @@ fn render_target(
             let scale = bitmap_size / width.max(height);
             let offset_x = (bitmap_size - width * scale) * 0.5;
             let offset_y = (bitmap_size - height * scale) * 0.5;
-            let transform = Transform::from_row(
-                scale,
-                0.0,
-                0.0,
-                -scale,
-                offset_x - bounds.x_min * scale,
-                offset_y + bounds.y_max * scale,
-            );
+            let transform = RenderTransform {
+                sx: scale,
+                ky: 0.0,
+                sy: -scale,
+                tx: offset_x - bounds.x_min * scale,
+                ty: offset_y + bounds.y_max * scale,
+            };
             Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
     }
 }
 
 fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path, Option<Bounds>)> {
-    let mut builder = PathBuilder::with_capacity(types.len(), coords.len() / 2);
+    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
     let mut bounds = track_bounds.then(BoundsPen::default);
     for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
         match command {
@@ -130,19 +155,19 @@ fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path
                 if let Some(bounds) = &mut bounds {
                     bounds.move_to(values[4], values[5]);
                 }
-                builder.move_to(values[4], values[5]);
+                builder.move_to((values[4], values[5]));
             }
             v if v == Command::LineTo as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.line_to(values[4], values[5]);
                 }
-                builder.line_to(values[4], values[5]);
+                builder.line_to((values[4], values[5]));
             }
             v if v == Command::QuadTo as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.quad_to(values[0], values[1], values[4], values[5]);
                 }
-                builder.quad_to(values[0], values[1], values[4], values[5]);
+                builder.quad_to((values[0], values[1]), (values[4], values[5]));
             }
             v if v == Command::CurveTo as i64 => {
                 if let Some(bounds) = &mut bounds {
@@ -151,7 +176,9 @@ fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path
                     );
                 }
                 builder.cubic_to(
-                    values[0], values[1], values[2], values[3], values[4], values[5],
+                    (values[0], values[1]),
+                    (values[2], values[3]),
+                    (values[4], values[5]),
                 );
             }
             v if v == Command::Close as i64 => {
@@ -163,9 +190,15 @@ fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path
             _ => break,
         }
     }
-    builder
-        .finish()
-        .map(|path| (path, bounds.and_then(BoundsPen::finish)))
+    (!builder.is_empty()).then(|| (builder.detach(), bounds.and_then(BoundsPen::finish)))
+}
+
+impl RenderTransform {
+    fn matrix(&self) -> Matrix {
+        Matrix::new_all(
+            self.sx, 0.0, self.tx, self.ky, self.sy, self.ty, 0.0, 0.0, 1.0,
+        )
+    }
 }
 
 fn blank_bitmap(width: u32, height: u32) -> RenderedBitmap {
