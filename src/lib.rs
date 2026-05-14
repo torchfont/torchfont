@@ -40,7 +40,7 @@ fn render_bitmap(
 }
 
 #[pyfunction]
-fn quad_to_cubic_inplace<'py>(
+fn quad_to_cubic<'py>(
     mut types: PyReadwriteArray1<'py, i64>,
     mut coords: PyReadwriteArray1<'py, f32>,
     seq_len: usize,
@@ -56,6 +56,6 @@ fn _torchfont(_py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GlyphDataset>()?;
     m.add_class::<GlyphItem>()?;
     m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
-    m.add_function(wrap_pyfunction!(quad_to_cubic_inplace, &m)?)?;
+    m.add_function(wrap_pyfunction!(quad_to_cubic, &m)?)?;
     Ok(())
 }
