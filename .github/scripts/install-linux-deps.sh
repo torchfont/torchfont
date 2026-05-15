@@ -18,7 +18,6 @@ elif [ "${target}" = "aarch64" ]; then
 
   apt-get update
   apt-get install -y --no-install-recommends pkg-config libfreetype6-dev:arm64 libfontconfig1-dev:arm64
-  export RUSTFLAGS="${RUSTFLAGS:-} -L native=/usr/lib/aarch64-linux-gnu -C link-arg=-Wl,-rpath-link,/usr/lib/aarch64-linux-gnu"
 else
   echo "Unsupported Linux dependency target: ${target}" >&2
   exit 1
