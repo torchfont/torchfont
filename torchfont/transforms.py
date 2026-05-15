@@ -212,7 +212,7 @@ def render_bitmap(
     )
     if width == 0 or height == 0:
         return torch.empty((height, width), dtype=torch.uint8)
-    return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(height, width)
+    return torch.from_numpy(raw).view(height, width)
 
 
 __all__ = [

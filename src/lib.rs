@@ -5,7 +5,7 @@ mod outline;
 mod transform;
 
 use dataset::{GlyphDataset, GlyphItem};
-use numpy::{PyReadonlyArray1, PyReadwriteArray1};
+use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 
 #[pyfunction]
@@ -72,11 +72,12 @@ fn remove_overlaps(
 
 #[pyfunction]
 fn render_bitmap(
+    py: Python<'_>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
     size: u32,
     mode: &str,
-) -> PyResult<(Vec<u8>, u32, u32)> {
+) -> PyResult<(Py<PyArray1<u8>>, u32, u32)> {
     if size == 0 || size > 4096 {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "size must be between 1 and 4096",
@@ -101,7 +102,11 @@ fn render_bitmap(
                     )
                 }
             })?;
-    Ok((rendered.data, rendered.width, rendered.height))
+    Ok((
+        rendered.data.into_pyarray(py).unbind(),
+        rendered.width,
+        rendered.height,
+    ))
 }
 
 fn ensure_flat_coords_len(types_len: usize, coords_len: usize) -> PyResult<()> {
