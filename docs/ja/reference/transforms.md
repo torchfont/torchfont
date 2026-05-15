@@ -11,6 +11,8 @@ from torchfont.transforms import quad_to_cubic
 
 ```python
 types, coords = quad_to_cubic(types, coords)
+# 1 つの連続した outline シーケンスでは:
+types, coords = quad_to_cubic(types, coords, merge_curves=True)
 ```
 
 `CommandType.QUAD_TO` を `CommandType.CURVE_TO` へ変換します。
@@ -25,10 +27,60 @@ types, coords = quad_to_cubic(types, coords)
 1 つの連続した outline を patch に分割し、patch 境界をまたいだ終点の連続性が
 必要な場合は、分割前に `quad_to_cubic` を呼び出してください。
 
+`merge_curves=True` を指定すると、変換直後に復元可能な隣接カーブと共線の line を
+同じ Rust 呼び出し内でまとめます。`cubic_to_quad` の後段で特に有用です。
+マージ後は outline が短くなることがあるため、このモードは batched 入力ではなく
+1 つの連続した outline シーケンスを受け取ります。
+
 ### 入出力
 
 - 入力: `types=(...)`, `coords=(..., 6)`
 - 出力: `types=(...)`, `coords=(..., 6)`
+- `merge_curves=True` の場合: 入力 `types=(N,)`, `coords=(N, 6)`、出力
+  `types=(M,)`, `coords=(M, 6)`
+
+## cubic_to_quad
+
+```python
+from torchfont.transforms import cubic_to_quad
+```
+
+```python
+types, coords = cubic_to_quad(types, coords)
+```
+
+fonttools cu2qu と同じ近似方針で、`CommandType.CURVE_TO` を 2 次 spline へ変換します。
+
+- 1 つの連続した outline シーケンスを受け取ります
+- 1 つの cubic が複数の `CommandType.QUAD_TO` に展開されることがあります
+- 隣接する 2 次制御点の中点が暗黙の on-curve 点になります
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(M,)`, `coords=(M, 6)`
+
+## merge_curves
+
+```python
+from torchfont.transforms import merge_curves
+```
+
+```python
+types, coords = merge_curves(types, coords)
+```
+
+隣接セグメントを 1 つの親形状として復元できる場合にまとめます。
+
+- 分割された cubic は、復元誤差が許容範囲内なら 1 つの cubic に戻します
+- 分割された quadratic は、復元誤差が許容範囲内なら 1 つの quadratic に戻します
+- 同方向へ進む連続した共線の `LineTo` は 1 つにまとめます
+- contour 境界は保持します
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(M,)`, `coords=(M, 6)`
 
 
 ## remove_overlaps

@@ -12,7 +12,7 @@ def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
     types = sample.types[:512]
     coords = sample.coords[:512]
     types, coords = remove_overlaps(types, coords)
-    types, coords = quad_to_cubic(types, coords)
+    types, coords = quad_to_cubic(types, coords, merge_curves=True)
     bitmap = render_bitmap(types, coords)
     patch_types, patch_coords = patchify(types, coords, patch_size=32)
     return patch_types, patch_coords, bitmap
