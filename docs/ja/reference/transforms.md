@@ -30,6 +30,29 @@ types, coords = quad_to_cubic(types, coords)
 - 入力: `types=(...)`, `coords=(..., 6)`
 - 出力: `types=(...)`, `coords=(..., 6)`
 
+
+## remove_overlaps
+
+```python
+from torchfont.transforms import remove_overlaps
+```
+
+```python
+types, coords = remove_overlaps(types, coords)
+```
+
+Skia PathOps を使い、winding に基づく hole を保ったまま重なったグリフ contour を統合します。
+
+- 1 つの連続した outline シーケンスを受け取ります
+- 重なり内部の edge を除去し、新しい可変長 outline を返します
+- Skia PathOps が簡約できない outline は元のまま返します
+- PathOps は Rust backend で動くため、出力 tensor は CPU 上に置かれます
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(M,)`, `coords=(M, 6)`
+
 ## patchify
 
 ```python

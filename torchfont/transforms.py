@@ -38,6 +38,32 @@ def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return out_types, out_coords
 
 
+def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    """Merge overlapping contours using Skia PathOps winding simplification.
+
+    Args:
+        types: 1-D ``torch.int64`` tensor of pen command types.
+        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+
+    Returns:
+        A new variable-length outline tuple ``(types, coords)`` with overlapping
+        contour edges removed when Skia PathOps can resolve the outline. If
+        PathOps cannot simplify an otherwise valid outline, the original outline
+        is returned unchanged. The output is always CPU-backed because PathOps
+        runs in the Rust backend.
+
+    """
+    types_c = types.cpu().contiguous()
+    coords_c = coords.cpu().contiguous()
+    out_types, out_coords = _torchfont.remove_overlaps(
+        types_c.numpy(), coords_c.reshape(-1).numpy()
+    )
+    return (
+        torch.tensor(out_types, dtype=torch.long),
+        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+    )
+
+
 def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Tensor]:
     """Pad and reshape a glyph sequence into uniform, fixed-size patches.
 
@@ -106,4 +132,10 @@ def render_bitmap(
     return torch.frombuffer(bytearray(raw), dtype=torch.uint8).view(height, width)
 
 
-__all__ = ["BitmapMode", "patchify", "quad_to_cubic", "render_bitmap"]
+__all__ = [
+    "BitmapMode",
+    "patchify",
+    "quad_to_cubic",
+    "remove_overlaps",
+    "render_bitmap",
+]
