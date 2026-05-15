@@ -201,54 +201,6 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             f"content_classes={self._dataset.content_class_count})"
         )
 
-    def __getstate__(self) -> dict[str, object]:
-        """Return state without the native backend for worker reconstruction."""
-        state = self.__dict__.copy()
-        state.pop("_dataset", None)
-        return state
-
-    def __setstate__(self, state: dict[str, object]) -> None:
-        """Restore state and recreate the native backend after unpickling."""
-        state.pop("_metadata", None)
-        self.__dict__.update(state)
-        self._validate_root_dir(self.root)
-        self._dataset = _torchfont.GlyphDataset(
-            str(self.root),
-            self.codepoints,
-            self.patterns,
-        )
-
-    @staticmethod
-    def _validate_root_dir(root: Path) -> None:
-        """Raise ValueError if *root* exists but is not a directory."""
-        if root.exists() and not root.is_dir():
-            msg = f"root must be a directory: {root}"
-            raise ValueError(msg)
-
-    @staticmethod
-    def _normalize_codepoints(
-        codepoints: Sequence[SupportsIndex] | None,
-    ) -> tuple[int, ...] | None:
-        """Convert an optional codepoint filter into a canonical tuple."""
-        if codepoints is None:
-            return None
-        return tuple(sorted({index(cp) for cp in codepoints}))
-
-    def _normalize_index(self, idx: SupportsIndex) -> int:
-        """Resolve one dataset index, including negative indices."""
-        resolved_idx = index(idx)
-        original_idx = resolved_idx
-        dataset_len = len(self)
-        if resolved_idx < 0:
-            resolved_idx += dataset_len
-        if resolved_idx < 0 or resolved_idx >= dataset_len:
-            msg = (
-                f"index {original_idx} is out of range for dataset of length "
-                f"{dataset_len}"
-            )
-            raise IndexError(msg)
-        return resolved_idx
-
     def __len__(self) -> int:
         """Return the total number of glyph samples discoverable in the dataset.
 
@@ -307,6 +259,61 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         if self.transform is not None:
             return self.transform(sample)
         return cast("_T", sample)
+
+    def __getstate__(self) -> dict[str, object]:
+        """Return state without the native backend for worker reconstruction."""
+        state = self.__dict__.copy()
+        state.pop("_dataset", None)
+        return state
+
+    def __setstate__(self, state: dict[str, object]) -> None:
+        """Restore state and recreate the native backend after unpickling."""
+        state.pop("_metadata", None)
+        self.__dict__.update(state)
+        self._validate_root_dir(self.root)
+        self._dataset = _torchfont.GlyphDataset(
+            str(self.root),
+            self.codepoints,
+            self.patterns,
+        )
+
+    @staticmethod
+    def _validate_root_dir(root: Path) -> None:
+        """Raise ValueError if *root* exists but is not a directory."""
+        if root.exists() and not root.is_dir():
+            msg = f"root must be a directory: {root}"
+            raise ValueError(msg)
+
+    @staticmethod
+    def _normalize_codepoints(
+        codepoints: Sequence[SupportsIndex] | None,
+    ) -> tuple[int, ...] | None:
+        """Convert an optional codepoint filter into a canonical tuple."""
+        if codepoints is None:
+            return None
+        return tuple(sorted({index(cp) for cp in codepoints}))
+
+    def _normalize_index(self, idx: SupportsIndex) -> int:
+        """Resolve one dataset index, including negative indices."""
+        resolved_idx = index(idx)
+        original_idx = resolved_idx
+        dataset_len = len(self)
+        if resolved_idx < 0:
+            resolved_idx += dataset_len
+        if resolved_idx < 0 or resolved_idx >= dataset_len:
+            msg = (
+                f"index {original_idx} is out of range for dataset of length "
+                f"{dataset_len}"
+            )
+            raise IndexError(msg)
+        return resolved_idx
+
+    def _style_axes(self) -> list[tuple[StyleAxis, ...]]:
+        """Return style axis metadata aligned with ``style_classes`` order."""
+        return [
+            tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
+            for axes in self._dataset.style_axes
+        ]
 
     @property
     def targets(self) -> Tensor:
@@ -369,13 +376,6 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             char: idx
             for idx, (_, char, _) in enumerate(self._dataset.content_metadata_rows())
         }
-
-    def _style_axes(self) -> list[tuple[StyleAxis, ...]]:
-        """Return style axis metadata aligned with ``style_classes`` order."""
-        return [
-            tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
-            for axes in self._dataset.style_axes
-        ]
 
     @property
     def metadata(self) -> DatasetMetadata:
