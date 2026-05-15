@@ -45,7 +45,7 @@ build-backend = "maturin"
 [dependency-groups]
 dev = [
     "lightning>=2.6.0",
-    "maturin>=1.10.2",
+    "maturin[patchelf]>=1.10.2",
     "numpy>=2.2.6",
     "pytest>=8.4.2",
     "pytest-benchmark>=5.1.0",
