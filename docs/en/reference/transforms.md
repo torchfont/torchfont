@@ -30,6 +30,29 @@ endpoint continuity must cross chunk boundaries.
 - input: `types=(...)`, `coords=(..., 6)`
 - output: `types=(...)`, `coords=(..., 6)`
 
+
+## remove_overlaps
+
+```python
+from torchfont.transforms import remove_overlaps
+```
+
+```python
+types, coords = remove_overlaps(types, coords)
+```
+
+Merges overlapping glyph contours with Skia PathOps while preserving winding-based holes.
+
+- accepts one continuous outline sequence
+- removes internal overlap edges and returns a new variable-length outline
+- returns the original outline unchanged when Skia PathOps cannot simplify it
+- output tensors are CPU-backed because PathOps runs in the Rust backend
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
+
 ## patchify
 
 ```python
