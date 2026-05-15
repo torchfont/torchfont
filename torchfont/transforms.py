@@ -24,12 +24,14 @@ def quad_to_cubic(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     leading dimensions are independent sequences, so call this before chunking a
     continuous outline if endpoint continuity must cross chunk boundaries.
     """
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
     if not torch.any(types == CommandType.QUAD_TO.value):
         return types, coords
 
     seq_len = types.size(-1)
-    out_types = types.cpu().contiguous().clone()
-    out_coords = coords.cpu().contiguous().clone()
+    out_types = types.clone()
+    out_coords = coords.clone()
     _torchfont.quad_to_cubic(
         out_types.reshape(-1).numpy(),
         out_coords.reshape(-1).numpy(),
@@ -49,14 +51,13 @@ def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         A new variable-length outline tuple ``(types, coords)`` with overlapping
         contour edges removed when Skia PathOps can resolve the outline. If
         PathOps cannot simplify an otherwise valid outline, the original outline
-        is returned unchanged. The output is always CPU-backed because PathOps
-        runs in the Rust backend.
+        is returned unchanged.
 
     """
-    types_c = types.cpu().contiguous()
-    coords_c = coords.cpu().contiguous()
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
     out_types, out_coords = _torchfont.remove_overlaps(
-        types_c.numpy(), coords_c.reshape(-1).numpy()
+        types.numpy(), coords.reshape(-1).numpy()
     )
     return (
         torch.tensor(out_types, dtype=torch.long),
@@ -122,10 +123,10 @@ def render_bitmap(
         ``"bbox"``.
 
     """
-    types_c = types.cpu().contiguous()
-    coords_c = coords.cpu().contiguous()
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
     raw, width, height = _torchfont.render_bitmap(
-        types_c.numpy(), coords_c.reshape(-1).numpy(), size, mode
+        types.numpy(), coords.reshape(-1).numpy(), size, mode
     )
     if width == 0 or height == 0:
         return torch.empty((height, width), dtype=torch.uint8)

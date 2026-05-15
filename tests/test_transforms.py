@@ -79,6 +79,8 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
 
     assert out_types is types
     assert out_coords is coords
+    assert out_types.device.type == "cpu"
+    assert out_coords.device.type == "cpu"
 
 
 def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:
@@ -304,6 +306,7 @@ def test_render_bitmap_bbox_returns_variable_size() -> None:
     bitmap = render_bitmap(types, coords, size=64, mode="bbox")
 
     assert bitmap.shape == (11, 22)
+    assert bitmap.device.type == "cpu"
 
 
 def test_render_bitmap_rejects_unknown_mode() -> None:
