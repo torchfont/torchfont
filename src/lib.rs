@@ -64,10 +64,10 @@ fn remove_overlaps(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    Ok(transform::remove_overlaps::remove_overlaps(
-        types.as_slice()?,
-        coords.as_slice()?,
-    ))
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    Ok(transform::remove_overlaps::remove_overlaps(t, c))
 }
 
 #[pyfunction]
