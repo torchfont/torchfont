@@ -33,7 +33,8 @@ EOF
       pkg-config \
       libfreetype6-dev:arm64 \
       libfontconfig1-dev:arm64
-    export RUSTFLAGS="${RUSTFLAGS:-} -L native=/usr/lib/aarch64-linux-gnu"
+    export PKG_CONFIG_ALLOW_CROSS=1
+    export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
     ;;
   *)
     echo "Unsupported Linux dependency target: ${target}" >&2
