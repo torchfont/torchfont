@@ -1,4 +1,4 @@
-use crate::merge_curves;
+use super::merge_curves;
 use crate::outline::Command;
 
 pub(crate) fn quad_to_cubic(types: &mut [i64], coords: &mut [f32], seq_len: usize) {
