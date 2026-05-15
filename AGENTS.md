@@ -11,7 +11,7 @@
 
 - Prefer the Dev Container when available.
 - Prefer existing `mise` tasks over ad hoc commands.
-- Add new repeatable project-wide workflows to `mise.toml`.
+- Use `uv` for all Python operations; never invoke `python` or `pip` directly.
 - Run formatting, checks, and relevant tests after code changes.
 - Docs use VitePress. Keep `docs/en/` and `docs/ja/` aligned.
 
