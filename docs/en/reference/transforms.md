@@ -11,6 +11,8 @@ from torchfont.transforms import quad_to_cubic
 
 ```python
 types, coords = quad_to_cubic(types, coords)
+# or, for one continuous outline sequence:
+types, coords = quad_to_cubic(types, coords, merge_curves=True)
 ```
 
 Converts `CommandType.QUAD_TO` commands to `CommandType.CURVE_TO`.
@@ -25,10 +27,61 @@ Converts `CommandType.QUAD_TO` commands to `CommandType.CURVE_TO`.
 Call `quad_to_cubic` before chunking one continuous outline into patches when
 endpoint continuity must cross chunk boundaries.
 
+Set `merge_curves=True` to merge adjacent reconstructable curves and collinear
+lines in the same Rust call immediately after conversion. This mode is useful
+after `cubic_to_quad`, and because merging can shorten the outline it accepts
+one continuous outline sequence rather than batched inputs.
+
 ### I/O Shape
 
 - input: `types=(...)`, `coords=(..., 6)`
 - output: `types=(...)`, `coords=(..., 6)`
+- with `merge_curves=True`: input `types=(N,)`, `coords=(N, 6)`; output
+  `types=(M,)`, `coords=(M, 6)`
+
+## cubic_to_quad
+
+```python
+from torchfont.transforms import cubic_to_quad
+```
+
+```python
+types, coords = cubic_to_quad(types, coords)
+```
+
+Converts `CommandType.CURVE_TO` commands to quadratic splines using the same
+approximation strategy as fonttools cu2qu.
+
+- accepts one continuous outline sequence
+- one cubic may expand into multiple `CommandType.QUAD_TO` commands
+- adjacent quadratic controls imply on-curve points at their midpoints
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
+
+## merge_curves
+
+```python
+from torchfont.transforms import merge_curves
+```
+
+```python
+types, coords = merge_curves(types, coords)
+```
+
+Collapses adjacent segments when they can be reconstructed as one parent shape.
+
+- split cubic pieces are merged back into one cubic when the reconstruction fits
+- split quadratic pieces are merged back into one quadratic when the reconstruction fits
+- consecutive collinear `LineTo` commands moving in the same direction are merged
+- contour boundaries are preserved
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
 
 
 ## remove_overlaps
