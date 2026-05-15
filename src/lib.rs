@@ -9,6 +9,68 @@ use numpy::{PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 
 #[pyfunction]
+fn quad_to_cubic<'py>(
+    mut types: PyReadwriteArray1<'py, i64>,
+    mut coords: PyReadwriteArray1<'py, f32>,
+    seq_len: usize,
+) -> PyResult<()> {
+    let t = types.as_slice_mut()?;
+    let c = coords.as_slice_mut()?;
+    transform::quad_to_cubic::quad_to_cubic(t, c, seq_len);
+    Ok(())
+}
+
+#[pyfunction]
+fn quad_to_cubic_and_merge(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    Ok(transform::quad_to_cubic::quad_to_cubic_and_merge(t, c))
+}
+
+#[pyfunction]
+fn cubic_to_quad(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    transform::cubic_to_quad::cubic_to_quad(t, c).map_err(|err| match err {
+        transform::cubic_to_quad::CubicToQuadError::ApproximationFailed => {
+            pyo3::exceptions::PyValueError::new_err(
+                "cubic_to_quad could not approximate a curve within MAX_N segments",
+            )
+        }
+    })
+}
+
+#[pyfunction]
+fn merge_curves(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    Ok(transform::merge_curves::merge_curves(t, c))
+}
+
+#[pyfunction]
+fn remove_overlaps(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    Ok(transform::remove_overlaps::remove_overlaps(
+        types.as_slice()?,
+        coords.as_slice()?,
+    ))
+}
+
+#[pyfunction]
 fn render_bitmap(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
@@ -42,68 +104,6 @@ fn render_bitmap(
     Ok((rendered.data, rendered.width, rendered.height))
 }
 
-#[pyfunction(name = "merge_curves")]
-fn py_merge_curves(
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::merge_curves::merge_curves(t, c))
-}
-
-#[pyfunction]
-fn remove_overlaps(
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    Ok(transform::remove_overlaps::remove_overlaps(
-        types.as_slice()?,
-        coords.as_slice()?,
-    ))
-}
-
-#[pyfunction(name = "quad_to_cubic")]
-fn py_quad_to_cubic<'py>(
-    mut types: PyReadwriteArray1<'py, i64>,
-    mut coords: PyReadwriteArray1<'py, f32>,
-    seq_len: usize,
-) -> PyResult<()> {
-    let t = types.as_slice_mut()?;
-    let c = coords.as_slice_mut()?;
-    transform::quad_to_cubic::quad_to_cubic(t, c, seq_len);
-    Ok(())
-}
-
-#[pyfunction(name = "quad_to_cubic_and_merge")]
-fn py_quad_to_cubic_and_merge(
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::quad_to_cubic::quad_to_cubic_and_merge(t, c))
-}
-
-#[pyfunction(name = "cubic_to_quad")]
-fn py_cubic_to_quad(
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    transform::cubic_to_quad::cubic_to_quad(t, c).map_err(|err| match err {
-        transform::cubic_to_quad::CubicToQuadError::ApproximationFailed => {
-            pyo3::exceptions::PyValueError::new_err(
-                "cubic_to_quad could not approximate a curve within MAX_N segments",
-            )
-        }
-    })
-}
-
 fn ensure_flat_coords_len(types_len: usize, coords_len: usize) -> PyResult<()> {
     if coords_len == types_len * 6 {
         Ok(())
@@ -118,11 +118,11 @@ fn ensure_flat_coords_len(types_len: usize, coords_len: usize) -> PyResult<()> {
 fn _torchfont(_py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GlyphDataset>()?;
     m.add_class::<GlyphItem>()?;
-    m.add_function(wrap_pyfunction!(py_cubic_to_quad, &m)?)?;
-    m.add_function(wrap_pyfunction!(py_merge_curves, &m)?)?;
-    m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
+    m.add_function(wrap_pyfunction!(quad_to_cubic, &m)?)?;
+    m.add_function(wrap_pyfunction!(quad_to_cubic_and_merge, &m)?)?;
+    m.add_function(wrap_pyfunction!(cubic_to_quad, &m)?)?;
+    m.add_function(wrap_pyfunction!(merge_curves, &m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, &m)?)?;
-    m.add_function(wrap_pyfunction!(py_quad_to_cubic, &m)?)?;
-    m.add_function(wrap_pyfunction!(py_quad_to_cubic_and_merge, &m)?)?;
+    m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
     Ok(())
 }
