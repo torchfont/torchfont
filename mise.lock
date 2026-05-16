@@ -34,7 +34,7 @@ url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip"
 
 [[tools.npm]]
 version = "11.14.1"
-backend = "npm:npm"
+backend = "aqua:npm/cli"
 
 [[tools.rust]]
 version = "stable"
