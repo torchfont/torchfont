@@ -11,7 +11,7 @@ from torchfont.transforms.curves import (
     remove_overlaps,
 )
 from torchfont.transforms.patch import patchify
-from torchfont.transforms.render import BitmapMode, render_bitmap
+from torchfont.transforms.bitmap import BitmapMode, render_bitmap
 
 __all__ = [
     "BitmapMode",
