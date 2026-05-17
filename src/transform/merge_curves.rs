@@ -1,4 +1,4 @@
-use crate::outline::Element;
+use crate::outline::ElementType;
 
 // Absolute tolerance for merge validation (normalized coords ≈ 1 font-unit in 1000 UPM).
 const TOLERANCE: f32 = 1e-3;
@@ -17,33 +17,33 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
         let ty = types[i];
         let c = arr6(coords, i);
 
-        if ty == Element::MoveTo as i64 {
+        if ty == ElementType::MoveTo as i64 {
             let move_x = c[4];
             let move_y = c[5];
             i += 1;
 
-            let mut draw: Vec<(i64, [f32; 6])> = Vec::new();
+            let mut elements: Vec<(i64, [f32; 6])> = Vec::new();
             while i < n {
                 let st = types[i];
-                if st == Element::Close as i64
-                    || st == Element::End as i64
-                    || st == Element::MoveTo as i64
+                if st == ElementType::Close as i64
+                    || st == ElementType::End as i64
+                    || st == ElementType::MoveTo as i64
                 {
                     break;
                 }
-                draw.push((st, arr6(coords, i)));
+                elements.push((st, arr6(coords, i)));
                 i += 1;
             }
 
-            let merged = merge_subpath(move_x, move_y, draw);
+            let merged = merge_subpath_elements(move_x, move_y, elements);
 
-            out_types.push(Element::MoveTo as i64);
+            out_types.push(ElementType::MoveTo as i64);
             out_coords.extend_from_slice(&c);
             for (mt, mc) in merged {
                 out_types.push(mt);
                 out_coords.extend_from_slice(&mc);
             }
-        } else if ty == Element::End as i64 {
+        } else if ty == ElementType::End as i64 {
             out_types.push(ty);
             out_coords.extend_from_slice(&c);
             break;
@@ -57,37 +57,37 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
     (out_types, out_coords)
 }
 
-fn merge_subpath(
+fn merge_subpath_elements(
     start_x: f32,
     start_y: f32,
-    segments: Vec<(i64, [f32; 6])>,
+    elements: Vec<(i64, [f32; 6])>,
 ) -> Vec<(i64, [f32; 6])> {
-    let n = segments.len();
+    let n = elements.len();
     let mut result: Vec<(i64, [f32; 6])> = Vec::with_capacity(n);
     let mut result_starts: Vec<[f32; 2]> = Vec::with_capacity(n);
     let mut i = 0;
 
     while i < n {
-        let (ty, c) = segments[i];
+        let (ty, c) = elements[i];
         let seg_start = match result.last() {
             Some((_, lc)) => [lc[4], lc[5]],
             None => [start_x, start_y],
         };
 
-        let line = Element::LineTo as i64;
-        let quad = Element::QuadTo as i64;
-        let cubic = Element::CurveTo as i64;
+        let line = ElementType::LineTo as i64;
+        let quad = ElementType::QuadTo as i64;
+        let cubic = ElementType::CurveTo as i64;
 
         if ty == cubic {
             let mut run_end = i + 1;
-            while run_end < n && segments[run_end].0 == cubic {
+            while run_end < n && elements[run_end].0 == cubic {
                 run_end += 1;
             }
             let run_len = run_end - i;
 
             let mut merged = None;
             for merge_len in (2..=run_len).rev() {
-                if let Some(m) = try_merge_cubics_n(seg_start, &segments[i..i + merge_len]) {
+                if let Some(m) = try_merge_cubics_n(seg_start, &elements[i..i + merge_len]) {
                     merged = Some((m, merge_len));
                     break;
                 }
@@ -104,14 +104,14 @@ fn merge_subpath(
             }
         } else if ty == quad {
             let mut run_end = i + 1;
-            while run_end < n && segments[run_end].0 == quad {
+            while run_end < n && elements[run_end].0 == quad {
                 run_end += 1;
             }
             let run_len = run_end - i;
 
             let mut merged = None;
             for merge_len in (2..=run_len).rev() {
-                if let Some(m) = try_merge_quads_n(seg_start, &segments[i..i + merge_len]) {
+                if let Some(m) = try_merge_quads_n(seg_start, &elements[i..i + merge_len]) {
                     merged = Some((m, merge_len));
                     break;
                 }

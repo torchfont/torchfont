@@ -115,7 +115,7 @@ from torchfont.transforms import normalize_subpath_start_points
 types, coords = normalize_subpath_start_points(types, coords)
 ```
 
-Moves each closed subpath start to its lexicographically smallest `(x, y)` endpoint.
+Moves each subpath start to its lexicographically smallest `(x, y)` endpoint.
 
 - only closed subpaths are changed; open subpaths are left unchanged
 - when rotation crosses the old closing edge, that implicit edge is materialised as `LineTo`
@@ -136,9 +136,9 @@ from torchfont.transforms import randomize_subpath_start_points
 types, coords = randomize_subpath_start_points(types, coords)
 ```
 
-Chooses a uniformly random start endpoint for each closed subpath.
+Chooses a uniformly random start endpoint for each subpath.
 
-- useful as augmentation when a model should not depend on contour cut position
+- useful as augmentation when a model should not depend on subpath start-point position
 - only closed subpaths are changed; open subpaths are left unchanged
 - `generator`: optional `torch.Generator` for reproducibility
 
@@ -183,7 +183,7 @@ types, coords = horizontal_flip(types, coords)
 Flips a glyph outline horizontally around its tight bounding-box centre.
 
 - both on-curve endpoints and off-curve control points are transformed
-- padding entries (CLOSE, END, PAD) are not modified
+- zero-coordinate element types (CLOSE, END, PAD) are not modified
 - flipping reverses subpath winding order
 
 ### I/O Shape
@@ -204,7 +204,7 @@ types, coords = vertical_flip(types, coords)
 Flips a glyph outline vertically around its tight bounding-box centre.
 
 - both on-curve endpoints and off-curve control points are transformed
-- padding entries (CLOSE, END, PAD) are not modified
+- zero-coordinate element types (CLOSE, END, PAD) are not modified
 - flipping reverses subpath winding order
 
 ### I/O Shape
@@ -226,7 +226,7 @@ Applies a deterministic affine transformation to a glyph outline.
 
 Composes uniform scale, x-shear, and rotation around the tight bounding-box
 centre, then applies `translate`. All active control points and endpoints are
-transformed; padding entries are not modified.
+transformed; zero-coordinate element types (CLOSE, END, PAD) are not modified.
 
 - `angle`: counter-clockwise rotation in degrees (default: `0.0`)
 - `translate`: translation `(tx, ty)` in UPM-normalised units (default: `(0.0, 0.0)`)
@@ -322,8 +322,8 @@ Adds independent Gaussian noise to each active value in the outline coordinates.
 
 - `std`: standard deviation in UPM-normalised units; `0.005` ≈ 5 font-units in
   a 1000-UPM font
-- only active `coords` columns are perturbed (unused columns, CLOSE, END, PAD
-  are left unchanged)
+- only active `coords` columns are perturbed (zero-coordinate element types
+  CLOSE, END, PAD and unused zero-padding columns are left unchanged)
 - `generator`: optional `torch.Generator` for reproducibility
 
 ### I/O Shape

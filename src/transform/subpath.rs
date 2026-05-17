@@ -1,4 +1,4 @@
-use crate::outline::Element;
+use crate::outline::ElementType;
 
 pub(crate) fn normalize_subpath_start_points(
     types: &[i64],
@@ -34,8 +34,8 @@ fn transform_start_points(
     let mut i = 0;
 
     while i < types.len() {
-        if types[i] != Element::MoveTo as i64 {
-            if types[i] == Element::End as i64 {
+        if types[i] != ElementType::MoveTo as i64 {
+            if types[i] == ElementType::End as i64 {
                 break;
             }
             i += 1;
@@ -44,13 +44,13 @@ fn transform_start_points(
         let move_idx = i;
         i += 1;
         while i < types.len()
-            && types[i] != Element::Close as i64
-            && types[i] != Element::MoveTo as i64
-            && types[i] != Element::End as i64
+            && types[i] != ElementType::Close as i64
+            && types[i] != ElementType::MoveTo as i64
+            && types[i] != ElementType::End as i64
         {
             i += 1;
         }
-        if i >= types.len() || types[i] != Element::Close as i64 {
+        if i >= types.len() || types[i] != ElementType::Close as i64 {
             continue;
         }
         let close_idx = i;
@@ -111,7 +111,7 @@ fn append_rotated_subpath(
     push(
         out_types,
         out_coords,
-        Element::MoveTo as i64,
+        ElementType::MoveTo as i64,
         endpoint_row(coords, start_idx),
     );
     append_range(
@@ -126,7 +126,7 @@ fn append_rotated_subpath(
         push(
             out_types,
             out_coords,
-            Element::LineTo as i64,
+            ElementType::LineTo as i64,
             endpoint_row(coords, move_idx),
         );
     }
@@ -173,7 +173,7 @@ fn append_range(
     out_coords.extend_from_slice(&coords[start * 6..end * 6]);
 }
 
-fn push(out_types: &mut Vec<i64>, out_coords: &mut Vec<f32>, element: i64, values: [f32; 6]) {
-    out_types.push(element);
+fn push(out_types: &mut Vec<i64>, out_coords: &mut Vec<f32>, element_type: i64, values: [f32; 6]) {
+    out_types.push(element_type);
     out_coords.extend_from_slice(&values);
 }

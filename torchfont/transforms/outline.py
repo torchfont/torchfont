@@ -14,7 +14,7 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
     sequence dimension.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         patch_size: Number of time steps per patch. Must be >= 1.
 
@@ -41,7 +41,7 @@ def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Merge overlapping subpaths using Skia PathOps winding simplification.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:

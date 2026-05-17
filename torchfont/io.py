@@ -1,10 +1,10 @@
-"""Shared constants for glyph outline path element encoding."""
+"""Shared constants for glyph outline encoding."""
 
 from enum import IntEnum
 
 
 class ElementType(IntEnum):
-    """Integer path element IDs emitted in glyph outline sequences."""
+    """Integer element types used to encode path elements in outlines."""
 
     PAD = 0
     MOVE_TO = 1

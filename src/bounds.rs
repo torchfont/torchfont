@@ -1,4 +1,4 @@
-use crate::outline::Element;
+use crate::outline::ElementType;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Bounds {
@@ -114,23 +114,23 @@ impl BoundsPen {
     }
 }
 
-pub(crate) fn bounds_from_i64_elements(types: &[i64], coords: &[f32]) -> Option<Bounds> {
-    bounds_from_elements(types.iter().copied(), coords)
+pub(crate) fn bounds_from_outline(types: &[i64], coords: &[f32]) -> Option<Bounds> {
+    bounds_from_element_types(types.iter().copied(), coords)
 }
 
-fn bounds_from_elements(types: impl Iterator<Item = i64>, coords: &[f32]) -> Option<Bounds> {
+fn bounds_from_element_types(types: impl Iterator<Item = i64>, coords: &[f32]) -> Option<Bounds> {
     let mut pen = BoundsPen::default();
-    for (element, values) in types.zip(coords.chunks_exact(6)) {
-        match element {
-            v if v == Element::MoveTo as i64 => pen.move_to(values[4], values[5]),
-            v if v == Element::LineTo as i64 => pen.line_to(values[4], values[5]),
-            v if v == Element::QuadTo as i64 => {
+    for (element_type, values) in types.zip(coords.chunks_exact(6)) {
+        match element_type {
+            v if v == ElementType::MoveTo as i64 => pen.move_to(values[4], values[5]),
+            v if v == ElementType::LineTo as i64 => pen.line_to(values[4], values[5]),
+            v if v == ElementType::QuadTo as i64 => {
                 pen.quad_to(values[0], values[1], values[4], values[5])
             }
-            v if v == Element::CurveTo as i64 => pen.curve_to(
+            v if v == ElementType::CurveTo as i64 => pen.curve_to(
                 values[0], values[1], values[2], values[3], values[4], values[5],
             ),
-            v if v == Element::Close as i64 => pen.close(),
+            v if v == ElementType::Close as i64 => pen.close(),
             _ => break,
         }
     }

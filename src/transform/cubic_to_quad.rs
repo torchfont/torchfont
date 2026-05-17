@@ -1,4 +1,4 @@
-use crate::outline::Element;
+use crate::outline::ElementType;
 
 // Absolute tolerance for quadratic approximation (normalized coords ≈ 1 font-unit in 1000 UPM).
 const TOLERANCE: f32 = 1e-3;
@@ -23,19 +23,19 @@ pub(crate) fn cubic_to_quad(
 
     for (i, &ty) in types.iter().enumerate() {
         let c = &coords[i * 6..(i + 1) * 6];
-        if ty == Element::CurveTo as i64 {
+        if ty == ElementType::CurveTo as i64 {
             let p3 = [c[4], c[5]];
             for (qcp, end) in cubic_to_quads(prev, [c[0], c[1]], [c[2], c[3]], p3)? {
-                out_types.push(Element::QuadTo as i64);
+                out_types.push(ElementType::QuadTo as i64);
                 out_coords.extend_from_slice(&[qcp[0], qcp[1], 0.0, 0.0, end[0], end[1]]);
             }
             prev = p3;
         } else {
             out_types.push(ty);
             out_coords.extend_from_slice(c);
-            if ty == Element::MoveTo as i64
-                || ty == Element::LineTo as i64
-                || ty == Element::QuadTo as i64
+            if ty == ElementType::MoveTo as i64
+                || ty == ElementType::LineTo as i64
+                || ty == ElementType::QuadTo as i64
             {
                 prev = [c[4], c[5]];
             }

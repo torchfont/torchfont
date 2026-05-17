@@ -114,7 +114,7 @@ from torchfont.transforms import normalize_subpath_start_points
 types, coords = normalize_subpath_start_points(types, coords)
 ```
 
-各 closed subpath の開始点を、辞書順で最小の `(x, y)` 終点へ移します。
+各 subpath の開始点を、辞書順で最小の `(x, y)` 終点へ移します。
 
 - closed subpath のみを変更し、open subpath は変更しません
 - 回転が元の close edge をまたぐ場合、その暗黙 edge を `LineTo` として実体化します
@@ -135,9 +135,9 @@ from torchfont.transforms import randomize_subpath_start_points
 types, coords = randomize_subpath_start_points(types, coords)
 ```
 
-各 closed subpath の開始終点を一様ランダムに選びます。
+各 subpath の開始終点を一様ランダムに選びます。
 
-- contour の切れ目にモデルを依存させたくない場合の augmentation に使えます
+- subpath の開始点にモデルを依存させたくない場合の augmentation に使えます
 - closed subpath のみを変更し、open subpath は変更しません
 - `generator`: 再現性のためのオプション `torch.Generator`
 
@@ -182,7 +182,7 @@ types, coords = horizontal_flip(types, coords)
 グリフアウトラインを tight bounding-box の中心を軸に水平反転します。
 
 - on-curve 終点と off-curve 制御点の両方を変換します
-- パディングエントリ（CLOSE、END、PAD）は変更しません
+- 座標が 0 の element type（CLOSE、END、PAD）は変更しません
 - 反転により subpath の巻き順が逆転します
 
 ### 入出力
@@ -203,7 +203,7 @@ types, coords = vertical_flip(types, coords)
 グリフアウトラインを tight bounding-box の中心を軸に垂直反転します。
 
 - on-curve 終点と off-curve 制御点の両方を変換します
-- パディングエントリ（CLOSE、END、PAD）は変更しません
+- 座標が 0 の element type（CLOSE、END、PAD）は変更しません
 - 反転により subpath の巻き順が逆転します
 
 ### 入出力
@@ -225,7 +225,7 @@ types, coords = affine(types, coords, angle=15.0, translate=(0.05, 0.0), scale=0
 
 tight bounding-box の中心を基準に一様スケール・x-shear・回転を合成し、
 `translate` を適用します。すべてのアクティブな制御点と終点を変換します。
-パディングエントリは変更しません。
+座標が 0 の element type（CLOSE、END、PAD）は変更しません。
 
 - `angle`: 反時計回りの回転角度（単位: 度、デフォルト: `0.0`）
 - `translate`: UPM 正規化単位での平行移動 `(tx, ty)`（デフォルト: `(0.0, 0.0)`）
@@ -321,7 +321,7 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 - `std`: UPM 正規化単位での標準偏差。`0.005` は 1000-UPM フォントで
   約 5 フォントユニットに相当します
-- 未使用の座標列（CLOSE、END、PAD）は変更しません
+- 座標が 0 の element type（CLOSE、END、PAD）と未使用の座標列は変更しません
 - `generator`: 再現性のためのオプション `torch.Generator`
 
 ### 入出力

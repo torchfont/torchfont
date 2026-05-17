@@ -95,14 +95,14 @@ def horizontal_flip(
     """Flip a glyph outline horizontally around the bounding-box centre.
 
     Both on-curve endpoints and off-curve control points are transformed.
-    Zero-padded entries (CLOSE, END, PAD) are left unchanged.
+    Zero-coordinate element types (CLOSE, END, PAD) are left unchanged.
 
     Note:
         Flipping reverses subpath winding order. For most sequence models
         this is acceptable; take care when consistent winding is required.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
@@ -126,7 +126,7 @@ def vertical_flip(
         this is acceptable; take care when consistent winding is required.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
@@ -152,11 +152,11 @@ def affine(
 
     The transform composes **uniform scale**, **x-shear**, and **rotation**
     around the bounding-box centre, then applies ``translate``. Control points
-    and endpoints are all transformed consistently; padding entries (CLOSE, END,
-    PAD) are not modified.
+    and endpoints are all transformed consistently; zero-coordinate element
+    types (CLOSE, END, PAD) are not modified.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         angle: Counter-clockwise rotation in degrees.
         translate: Translation ``(tx, ty)`` in UPM-normalised units applied
@@ -187,7 +187,7 @@ def random_horizontal_flip(
     """Randomly flip a glyph outline horizontally with probability ``p``.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         p: Probability of applying the flip. Default: ``0.5``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
@@ -211,7 +211,7 @@ def random_vertical_flip(
     """Randomly flip a glyph outline vertically with probability ``p``.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         p: Probability of applying the flip. Default: ``0.5``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
@@ -261,11 +261,11 @@ def random_affine(
     Each parameter is sampled independently and uniformly from its range.
     The transform composes **uniform scale**, **x-shear**, **rotation**, and
     **translation** around the bounding-box centre. Control points and endpoints
-    are all transformed consistently; padding entries (CLOSE, END, PAD) are not
-    modified.
+    are all transformed consistently; zero-coordinate element types (CLOSE, END)
+    and padding entries (PAD) are not modified.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         degrees: Rotation range in degrees. A single float ``d`` gives
             ``[-d, d]``; a ``(min, max)`` tuple is used directly.
@@ -316,16 +316,16 @@ def random_coord_jitter(
     """Add independent Gaussian noise to each active value in the outline coordinates.
 
     Noise is sampled per scalar value in ``coords`` with standard deviation
-    ``std`` in UPM-normalised units. Non-active padding entries (CLOSE, END,
-    PAD) and unused zero-padding columns (e.g. ``cx1, cy1`` for QUAD_TO) are
-    not perturbed.
+    ``std`` in UPM-normalised units. Non-active zero-coordinate element types
+    (CLOSE, END, PAD) and unused zero-padding columns (e.g. ``cx1, cy1`` for
+    QUAD_TO) are not perturbed.
 
     A value of ``std=0.005`` corresponds to roughly 5 font-units in a
     1000-UPM font — a subtle perturbation that rarely changes the perceived
     glyph shape.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         std: Standard deviation of the Gaussian noise in UPM-normalised units.
             Must be non-negative.

@@ -2,7 +2,7 @@
 
 ## `torchfont.io`
 
-Shared constants for glyph path element encoding.
+Shared constants for glyph outline encoding.
 
 ```python
 from torchfont.io import ElementType, TYPE_DIM, COORD_DIM

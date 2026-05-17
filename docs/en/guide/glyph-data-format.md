@@ -6,7 +6,7 @@ TorchFont datasets return each glyph sample as a `GlyphSample`:
 sample = dataset[i]
 ```
 
-| Element              | Type                | Shape          | Meaning                          |
+| Field                | Type                | Shape          | Meaning                          |
 | -------------------- | ------------------- | -------------- | -------------------------------- |
 | `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Element type sequence            |
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinates per path element     |
@@ -16,6 +16,14 @@ sample = dataset[i]
 | `sample.glyph_name`  | `str`               | —              | PostScript glyph name            |
 
 `GlyphSample` is a dataclass; field access by name is the intended API.
+
+## Outline model
+
+- **Outline**: a sequence of path elements
+- **Subpath**: a sequence of path elements starting with `MoveTo` and ending with `Close`; open subpaths (without a closing `Close`) are also treated as subpaths for convenience
+- **Path element**: one element type plus one coordinates row
+- **Element type**: `MoveTo`, `LineTo`, `QuadTo`, `CurveTo`, `Close`, `End`, or `Pad`
+- **Coordinates**: `[cx0, cy0, cx1, cy1, x, y]`
 
 `sample.metrics` is a 1-D `float32` tensor of shape `(15,)`:
 

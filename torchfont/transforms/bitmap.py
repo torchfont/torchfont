@@ -18,7 +18,7 @@ def render_bitmap(
     ``mode`` controls how outline coordinates are mapped to the output bitmap.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)`` holding
             UPM-normalised coordinates for each path element.
         size: Output image side length in pixels for ``"fixed"`` and

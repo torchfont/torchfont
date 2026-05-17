@@ -63,7 +63,7 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     because a single cubic can expand into multiple quadratics.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
@@ -97,7 +97,7 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     fonttools.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of path element types.
+        types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:

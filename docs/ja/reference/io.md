@@ -2,7 +2,7 @@
 
 ## `torchfont.io`
 
-グリフ outline の path element encoding に使う共通定数です。
+グリフ outline encoding に使う共通定数です。
 
 ```python
 from torchfont.io import ElementType, TYPE_DIM, COORD_DIM

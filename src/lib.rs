@@ -107,7 +107,7 @@ fn tight_bbox(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(bounds::bounds_from_i64_elements(t, c).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
+    Ok(bounds::bounds_from_outline(t, c).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
 
 #[pyfunction]
