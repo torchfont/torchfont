@@ -4,6 +4,7 @@ All functions accept ``(types, coords)`` and return a transformed
 ``(types, coords)`` pair without modifying the inputs.
 """
 
+from torchfont.transforms.bitmap import BitmapMode, render_bitmap
 from torchfont.transforms.curves import (
     cubic_to_quad,
     merge_curves,
@@ -11,7 +12,6 @@ from torchfont.transforms.curves import (
     remove_overlaps,
 )
 from torchfont.transforms.patch import patchify
-from torchfont.transforms.bitmap import BitmapMode, render_bitmap
 
 __all__ = [
     "BitmapMode",
