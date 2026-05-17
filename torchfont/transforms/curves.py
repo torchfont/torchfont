@@ -1,16 +1,12 @@
-"""Utility functions for polishing glyph tensors before training."""
+"""Bezier curve format conversion, segment merging, and outline simplification."""
 
 from __future__ import annotations
-
-from typing import Literal
 
 import torch
 from torch import Tensor
 
 from torchfont import _torchfont
 from torchfont.io import CommandType
-
-BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 
 
 def quad_to_cubic(
@@ -147,80 +143,9 @@ def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     )
 
 
-def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Tensor]:
-    """Pad and reshape a glyph sequence into uniform, fixed-size patches.
-
-    Pads ``types`` and ``coords`` with zeros to the nearest multiple of
-    ``patch_size``, then splits into contiguous patches along the leading
-    sequence dimension.
-
-    Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
-        patch_size: Number of time steps per patch. Must be >= 1.
-
-    Returns:
-        Tuple ``(patch_types, patch_coords)`` where ``patch_types`` has shape
-        ``(num_patches, patch_size)`` and ``patch_coords`` has shape
-        ``(num_patches, patch_size, 6)``.
-
-    """
-    if patch_size < 1:
-        msg = "patch_size must be >= 1"
-        raise ValueError(msg)
-    seq_len = types.size(0)
-    pad = (-seq_len) % patch_size
-    num_patches = (seq_len + pad) // patch_size
-    pad_types = torch.cat([types, types.new_zeros(pad)], 0)
-    pad_coords = torch.cat([coords, coords.new_zeros(pad, coords.size(1))], 0)
-    return pad_types.view(num_patches, patch_size), pad_coords.view(
-        num_patches, patch_size, coords.size(1)
-    )
-
-
-def render_bitmap(
-    types: Tensor, coords: Tensor, size: int = 64, mode: BitmapMode = "bbox_square"
-) -> Tensor:
-    """Render a glyph outline to a greyscale bitmap tensor.
-
-    ``mode`` controls how outline coordinates are mapped to the output bitmap.
-
-    Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)`` holding
-            UPM-normalised coordinate data for each command.
-        size: Output image side length in pixels for ``"fixed"`` and
-            ``"bbox_square"``. For ``"bbox"``, this sets the coordinate scale
-            using the same fixed ``[-0.25, 1.25]`` range, then crops the output to
-            the tight glyph bounding box. Must be between 1 and 4096.
-        mode: Coordinate mapping mode. ``"fixed"`` maps the fixed UPM-normalised
-            range ``[-0.25, 1.25] x [-0.25, 1.25]`` to the canvas. ``"bbox"`` scales
-            with the fixed-mode scale and returns a variable-size bitmap
-            cropped to the tight glyph bounding box. ``"bbox_square"`` scales
-            the tight glyph bounding box uniformly and centres it.
-
-    Returns:
-        uint8 tensor with values in ``[0, 255]``. Shape is ``(size, size)`` for
-        ``"fixed"`` and ``"bbox_square"``, and variable ``(height, width)`` for
-        ``"bbox"``.
-
-    """
-    types = types.cpu().contiguous()
-    coords = coords.cpu().contiguous()
-    raw, width, height = _torchfont.render_bitmap(
-        types.numpy(), coords.reshape(-1).numpy(), size, mode
-    )
-    if width == 0 or height == 0:
-        return torch.empty((height, width), dtype=torch.uint8)
-    return torch.from_numpy(raw).view(height, width)
-
-
 __all__ = [
-    "BitmapMode",
     "cubic_to_quad",
     "merge_curves",
-    "patchify",
     "quad_to_cubic",
     "remove_overlaps",
-    "render_bitmap",
 ]
