@@ -4,6 +4,8 @@ use crate::outline::ElementType;
 const TOLERANCE: f32 = 1e-3;
 
 type Pt = [f32; 2];
+type PathElement = (i64, [f32; 6]);
+
 type Cubic = (Pt, Pt, Pt, Pt);
 type Quad = (Pt, Pt, Pt);
 
@@ -22,7 +24,7 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
             let move_y = c[5];
             i += 1;
 
-            let mut elements: Vec<(i64, [f32; 6])> = Vec::new();
+            let mut elements: Vec<PathElement> = Vec::new();
             while i < n {
                 let st = types[i];
                 if st == ElementType::Close as i64
@@ -60,10 +62,10 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
 fn merge_subpath_elements(
     start_x: f32,
     start_y: f32,
-    elements: Vec<(i64, [f32; 6])>,
-) -> Vec<(i64, [f32; 6])> {
+    elements: Vec<PathElement>,
+) -> Vec<PathElement> {
     let n = elements.len();
-    let mut result: Vec<(i64, [f32; 6])> = Vec::with_capacity(n);
+    let mut result: Vec<PathElement> = Vec::with_capacity(n);
     let mut result_starts: Vec<[f32; 2]> = Vec::with_capacity(n);
     let mut i = 0;
 
@@ -78,47 +80,14 @@ fn merge_subpath_elements(
         let quad = ElementType::QuadTo as i64;
         let cubic = ElementType::CurveTo as i64;
 
-        if ty == cubic {
-            let mut run_end = i + 1;
-            while run_end < n && elements[run_end].0 == cubic {
-                run_end += 1;
-            }
-            let run_len = run_end - i;
-
-            let mut merged = None;
-            for merge_len in (2..=run_len).rev() {
-                if let Some(m) = try_merge_cubics_n(seg_start, &elements[i..i + merge_len]) {
-                    merged = Some((m, merge_len));
-                    break;
-                }
-            }
-
-            if let Some((m, len)) = merged {
-                result.push((cubic, m));
-                result_starts.push(seg_start);
-                i += len;
+        if ty == cubic || ty == quad {
+            let try_merge_fn: fn(Pt, &[PathElement]) -> Option<[f32; 6]> = if ty == cubic {
+                try_merge_cubics_n
             } else {
-                result.push((ty, c));
-                result_starts.push(seg_start);
-                i += 1;
-            }
-        } else if ty == quad {
-            let mut run_end = i + 1;
-            while run_end < n && elements[run_end].0 == quad {
-                run_end += 1;
-            }
-            let run_len = run_end - i;
-
-            let mut merged = None;
-            for merge_len in (2..=run_len).rev() {
-                if let Some(m) = try_merge_quads_n(seg_start, &elements[i..i + merge_len]) {
-                    merged = Some((m, merge_len));
-                    break;
-                }
-            }
-
-            if let Some((m, len)) = merged {
-                result.push((quad, m));
+                try_merge_quads_n
+            };
+            if let Some((m, len)) = try_merge_run(ty, seg_start, i, n, &elements, try_merge_fn) {
+                result.push((ty, m));
                 result_starts.push(seg_start);
                 i += len;
             } else {
@@ -171,7 +140,7 @@ fn merge_subpath_elements(
 // The split parameters can be recovered from adjacent tangent-length ratios in
 // the same way as cubics. A parent quadratic then has only one outer control
 // point to reconstruct and validate.
-fn try_merge_quads_n(p0: Pt, segs: &[(i64, [f32; 6])]) -> Option<[f32; 6]> {
+fn try_merge_quads_n(p0: Pt, segs: &[PathElement]) -> Option<[f32; 6]> {
     let n = segs.len();
     debug_assert!(n >= 2);
 
@@ -231,7 +200,7 @@ fn try_merge_quads_n(p0: Pt, segs: &[(i64, [f32; 6])]) -> Option<[f32; 6]> {
     Some([p1[0], p1[1], 0.0, 0.0, p2[0], p2[1]])
 }
 
-fn validate_quad_merge(p0: Pt, p1: Pt, p2: Pt, segs: &[(i64, [f32; 6])], ts: &[f32]) -> bool {
+fn validate_quad_merge(p0: Pt, p1: Pt, p2: Pt, segs: &[PathElement], ts: &[f32]) -> bool {
     let pieces = split_quad_at_ts(p0, p1, p2, ts);
     for (k, (_rp0, rp1, rp2)) in pieces.iter().enumerate() {
         let orig_c = &segs[k].1;
@@ -278,7 +247,7 @@ fn split_quad_at_t(p0: Pt, p1: Pt, p2: Pt, t: f32) -> (Pt, Pt, Pt, Pt, Pt, Pt) {
 // Uses the fonttools qu2cu approach: reconstruct t-parameters from cumulative
 // ratios of adjacent junction tangent lengths, then recover the outer control
 // points P1/P2. Validity is confirmed by re-splitting and measuring curve error.
-fn try_merge_cubics_n(p0: [f32; 2], segs: &[(i64, [f32; 6])]) -> Option<[f32; 6]> {
+fn try_merge_cubics_n(p0: [f32; 2], segs: &[PathElement]) -> Option<[f32; 6]> {
     let n = segs.len();
     debug_assert!(n >= 2);
 
@@ -365,7 +334,7 @@ fn validate_cubic_merge(
     p1: [f32; 2],
     p2: [f32; 2],
     p3: [f32; 2],
-    segs: &[(i64, [f32; 6])],
+    segs: &[PathElement],
     ts: &[f32],
 ) -> bool {
     let pieces = split_cubic_at_ts(p0, p1, p2, p3, ts);
@@ -505,6 +474,27 @@ fn sub2(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
 #[inline]
 fn add2(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
     [a[0] + b[0], a[1] + b[1]]
+}
+
+fn try_merge_run(
+    ty: i64,
+    seg_start: Pt,
+    i: usize,
+    n: usize,
+    elements: &[PathElement],
+    try_merge: fn(Pt, &[PathElement]) -> Option<[f32; 6]>,
+) -> Option<([f32; 6], usize)> {
+    let mut run_end = i + 1;
+    while run_end < n && elements[run_end].0 == ty {
+        run_end += 1;
+    }
+    let run_len = run_end - i;
+    for merge_len in (2..=run_len).rev() {
+        if let Some(m) = try_merge(seg_start, &elements[i..i + merge_len]) {
+            return Some((m, merge_len));
+        }
+    }
+    None
 }
 
 #[inline]

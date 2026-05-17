@@ -1,10 +1,6 @@
-use skia_safe::{
-    AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, Path, PathBuilder, PathFillType,
-    surfaces,
-};
+use skia_safe::{AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, surfaces};
 
-use crate::bounds::{Bounds, BoundsPen};
-use crate::outline::ElementType;
+use crate::bounds::Bounds;
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
@@ -41,7 +37,9 @@ pub(crate) fn render_bitmap(
     size: u32,
     mode: RenderMode,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let Some((path, bounds)) = build_path(types, coords, !matches!(mode, RenderMode::Fixed)) else {
+    let Some((path, bounds)) =
+        super::build_skia_path(types, coords, !matches!(mode, RenderMode::Fixed))
+    else {
         return Ok(blank_for_mode(size, mode));
     };
 
@@ -144,53 +142,6 @@ fn render_target(
             Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
         }
     }
-}
-
-fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path, Option<Bounds>)> {
-    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
-    let mut bounds = track_bounds.then(BoundsPen::default);
-    for (&element_type, values) in types.iter().zip(coords.chunks_exact(6)) {
-        match element_type {
-            v if v == ElementType::MoveTo as i64 => {
-                if let Some(bounds) = &mut bounds {
-                    bounds.move_to(values[4], values[5]);
-                }
-                builder.move_to((values[4], values[5]));
-            }
-            v if v == ElementType::LineTo as i64 => {
-                if let Some(bounds) = &mut bounds {
-                    bounds.line_to(values[4], values[5]);
-                }
-                builder.line_to((values[4], values[5]));
-            }
-            v if v == ElementType::QuadTo as i64 => {
-                if let Some(bounds) = &mut bounds {
-                    bounds.quad_to(values[0], values[1], values[4], values[5]);
-                }
-                builder.quad_to((values[0], values[1]), (values[4], values[5]));
-            }
-            v if v == ElementType::CurveTo as i64 => {
-                if let Some(bounds) = &mut bounds {
-                    bounds.curve_to(
-                        values[0], values[1], values[2], values[3], values[4], values[5],
-                    );
-                }
-                builder.cubic_to(
-                    (values[0], values[1]),
-                    (values[2], values[3]),
-                    (values[4], values[5]),
-                );
-            }
-            v if v == ElementType::Close as i64 => {
-                if let Some(bounds) = &mut bounds {
-                    bounds.close();
-                }
-                builder.close();
-            }
-            _ => break,
-        }
-    }
-    (!builder.is_empty()).then(|| (builder.detach(), bounds.and_then(BoundsPen::finish)))
 }
 
 impl RenderTransform {

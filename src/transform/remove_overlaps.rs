@@ -1,42 +1,15 @@
-use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
+use skia_safe::{Path, PathVerb};
 
 use crate::outline::ElementType;
 
 pub(crate) fn remove_overlaps(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>) {
-    let path = build_path(types, coords);
+    let Some((path, _)) = super::build_skia_path(types, coords, false) else {
+        return outline_from_input(types, coords);
+    };
     path.simplify().map_or_else(
         || outline_from_input(types, coords),
         |simplified| outline_from_path(&simplified),
     )
-}
-
-fn build_path(types: &[i64], coords: &[f32]) -> Path {
-    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
-    for (&element_type, values) in types.iter().zip(coords.chunks_exact(6)) {
-        match element_type {
-            v if v == ElementType::MoveTo as i64 => {
-                builder.move_to((values[4], values[5]));
-            }
-            v if v == ElementType::LineTo as i64 => {
-                builder.line_to((values[4], values[5]));
-            }
-            v if v == ElementType::QuadTo as i64 => {
-                builder.quad_to((values[0], values[1]), (values[4], values[5]));
-            }
-            v if v == ElementType::CurveTo as i64 => {
-                builder.cubic_to(
-                    (values[0], values[1]),
-                    (values[2], values[3]),
-                    (values[4], values[5]),
-                );
-            }
-            v if v == ElementType::Close as i64 => {
-                builder.close();
-            }
-            _ => break,
-        };
-    }
-    builder.detach()
 }
 
 fn outline_from_input(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>) {
