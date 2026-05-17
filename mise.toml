@@ -65,10 +65,12 @@ sources = [
   "pyproject.toml",
   "uv.lock",
   "src/**/*.rs",
-  "torchfont/**/*.py",
 ]
 depends = ["check"]
-run = "uv run maturin develop --release"
+run = [
+  "rm -f target/maturin/lib_torchfont.so",
+  "uv run maturin develop --release",
+]
 
 [tasks.test]
 depends = ["build"]
