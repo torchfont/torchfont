@@ -1,0 +1,53 @@
+"""Closed-subpath start-point transformation functions."""
+
+import torch
+from torch import Tensor
+
+from torchfont import _torchfont
+
+
+def normalize_subpath_start_points(
+    types: Tensor,
+    coords: Tensor,
+) -> tuple[Tensor, Tensor]:
+    """Move each closed subpath start to its lexicographically smallest endpoint.
+
+    ``(x, y)`` endpoint order is used as the deterministic key. Open subpaths,
+    ``END``, and ``PAD`` entries are returned unchanged. When rotation crosses
+    the old closing edge, that implicit edge is materialised as ``LINE_TO`` so
+    the represented geometry is preserved.
+    """
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
+    out_types, out_coords = _torchfont.normalize_subpath_start_points(
+        types.numpy(), coords.reshape(-1).numpy()
+    )
+    return (
+        torch.tensor(out_types, dtype=torch.long),
+        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+    )
+
+
+def randomize_subpath_start_points(
+    types: Tensor,
+    coords: Tensor,
+    *,
+    generator: torch.Generator | None = None,
+) -> tuple[Tensor, Tensor]:
+    """Choose a uniformly random start endpoint for each closed subpath.
+
+    Open subpaths, ``END``, and ``PAD`` entries are returned unchanged. Pass a
+    ``torch.Generator`` to make the independent per-subpath choices reproducible.
+    """
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
+    random_values = torch.rand(types.size(0), generator=generator)
+    out_types, out_coords = _torchfont.randomize_subpath_start_points(
+        types.numpy(),
+        coords.reshape(-1).numpy(),
+        random_values.numpy(),
+    )
+    return (
+        torch.tensor(out_types, dtype=torch.long),
+        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+    )

@@ -20,6 +20,10 @@ from torchfont.transforms.geometric import (
     vertical_flip,
 )
 from torchfont.transforms.outline import patchify, remove_overlaps
+from torchfont.transforms.subpath import (
+    normalize_subpath_start_points,
+    randomize_subpath_start_points,
+)
 
 __all__ = [
     "BitmapMode",
@@ -27,12 +31,14 @@ __all__ = [
     "cubic_to_quad",
     "horizontal_flip",
     "merge_curves",
+    "normalize_subpath_start_points",
     "patchify",
     "quad_to_cubic",
     "random_affine",
     "random_coord_jitter",
     "random_horizontal_flip",
     "random_vertical_flip",
+    "randomize_subpath_start_points",
     "remove_overlaps",
     "render_bitmap",
     "vertical_flip",

@@ -105,6 +105,48 @@ Merges overlapping glyph subpaths with Skia PathOps while preserving winding-bas
 - input: `types=(N,)`, `coords=(N, 6)`
 - output: `types=(M,)`, `coords=(M, 6)`
 
+## normalize_subpath_start_points
+
+```python
+from torchfont.transforms import normalize_subpath_start_points
+```
+
+```python
+types, coords = normalize_subpath_start_points(types, coords)
+```
+
+Moves each closed subpath start to its lexicographically smallest `(x, y)` endpoint.
+
+- only closed subpaths are changed; open subpaths are left unchanged
+- when rotation crosses the old closing edge, that implicit edge is materialised as `LineTo`
+- the represented geometry is preserved; rotating away from the original start may add one `LineTo`
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
+
+## randomize_subpath_start_points
+
+```python
+from torchfont.transforms import randomize_subpath_start_points
+```
+
+```python
+types, coords = randomize_subpath_start_points(types, coords)
+```
+
+Chooses a uniformly random start endpoint for each closed subpath.
+
+- useful as augmentation when a model should not depend on contour cut position
+- only closed subpaths are changed; open subpaths are left unchanged
+- `generator`: optional `torch.Generator` for reproducibility
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
+
 ## patchify
 
 ```python
