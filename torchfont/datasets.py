@@ -31,10 +31,8 @@ from torch.utils.data import Dataset
 from torchfont import _torchfont
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
-    ContentLabel,
     DatasetMetadata,
     StyleAxis,
-    StyleLabel,
     build_dataset_metadata,
 )
 
@@ -408,13 +406,3 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
 
         """
         return [name for name, _ in self._dataset.style_metadata_rows(str(self.root))]
-
-
-__all__ = [
-    "ContentLabel",
-    "DatasetMetadata",
-    "GlyphDataset",
-    "GlyphSample",
-    "StyleAxis",
-    "StyleLabel",
-]

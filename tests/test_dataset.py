@@ -133,14 +133,6 @@ def test_glyph_dataset_getitem() -> None:
 
 
 def test_datasets_public_api_is_glyphdataset_centered() -> None:
-    assert datasets_module.__all__ == [
-        "ContentLabel",
-        "DatasetMetadata",
-        "GlyphDataset",
-        "GlyphSample",
-        "StyleAxis",
-        "StyleLabel",
-    ]
     assert datasets_module.DatasetMetadata is DatasetMetadata
     assert datasets_module.GlyphDataset is GlyphDataset
     assert datasets_module.GlyphSample is GlyphSample

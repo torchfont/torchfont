@@ -17,5 +17,3 @@ class CommandType(IntEnum):
 
 TYPE_DIM: int = len(CommandType)
 COORD_DIM: int = 6
-
-__all__ = ["COORD_DIM", "TYPE_DIM", "CommandType"]
