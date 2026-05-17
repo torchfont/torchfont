@@ -127,6 +127,166 @@ patch_types, patch_coords = patchify(types, coords, patch_size=32)
 - 入力: `types=(N,)`, `coords=(N, 6)`
 - 出力: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, 6)`
 
+## horizontal_flip
+
+```python
+from torchfont.transforms import horizontal_flip
+```
+
+```python
+types, coords = horizontal_flip(types, coords)
+```
+
+グリフアウトラインを tight bounding-box の中心を軸に水平反転します。
+
+- on-curve 終点と off-curve 制御点の両方を変換します
+- パディングエントリ（CLOSE、END、PAD）は変更しません
+- 反転により contour の巻き順が逆転します
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+
+## vertical_flip
+
+```python
+from torchfont.transforms import vertical_flip
+```
+
+```python
+types, coords = vertical_flip(types, coords)
+```
+
+グリフアウトラインを tight bounding-box の中心を軸に垂直反転します。
+
+- on-curve 終点と off-curve 制御点の両方を変換します
+- パディングエントリ（CLOSE、END、PAD）は変更しません
+- 反転により contour の巻き順が逆転します
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+
+## affine
+
+```python
+from torchfont.transforms import affine
+```
+
+```python
+types, coords = affine(types, coords, angle=15.0, translate=(0.05, 0.0), scale=0.9, shear=5.0)
+```
+
+グリフアウトラインに決定論的なアフィン変換を適用します。
+
+tight bounding-box の中心を基準に一様スケール・x-shear・回転を合成し、
+`translate` を適用します。すべてのアクティブな制御点と終点を変換します。
+パディングエントリは変更しません。
+
+- `angle`: 反時計回りの回転角度（単位: 度、デフォルト: `0.0`）
+- `translate`: UPM 正規化単位での平行移動 `(tx, ty)`（デフォルト: `(0.0, 0.0)`）
+- `scale`: 一様スケール係数（正数必須、デフォルト: `1.0`）
+- `shear`: x-shear 角度（単位: 度、デフォルト: `0.0`）
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+
+## random_horizontal_flip
+
+```python
+from torchfont.transforms import random_horizontal_flip
+```
+
+```python
+types, coords = random_horizontal_flip(types, coords, p=0.5)
+```
+
+確率 `p` で `horizontal_flip` をランダムに適用します。
+
+- `p`: 反転確率（デフォルト: `0.5`）
+- `generator`: 再現性のためのオプション `torch.Generator`
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)`, `coords=(N, 6)`
+
+## random_vertical_flip
+
+```python
+from torchfont.transforms import random_vertical_flip
+```
+
+```python
+types, coords = random_vertical_flip(types, coords, p=0.5)
+```
+
+確率 `p` で `vertical_flip` をランダムに適用します。
+
+- `p`: 反転確率（デフォルト: `0.5`）
+- `generator`: 再現性のためのオプション `torch.Generator`
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)`, `coords=(N, 6)`
+
+## random_affine
+
+```python
+from torchfont.transforms import random_affine
+```
+
+```python
+types, coords = random_affine(
+    types, coords,
+    degrees=15.0,
+    translate=(0.05, 0.05),
+    scale=(0.9, 1.1),
+    shear=5.0,
+)
+```
+
+指定した範囲から一様サンプリングしたランダムなアフィン変換を適用します。
+
+- `degrees`: 回転範囲（度）。単一の float `d` を指定すると `[-d, d]` になります
+- `translate`: UPM 正規化単位での最大絶対平行移動 `(max_dx, max_dy)`。
+  各軸を `[-max_d, max_d]` からサンプリングします（デフォルト: 平行移動なし）
+- `scale`: スケール範囲 `(min, max)`。両値は正数必須（デフォルト: スケールなし）
+- `shear`: x-shear 範囲（度）。`degrees` と同じ書式（デフォルト: `0.0`）
+- `generator`: 再現性のためのオプション `torch.Generator`
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+
+## random_coord_jitter
+
+```python
+from torchfont.transforms import random_coord_jitter
+```
+
+```python
+types, coords = random_coord_jitter(types, coords, std=0.005)
+```
+
+各アクティブな outline 座標に独立したガウスノイズを加算します。
+
+- `std`: UPM 正規化単位での標準偏差。`0.005` は 1000-UPM フォントで
+  約 5 フォントユニットに相当します
+- 未使用の座標列（CLOSE、END、PAD）は変更しません
+- `generator`: 再現性のためのオプション `torch.Generator`
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+
 ## render_bitmap
 
 ```python

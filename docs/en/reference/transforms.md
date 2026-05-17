@@ -128,6 +128,167 @@ then splits it into contiguous patches.
 - input: `types=(N,)`, `coords=(N, 6)`
 - output: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, 6)`
 
+## horizontal_flip
+
+```python
+from torchfont.transforms import horizontal_flip
+```
+
+```python
+types, coords = horizontal_flip(types, coords)
+```
+
+Flips a glyph outline horizontally around its tight bounding-box centre.
+
+- both on-curve endpoints and off-curve control points are transformed
+- padding entries (CLOSE, END, PAD) are not modified
+- flipping reverses contour winding order
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+
+## vertical_flip
+
+```python
+from torchfont.transforms import vertical_flip
+```
+
+```python
+types, coords = vertical_flip(types, coords)
+```
+
+Flips a glyph outline vertically around its tight bounding-box centre.
+
+- both on-curve endpoints and off-curve control points are transformed
+- padding entries (CLOSE, END, PAD) are not modified
+- flipping reverses contour winding order
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+
+## affine
+
+```python
+from torchfont.transforms import affine
+```
+
+```python
+types, coords = affine(types, coords, angle=15.0, translate=(0.05, 0.0), scale=0.9, shear=5.0)
+```
+
+Applies a deterministic affine transformation to a glyph outline.
+
+Composes uniform scale, x-shear, and rotation around the tight bounding-box
+centre, then applies `translate`. All active control points and endpoints are
+transformed; padding entries are not modified.
+
+- `angle`: counter-clockwise rotation in degrees (default: `0.0`)
+- `translate`: translation `(tx, ty)` in UPM-normalised units (default: `(0.0, 0.0)`)
+- `scale`: uniform scale factor, must be positive (default: `1.0`)
+- `shear`: x-shear angle in degrees (default: `0.0`)
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+
+## random_horizontal_flip
+
+```python
+from torchfont.transforms import random_horizontal_flip
+```
+
+```python
+types, coords = random_horizontal_flip(types, coords, p=0.5)
+```
+
+Randomly applies `horizontal_flip` with probability `p`.
+
+- `p`: flip probability (default: `0.5`)
+- `generator`: optional `torch.Generator` for reproducibility
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)`, `coords=(N, 6)`
+
+## random_vertical_flip
+
+```python
+from torchfont.transforms import random_vertical_flip
+```
+
+```python
+types, coords = random_vertical_flip(types, coords, p=0.5)
+```
+
+Randomly applies `vertical_flip` with probability `p`.
+
+- `p`: flip probability (default: `0.5`)
+- `generator`: optional `torch.Generator` for reproducibility
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)`, `coords=(N, 6)`
+
+## random_affine
+
+```python
+from torchfont.transforms import random_affine
+```
+
+```python
+types, coords = random_affine(
+    types, coords,
+    degrees=15.0,
+    translate=(0.05, 0.05),
+    scale=(0.9, 1.1),
+    shear=5.0,
+)
+```
+
+Applies a random affine transformation sampled uniformly from the given ranges.
+
+- `degrees`: rotation range in degrees; a single float `d` gives `[-d, d]`
+- `translate`: maximum absolute translation `(max_dx, max_dy)` in UPM-normalised
+  units; each axis is sampled from `[-max_d, max_d]` (default: no translation)
+- `scale`: scale range `(min, max)`; both values must be positive (default: no scaling)
+- `shear`: x-shear range in degrees; same format as `degrees` (default: `0.0`)
+- `generator`: optional `torch.Generator` for reproducibility
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+
+## random_coord_jitter
+
+```python
+from torchfont.transforms import random_coord_jitter
+```
+
+```python
+types, coords = random_coord_jitter(types, coords, std=0.005)
+```
+
+Adds independent Gaussian noise to each active outline coordinate.
+
+- `std`: standard deviation in UPM-normalised units; `0.005` ≈ 5 font-units in
+  a 1000-UPM font
+- only active coordinate columns are perturbed (unused columns, CLOSE, END, PAD
+  are left unchanged)
+- `generator`: optional `torch.Generator` for reproducibility
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+
 ## render_bitmap
 
 ```python
