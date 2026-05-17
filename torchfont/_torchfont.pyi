@@ -21,6 +21,9 @@ def quad_to_cubic(types: np.ndarray, coords: np.ndarray, seq_len: int) -> None: 
 def quad_to_cubic_and_merge(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[list[int], list[float]]: ...
+def tight_bbox(
+    types: np.ndarray, coords: np.ndarray
+) -> tuple[float, float, float, float] | None: ...
 
 class GlyphItem:
     types: np.ndarray

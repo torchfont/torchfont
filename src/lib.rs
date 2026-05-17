@@ -71,6 +71,17 @@ fn remove_overlaps(
 }
 
 #[pyfunction]
+fn tight_bbox(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<Option<(f32, f32, f32, f32)>> {
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    Ok(bounds::bounds_from_i64_segments(t, c).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
+}
+
+#[pyfunction]
 fn render_bitmap(
     py: Python<'_>,
     types: PyReadonlyArray1<'_, i64>,
@@ -128,6 +139,7 @@ fn _torchfont(_py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(cubic_to_quad, &m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, &m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, &m)?)?;
+    m.add_function(wrap_pyfunction!(tight_bbox, &m)?)?;
     m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
     Ok(())
 }

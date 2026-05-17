@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub(super) type GlyphItemData = (
-    Vec<i32>,
+    Vec<i64>,
     Vec<f32>,
     f32,
     f32,
@@ -95,7 +95,7 @@ impl GlyphReader {
                 .map(|v| v * inv_upem)
                 .unwrap_or(f32::NAN);
             let (x_min, y_min, x_max, y_max) = if metrics_bounds_are_outline_based(&font) {
-                bounds::bounds_from_i32_segments(&types, &coords)
+                bounds::bounds_from_i64_segments(&types, &coords)
                     .map_or((f32::NAN, f32::NAN, f32::NAN, f32::NAN), |bb| {
                         (bb.x_min, bb.y_min, bb.x_max, bb.y_max)
                     })
