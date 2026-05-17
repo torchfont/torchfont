@@ -11,14 +11,30 @@ from torchfont.transforms.curves import (
     quad_to_cubic,
     remove_overlaps,
 )
+from torchfont.transforms.geometric import (
+    affine,
+    horizontal_flip,
+    random_affine,
+    random_coord_jitter,
+    random_horizontal_flip,
+    random_vertical_flip,
+    vertical_flip,
+)
 from torchfont.transforms.patch import patchify
 
 __all__ = [
     "BitmapMode",
+    "affine",
     "cubic_to_quad",
+    "horizontal_flip",
     "merge_curves",
     "patchify",
     "quad_to_cubic",
+    "random_affine",
+    "random_coord_jitter",
+    "random_horizontal_flip",
+    "random_vertical_flip",
     "remove_overlaps",
     "render_bitmap",
+    "vertical_flip",
 ]

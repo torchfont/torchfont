@@ -12,7 +12,7 @@ pub(crate) enum Command {
 }
 
 struct SegmentPen {
-    commands: Vec<i32>,
+    commands: Vec<i64>,
     coords: Vec<f32>,
     scale: f32,
 }
@@ -27,13 +27,13 @@ impl SegmentPen {
         }
     }
 
-    fn finish(mut self) -> (Vec<i32>, Vec<f32>) {
+    fn finish(mut self) -> (Vec<i64>, Vec<f32>) {
         self.push(Command::End, [0.0; 6]);
         (self.commands, self.coords)
     }
 
     fn push(&mut self, command: Command, values: [f32; 6]) {
-        self.commands.push(command as i32);
+        self.commands.push(command as i64);
         let scaled = values.map(|v| v * self.scale);
         self.coords.extend_from_slice(&scaled);
     }
@@ -69,7 +69,7 @@ pub(crate) fn extract_glyph_segments<'a>(
     glyph: &OutlineGlyph<'a>,
     settings: DrawSettings<'a>,
     units_per_em: f32,
-) -> Result<(Vec<i32>, Vec<f32>), DrawError> {
+) -> Result<(Vec<i64>, Vec<f32>), DrawError> {
     let mut pen = SegmentPen::new(units_per_em);
     glyph.draw(settings, &mut pen)?;
     Ok(pen.finish())

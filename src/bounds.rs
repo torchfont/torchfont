@@ -114,8 +114,8 @@ impl BoundsPen {
     }
 }
 
-pub(crate) fn bounds_from_i32_segments(types: &[i32], coords: &[f32]) -> Option<Bounds> {
-    bounds_from_segments(types.iter().copied().map(i64::from), coords)
+pub(crate) fn bounds_from_i64_segments(types: &[i64], coords: &[f32]) -> Option<Bounds> {
+    bounds_from_segments(types.iter().copied(), coords)
 }
 
 fn bounds_from_segments(types: impl Iterator<Item = i64>, coords: &[f32]) -> Option<Bounds> {

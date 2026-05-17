@@ -133,8 +133,7 @@ impl GlyphDataset {
             glyph_name,
         ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
 
-        let types_i64: Vec<i64> = types.iter().map(|&t| t as i64).collect();
-        let types_arr = types_i64.into_pyarray(py).unbind();
+        let types_arr = types.into_pyarray(py).unbind();
 
         let coords_arr = coords.into_pyarray(py).unbind();
 
