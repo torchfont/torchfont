@@ -1,7 +1,7 @@
 import torch
 
 from torchfont.datasets import GlyphSample
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import cubic_to_quad, quad_to_cubic
 
 from ._helpers import (
@@ -16,12 +16,12 @@ from ._helpers import (
 def test_quad_to_cubic_converts_quadratic_segments() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.QUAD_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.QUAD_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.QUAD_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.QUAD_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -41,12 +41,12 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
 
     expected_types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.CURVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CURVE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.CURVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CURVE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -68,7 +68,7 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
 
 def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
     types = torch.tensor(
-        [CommandType.MOVE_TO.value, CommandType.LINE_TO.value, CommandType.END.value],
+        [ElementType.MOVE_TO.value, ElementType.LINE_TO.value, ElementType.END.value],
         dtype=torch.long,
     )
     coords = torch.tensor(
@@ -91,8 +91,8 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
 def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:
     types = torch.tensor(
         [
-            [CommandType.MOVE_TO.value, CommandType.QUAD_TO.value],
-            [CommandType.LINE_TO.value, CommandType.END.value],
+            [ElementType.MOVE_TO.value, ElementType.QUAD_TO.value],
+            [ElementType.LINE_TO.value, ElementType.END.value],
         ],
         dtype=torch.long,
     )
@@ -116,7 +116,7 @@ def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:
 
     assert out_types.shape == types.shape
     assert out_coords.shape == coords.shape
-    assert out_types[0, 1].item() == CommandType.CURVE_TO.value
+    assert out_types[0, 1].item() == ElementType.CURVE_TO.value
     assert torch.allclose(
         out_coords[0, 1],
         torch.tensor([0.0, 2.0 / 3.0, 1.0 / 3.0, 1.0, 1.0, 1.0], dtype=torch.float32),
@@ -127,14 +127,14 @@ def test_quad_to_cubic_keeps_batched_sequences_independent() -> None:
     types = torch.tensor(
         [
             [
-                CommandType.MOVE_TO.value,
-                CommandType.LINE_TO.value,
-                CommandType.END.value,
+                ElementType.MOVE_TO.value,
+                ElementType.LINE_TO.value,
+                ElementType.END.value,
             ],
             [
-                CommandType.QUAD_TO.value,
-                CommandType.LINE_TO.value,
-                CommandType.END.value,
+                ElementType.QUAD_TO.value,
+                ElementType.LINE_TO.value,
+                ElementType.END.value,
             ],
         ],
         dtype=torch.long,
@@ -157,7 +157,7 @@ def test_quad_to_cubic_keeps_batched_sequences_independent() -> None:
 
     out_types, out_coords = quad_to_cubic(types, coords)
 
-    assert out_types[1, 0].item() == CommandType.CURVE_TO.value
+    assert out_types[1, 0].item() == ElementType.CURVE_TO.value
     assert torch.allclose(
         out_coords[1, 0],
         torch.tensor([0.0, 2.0, 1.0, 3.0, 3.0, 3.0], dtype=torch.float32),
@@ -181,4 +181,4 @@ def test_quad_to_cubic_merge_curves_runs_even_without_quadratics() -> None:
 
     out_types, _out_coords = quad_to_cubic(types, coords, merge_curves=True)
 
-    assert out_types.tolist().count(CommandType.LINE_TO.value) == 1
+    assert out_types.tolist().count(ElementType.LINE_TO.value) == 1

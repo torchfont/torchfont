@@ -15,9 +15,9 @@ types, coords = quad_to_cubic(types, coords)
 types, coords = quad_to_cubic(types, coords, merge_curves=True)
 ```
 
-`CommandType.QUAD_TO` を `CommandType.CURVE_TO` へ変換します。
+`ElementType.QUAD_TO` を `ElementType.CURVE_TO` へ変換します。
 
-- コマンド形状は変わりません
+- element type の形状は変わりません
 - 座標形状は変わりません（`(..., 6)`）
 - 各 2 次セグメントの `[cx0, cy0, 0, 0, x, y]` は、直前終点を使って
   3 次制御点に書き換えられます
@@ -49,10 +49,10 @@ from torchfont.transforms import cubic_to_quad
 types, coords = cubic_to_quad(types, coords)
 ```
 
-fonttools cu2qu と同じ近似方針で、`CommandType.CURVE_TO` を 2 次 spline へ変換します。
+fonttools cu2qu と同じ近似方針で、`ElementType.CURVE_TO` を 2 次 spline へ変換します。
 
 - 1 つの連続した outline シーケンスを受け取ります
-- 1 つの cubic が複数の `CommandType.QUAD_TO` に展開されることがあります
+- 1 つの cubic が複数の `ElementType.QUAD_TO` に展開されることがあります
 - 隣接する 2 次制御点の中点が暗黙の on-curve 点になります
 
 ### 入出力
@@ -75,7 +75,7 @@ types, coords = merge_curves(types, coords)
 - 分割された cubic は、復元誤差が許容範囲内なら 1 つの cubic に戻します
 - 分割された quadratic は、復元誤差が許容範囲内なら 1 つの quadratic に戻します
 - 同方向へ進む連続した共線の `LineTo` は 1 つにまとめます
-- contour 境界は保持します
+- subpath 境界は保持します
 
 ### 入出力
 
@@ -93,7 +93,7 @@ from torchfont.transforms import remove_overlaps
 types, coords = remove_overlaps(types, coords)
 ```
 
-Skia PathOps を使い、winding に基づく hole を保ったまま重なったグリフ contour を統合します。
+Skia PathOps を使い、winding に基づく hole を保ったまま重なったグリフ subpath を統合します。
 
 - 1 つの連続した outline シーケンスを受け取ります
 - 重なり内部の edge を除去し、新しい可変長 outline を返します
@@ -141,7 +141,7 @@ types, coords = horizontal_flip(types, coords)
 
 - on-curve 終点と off-curve 制御点の両方を変換します
 - パディングエントリ（CLOSE、END、PAD）は変更しません
-- 反転により contour の巻き順が逆転します
+- 反転により subpath の巻き順が逆転します
 
 ### 入出力
 
@@ -162,7 +162,7 @@ types, coords = vertical_flip(types, coords)
 
 - on-curve 終点と off-curve 制御点の両方を変換します
 - パディングエントリ（CLOSE、END、PAD）は変更しません
-- 反転により contour の巻き順が逆転します
+- 反転により subpath の巻き順が逆転します
 
 ### 入出力
 

@@ -44,9 +44,9 @@ class GlyphSample:
     """One glyph sample returned by a dataset.
 
     Attributes:
-        types (Tensor): 1-D long tensor of pen command types.
+        types (Tensor): 1-D long tensor of path element types.
         coords (Tensor): 2-D float tensor of shape ``(N, 6)`` holding the
-            coordinate data for each command.
+            coordinates for each path element.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
         metrics (Tensor): 1-D float tensor of shape ``(15,)`` holding per-sample

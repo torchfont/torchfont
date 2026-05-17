@@ -2,7 +2,7 @@
 
 TorchFont is a **PyTorch library for treating font glyph outlines as
 machine-learning tensors**. Instead of rasterizing glyphs into images first, it
-works directly with path commands such as move, line, quadratic, and cubic
+works directly with path elements such as move, line, quadratic, and cubic
 segments.
 
 ::: info
@@ -43,9 +43,9 @@ more time on model design.
   - a Git repository is just another input directory once it is checked out
 - **Rust backend**
   - maps charmap codepoints to glyphs
-  - converts outlines into command sequences + 6D coordinate sequences
+  - converts outlines into element type sequences + 6D coordinates
   - normalizes coordinates by `units_per_em`
-  - keeps quadratic and cubic Beziers as distinct command types
+  - keeps quadratic and cubic Beziers as distinct element types
 - **Transform utilities**
   - `quad_to_cubic`: normalize `QUAD_TO` into `CURVE_TO`
   - model-specific tensor shaping can live in your dataset transform or training code

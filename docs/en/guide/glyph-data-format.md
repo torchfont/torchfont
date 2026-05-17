@@ -8,8 +8,8 @@ sample = dataset[i]
 
 | Element              | Type                | Shape          | Meaning                          |
 | -------------------- | ------------------- | -------------- | -------------------------------- |
-| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Pen command sequence             |
-| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinate sequence              |
+| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Element type sequence            |
+| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinates per path element     |
 | `sample.style_idx`   | `int`               | scalar         | Style class ID                   |
 | `sample.content_idx` | `int`               | scalar         | Content class ID                 |
 | `sample.metrics`     | `torch.FloatTensor` | `(15,)`        | Per-glyph and font-level metrics |
@@ -31,14 +31,14 @@ Values are UPM-normalised where applicable; `nan` when missing.
 ## `types`
 
 ```python
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 
-print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
-# CommandType.QUAD_TO 3
+print(ElementType.QUAD_TO, ElementType.QUAD_TO.value)
+# ElementType.QUAD_TO 3
 ```
 
-- `CommandType.END` marks end of sequence
-- `CommandType.PAD` is mainly introduced by `pad_sequence` or custom padding
+- `ElementType.END` marks end of sequence
+- `ElementType.PAD` is mainly introduced by `pad_sequence` or custom padding
 
 ## `coords`
 
@@ -48,14 +48,14 @@ Each step uses a 6D vector:
 [cx0, cy0, cx1, cy1, x, y]
 ```
 
-- `CommandType.MOVE_TO` / `CommandType.LINE_TO`: control points are zero;
+- `ElementType.MOVE_TO` / `ElementType.LINE_TO`: control points are zero;
   endpoint `(x, y)` is used
-- `CommandType.QUAD_TO`: one control point `(cx0, cy0)` and endpoint `(x, y)`
+- `ElementType.QUAD_TO`: one control point `(cx0, cy0)` and endpoint `(x, y)`
   are used (`cx1, cy1` are zero)
-- `CommandType.CURVE_TO`: two control points `(cx0, cy0)` and `(cx1, cy1)`,
+- `ElementType.CURVE_TO`: two control points `(cx0, cy0)` and `(cx1, cy1)`,
   and the endpoint
   `(x, y)` are used
-- `CommandType.CLOSE` / `CommandType.END` / `CommandType.PAD`: zeros
+- `ElementType.CLOSE` / `ElementType.END` / `ElementType.PAD`: zeros
 
 ::: info
 Coordinates are normalized by the font `units_per_em`.
@@ -63,8 +63,8 @@ Coordinates are normalized by the font `units_per_em`.
 
 ## Quadratic Bezier handling
 
-Quadratic curves are emitted as `CommandType.QUAD_TO` without conversion. To
-keep tensor shape fixed, `CommandType.QUAD_TO` uses
+Quadratic curves are emitted as `ElementType.QUAD_TO` without conversion. To
+keep tensor shape fixed, `ElementType.QUAD_TO` uses
 `[cx0, cy0, 0, 0, x, y]`.
 
 ## Style and content labels

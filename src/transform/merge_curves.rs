@@ -1,4 +1,4 @@
-use crate::outline::Command;
+use crate::outline::Element;
 
 // Absolute tolerance for merge validation (normalized coords ≈ 1 font-unit in 1000 UPM).
 const TOLERANCE: f32 = 1e-3;
@@ -17,7 +17,7 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
         let ty = types[i];
         let c = arr6(coords, i);
 
-        if ty == Command::MoveTo as i64 {
+        if ty == Element::MoveTo as i64 {
             let move_x = c[4];
             let move_y = c[5];
             i += 1;
@@ -25,9 +25,9 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
             let mut draw: Vec<(i64, [f32; 6])> = Vec::new();
             while i < n {
                 let st = types[i];
-                if st == Command::Close as i64
-                    || st == Command::End as i64
-                    || st == Command::MoveTo as i64
+                if st == Element::Close as i64
+                    || st == Element::End as i64
+                    || st == Element::MoveTo as i64
                 {
                     break;
                 }
@@ -35,15 +35,15 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
                 i += 1;
             }
 
-            let merged = merge_contour(move_x, move_y, draw);
+            let merged = merge_subpath(move_x, move_y, draw);
 
-            out_types.push(Command::MoveTo as i64);
+            out_types.push(Element::MoveTo as i64);
             out_coords.extend_from_slice(&c);
             for (mt, mc) in merged {
                 out_types.push(mt);
                 out_coords.extend_from_slice(&mc);
             }
-        } else if ty == Command::End as i64 {
+        } else if ty == Element::End as i64 {
             out_types.push(ty);
             out_coords.extend_from_slice(&c);
             break;
@@ -57,7 +57,7 @@ pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>
     (out_types, out_coords)
 }
 
-fn merge_contour(
+fn merge_subpath(
     start_x: f32,
     start_y: f32,
     segments: Vec<(i64, [f32; 6])>,
@@ -74,9 +74,9 @@ fn merge_contour(
             None => [start_x, start_y],
         };
 
-        let line = Command::LineTo as i64;
-        let quad = Command::QuadTo as i64;
-        let cubic = Command::CurveTo as i64;
+        let line = Element::LineTo as i64;
+        let quad = Element::QuadTo as i64;
+        let cubic = Element::CurveTo as i64;
 
         if ty == cubic {
             let mut run_end = i + 1;

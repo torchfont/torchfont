@@ -4,7 +4,7 @@ use skia_safe::{
 };
 
 use crate::bounds::{Bounds, BoundsPen};
-use crate::outline::Command;
+use crate::outline::Element;
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
@@ -149,27 +149,27 @@ fn render_target(
 fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path, Option<Bounds>)> {
     let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
     let mut bounds = track_bounds.then(BoundsPen::default);
-    for (&command, values) in types.iter().zip(coords.chunks_exact(6)) {
-        match command {
-            v if v == Command::MoveTo as i64 => {
+    for (&element, values) in types.iter().zip(coords.chunks_exact(6)) {
+        match element {
+            v if v == Element::MoveTo as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.move_to(values[4], values[5]);
                 }
                 builder.move_to((values[4], values[5]));
             }
-            v if v == Command::LineTo as i64 => {
+            v if v == Element::LineTo as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.line_to(values[4], values[5]);
                 }
                 builder.line_to((values[4], values[5]));
             }
-            v if v == Command::QuadTo as i64 => {
+            v if v == Element::QuadTo as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.quad_to(values[0], values[1], values[4], values[5]);
                 }
                 builder.quad_to((values[0], values[1]), (values[4], values[5]));
             }
-            v if v == Command::CurveTo as i64 => {
+            v if v == Element::CurveTo as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.curve_to(
                         values[0], values[1], values[2], values[3], values[4], values[5],
@@ -181,7 +181,7 @@ fn build_path(types: &[i64], coords: &[f32], track_bounds: bool) -> Option<(Path
                     (values[4], values[5]),
                 );
             }
-            v if v == Command::Close as i64 => {
+            v if v == Element::Close as i64 => {
                 if let Some(bounds) = &mut bounds {
                     bounds.close();
                 }

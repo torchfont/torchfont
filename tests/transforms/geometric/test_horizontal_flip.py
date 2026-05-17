@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import horizontal_flip
 
 from ._helpers import (
@@ -16,7 +16,7 @@ def test_horizontal_flip_mirrors_x_around_bbox_center() -> None:
     types, coords = _simple_outline()
     _, out = horizontal_flip(types, coords)
 
-    line_idx = types.tolist().index(CommandType.LINE_TO.value)
+    line_idx = types.tolist().index(ElementType.LINE_TO.value)
     assert out[line_idx, 4].item() == pytest.approx(1.0 - coords[line_idx, 4].item())
 
 
@@ -43,7 +43,7 @@ def test_horizontal_flip_transforms_cubic_control_points() -> None:
     types, coords = _cubic_outline()
     _, out = horizontal_flip(types, coords)
 
-    curve_idx = types.tolist().index(CommandType.CURVE_TO.value)
+    curve_idx = types.tolist().index(ElementType.CURVE_TO.value)
     assert out[curve_idx, 0].item() == pytest.approx(1.0 - coords[curve_idx, 0].item())
     assert out[curve_idx, 2].item() == pytest.approx(1.0 - coords[curve_idx, 2].item())
 
@@ -52,7 +52,7 @@ def test_horizontal_flip_quad_pair1_stays_zero() -> None:
     types, coords = _quad_outline()
     _, out = horizontal_flip(types, coords)
 
-    quad_idx = types.tolist().index(CommandType.QUAD_TO.value)
+    quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
     assert out[quad_idx, 2].item() == pytest.approx(0.0)
     assert out[quad_idx, 3].item() == pytest.approx(0.0)
 

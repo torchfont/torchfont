@@ -2,16 +2,16 @@
 
 ## `torchfont.io`
 
-グリフコマンドの共通定数です。
+グリフ outline の path element encoding に使う共通定数です。
 
 ```python
-from torchfont.io import CommandType, TYPE_DIM, COORD_DIM
+from torchfont.io import ElementType, TYPE_DIM, COORD_DIM
 ```
 
-### `CommandType: IntEnum`
+### `ElementType: IntEnum`
 
 ```python
-class CommandType(IntEnum):
+class ElementType(IntEnum):
     PAD = 0
     MOVE_TO = 1
     LINE_TO = 2
@@ -23,8 +23,8 @@ class CommandType(IntEnum):
 
 ### `TYPE_DIM: int`
 
-コマンド種別数。現在値は `7`。
+element type 数。現在値は `7`。
 
 ### `COORD_DIM: int`
 
-座標次元数。現在値は `6`（`[cx0, cy0, cx1, cy1, x, y]`）。
+coordinates の次元数。現在値は `6`（`[cx0, cy0, cx1, cy1, x, y]`）。

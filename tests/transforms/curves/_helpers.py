@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 
 _ZERO_METRICS = torch.zeros(15, dtype=torch.float32)
 _Point = tuple[float, float]
@@ -18,9 +18,9 @@ def _lerp(
 
 def _line_path_to_tensors(points: list[_Point]) -> tuple[torch.Tensor, torch.Tensor]:
     types = torch.tensor(
-        [CommandType.MOVE_TO.value]
-        + [CommandType.LINE_TO.value] * (len(points) - 1)
-        + [CommandType.CLOSE.value, CommandType.END.value],
+        [ElementType.MOVE_TO.value]
+        + [ElementType.LINE_TO.value] * (len(points) - 1)
+        + [ElementType.CLOSE.value, ElementType.END.value],
         dtype=torch.long,
     )
     coords = torch.tensor(
@@ -55,9 +55,9 @@ def _quad_segs_to_tensors(
     segs: Sequence[_QuadSeg],
 ) -> tuple[torch.Tensor, torch.Tensor]:
     types_list = (
-        [CommandType.MOVE_TO.value]
-        + [CommandType.QUAD_TO.value] * len(segs)
-        + [CommandType.CLOSE.value, CommandType.END.value]
+        [ElementType.MOVE_TO.value]
+        + [ElementType.QUAD_TO.value] * len(segs)
+        + [ElementType.CLOSE.value, ElementType.END.value]
     )
     p0 = segs[0][0]
     coords_list: list[list[float]] = [[0.0, 0.0, 0.0, 0.0, p0[0], p0[1]]]
@@ -87,9 +87,9 @@ def _cubic_segs_to_tensors(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     n = len(segs)
     types_list = (
-        [CommandType.MOVE_TO.value]
-        + [CommandType.CURVE_TO.value] * n
-        + [CommandType.CLOSE.value, CommandType.END.value]
+        [ElementType.MOVE_TO.value]
+        + [ElementType.CURVE_TO.value] * n
+        + [ElementType.CLOSE.value, ElementType.END.value]
     )
     p0 = segs[0][0]
     coords_list: list[list[float]] = [[0.0, 0.0, 0.0, 0.0, p0[0], p0[1]]]
@@ -146,6 +146,6 @@ def _assert_single_cubic_matches(
     *,
     atol: float = 1e-4,
 ) -> None:
-    assert types.tolist().count(CommandType.CURVE_TO.value) == 1
-    idx = types.tolist().index(CommandType.CURVE_TO.value)
+    assert types.tolist().count(ElementType.CURVE_TO.value) == 1
+    idx = types.tolist().index(ElementType.CURVE_TO.value)
     assert torch.allclose(coords[idx], _cubic_coords(curve), atol=atol)

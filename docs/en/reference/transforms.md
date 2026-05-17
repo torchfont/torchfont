@@ -15,10 +15,10 @@ types, coords = quad_to_cubic(types, coords)
 types, coords = quad_to_cubic(types, coords, merge_curves=True)
 ```
 
-Converts `CommandType.QUAD_TO` commands to `CommandType.CURVE_TO`.
+Converts `ElementType.QUAD_TO` path elements to `ElementType.CURVE_TO`.
 
-- command shape is unchanged
-- coordinate shape is unchanged (`(..., 6)`)
+- path element shape is unchanged
+- `coords` shape is unchanged (`(..., 6)`)
 - for each quadratic segment, `[cx0, cy0, 0, 0, x, y]` is rewritten to cubic
   control points using the previous endpoint
 - the last `types` dimension is the sequence dimension; leading dimensions are
@@ -49,11 +49,11 @@ from torchfont.transforms import cubic_to_quad
 types, coords = cubic_to_quad(types, coords)
 ```
 
-Converts `CommandType.CURVE_TO` commands to quadratic splines using the same
+Converts `ElementType.CURVE_TO` path elements to quadratic splines using the same
 approximation strategy as fonttools cu2qu.
 
 - accepts one continuous outline sequence
-- one cubic may expand into multiple `CommandType.QUAD_TO` commands
+- one cubic may expand into multiple `ElementType.QUAD_TO` path elements
 - adjacent quadratic controls imply on-curve points at their midpoints
 
 ### I/O Shape
@@ -75,8 +75,8 @@ Collapses adjacent segments when they can be reconstructed as one parent shape.
 
 - split cubic pieces are merged back into one cubic when the reconstruction fits
 - split quadratic pieces are merged back into one quadratic when the reconstruction fits
-- consecutive collinear `LineTo` commands moving in the same direction are merged
-- contour boundaries are preserved
+- consecutive collinear `LineTo` path elements moving in the same direction are merged
+- subpath boundaries are preserved
 
 ### I/O Shape
 
@@ -94,7 +94,7 @@ from torchfont.transforms import remove_overlaps
 types, coords = remove_overlaps(types, coords)
 ```
 
-Merges overlapping glyph contours with Skia PathOps while preserving winding-based holes.
+Merges overlapping glyph subpaths with Skia PathOps while preserving winding-based holes.
 
 - accepts one continuous outline sequence
 - removes internal overlap edges and returns a new variable-length outline
@@ -142,7 +142,7 @@ Flips a glyph outline horizontally around its tight bounding-box centre.
 
 - both on-curve endpoints and off-curve control points are transformed
 - padding entries (CLOSE, END, PAD) are not modified
-- flipping reverses contour winding order
+- flipping reverses subpath winding order
 
 ### I/O Shape
 
@@ -163,7 +163,7 @@ Flips a glyph outline vertically around its tight bounding-box centre.
 
 - both on-curve endpoints and off-curve control points are transformed
 - padding entries (CLOSE, END, PAD) are not modified
-- flipping reverses contour winding order
+- flipping reverses subpath winding order
 
 ### I/O Shape
 
@@ -276,11 +276,11 @@ from torchfont.transforms import random_coord_jitter
 types, coords = random_coord_jitter(types, coords, std=0.005)
 ```
 
-Adds independent Gaussian noise to each active outline coordinate.
+Adds independent Gaussian noise to each active value in the outline coordinates.
 
 - `std`: standard deviation in UPM-normalised units; `0.005` ≈ 5 font-units in
   a 1000-UPM font
-- only active coordinate columns are perturbed (unused columns, CLOSE, END, PAD
+- only active `coords` columns are perturbed (unused columns, CLOSE, END, PAD
   are left unchanged)
 - `generator`: optional `torch.Generator` for reproducibility
 

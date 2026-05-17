@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import render_bitmap
 
 from ._helpers import _occupied_size
@@ -10,12 +10,12 @@ from ._helpers import _occupied_size
 def test_render_bitmap_supports_coordinate_mapping_modes() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -49,12 +49,12 @@ def test_render_bitmap_supports_coordinate_mapping_modes() -> None:
 def test_render_bitmap_bbox_returns_variable_size() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -77,7 +77,7 @@ def test_render_bitmap_bbox_returns_variable_size() -> None:
 
 
 def test_render_bitmap_rejects_unknown_mode() -> None:
-    types = torch.tensor([CommandType.END.value], dtype=torch.long)
+    types = torch.tensor([ElementType.END.value], dtype=torch.long)
     coords = torch.zeros(1, 6, dtype=torch.float32)
 
     with pytest.raises(ValueError, match="mode must be one of"):
@@ -85,7 +85,7 @@ def test_render_bitmap_rejects_unknown_mode() -> None:
 
 
 def test_render_bitmap_bbox_empty_outline_returns_empty_bitmap() -> None:
-    types = torch.tensor([CommandType.END.value], dtype=torch.long)
+    types = torch.tensor([ElementType.END.value], dtype=torch.long)
     coords = torch.zeros(1, 6, dtype=torch.float32)
 
     bitmap = render_bitmap(types, coords, mode="bbox")
@@ -96,12 +96,12 @@ def test_render_bitmap_bbox_empty_outline_returns_empty_bitmap() -> None:
 def test_render_bitmap_bbox_rejects_oversized_output() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )

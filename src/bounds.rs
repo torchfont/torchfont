@@ -1,4 +1,4 @@
-use crate::outline::Command;
+use crate::outline::Element;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Bounds {
@@ -38,7 +38,7 @@ impl Bounds {
 pub(crate) struct BoundsPen {
     bounds: Option<Bounds>,
     current: Option<(f32, f32)>,
-    contour_start: Option<(f32, f32)>,
+    subpath_start: Option<(f32, f32)>,
 }
 
 impl BoundsPen {
@@ -49,7 +49,7 @@ impl BoundsPen {
     pub(crate) fn move_to(&mut self, x: f32, y: f32) {
         self.include(x, y);
         self.current = Some((x, y));
-        self.contour_start = Some((x, y));
+        self.subpath_start = Some((x, y));
     }
 
     pub(crate) fn line_to(&mut self, x: f32, y: f32) {
@@ -75,7 +75,7 @@ impl BoundsPen {
     }
 
     pub(crate) fn close(&mut self) {
-        self.current = self.contour_start;
+        self.current = self.subpath_start;
     }
 
     fn include(&mut self, x: f32, y: f32) {
@@ -114,23 +114,23 @@ impl BoundsPen {
     }
 }
 
-pub(crate) fn bounds_from_i64_segments(types: &[i64], coords: &[f32]) -> Option<Bounds> {
-    bounds_from_segments(types.iter().copied(), coords)
+pub(crate) fn bounds_from_i64_elements(types: &[i64], coords: &[f32]) -> Option<Bounds> {
+    bounds_from_elements(types.iter().copied(), coords)
 }
 
-fn bounds_from_segments(types: impl Iterator<Item = i64>, coords: &[f32]) -> Option<Bounds> {
+fn bounds_from_elements(types: impl Iterator<Item = i64>, coords: &[f32]) -> Option<Bounds> {
     let mut pen = BoundsPen::default();
-    for (command, values) in types.zip(coords.chunks_exact(6)) {
-        match command {
-            v if v == Command::MoveTo as i64 => pen.move_to(values[4], values[5]),
-            v if v == Command::LineTo as i64 => pen.line_to(values[4], values[5]),
-            v if v == Command::QuadTo as i64 => {
+    for (element, values) in types.zip(coords.chunks_exact(6)) {
+        match element {
+            v if v == Element::MoveTo as i64 => pen.move_to(values[4], values[5]),
+            v if v == Element::LineTo as i64 => pen.line_to(values[4], values[5]),
+            v if v == Element::QuadTo as i64 => {
                 pen.quad_to(values[0], values[1], values[4], values[5])
             }
-            v if v == Command::CurveTo as i64 => pen.curve_to(
+            v if v == Element::CurveTo as i64 => pen.curve_to(
                 values[0], values[1], values[2], values[3], values[4], values[5],
             ),
-            v if v == Command::Close as i64 => pen.close(),
+            v if v == Element::Close as i64 => pen.close(),
             _ => break,
         }
     }

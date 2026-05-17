@@ -1,10 +1,10 @@
-"""Shared constants for glyph outline command encoding."""
+"""Shared constants for glyph outline path element encoding."""
 
 from enum import IntEnum
 
 
-class CommandType(IntEnum):
-    """Integer command IDs emitted in glyph outline sequences."""
+class ElementType(IntEnum):
+    """Integer path element IDs emitted in glyph outline sequences."""
 
     PAD = 0
     MOVE_TO = 1
@@ -15,5 +15,5 @@ class CommandType(IntEnum):
     END = 6
 
 
-TYPE_DIM: int = len(CommandType)
+TYPE_DIM: int = len(ElementType)
 COORD_DIM: int = 6

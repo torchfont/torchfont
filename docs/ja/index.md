@@ -25,7 +25,7 @@ features:
     details: "`GlyphDataset(root=...)` を使い、ローカルのフォントディレクトリや clone 済み checkout をそのまま入力にできます。"
   - icon: 🚀
     title: Rust バックエンド
-    details: "skrifa + PyO3 による実装で、グリフアウトラインを command + coordinate テンソルへ高速に変換します。"
+    details: "skrifa + PyO3 による実装で、グリフアウトラインを element type + coordinates テンソルへ高速に変換します。"
   - icon: 🧱
     title: Sample-first なデータモデル
     details: "`GlyphSample` が 1 グリフを outline・metrics・名前つきで表し、batch 化方針は学習コード側に置けます。"

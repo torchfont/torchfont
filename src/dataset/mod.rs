@@ -13,9 +13,9 @@ use std::path::Path;
 
 #[pyclass(get_all)]
 pub struct GlyphItem {
-    /// One ``i64`` per pen command.
+    /// One ``i64`` element type per path element.
     pub types: Py<PyArray1<i64>>,
-    /// Six ``f32`` values per pen command (flat).
+    /// Six ``f32`` coordinates per path element (flat).
     pub coords: Py<PyArray1<f32>>,
     pub style_idx: usize,
     pub content_idx: usize,

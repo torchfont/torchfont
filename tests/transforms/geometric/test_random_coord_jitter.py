@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import random_coord_jitter
 
 from ._helpers import (
@@ -17,7 +17,7 @@ def test_random_coord_jitter_changes_active_coords() -> None:
     g = torch.Generator().manual_seed(42)
     _, out = random_coord_jitter(types, coords, std=0.1, generator=g)
 
-    line_idx = types.tolist().index(CommandType.LINE_TO.value)
+    line_idx = types.tolist().index(ElementType.LINE_TO.value)
     assert not torch.equal(out[line_idx, 4:6], coords[line_idx, 4:6])
 
 
@@ -39,7 +39,7 @@ def test_random_coord_jitter_quad_pair1_stays_zero() -> None:
     g = torch.Generator().manual_seed(2)
     _, out = random_coord_jitter(types, coords, std=1.0, generator=g)
 
-    quad_idx = types.tolist().index(CommandType.QUAD_TO.value)
+    quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
     assert out[quad_idx, 2].item() == pytest.approx(0.0)
     assert out[quad_idx, 3].item() == pytest.approx(0.0)
 
@@ -49,7 +49,7 @@ def test_random_coord_jitter_jitters_all_cubic_pairs() -> None:
     g = torch.Generator().manual_seed(7)
     _, out = random_coord_jitter(types, coords, std=0.5, generator=g)
 
-    curve_idx = types.tolist().index(CommandType.CURVE_TO.value)
+    curve_idx = types.tolist().index(ElementType.CURVE_TO.value)
     assert not torch.equal(out[curve_idx, 0:2], coords[curve_idx, 0:2])
     assert not torch.equal(out[curve_idx, 2:4], coords[curve_idx, 2:4])
     assert not torch.equal(out[curve_idx, 4:6], coords[curve_idx, 4:6])

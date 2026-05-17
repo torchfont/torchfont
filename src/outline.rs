@@ -2,7 +2,7 @@ use skrifa::outline::{DrawError, DrawSettings, OutlineGlyph, OutlinePen};
 
 #[derive(Clone, Copy)]
 #[repr(i32)]
-pub(crate) enum Command {
+pub(crate) enum Element {
     MoveTo = 1,
     LineTo = 2,
     QuadTo = 3,
@@ -11,66 +11,66 @@ pub(crate) enum Command {
     End = 6,
 }
 
-struct SegmentPen {
-    commands: Vec<i64>,
+struct ElementPen {
+    types: Vec<i64>,
     coords: Vec<f32>,
     scale: f32,
 }
 
-impl SegmentPen {
+impl ElementPen {
     fn new(units_per_em: f32) -> Self {
         debug_assert!(units_per_em > 0.0, "units_per_em must be positive");
         Self {
-            commands: Vec::new(),
+            types: Vec::new(),
             coords: Vec::new(),
             scale: units_per_em.recip(),
         }
     }
 
     fn finish(mut self) -> (Vec<i64>, Vec<f32>) {
-        self.push(Command::End, [0.0; 6]);
-        (self.commands, self.coords)
+        self.push(Element::End, [0.0; 6]);
+        (self.types, self.coords)
     }
 
-    fn push(&mut self, command: Command, values: [f32; 6]) {
-        self.commands.push(command as i64);
+    fn push(&mut self, element: Element, values: [f32; 6]) {
+        self.types.push(element as i64);
         let scaled = values.map(|v| v * self.scale);
         self.coords.extend_from_slice(&scaled);
     }
 
-    fn push_endpoint(&mut self, command: Command, x: f32, y: f32) {
-        self.push(command, [0.0, 0.0, 0.0, 0.0, x, y]);
+    fn push_endpoint(&mut self, element: Element, x: f32, y: f32) {
+        self.push(element, [0.0, 0.0, 0.0, 0.0, x, y]);
     }
 }
 
-impl OutlinePen for SegmentPen {
+impl OutlinePen for ElementPen {
     fn move_to(&mut self, x: f32, y: f32) {
-        self.push_endpoint(Command::MoveTo, x, y);
+        self.push_endpoint(Element::MoveTo, x, y);
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        self.push_endpoint(Command::LineTo, x, y);
+        self.push_endpoint(Element::LineTo, x, y);
     }
 
     fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        self.push(Command::QuadTo, [cx0, cy0, 0.0, 0.0, x, y]);
+        self.push(Element::QuadTo, [cx0, cy0, 0.0, 0.0, x, y]);
     }
 
     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        self.push(Command::CurveTo, [cx0, cy0, cx1, cy1, x, y]);
+        self.push(Element::CurveTo, [cx0, cy0, cx1, cy1, x, y]);
     }
 
     fn close(&mut self) {
-        self.push(Command::Close, [0.0; 6]);
+        self.push(Element::Close, [0.0; 6]);
     }
 }
 
-pub(crate) fn extract_glyph_segments<'a>(
+pub(crate) fn extract_glyph_outline<'a>(
     glyph: &OutlineGlyph<'a>,
     settings: DrawSettings<'a>,
     units_per_em: f32,
 ) -> Result<(Vec<i64>, Vec<f32>), DrawError> {
-    let mut pen = SegmentPen::new(units_per_em);
+    let mut pen = ElementPen::new(units_per_em);
     glyph.draw(settings, &mut pen)?;
     Ok(pen.finish())
 }

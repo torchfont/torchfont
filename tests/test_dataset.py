@@ -21,7 +21,7 @@ from torchfont.datasets import (
     GlyphSample,
     StyleAxis,
 )
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.metadata import build_dataset_metadata
 
 
@@ -219,8 +219,8 @@ def test_glyph_dataset_preserves_quadratic_curves() -> None:
 
     sample = dataset[0]
 
-    assert (sample.types == CommandType.QUAD_TO.value).any().item()
-    assert not (sample.types == CommandType.CURVE_TO.value).any().item()
+    assert (sample.types == ElementType.QUAD_TO.value).any().item()
+    assert not (sample.types == ElementType.CURVE_TO.value).any().item()
 
 
 def test_glyph_dataset_negative_indexing() -> None:

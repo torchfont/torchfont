@@ -4,13 +4,13 @@ All functions follow the same convention as :mod:`torchfont.transforms`:
 they accept ``(types, coords)`` and return a transformed ``(types, coords)``
 pair without modifying the inputs.
 
-Coordinate layout (``coords`` shape ``(N, 6)``)::
+Coordinates layout (``coords`` shape ``(N, 6)``)::
 
     [cx0, cy0, cx1, cy1, x, y]
 
     Pair 0 (cx0, cy0): off-curve control point 1 — active for QUAD_TO / CURVE_TO
     Pair 1 (cx1, cy1): off-curve control point 2 — active for CURVE_TO only
-    Pair 2 (x,   y  ): on-curve endpoint        — active for all drawing commands
+    Pair 2 (x,   y  ): on-curve endpoint        — active for all drawing path elements
 
 All coordinates are UPM-normalised. The glyph body typically occupies
 ``[0, 1] x [0, 1]`` inside the full canvas ``[-0.25, 1.25] x [-0.25, 1.25]``.
@@ -22,17 +22,17 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 
 
 def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-    pair0 = (types == CommandType.QUAD_TO.value) | (types == CommandType.CURVE_TO.value)
-    pair1 = types == CommandType.CURVE_TO.value
+    pair0 = (types == ElementType.QUAD_TO.value) | (types == ElementType.CURVE_TO.value)
+    pair1 = types == ElementType.CURVE_TO.value
     pair2 = (
-        (types == CommandType.MOVE_TO.value)
-        | (types == CommandType.LINE_TO.value)
-        | (types == CommandType.QUAD_TO.value)
-        | (types == CommandType.CURVE_TO.value)
+        (types == ElementType.MOVE_TO.value)
+        | (types == ElementType.LINE_TO.value)
+        | (types == ElementType.QUAD_TO.value)
+        | (types == ElementType.CURVE_TO.value)
     )
     return pair0, pair1, pair2
 
@@ -98,11 +98,11 @@ def horizontal_flip(
     Zero-padded entries (CLOSE, END, PAD) are left unchanged.
 
     Note:
-        Flipping reverses contour winding order. For most sequence models
+        Flipping reverses subpath winding order. For most sequence models
         this is acceptable; take care when consistent winding is required.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
@@ -122,11 +122,11 @@ def vertical_flip(
     """Flip a glyph outline vertically around the bounding-box centre.
 
     Note:
-        Flipping reverses contour winding order. For most sequence models
+        Flipping reverses subpath winding order. For most sequence models
         this is acceptable; take care when consistent winding is required.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
@@ -156,7 +156,7 @@ def affine(
     PAD) are not modified.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         angle: Counter-clockwise rotation in degrees.
         translate: Translation ``(tx, ty)`` in UPM-normalised units applied
@@ -187,7 +187,7 @@ def random_horizontal_flip(
     """Randomly flip a glyph outline horizontally with probability ``p``.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         p: Probability of applying the flip. Default: ``0.5``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
@@ -211,7 +211,7 @@ def random_vertical_flip(
     """Randomly flip a glyph outline vertically with probability ``p``.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         p: Probability of applying the flip. Default: ``0.5``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
@@ -265,7 +265,7 @@ def random_affine(
     modified.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         degrees: Rotation range in degrees. A single float ``d`` gives
             ``[-d, d]``; a ``(min, max)`` tuple is used directly.
@@ -313,9 +313,9 @@ def random_coord_jitter(
     std: float,
     generator: torch.Generator | None = None,
 ) -> tuple[Tensor, Tensor]:
-    """Add independent Gaussian noise to each active outline coordinate.
+    """Add independent Gaussian noise to each active value in the outline coordinates.
 
-    Noise is sampled per scalar coordinate value with standard deviation
+    Noise is sampled per scalar value in ``coords`` with standard deviation
     ``std`` in UPM-normalised units. Non-active padding entries (CLOSE, END,
     PAD) and unused zero-padding columns (e.g. ``cx1, cy1`` for QUAD_TO) are
     not perturbed.
@@ -325,7 +325,7 @@ def random_coord_jitter(
     glyph shape.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         std: Standard deviation of the Gaussian noise in UPM-normalised units.
             Must be non-negative.

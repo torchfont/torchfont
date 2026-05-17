@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import random_affine
 
 from ._helpers import _close_end_zeros, _quad_outline, _simple_outline
@@ -39,7 +39,7 @@ def test_random_affine_does_not_modify_types() -> None:
 def test_random_affine_translation_within_bounds() -> None:
     types, coords = _simple_outline()
     g = torch.Generator().manual_seed(3)
-    move_idx = types.tolist().index(CommandType.MOVE_TO.value)
+    move_idx = types.tolist().index(ElementType.MOVE_TO.value)
     _, out = random_affine(types, coords, translate=(0.1, 0.2), generator=g)
     dx = abs(out[move_idx, 4].item() - coords[move_idx, 4].item())
     dy = abs(out[move_idx, 5].item() - coords[move_idx, 5].item())
@@ -66,6 +66,6 @@ def test_random_affine_quad_pair1_stays_zero() -> None:
         types, coords, degrees=45.0, translate=(0.05, 0.05), generator=g
     )
 
-    quad_idx = types.tolist().index(CommandType.QUAD_TO.value)
+    quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
     assert out[quad_idx, 2].item() == pytest.approx(0.0)
     assert out[quad_idx, 3].item() == pytest.approx(0.0)

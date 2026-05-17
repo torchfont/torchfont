@@ -12,7 +12,7 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
     sequence dimension.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         patch_size: Number of time steps per patch. Must be >= 1.
 

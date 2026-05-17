@@ -4,15 +4,15 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 
 
 def quad_to_cubic(
     types: Tensor, coords: Tensor, *, merge_curves: bool = False
 ) -> tuple[Tensor, Tensor]:
-    """Convert ``CommandType.QUAD_TO`` entries to ``CommandType.CURVE_TO``.
+    """Convert ``ElementType.QUAD_TO`` entries to ``ElementType.CURVE_TO``.
 
-    The command and coordinate shapes are preserved. Coordinate rows use the
+    The ``types`` and ``coords`` shapes are preserved. Rows in ``coords`` use the
     ``[cx0, cy0, cx1, cy1, x, y]`` layout, with quadratic control points read
     from ``[cx0, cy0]`` and endpoints from ``[x, y]``.
 
@@ -36,7 +36,7 @@ def quad_to_cubic(
             torch.tensor(out_types, dtype=torch.long),
             torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
         )
-    if not torch.any(types == CommandType.QUAD_TO.value):
+    if not torch.any(types == ElementType.QUAD_TO.value):
         return types, coords
 
     seq_len = types.size(-1)
@@ -51,7 +51,7 @@ def quad_to_cubic(
 
 
 def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Convert ``CommandType.CURVE_TO`` entries to ``CommandType.QUAD_TO`` sequences.
+    """Convert ``ElementType.CURVE_TO`` entries to ``ElementType.QUAD_TO`` sequences.
 
     Each cubic Bezier segment is replaced by the minimum number of quadratic
     Bezier segments needed to approximate it within ~1e-3 normalised UPM units
@@ -63,13 +63,13 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     because a single cubic can expand into multiple quadratics.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
         A new variable-length outline tuple ``(types, coords)`` where each
-        ``CurveTo`` has been replaced by one or more ``QuadTo`` commands.
-        Non-cubic commands are passed through unchanged.
+        ``CurveTo`` has been replaced by one or more ``QuadTo`` path elements.
+        Non-cubic path elements are passed through unchanged.
 
     """
     types = types.cpu().contiguous()
@@ -97,7 +97,7 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     fonttools.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
@@ -117,15 +117,15 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 
 
 def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Merge overlapping contours using Skia PathOps winding simplification.
+    """Merge overlapping subpaths using Skia PathOps winding simplification.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of pen command types.
+        types: 1-D ``torch.int64`` tensor of path element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
 
     Returns:
         A new variable-length outline tuple ``(types, coords)`` with overlapping
-        contour edges removed when Skia PathOps can resolve the outline. If
+        subpath edges removed when Skia PathOps can resolve the outline. If
         PathOps cannot simplify an otherwise valid outline, the original outline
         is returned unchanged.
 

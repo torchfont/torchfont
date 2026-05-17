@@ -78,7 +78,7 @@ impl GlyphReader {
             let location_ref = self.location_ref(locations, instance_index)?;
             let inv_upem = 1.0 / units_per_em;
 
-            let (types, coords) = outline::extract_glyph_segments(
+            let (types, coords) = outline::extract_glyph_outline(
                 &glyph,
                 DrawSettings::unhinted(Size::unscaled(), location_ref),
                 units_per_em,
@@ -95,7 +95,7 @@ impl GlyphReader {
                 .map(|v| v * inv_upem)
                 .unwrap_or(f32::NAN);
             let (x_min, y_min, x_max, y_max) = if metrics_bounds_are_outline_based(&font) {
-                bounds::bounds_from_i64_segments(&types, &coords)
+                bounds::bounds_from_i64_elements(&types, &coords)
                     .map_or((f32::NAN, f32::NAN, f32::NAN, f32::NAN), |bb| {
                         (bb.x_min, bb.y_min, bb.x_max, bb.y_max)
                     })

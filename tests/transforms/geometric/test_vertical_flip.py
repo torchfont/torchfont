@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import vertical_flip
 
 from ._helpers import _close_end_zeros, _simple_outline
@@ -11,7 +11,7 @@ def test_vertical_flip_mirrors_y_around_bbox_center() -> None:
     types, coords = _simple_outline()
     _, out = vertical_flip(types, coords)
 
-    line_idx = types.tolist().index(CommandType.LINE_TO.value)
+    line_idx = types.tolist().index(ElementType.LINE_TO.value)
     assert out[line_idx, 5].item() == pytest.approx(1.0 - coords[line_idx, 5].item())
 
 

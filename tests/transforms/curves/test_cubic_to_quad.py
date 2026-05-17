@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import cubic_to_quad, merge_curves, quad_to_cubic
 
 from ._helpers import (
@@ -21,18 +21,18 @@ def test_cubic_to_quad_produces_quad_to_commands() -> None:
 
     out_types, out_coords = cubic_to_quad(types, coords)
 
-    assert CommandType.CURVE_TO.value not in out_types.tolist()
-    assert CommandType.QUAD_TO.value in out_types.tolist()
+    assert ElementType.CURVE_TO.value not in out_types.tolist()
+    assert ElementType.QUAD_TO.value in out_types.tolist()
     assert out_coords.shape[1] == 6
 
 
 def test_cubic_to_quad_passes_through_non_cubic_commands() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -68,7 +68,7 @@ def test_cubic_to_quad_exact_quadratics_use_one_segment_and_roundtrip(
 
     q_types, q_coords = cubic_to_quad(types, coords)
 
-    assert q_types.tolist().count(CommandType.QUAD_TO.value) == 1
+    assert q_types.tolist().count(ElementType.QUAD_TO.value) == 1
 
     c_types, c_coords = quad_to_cubic(q_types, q_coords)
     m_types, m_coords = merge_curves(c_types, c_coords)
@@ -123,7 +123,7 @@ def test_cubic_to_quad_quad_to_cubic_endpoints_are_exact(curve: _CubicSeg) -> No
     q_types, q_coords = cubic_to_quad(types, coords)
 
     quad_indices = [
-        i for i, t in enumerate(q_types.tolist()) if t == CommandType.QUAD_TO.value
+        i for i, t in enumerate(q_types.tolist()) if t == ElementType.QUAD_TO.value
     ]
     assert len(quad_indices) >= 1
 
@@ -152,9 +152,9 @@ def test_cubic_to_quad_implied_cubics_close_to_sub_cubics(curve: _CubicSeg) -> N
     q_types, q_coords = cubic_to_quad(types, coords)
     c_types, c_coords = quad_to_cubic(q_types, q_coords)
 
-    quad_count = q_types.tolist().count(CommandType.QUAD_TO.value)
+    quad_count = q_types.tolist().count(ElementType.QUAD_TO.value)
     curve_indices = [
-        i for i, t in enumerate(c_types.tolist()) if t == CommandType.CURVE_TO.value
+        i for i, t in enumerate(c_types.tolist()) if t == ElementType.CURVE_TO.value
     ]
     assert len(curve_indices) == quad_count
 

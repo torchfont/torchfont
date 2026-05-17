@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 from torchfont.transforms import cubic_to_quad, merge_curves
 
 from ._helpers import (
@@ -27,8 +27,8 @@ def test_merge_curves_collinear_lines_are_merged() -> None:
 
     out_types, out_coords = merge_curves(types, coords)
 
-    assert out_types.tolist().count(CommandType.LINE_TO.value) == 1
-    line_idx = out_types.tolist().index(CommandType.LINE_TO.value)
+    assert out_types.tolist().count(ElementType.LINE_TO.value) == 1
+    line_idx = out_types.tolist().index(ElementType.LINE_TO.value)
     assert out_coords[line_idx, 4].item() == pytest.approx(3.0)
     assert out_coords[line_idx, 5].item() == pytest.approx(0.0)
 
@@ -49,7 +49,7 @@ def test_merge_curves_non_mergeable_lines_stay_separate(points: list[_Point]) ->
 
     out_types, _out_coords = merge_curves(types, coords)
 
-    assert out_types.tolist().count(CommandType.LINE_TO.value) == 2
+    assert out_types.tolist().count(ElementType.LINE_TO.value) == 2
 
 
 @pytest.mark.parametrize(
@@ -74,8 +74,8 @@ def test_merge_curves_split_quads_roundtrip(ts: tuple[float, ...]) -> None:
 
     out_types, out_coords = merge_curves(types, coords)
 
-    assert out_types.tolist().count(CommandType.QUAD_TO.value) == 1
-    idx = out_types.tolist().index(CommandType.QUAD_TO.value)
+    assert out_types.tolist().count(ElementType.QUAD_TO.value) == 1
+    idx = out_types.tolist().index(ElementType.QUAD_TO.value)
     assert torch.allclose(
         out_coords[idx],
         torch.tensor([1.0, 2.0, 0.0, 0.0, 3.0, 0.0]),
@@ -86,11 +86,11 @@ def test_merge_curves_split_quads_roundtrip(ts: tuple[float, ...]) -> None:
 def test_merge_curves_incompatible_quads_are_not_merged() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.QUAD_TO.value,
-            CommandType.QUAD_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.QUAD_TO.value,
+            ElementType.QUAD_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -107,17 +107,17 @@ def test_merge_curves_incompatible_quads_are_not_merged() -> None:
 
     out_types, _out_coords = merge_curves(types, coords)
 
-    assert out_types.tolist().count(CommandType.QUAD_TO.value) == 2
+    assert out_types.tolist().count(ElementType.QUAD_TO.value) == 2
 
 
 def test_merge_curves_incompatible_cubics_are_not_merged() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.CURVE_TO.value,
-            CommandType.CURVE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.CURVE_TO.value,
+            ElementType.CURVE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -134,16 +134,16 @@ def test_merge_curves_incompatible_cubics_are_not_merged() -> None:
 
     out_types, _out_coords = merge_curves(types, coords)
 
-    assert out_types.tolist().count(CommandType.CURVE_TO.value) == 2
+    assert out_types.tolist().count(ElementType.CURVE_TO.value) == 2
 
 
-def test_merge_curves_preserves_structure_outside_contour() -> None:
+def test_merge_curves_preserves_structure_outside_subpath() -> None:
     types = torch.tensor(
         [
-            CommandType.MOVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CLOSE.value,
-            CommandType.END.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -152,17 +152,17 @@ def test_merge_curves_preserves_structure_outside_contour() -> None:
 
     out_types, _out_coords = merge_curves(types, coords)
 
-    assert out_types[-1].item() == CommandType.END.value
-    assert CommandType.CLOSE.value in out_types.tolist()
+    assert out_types[-1].item() == ElementType.END.value
+    assert ElementType.CLOSE.value in out_types.tolist()
 
 
-def test_merge_curves_multiple_contours() -> None:
-    def _contour(ox: float) -> tuple[list[int], list[list[float]]]:
+def test_merge_curves_multiple_subpaths() -> None:
+    def _subpath(ox: float) -> tuple[list[int], list[list[float]]]:
         t = [
-            CommandType.MOVE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.LINE_TO.value,
-            CommandType.CLOSE.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
         ]
         c = [
             [0.0, 0.0, 0.0, 0.0, ox, 0.0],
@@ -172,9 +172,9 @@ def test_merge_curves_multiple_contours() -> None:
         ]
         return t, c
 
-    t1, c1 = _contour(0.0)
-    t2, c2 = _contour(10.0)
-    end_t = [CommandType.END.value]
+    t1, c1 = _subpath(0.0)
+    t2, c2 = _subpath(10.0)
+    end_t = [ElementType.END.value]
     end_c = [[0.0] * 6]
 
     types = torch.tensor(t1 + t2 + end_t, dtype=torch.long)
@@ -182,8 +182,8 @@ def test_merge_curves_multiple_contours() -> None:
 
     out_types, _out_coords = merge_curves(types, coords)
 
-    assert out_types.tolist().count(CommandType.LINE_TO.value) == 2
-    assert out_types.tolist().count(CommandType.MOVE_TO.value) == 2
+    assert out_types.tolist().count(ElementType.LINE_TO.value) == 2
+    assert out_types.tolist().count(ElementType.MOVE_TO.value) == 2
 
 
 @pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
@@ -193,7 +193,7 @@ def test_variable_length_transforms_reject_mismatched_coords(
     ],
 ) -> None:
     types = torch.tensor(
-        [CommandType.MOVE_TO.value, CommandType.CURVE_TO.value],
+        [ElementType.MOVE_TO.value, ElementType.CURVE_TO.value],
         dtype=torch.long,
     )
     coords = torch.zeros(1, 6, dtype=torch.float32)

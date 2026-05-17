@@ -2,16 +2,16 @@
 
 ## `torchfont.io`
 
-Shared constants for glyph command encoding.
+Shared constants for glyph path element encoding.
 
 ```python
-from torchfont.io import CommandType, TYPE_DIM, COORD_DIM
+from torchfont.io import ElementType, TYPE_DIM, COORD_DIM
 ```
 
-### `CommandType: IntEnum`
+### `ElementType: IntEnum`
 
 ```python
-class CommandType(IntEnum):
+class ElementType(IntEnum):
     PAD = 0
     MOVE_TO = 1
     LINE_TO = 2
@@ -23,8 +23,8 @@ class CommandType(IntEnum):
 
 ### `TYPE_DIM: int`
 
-Number of command types. Current value: `7`.
+Number of element types. Current value: `7`.
 
 ### `COORD_DIM: int`
 
-Coordinate dimension. Current value: `6` (`[cx0, cy0, cx1, cy1, x, y]`).
+Coordinates width. Current value: `6` (`[cx0, cy0, cx1, cy1, x, y]`).

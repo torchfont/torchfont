@@ -1,13 +1,13 @@
 use super::merge_curves;
-use crate::outline::Command;
+use crate::outline::Element;
 
 pub(crate) fn quad_to_cubic(types: &mut [i64], coords: &mut [f32], seq_len: usize) {
     debug_assert_eq!(types.len() * 6, coords.len());
     if seq_len == 0 {
         return;
     }
-    let quad = Command::QuadTo as i64;
-    let cubic = Command::CurveTo as i64;
+    let quad = Element::QuadTo as i64;
+    let cubic = Element::CurveTo as i64;
 
     for (t_seq, c_seq) in types
         .chunks_mut(seq_len)

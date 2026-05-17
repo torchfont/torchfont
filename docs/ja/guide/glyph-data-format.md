@@ -10,8 +10,8 @@ sample = dataset[i]
 
 | 要素 | 型 | 形状 | 意味 |
 | --- | --- | --- | --- |
-| `sample.types` | `torch.LongTensor` | `(seq_len,)` | ペンコマンド列 |
-| `sample.coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各コマンドの座標 |
+| `sample.types` | `torch.LongTensor` | `(seq_len,)` | element type 列 |
+| `sample.coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各 path element の coordinates |
 | `sample.style_idx` | `int` | スカラー | 書体スタイルのクラスID |
 | `sample.content_idx` | `int` | スカラー | 文字内容のクラスID |
 | `sample.metrics` | `torch.FloatTensor` | `(15,)` | グリフ・フォント単位のメトリクス |
@@ -33,14 +33,14 @@ m = sample.metrics
 ## `types` の定義
 
 ```python
-from torchfont.io import CommandType
+from torchfont.io import ElementType
 
-print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
-# CommandType.QUAD_TO 3
+print(ElementType.QUAD_TO, ElementType.QUAD_TO.value)
+# ElementType.QUAD_TO 3
 ```
 
-- `CommandType.END` はシーケンス終端
-- `CommandType.PAD` は主に `pad_sequence` や独自 padding で出現
+- `ElementType.END` はシーケンス終端
+- `ElementType.PAD` は主に `pad_sequence` や独自 padding で出現
 
 ## `coords` の定義
 
@@ -50,19 +50,19 @@ print(CommandType.QUAD_TO, CommandType.QUAD_TO.value)
 [cx0, cy0, cx1, cy1, x, y]
 ```
 
-- `CommandType.MOVE_TO` / `CommandType.LINE_TO`: 制御点は 0、終点 `(x, y)` を使用
-- `CommandType.QUAD_TO`: 2 次ベジェの制御点 `(cx0, cy0)` と終点 `(x, y)` を使用（`cx1`,
+- `ElementType.MOVE_TO` / `ElementType.LINE_TO`: 制御点は 0、終点 `(x, y)` を使用
+- `ElementType.QUAD_TO`: 2 次ベジェの制御点 `(cx0, cy0)` と終点 `(x, y)` を使用（`cx1`,
   `cy1` は 0）
-- `CommandType.CURVE_TO`: 3 次ベジェの制御点 `(cx0, cy0)` と `(cx1, cy1)` + 終点を使用
-- `CommandType.CLOSE` / `CommandType.END` / `CommandType.PAD`: 座標は 0
+- `ElementType.CURVE_TO`: 3 次ベジェの制御点 `(cx0, cy0)` と `(cx1, cy1)` + 終点を使用
+- `ElementType.CLOSE` / `ElementType.END` / `ElementType.PAD`: coordinates は 0
 
 ::: info
-座標値はフォントの `units_per_em` で正規化されています。
+coordinates はフォントの `units_per_em` で正規化されています。
 :::
 
 ## 2 次ベジェの扱い
 
-2 次ベジェは `CommandType.QUAD_TO` としてそのまま出力されます。テンソル形状を固定するため、`CommandType.QUAD_TO` の座標は `[cx0, cy0, 0, 0, x, y]` です。
+2 次ベジェは `ElementType.QUAD_TO` としてそのまま出力されます。テンソル形状を固定するため、`ElementType.QUAD_TO` の coordinates は `[cx0, cy0, 0, 0, x, y]` です。
 
 ## スタイルとコンテンツのラベル
 

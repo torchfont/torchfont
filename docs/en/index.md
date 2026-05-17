@@ -30,7 +30,7 @@ features:
   - icon: 🚀
     title: Rust backend
     details:
-      "A skrifa + PyO3 backend converts glyph outlines into command + coordinate
+      "A skrifa + PyO3 backend converts glyph outlines into element type + coordinates
       tensors efficiently."
   - icon: 🧱
     title: Sample-first data model
