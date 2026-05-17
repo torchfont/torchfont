@@ -1,7 +1,5 @@
 """Bezier curve format conversion, segment merging, and outline simplification."""
 
-from __future__ import annotations
-
 import torch
 from torch import Tensor
 
@@ -141,11 +139,3 @@ def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         torch.tensor(out_types, dtype=torch.long),
         torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
     )
-
-
-__all__ = [
-    "cubic_to_quad",
-    "merge_curves",
-    "quad_to_cubic",
-    "remove_overlaps",
-]

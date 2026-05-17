@@ -1,7 +1,5 @@
 """Glyph outline rasterization."""
 
-from __future__ import annotations
-
 from typing import Literal
 
 import torch
@@ -47,9 +45,3 @@ def render_bitmap(
     if width == 0 or height == 0:
         return torch.empty((height, width), dtype=torch.uint8)
     return torch.from_numpy(raw).view(height, width)
-
-
-__all__ = [
-    "BitmapMode",
-    "render_bitmap",
-]

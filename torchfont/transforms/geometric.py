@@ -16,8 +16,6 @@ All coordinates are UPM-normalised. The glyph body typically occupies
 ``[0, 1] x [0, 1]`` inside the full canvas ``[-0.25, 1.25] x [-0.25, 1.25]``.
 """
 
-from __future__ import annotations
-
 import math
 
 import torch
@@ -347,14 +345,3 @@ def random_coord_jitter(
     pts = coords.reshape(-1, 3, 2)
     noise = torch.empty_like(pts).normal_(std=std, generator=generator)
     return types, torch.where(active, pts + noise, pts).reshape_as(coords)
-
-
-__all__ = [
-    "affine",
-    "horizontal_flip",
-    "random_affine",
-    "random_coord_jitter",
-    "random_horizontal_flip",
-    "random_vertical_flip",
-    "vertical_flip",
-]

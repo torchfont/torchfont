@@ -1,7 +1,5 @@
 """Sequence patching for transformer-style model inputs."""
 
-from __future__ import annotations
-
 import torch
 from torch import Tensor
 
@@ -35,8 +33,3 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
     return pad_types.view(num_patches, patch_size), pad_coords.view(
         num_patches, patch_size, coords.size(1)
     )
-
-
-__all__ = [
-    "patchify",
-]
