@@ -1,15 +1,10 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import pytest
 import torch
 
 from torchfont.io import ElementType
 from torchfont.transforms import vertical_flip
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 def test_vertical_flip_mirrors_y_around_bbox_center(

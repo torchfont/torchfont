@@ -5,17 +5,12 @@ Run locally with pytest-benchmark::
     pytest tests/benchmarks/test_bench_dataset.py --benchmark-only
 """
 
-from __future__ import annotations
+from pathlib import Path
 
-from typing import TYPE_CHECKING
+from pytest_benchmark.fixture import BenchmarkFixture
 
 from tests.benchmarks._helpers import BENCH_FONT_PATTERNS, fonts_dir
 from torchfont.datasets import GlyphDataset
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from pytest_benchmark.fixture import BenchmarkFixture
 
 # Codepoints kept small so benchmarks focus on I/O and indexing, not rendering
 _CODEPOINTS = tuple(range(0x41, 0x5B)) + tuple(range(0x61, 0x7B))  # A-Z and a-z

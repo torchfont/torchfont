@@ -1,15 +1,10 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import pytest
 import torch
 
 from torchfont.io import ElementType
 from torchfont.transforms import random_affine
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 def test_random_affine_deterministic_with_generator(

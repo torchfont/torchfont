@@ -1,13 +1,8 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from tests.benchmarks._helpers import copy_font_copies
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 # Number of per-font copies; 50 copies x 3 fonts = 150 font files
 _BENCH_COPIES = 50
