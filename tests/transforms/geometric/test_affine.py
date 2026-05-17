@@ -1,37 +1,46 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 import torch
 
 from torchfont.io import ElementType
 from torchfont.transforms import affine
 
-from ._helpers import (
-    _close_end_zeros,
-    _cubic_outline,
-    _quad_outline,
-    _simple_outline,
-)
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
-def test_affine_identity_leaves_coords_unchanged() -> None:
-    types, coords = _simple_outline()
+def test_affine_identity_leaves_coords_unchanged(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
     _, out = affine(types, coords, angle=0.0, scale=1.0, shear=0.0)
     assert torch.allclose(out, coords, atol=1e-6)
 
 
-def test_affine_does_not_modify_types() -> None:
-    types, coords = _simple_outline()
+def test_affine_does_not_modify_types(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
     out_types, _ = affine(types, coords, angle=10.0)
     assert torch.equal(out_types, types)
 
 
-def test_affine_preserves_padding_zeros() -> None:
-    types, coords = _simple_outline()
+def test_affine_preserves_padding_zeros(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    close_end_zeros: Callable[[torch.Tensor, torch.Tensor], bool],
+) -> None:
+    types, coords = simple_outline
     _, out = affine(types, coords, angle=45.0, scale=1.2, shear=5.0)
-    assert _close_end_zeros(types, out)
+    assert close_end_zeros(types, out)
 
 
-def test_affine_90_degree_rotation() -> None:
-    types, coords = _simple_outline()
+def test_affine_90_degree_rotation(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
     _, out = affine(types, coords, angle=90.0)
 
     line_idx = types.tolist().index(ElementType.LINE_TO.value)
@@ -41,8 +50,10 @@ def test_affine_90_degree_rotation() -> None:
     assert ny == pytest.approx(ox, abs=1e-5)
 
 
-def test_affine_scale_multiplies_coordinates() -> None:
-    types, coords = _simple_outline()
+def test_affine_scale_multiplies_coordinates(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
     _, out = affine(types, coords, scale=2.0)
 
     line_idx = types.tolist().index(ElementType.LINE_TO.value)
@@ -54,8 +65,10 @@ def test_affine_scale_multiplies_coordinates() -> None:
     )
 
 
-def test_affine_translate_shifts_endpoints() -> None:
-    types, coords = _simple_outline()
+def test_affine_translate_shifts_endpoints(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
     _, out = affine(types, coords, translate=(0.1, 0.2))
 
     move_idx = types.tolist().index(ElementType.MOVE_TO.value)
@@ -67,8 +80,10 @@ def test_affine_translate_shifts_endpoints() -> None:
     )
 
 
-def test_affine_transforms_all_cubic_pairs() -> None:
-    types, coords = _cubic_outline()
+def test_affine_transforms_all_cubic_pairs(
+    cubic_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = cubic_outline
     _, out = affine(types, coords, angle=90.0)
 
     curve_idx = types.tolist().index(ElementType.CURVE_TO.value)
@@ -77,8 +92,10 @@ def test_affine_transforms_all_cubic_pairs() -> None:
     assert not torch.allclose(out[curve_idx, 4:6], coords[curve_idx, 4:6])
 
 
-def test_affine_quad_pair1_stays_zero() -> None:
-    types, coords = _quad_outline()
+def test_affine_quad_pair1_stays_zero(
+    quad_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = quad_outline
     _, out = affine(types, coords, angle=45.0, translate=(0.05, 0.05))
 
     quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
@@ -86,7 +103,9 @@ def test_affine_quad_pair1_stays_zero() -> None:
     assert out[quad_idx, 3].item() == pytest.approx(0.0)
 
 
-def test_affine_non_positive_scale_raises() -> None:
-    types, coords = _simple_outline()
+def test_affine_non_positive_scale_raises(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
     with pytest.raises(ValueError, match="scale must be positive"):
         affine(types, coords, scale=0.0)
