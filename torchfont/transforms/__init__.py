@@ -9,7 +9,6 @@ from torchfont.transforms.curves import (
     cubic_to_quad,
     merge_curves,
     quad_to_cubic,
-    remove_overlaps,
 )
 from torchfont.transforms.geometric import (
     affine,
@@ -20,6 +19,7 @@ from torchfont.transforms.geometric import (
     random_vertical_flip,
     vertical_flip,
 )
+from torchfont.transforms.outline import remove_overlaps
 from torchfont.transforms.patch import patchify
 
 __all__ = [
