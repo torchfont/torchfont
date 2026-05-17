@@ -66,6 +66,7 @@ sources = [
   "uv.lock",
   "src/**/*.rs",
 ]
+outputs = ["target/maturin/lib_torchfont.so"]
 depends = ["check"]
 run = [
   "rm -f target/maturin/lib_torchfont.so",
