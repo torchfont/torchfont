@@ -147,13 +147,8 @@ fn split_cubic_into_n(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> V
     let mut result = Vec::with_capacity(n);
     let mut current = (p0, p1, p2, p3);
     for k in 0..n - 1 {
-        let (left, right) = split_cubic_at(
-            current.0,
-            current.1,
-            current.2,
-            current.3,
-            1.0 / (n - k) as f32,
-        );
+        let (p0, p1, p2, p3) = current;
+        let (left, right) = split_cubic_at(p0, p1, p2, p3, 1.0 / (n - k) as f32);
         result.push(left);
         current = right;
     }
