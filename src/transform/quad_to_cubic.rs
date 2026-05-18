@@ -1,5 +1,5 @@
 use super::merge_curves;
-use crate::outline::ElementType;
+use crate::outline::{ElementType, Outline};
 
 pub(crate) fn quad_to_cubic(types: &mut [i64], coords: &mut [f32], seq_len: usize) {
     debug_assert_eq!(types.len() * 6, coords.len());
@@ -38,5 +38,6 @@ pub(crate) fn quad_to_cubic_and_merge(types: &[i64], coords: &[f32]) -> (Vec<i64
     let mut out_types = types.to_vec();
     let mut out_coords = coords.to_vec();
     quad_to_cubic(&mut out_types, &mut out_coords, types.len());
-    merge_curves::merge_curves(&out_types, &out_coords)
+    let outline = Outline::decode_lossy(&out_types, &out_coords);
+    merge_curves::merge_curves(&outline).encode()
 }

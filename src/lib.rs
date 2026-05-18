@@ -39,13 +39,16 @@ fn cubic_to_quad(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    transform::cubic_to_quad::cubic_to_quad(t, c).map_err(|err| match err {
-        transform::cubic_to_quad::CubicToQuadError::ApproximationFailed => {
-            pyo3::exceptions::PyValueError::new_err(
-                "cubic_to_quad could not approximate a curve within MAX_N segments",
-            )
-        }
-    })
+    let outline = outline::Outline::decode_lossy(t, c);
+    transform::cubic_to_quad::cubic_to_quad(&outline)
+        .map(|outline| outline.encode())
+        .map_err(|err| match err {
+            transform::cubic_to_quad::CubicToQuadError::ApproximationFailed => {
+                pyo3::exceptions::PyValueError::new_err(
+                    "cubic_to_quad could not approximate a curve within MAX_N segments",
+                )
+            }
+        })
 }
 
 #[pyfunction]
@@ -56,7 +59,8 @@ fn merge_curves(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::merge_curves::merge_curves(t, c))
+    let outline = outline::Outline::decode_lossy(t, c);
+    Ok(transform::merge_curves::merge_curves(&outline).encode())
 }
 
 #[pyfunction]
@@ -67,7 +71,8 @@ fn normalize_subpath_start_points(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::subpath::normalize_subpath_start_points(t, c))
+    let outline = outline::Outline::decode_lossy(t, c);
+    Ok(transform::subpath::normalize_subpath_start_points(&outline).encode())
 }
 
 #[pyfunction]
@@ -85,7 +90,16 @@ fn randomize_subpath_start_points(
             "random_values length must equal types length",
         ));
     }
-    Ok(transform::subpath::randomize_subpath_start_points(t, c, r))
+    let outline = outline::Outline::decode_lossy(t, c);
+    let subpath_random_values = t
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, &ty)| (ty == outline::ElementType::MoveTo as i64).then_some(r[idx]))
+        .collect::<Vec<_>>();
+    Ok(
+        transform::subpath::randomize_subpath_start_points(&outline, &subpath_random_values)
+            .encode(),
+    )
 }
 
 #[pyfunction]
@@ -96,7 +110,8 @@ fn remove_overlaps(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::remove_overlaps::remove_overlaps(t, c))
+    let outline = outline::Outline::decode_lossy(t, c);
+    Ok(transform::remove_overlaps::remove_overlaps(&outline).encode())
 }
 
 #[pyfunction]
@@ -107,7 +122,8 @@ fn tight_bbox(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(bounds::bounds_from_outline(t, c).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
+    let outline = outline::Outline::decode_lossy(t, c);
+    Ok(bounds::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
 
 #[pyfunction]
@@ -133,15 +149,18 @@ fn render_bitmap(
             ));
         }
     };
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    let outline = outline::Outline::decode_lossy(t, c);
     let rendered =
-        transform::render_bitmap::render_bitmap(types.as_slice()?, coords.as_slice()?, size, mode)
-            .map_err(|err| match err {
-                transform::render_bitmap::RenderBitmapError::BboxTooLarge => {
-                    pyo3::exceptions::PyValueError::new_err(
-                        "bbox output dimensions must be between 1 and 4096",
-                    )
-                }
-            })?;
+        transform::render_bitmap::render_bitmap(&outline, size, mode).map_err(|err| match err {
+            transform::render_bitmap::RenderBitmapError::BboxTooLarge => {
+                pyo3::exceptions::PyValueError::new_err(
+                    "bbox output dimensions must be between 1 and 4096",
+                )
+            }
+        })?;
     Ok((
         rendered.data.into_pyarray(py).unbind(),
         rendered.width,

@@ -1,4 +1,4 @@
-use crate::outline::ElementType;
+use crate::outline::{Outline, PathElement, Point};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Bounds {
@@ -9,20 +9,20 @@ pub(crate) struct Bounds {
 }
 
 impl Bounds {
-    pub(crate) fn new(x: f32, y: f32) -> Self {
+    pub(crate) fn new(point: Point) -> Self {
         Self {
-            x_min: x,
-            y_min: y,
-            x_max: x,
-            y_max: y,
+            x_min: point.x,
+            y_min: point.y,
+            x_max: point.x,
+            y_max: point.y,
         }
     }
 
-    pub(crate) fn include(&mut self, x: f32, y: f32) {
-        self.x_min = self.x_min.min(x);
-        self.y_min = self.y_min.min(y);
-        self.x_max = self.x_max.max(x);
-        self.y_max = self.y_max.max(y);
+    pub(crate) fn include(&mut self, point: Point) {
+        self.x_min = self.x_min.min(point.x);
+        self.y_min = self.y_min.min(point.y);
+        self.x_max = self.x_max.max(point.x);
+        self.y_max = self.y_max.max(point.y);
     }
 
     pub(crate) fn width(self) -> f32 {
@@ -37,8 +37,8 @@ impl Bounds {
 #[derive(Default)]
 pub(crate) struct BoundsPen {
     bounds: Option<Bounds>,
-    current: Option<(f32, f32)>,
-    subpath_start: Option<(f32, f32)>,
+    current: Option<Point>,
+    subpath_start: Option<Point>,
 }
 
 impl BoundsPen {
@@ -46,92 +46,98 @@ impl BoundsPen {
         self.bounds
     }
 
-    pub(crate) fn move_to(&mut self, x: f32, y: f32) {
-        self.include(x, y);
-        self.current = Some((x, y));
-        self.subpath_start = Some((x, y));
+    pub(crate) fn move_to(&mut self, point: Point) {
+        self.include(point);
+        self.current = Some(point);
+        self.subpath_start = Some(point);
     }
 
-    pub(crate) fn line_to(&mut self, x: f32, y: f32) {
-        self.include(x, y);
-        self.current = Some((x, y));
+    pub(crate) fn line_to(&mut self, point: Point) {
+        self.include(point);
+        self.current = Some(point);
     }
 
-    pub(crate) fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        let p0 = self.current.unwrap_or((x, y));
-        let p1 = (cx0, cy0);
-        let p2 = (x, y);
-        self.include_quad(p0, p1, p2);
-        self.current = Some(p2);
+    pub(crate) fn quad_to(&mut self, control: Point, end: Point) {
+        let start = self.current.unwrap_or(end);
+        self.include_quad(start, control, end);
+        self.current = Some(end);
     }
 
-    pub(crate) fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        let p0 = self.current.unwrap_or((x, y));
-        let p1 = (cx0, cy0);
-        let p2 = (cx1, cy1);
-        let p3 = (x, y);
-        self.include_cubic(p0, p1, p2, p3);
-        self.current = Some(p3);
+    pub(crate) fn curve_to(&mut self, control0: Point, control1: Point, end: Point) {
+        let start = self.current.unwrap_or(end);
+        self.include_cubic(start, control0, control1, end);
+        self.current = Some(end);
     }
 
     pub(crate) fn close(&mut self) {
         self.current = self.subpath_start;
     }
 
-    fn include(&mut self, x: f32, y: f32) {
-        if let Some(bounds) = &mut self.bounds {
-            bounds.include(x, y);
-        } else {
-            self.bounds = Some(Bounds::new(x, y));
+    pub(crate) fn path_element(&mut self, element: PathElement) {
+        match element {
+            PathElement::LineTo(point) => self.line_to(point),
+            PathElement::QuadTo { control, end } => self.quad_to(control, end),
+            PathElement::CurveTo {
+                control0,
+                control1,
+                end,
+            } => self.curve_to(control0, control1, end),
         }
     }
 
-    fn include_quad(&mut self, p0: (f32, f32), p1: (f32, f32), p2: (f32, f32)) {
-        self.include(p2.0, p2.1);
+    fn include(&mut self, point: Point) {
+        if let Some(bounds) = &mut self.bounds {
+            bounds.include(point);
+        } else {
+            self.bounds = Some(Bounds::new(point));
+        }
+    }
+
+    fn include_quad(&mut self, start: Point, control: Point, end: Point) {
+        self.include(end);
         for t in [
-            quad_extremum(p0.0, p1.0, p2.0),
-            quad_extremum(p0.1, p1.1, p2.1),
+            quad_extremum(start.x, control.x, end.x),
+            quad_extremum(start.y, control.y, end.y),
         ]
         .into_iter()
         .flatten()
         {
-            self.include(quad_at(p0.0, p1.0, p2.0, t), quad_at(p0.1, p1.1, p2.1, t));
+            self.include(Point::new(
+                quad_at(start.x, control.x, end.x, t),
+                quad_at(start.y, control.y, end.y, t),
+            ));
         }
     }
 
-    fn include_cubic(&mut self, p0: (f32, f32), p1: (f32, f32), p2: (f32, f32), p3: (f32, f32)) {
-        self.include(p3.0, p3.1);
-        for t in cubic_extrema(p0.0, p1.0, p2.0, p3.0)
+    fn include_cubic(&mut self, start: Point, control0: Point, control1: Point, end: Point) {
+        self.include(end);
+        for t in cubic_extrema(start.x, control0.x, control1.x, end.x)
             .into_iter()
             .flatten()
-            .chain(cubic_extrema(p0.1, p1.1, p2.1, p3.1).into_iter().flatten())
+            .chain(
+                cubic_extrema(start.y, control0.y, control1.y, end.y)
+                    .into_iter()
+                    .flatten(),
+            )
         {
-            self.include(
-                cubic_at(p0.0, p1.0, p2.0, p3.0, t),
-                cubic_at(p0.1, p1.1, p2.1, p3.1, t),
-            );
+            self.include(Point::new(
+                cubic_at(start.x, control0.x, control1.x, end.x, t),
+                cubic_at(start.y, control0.y, control1.y, end.y, t),
+            ));
         }
     }
 }
 
-pub(crate) fn bounds_from_outline(types: &[i64], coords: &[f32]) -> Option<Bounds> {
-    bounds_from_element_types(types.iter().copied(), coords)
-}
-
-fn bounds_from_element_types(types: impl Iterator<Item = i64>, coords: &[f32]) -> Option<Bounds> {
+pub(crate) fn bounds_from_outline(outline: &Outline) -> Option<Bounds> {
     let mut pen = BoundsPen::default();
-    for (element_type, values) in types.zip(coords.chunks_exact(6)) {
-        match element_type {
-            v if v == ElementType::MoveTo as i64 => pen.move_to(values[4], values[5]),
-            v if v == ElementType::LineTo as i64 => pen.line_to(values[4], values[5]),
-            v if v == ElementType::QuadTo as i64 => {
-                pen.quad_to(values[0], values[1], values[4], values[5])
-            }
-            v if v == ElementType::CurveTo as i64 => pen.curve_to(
-                values[0], values[1], values[2], values[3], values[4], values[5],
-            ),
-            v if v == ElementType::Close as i64 => pen.close(),
-            _ => break,
+    for subpath in outline.subpaths() {
+        let start = subpath.start();
+        pen.move_to(start);
+        for element in subpath.elements() {
+            pen.path_element(*element);
+        }
+        if subpath.is_closed() {
+            pen.close();
         }
     }
     pen.finish()
@@ -192,8 +198,8 @@ mod tests {
     #[test]
     fn computes_quadratic_tight_bounds() {
         let mut pen = BoundsPen::default();
-        pen.move_to(0.0, 0.0);
-        pen.quad_to(1.0, 2.0, 2.0, 0.0);
+        pen.move_to(Point::new(0.0, 0.0));
+        pen.quad_to(Point::new(1.0, 2.0), Point::new(2.0, 0.0));
 
         let bounds = pen.finish().unwrap();
 
@@ -206,8 +212,12 @@ mod tests {
     #[test]
     fn computes_cubic_tight_bounds() {
         let mut pen = BoundsPen::default();
-        pen.move_to(0.0, 0.0);
-        pen.curve_to(0.0, 3.0, 3.0, 3.0, 3.0, 0.0);
+        pen.move_to(Point::new(0.0, 0.0));
+        pen.curve_to(
+            Point::new(0.0, 3.0),
+            Point::new(3.0, 3.0),
+            Point::new(3.0, 0.0),
+        );
 
         let bounds = pen.finish().unwrap();
 

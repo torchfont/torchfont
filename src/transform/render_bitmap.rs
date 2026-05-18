@@ -1,6 +1,7 @@
 use skia_safe::{AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, surfaces};
 
 use crate::bounds::Bounds;
+use crate::outline::Outline;
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
@@ -32,13 +33,11 @@ struct RenderTransform {
 }
 
 pub(crate) fn render_bitmap(
-    types: &[i64],
-    coords: &[f32],
+    outline: &Outline,
     size: u32,
     mode: RenderMode,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let Some((path, bounds)) =
-        super::build_skia_path(types, coords, !matches!(mode, RenderMode::Fixed))
+    let Some((path, bounds)) = super::build_skia_path(outline, !matches!(mode, RenderMode::Fixed))
     else {
         return Ok(blank_for_mode(size, mode));
     };

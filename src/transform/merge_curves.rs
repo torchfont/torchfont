@@ -1,138 +1,126 @@
-use crate::outline::ElementType;
+use crate::outline::{Outline, PathElement, Point, Subpath};
 
 // Absolute tolerance for merge validation (normalized coords ≈ 1 font-unit in 1000 UPM).
 const TOLERANCE: f32 = 1e-3;
 
-type Pt = [f32; 2];
-type PathElement = (i64, [f32; 6]);
+type Cubic = (Point, Point, Point, Point);
+type Quad = (Point, Point, Point);
 
-type Cubic = (Pt, Pt, Pt, Pt);
-type Quad = (Pt, Pt, Pt);
-
-pub(crate) fn merge_curves(types: &[i64], coords: &[f32]) -> (Vec<i64>, Vec<f32>) {
-    let n = types.len();
-    let mut out_types: Vec<i64> = Vec::with_capacity(n);
-    let mut out_coords: Vec<f32> = Vec::with_capacity(n * 6);
-
-    let mut i = 0;
-    while i < n {
-        let ty = types[i];
-        let c = arr6(coords, i);
-
-        if ty == ElementType::MoveTo as i64 {
-            let move_x = c[4];
-            let move_y = c[5];
-            i += 1;
-
-            let mut elements: Vec<PathElement> = Vec::new();
-            while i < n {
-                let st = types[i];
-                if st == ElementType::Close as i64
-                    || st == ElementType::End as i64
-                    || st == ElementType::MoveTo as i64
-                {
-                    break;
-                }
-                elements.push((st, arr6(coords, i)));
-                i += 1;
-            }
-
-            let merged = merge_subpath_elements(move_x, move_y, elements);
-
-            out_types.push(ElementType::MoveTo as i64);
-            out_coords.extend_from_slice(&c);
-            for (mt, mc) in merged {
-                out_types.push(mt);
-                out_coords.extend_from_slice(&mc);
-            }
-        } else if ty == ElementType::End as i64 {
-            out_types.push(ty);
-            out_coords.extend_from_slice(&c);
-            break;
-        } else {
-            out_types.push(ty);
-            out_coords.extend_from_slice(&c);
-            i += 1;
-        }
-    }
-
-    (out_types, out_coords)
+pub(crate) fn merge_curves(outline: &Outline) -> Outline {
+    let subpaths = outline
+        .subpaths()
+        .iter()
+        .map(|subpath| {
+            let elements = merge_subpath_elements(subpath.start(), subpath.elements().to_vec());
+            Subpath::new(subpath.start(), elements, subpath.is_closed())
+        })
+        .collect();
+    outline.with_subpaths(subpaths)
 }
 
-fn merge_subpath_elements(
-    start_x: f32,
-    start_y: f32,
-    elements: Vec<PathElement>,
-) -> Vec<PathElement> {
+fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathElement> {
     let n = elements.len();
-    let mut result: Vec<PathElement> = Vec::with_capacity(n);
-    let mut result_starts: Vec<[f32; 2]> = Vec::with_capacity(n);
+    let mut result = Vec::with_capacity(n);
+    let mut result_starts = Vec::with_capacity(n);
     let mut i = 0;
 
     while i < n {
-        let (ty, c) = elements[i];
-        let seg_start = match result.last() {
-            Some((_, lc)) => [lc[4], lc[5]],
-            None => [start_x, start_y],
-        };
+        let element = elements[i];
+        let seg_start = result
+            .last()
+            .map_or(start, |element: &PathElement| element.end());
 
-        let line = ElementType::LineTo as i64;
-        let quad = ElementType::QuadTo as i64;
-        let cubic = ElementType::CurveTo as i64;
-
-        if ty == cubic || ty == quad {
-            let try_merge_fn: fn(Pt, &[PathElement]) -> Option<[f32; 6]> = if ty == cubic {
-                try_merge_cubics_n
-            } else {
-                try_merge_quads_n
-            };
-            if let Some((m, len)) = try_merge_run(ty, seg_start, i, n, &elements, try_merge_fn) {
-                result.push((ty, m));
-                result_starts.push(seg_start);
-                i += len;
-            } else {
-                result.push((ty, c));
-                result_starts.push(seg_start);
-                i += 1;
-            }
-        } else if ty == line {
-            let merged = if let (Some(&(last_ty, last_c)), Some(&ls)) =
-                (result.last(), result_starts.last())
-            {
-                if last_ty == line {
-                    let (ax, ay) = (last_c[4], last_c[5]);
-                    let (bx, by) = (c[4], c[5]);
-                    if can_merge_lines(ls[0], ls[1], ax, ay, bx, by) {
-                        Some([0.0f32, 0.0, 0.0, 0.0, bx, by])
-                    } else {
-                        None
+        match element {
+            PathElement::CurveTo { .. } => {
+                let mut run_end = i + 1;
+                while run_end < n && matches!(elements[run_end], PathElement::CurveTo { .. }) {
+                    run_end += 1;
+                }
+                let run_len = run_end - i;
+                let mut merged = None;
+                for merge_len in (2..=run_len).rev() {
+                    if let Some(element) =
+                        try_merge_cubics_n(seg_start, &elements[i..i + merge_len])
+                    {
+                        merged = Some((element, merge_len));
+                        break;
                     }
+                }
+                if let Some((element, len)) = merged {
+                    result.push(element);
+                    result_starts.push(seg_start);
+                    i += len;
+                } else {
+                    result.push(element);
+                    result_starts.push(seg_start);
+                    i += 1;
+                }
+            }
+            PathElement::QuadTo { .. } => {
+                let mut run_end = i + 1;
+                while run_end < n && matches!(elements[run_end], PathElement::QuadTo { .. }) {
+                    run_end += 1;
+                }
+                let run_len = run_end - i;
+                let mut merged = None;
+                for merge_len in (2..=run_len).rev() {
+                    if let Some(element) = try_merge_quads_n(seg_start, &elements[i..i + merge_len])
+                    {
+                        merged = Some((element, merge_len));
+                        break;
+                    }
+                }
+                if let Some((element, len)) = merged {
+                    result.push(element);
+                    result_starts.push(seg_start);
+                    i += len;
+                } else {
+                    result.push(element);
+                    result_starts.push(seg_start);
+                    i += 1;
+                }
+            }
+            PathElement::LineTo(end) => {
+                let merged = if let (Some(PathElement::LineTo(last_end)), Some(&last_start)) =
+                    (result.last().copied(), result_starts.last())
+                {
+                    can_merge_lines(last_start, last_end, end).then_some(PathElement::LineTo(end))
                 } else {
                     None
+                };
+                if let Some(element) = merged {
+                    let saved_start = *result_starts.last().unwrap();
+                    result.pop();
+                    result_starts.pop();
+                    result.push(element);
+                    result_starts.push(saved_start);
+                } else {
+                    result.push(element);
+                    result_starts.push(seg_start);
                 }
-            } else {
-                None
-            };
-
-            if let Some(new_c) = merged {
-                let saved_start = *result_starts.last().unwrap();
-                result.pop();
-                result_starts.pop();
-                result.push((line, new_c));
-                result_starts.push(saved_start);
-            } else {
-                result.push((ty, c));
-                result_starts.push(seg_start);
+                i += 1;
             }
-            i += 1;
-        } else {
-            result.push((ty, c));
-            result_starts.push(seg_start);
-            i += 1;
         }
     }
-
     result
+}
+
+fn quad_points(element: PathElement) -> (Point, Point) {
+    match element {
+        PathElement::QuadTo { control, end } => (control, end),
+        _ => unreachable!("quadratic run contains only quadratic elements"),
+    }
+}
+
+fn cubic_points(element: PathElement) -> (Point, Point, Point) {
+    match element {
+        PathElement::CurveTo {
+            control0,
+            control1,
+            end,
+        } => (control0, control1, end),
+        _ => unreachable!("cubic run contains only cubic elements"),
+    }
 }
 
 // Attempt to merge n consecutive quadratic segments into one.
@@ -140,7 +128,7 @@ fn merge_subpath_elements(
 // The split parameters can be recovered from adjacent tangent-length ratios in
 // the same way as cubics. A parent quadratic then has only one outer control
 // point to reconstruct and validate.
-fn try_merge_quads_n(p0: Pt, segs: &[PathElement]) -> Option<[f32; 6]> {
+fn try_merge_quads_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
     let n = segs.len();
     debug_assert!(n >= 2);
 
@@ -149,25 +137,22 @@ fn try_merge_quads_n(p0: Pt, segs: &[PathElement]) -> Option<[f32; 6]> {
     let mut ts_unnorm = vec![1.0_f32];
 
     for k in 1..n {
-        let prev_c = &segs[k - 1].1;
-        let curr_c = &segs[k].1;
-        let prev_end = [prev_c[4], prev_c[5]];
-        let prev_h = [prev_c[0], prev_c[1]];
-        let curr_h = [curr_c[0], curr_c[1]];
+        let (prev_h, prev_end) = quad_points(segs[k - 1]);
+        let (curr_h, _curr_end) = quad_points(segs[k]);
 
-        let end_tan = sub2(prev_end, prev_h);
-        let start_tan = sub2(curr_h, prev_end);
-        let len_end = hypot(end_tan[0], end_tan[1]);
-        let len_start = hypot(start_tan[0], start_tan[1]);
+        let end_tan = sub(prev_end, prev_h);
+        let start_tan = sub(curr_h, prev_end);
+        let len_end = hypot(end_tan.x, end_tan.y);
+        let len_start = hypot(start_tan.x, start_tan.y);
         if len_end < 1e-10 {
             return None;
         }
         if len_start > 1e-10 {
-            let cross = end_tan[0] * start_tan[1] - end_tan[1] * start_tan[0];
+            let cross = end_tan.x * start_tan.y - end_tan.y * start_tan.x;
             if cross.abs() > TOLERANCE * len_end * len_start {
                 return None;
             }
-            if end_tan[0] * start_tan[0] + end_tan[1] * start_tan[1] < 0.0 {
+            if end_tan.x * start_tan.x + end_tan.y * start_tan.y < 0.0 {
                 return None;
             }
         }
@@ -185,29 +170,29 @@ fn try_merge_quads_n(p0: Pt, segs: &[PathElement]) -> Option<[f32; 6]> {
         return None;
     }
 
-    let first_h = [segs[0].1[0], segs[0].1[1]];
-    let p1 = [
-        p0[0] + (first_h[0] - p0[0]) / t1,
-        p0[1] + (first_h[1] - p0[1]) / t1,
-    ];
-    let last_c = &segs[n - 1].1;
-    let p2 = [last_c[4], last_c[5]];
+    let (first_h, _first_end) = quad_points(segs[0]);
+    let p1 = Point::new(
+        p0.x + (first_h.x - p0.x) / t1,
+        p0.y + (first_h.y - p0.y) / t1,
+    );
+    let (_last_h, p2) = quad_points(segs[n - 1]);
 
     if !validate_quad_merge(p0, p1, p2, segs, &ts) {
         return None;
     }
 
-    Some([p1[0], p1[1], 0.0, 0.0, p2[0], p2[1]])
+    Some(PathElement::QuadTo {
+        control: p1,
+        end: p2,
+    })
 }
 
-fn validate_quad_merge(p0: Pt, p1: Pt, p2: Pt, segs: &[PathElement], ts: &[f32]) -> bool {
+fn validate_quad_merge(p0: Point, p1: Point, p2: Point, segs: &[PathElement], ts: &[f32]) -> bool {
     let pieces = split_quad_at_ts(p0, p1, p2, ts);
     for (k, (_rp0, rp1, rp2)) in pieces.iter().enumerate() {
-        let orig_c = &segs[k].1;
-        let orig_h = [orig_c[0], orig_c[1]];
-        let orig_end = [orig_c[4], orig_c[5]];
-        if hypot(rp1[0] - orig_h[0], rp1[1] - orig_h[1]) > TOLERANCE
-            || hypot(rp2[0] - orig_end[0], rp2[1] - orig_end[1]) > TOLERANCE
+        let (orig_h, orig_end) = quad_points(segs[k]);
+        if hypot(rp1.x - orig_h.x, rp1.y - orig_h.y) > TOLERANCE
+            || hypot(rp2.x - orig_end.x, rp2.y - orig_end.y) > TOLERANCE
         {
             return false;
         }
@@ -215,7 +200,7 @@ fn validate_quad_merge(p0: Pt, p1: Pt, p2: Pt, segs: &[PathElement], ts: &[f32])
     true
 }
 
-fn split_quad_at_ts(p0: Pt, p1: Pt, p2: Pt, ts: &[f32]) -> Vec<Quad> {
+fn split_quad_at_ts(p0: Point, p1: Point, p2: Point, ts: &[f32]) -> Vec<Quad> {
     let mut pieces = Vec::with_capacity(ts.len() + 1);
     let mut current = (p0, p1, p2);
     let mut t_prev = 0.0_f32;
@@ -235,10 +220,15 @@ fn split_quad_at_ts(p0: Pt, p1: Pt, p2: Pt, ts: &[f32]) -> Vec<Quad> {
     pieces
 }
 
-fn split_quad_at_t(p0: Pt, p1: Pt, p2: Pt, t: f32) -> (Pt, Pt, Pt, Pt, Pt, Pt) {
-    let q1 = lerp2(p0, p1, t);
-    let q2 = lerp2(p1, p2, t);
-    let s = lerp2(q1, q2, t);
+fn split_quad_at_t(
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    t: f32,
+) -> (Point, Point, Point, Point, Point, Point) {
+    let q1 = lerp(p0, p1, t);
+    let q2 = lerp(p1, p2, t);
+    let s = lerp(q1, q2, t);
     (p0, q1, s, s, q2, p2)
 }
 
@@ -247,7 +237,7 @@ fn split_quad_at_t(p0: Pt, p1: Pt, p2: Pt, t: f32) -> (Pt, Pt, Pt, Pt, Pt, Pt) {
 // Uses the fonttools qu2cu approach: reconstruct t-parameters from cumulative
 // ratios of adjacent junction tangent lengths, then recover the outer control
 // points P1/P2. Validity is confirmed by re-splitting and measuring curve error.
-fn try_merge_cubics_n(p0: [f32; 2], segs: &[PathElement]) -> Option<[f32; 6]> {
+fn try_merge_cubics_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
     let n = segs.len();
     debug_assert!(n >= 2);
 
@@ -259,18 +249,14 @@ fn try_merge_cubics_n(p0: [f32; 2], segs: &[PathElement]) -> Option<[f32; 6]> {
     let mut ts_unnorm = vec![1.0_f32];
 
     for k in 1..n {
-        let prev_c = &segs[k - 1].1;
-        let curr_c = &segs[k].1;
+        let (_prev_h1, prev_h2, prev_end) = cubic_points(segs[k - 1]);
+        let (curr_h1, _curr_h2, _curr_end) = cubic_points(segs[k]);
 
-        let prev_end = [prev_c[4], prev_c[5]];
-        let prev_h2 = [prev_c[2], prev_c[3]];
-        let curr_h1 = [curr_c[0], curr_c[1]];
+        let end_tan = sub(prev_end, prev_h2);
+        let start_tan = sub(curr_h1, prev_end);
 
-        let end_tan = sub2(prev_end, prev_h2);
-        let start_tan = sub2(curr_h1, prev_end);
-
-        let len_end = hypot(end_tan[0], end_tan[1]);
-        let len_start = hypot(start_tan[0], start_tan[1]);
+        let len_end = hypot(end_tan.x, end_tan.y);
+        let len_start = hypot(start_tan.x, start_tan.y);
 
         if len_end < 1e-10 {
             return None;
@@ -278,11 +264,11 @@ fn try_merge_cubics_n(p0: [f32; 2], segs: &[PathElement]) -> Option<[f32; 6]> {
 
         // Tangents at the junction must be parallel and in the same direction.
         if len_start > 1e-10 {
-            let cross = end_tan[0] * start_tan[1] - end_tan[1] * start_tan[0];
+            let cross = end_tan.x * start_tan.y - end_tan.y * start_tan.x;
             if cross.abs() > TOLERANCE * len_end * len_start {
                 return None;
             }
-            if end_tan[0] * start_tan[0] + end_tan[1] * start_tan[1] < 0.0 {
+            if end_tan.x * start_tan.x + end_tan.y * start_tan.y < 0.0 {
                 return None; // anti-parallel (cusp)
             }
         }
@@ -304,36 +290,37 @@ fn try_merge_cubics_n(p0: [f32; 2], segs: &[PathElement]) -> Option<[f32; 6]> {
         return None;
     }
 
-    let first_c = &segs[0].1;
-    let last_c = &segs[n - 1].1;
-    let first_h1 = [first_c[0], first_c[1]];
-    let last_h2 = [last_c[2], last_c[3]];
-    let p3 = [last_c[4], last_c[5]];
+    let (first_h1, _first_h2, _first_end) = cubic_points(segs[0]);
+    let (_last_h1, last_h2, p3) = cubic_points(segs[n - 1]);
 
     // Recover outer control points from the split relationship:
     //   first_h1 = lerp(P0, P1, t1)  →  P1 = P0 + (first_h1 − P0) / t1
     //   last_h2  = lerp(P2, P3, t_last)  →  P2 = P3 + (last_h2 − P3) / (1 − t_last)
-    let p1 = [
-        p0[0] + (first_h1[0] - p0[0]) / t1,
-        p0[1] + (first_h1[1] - p0[1]) / t1,
-    ];
-    let p2 = [
-        p3[0] + (last_h2[0] - p3[0]) / (1.0 - t_last),
-        p3[1] + (last_h2[1] - p3[1]) / (1.0 - t_last),
-    ];
+    let p1 = Point::new(
+        p0.x + (first_h1.x - p0.x) / t1,
+        p0.y + (first_h1.y - p0.y) / t1,
+    );
+    let p2 = Point::new(
+        p3.x + (last_h2.x - p3.x) / (1.0 - t_last),
+        p3.y + (last_h2.y - p3.y) / (1.0 - t_last),
+    );
 
     if !validate_cubic_merge(p0, p1, p2, p3, segs, &ts) {
         return None;
     }
 
-    Some([p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]])
+    Some(PathElement::CurveTo {
+        control0: p1,
+        control1: p2,
+        end: p3,
+    })
 }
 
 fn validate_cubic_merge(
-    p0: [f32; 2],
-    p1: [f32; 2],
-    p2: [f32; 2],
-    p3: [f32; 2],
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    p3: Point,
     segs: &[PathElement],
     ts: &[f32],
 ) -> bool {
@@ -341,20 +328,17 @@ fn validate_cubic_merge(
     let mut prev_end = p0;
 
     for (k, (rp0, rp1, rp2, rp3)) in pieces.iter().enumerate() {
-        let orig_c = &segs[k].1;
-        let orig_h1 = [orig_c[0], orig_c[1]];
-        let orig_h2 = [orig_c[2], orig_c[3]];
-        let orig_end = [orig_c[4], orig_c[5]];
+        let (orig_h1, orig_h2, orig_end) = cubic_points(segs[k]);
 
-        if hypot(rp3[0] - orig_end[0], rp3[1] - orig_end[1]) > TOLERANCE {
+        if hypot(rp3.x - orig_end.x, rp3.y - orig_end.y) > TOLERANCE {
             return false;
         }
 
         // Check that the difference cubic lies within TOLERANCE of the origin.
-        let d0 = sub2(*rp0, prev_end);
-        let d1 = sub2(*rp1, orig_h1);
-        let d2 = sub2(*rp2, orig_h2);
-        let d3 = sub2(*rp3, orig_end);
+        let d0 = sub(*rp0, prev_end);
+        let d1 = sub(*rp1, orig_h1);
+        let d2 = sub(*rp2, orig_h2);
+        let d3 = sub(*rp3, orig_end);
 
         if !cubic_farthest_fit_inside(d0, d1, d2, d3, TOLERANCE) {
             return false;
@@ -368,7 +352,7 @@ fn validate_cubic_merge(
 
 // Split cubic (P0,P1,P2,P3) at each t in ts (ascending), returning n+1 pieces.
 // Each subsequent split uses the reparametrized t relative to the remaining curve.
-fn split_cubic_at_ts(p0: Pt, p1: Pt, p2: Pt, p3: Pt, ts: &[f32]) -> Vec<Cubic> {
+fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f32]) -> Vec<Cubic> {
     let mut pieces = Vec::with_capacity(ts.len() + 1);
     let mut current = (p0, p1, p2, p3);
     let mut t_prev = 0.0_f32;
@@ -389,52 +373,52 @@ fn split_cubic_at_ts(p0: Pt, p1: Pt, p2: Pt, p3: Pt, ts: &[f32]) -> Vec<Cubic> {
     pieces
 }
 
-fn split_cubic_at_t(p0: Pt, p1: Pt, p2: Pt, p3: Pt, t: f32) -> (Pt, Pt, Pt, Pt, Pt, Pt, Pt, Pt) {
-    let q1 = lerp2(p0, p1, t);
-    let q2 = lerp2(p1, p2, t);
-    let q3 = lerp2(p2, p3, t);
-    let r1 = lerp2(q1, q2, t);
-    let r2 = lerp2(q2, q3, t);
-    let s = lerp2(r1, r2, t);
+fn split_cubic_at_t(
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    p3: Point,
+    t: f32,
+) -> (Point, Point, Point, Point, Point, Point, Point, Point) {
+    let q1 = lerp(p0, p1, t);
+    let q2 = lerp(p1, p2, t);
+    let q3 = lerp(p2, p3, t);
+    let r1 = lerp(q1, q2, t);
+    let r2 = lerp(q2, q3, t);
+    let s = lerp(r1, r2, t);
     (p0, q1, r1, s, s, r2, q3, p3)
 }
 
 // Recursive check: does the cubic (as a displacement field relative to the origin)
 // lie entirely within `tolerance` of the origin?  Ported from fonttools qu2cu.
-fn cubic_farthest_fit_inside(
-    p0: [f32; 2],
-    p1: [f32; 2],
-    p2: [f32; 2],
-    p3: [f32; 2],
-    tolerance: f32,
-) -> bool {
-    if hypot(p2[0], p2[1]) <= tolerance && hypot(p1[0], p1[1]) <= tolerance {
+fn cubic_farthest_fit_inside(p0: Point, p1: Point, p2: Point, p3: Point, tolerance: f32) -> bool {
+    if hypot(p2.x, p2.y) <= tolerance && hypot(p1.x, p1.y) <= tolerance {
         return true;
     }
 
-    let mid = [
-        (p0[0] + 3.0 * (p1[0] + p2[0]) + p3[0]) * 0.125,
-        (p0[1] + 3.0 * (p1[1] + p2[1]) + p3[1]) * 0.125,
-    ];
-    if hypot(mid[0], mid[1]) > tolerance {
+    let mid = Point::new(
+        (p0.x + 3.0 * (p1.x + p2.x) + p3.x) * 0.125,
+        (p0.y + 3.0 * (p1.y + p2.y) + p3.y) * 0.125,
+    );
+    if hypot(mid.x, mid.y) > tolerance {
         return false;
     }
 
-    let deriv3 = [
-        (p3[0] + p2[0] - p1[0] - p0[0]) * 0.125,
-        (p3[1] + p2[1] - p1[1] - p0[1]) * 0.125,
-    ];
+    let deriv3 = Point::new(
+        (p3.x + p2.x - p1.x - p0.x) * 0.125,
+        (p3.y + p2.y - p1.y - p0.y) * 0.125,
+    );
 
-    let p01 = lerp2(p0, p1, 0.5);
-    let p23 = lerp2(p2, p3, 0.5);
+    let p01 = lerp(p0, p1, 0.5);
+    let p23 = lerp(p2, p3, 0.5);
 
-    cubic_farthest_fit_inside(p0, p01, sub2(mid, deriv3), mid, tolerance)
-        && cubic_farthest_fit_inside(mid, add2(mid, deriv3), p23, p3, tolerance)
+    cubic_farthest_fit_inside(p0, p01, sub(mid, deriv3), mid, tolerance)
+        && cubic_farthest_fit_inside(mid, add(mid, deriv3), p23, p3, tolerance)
 }
 
-fn can_merge_lines(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32) -> bool {
-    let (dx1, dy1) = (ax - px, ay - py);
-    let (dx2, dy2) = (bx - ax, by - ay);
+fn can_merge_lines(start: Point, middle: Point, end: Point) -> bool {
+    let (dx1, dy1) = (middle.x - start.x, middle.y - start.y);
+    let (dx2, dy2) = (end.x - middle.x, end.y - middle.y);
 
     let len1_sq = dx1 * dx1 + dy1 * dy1;
     let len2_sq = dx2 * dx2 + dy2 * dy2;
@@ -443,8 +427,8 @@ fn can_merge_lines(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32) -> bool
         return true;
     }
 
-    let total_dx = bx - px;
-    let total_dy = by - py;
+    let total_dx = end.x - start.x;
+    let total_dy = end.y - start.y;
     let total_len = hypot(total_dx, total_dy);
     if total_len < 1e-6 {
         return false;
@@ -462,46 +446,18 @@ fn can_merge_lines(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32) -> bool
 }
 
 #[inline]
-fn lerp2(a: [f32; 2], b: [f32; 2], t: f32) -> [f32; 2] {
-    [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
+fn lerp(a: Point, b: Point, t: f32) -> Point {
+    a.lerp(b, t)
 }
 
 #[inline]
-fn sub2(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
-    [a[0] - b[0], a[1] - b[1]]
+fn sub(a: Point, b: Point) -> Point {
+    a.sub(b)
 }
 
 #[inline]
-fn add2(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
-    [a[0] + b[0], a[1] + b[1]]
-}
-
-fn try_merge_run(
-    ty: i64,
-    seg_start: Pt,
-    i: usize,
-    n: usize,
-    elements: &[PathElement],
-    try_merge: fn(Pt, &[PathElement]) -> Option<[f32; 6]>,
-) -> Option<([f32; 6], usize)> {
-    let mut run_end = i + 1;
-    while run_end < n && elements[run_end].0 == ty {
-        run_end += 1;
-    }
-    let run_len = run_end - i;
-    for merge_len in (2..=run_len).rev() {
-        if let Some(m) = try_merge(seg_start, &elements[i..i + merge_len]) {
-            return Some((m, merge_len));
-        }
-    }
-    None
-}
-
-#[inline]
-fn arr6(coords: &[f32], i: usize) -> [f32; 6] {
-    let mut a = [0f32; 6];
-    a.copy_from_slice(&coords[i * 6..(i + 1) * 6]);
-    a
+fn add(a: Point, b: Point) -> Point {
+    a.add(b)
 }
 
 #[inline]

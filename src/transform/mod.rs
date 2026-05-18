@@ -1,7 +1,7 @@
 use skia_safe::{Path, PathBuilder, PathFillType};
 
 use crate::bounds::{Bounds, BoundsPen};
-use crate::outline::ElementType;
+use crate::outline::{Outline, PathElement};
 
 pub(crate) mod cubic_to_quad;
 pub(crate) mod merge_curves;
@@ -11,51 +11,42 @@ pub(crate) mod render_bitmap;
 pub(crate) mod subpath;
 
 pub(crate) fn build_skia_path(
-    types: &[i64],
-    coords: &[f32],
+    outline: &Outline,
     track_bounds: bool,
 ) -> Option<(Path, Option<Bounds>)> {
     let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
     let mut bounds = track_bounds.then(BoundsPen::default);
-    for (&element_type, values) in types.iter().zip(coords.chunks_exact(6)) {
-        match element_type {
-            v if v == ElementType::MoveTo as i64 => {
-                if let Some(b) = &mut bounds {
-                    b.move_to(values[4], values[5]);
-                }
-                builder.move_to((values[4], values[5]));
+    for subpath in outline.subpaths() {
+        let start = subpath.start();
+        if let Some(bounds) = &mut bounds {
+            bounds.move_to(start);
+        }
+        builder.move_to((start.x, start.y));
+        for element in subpath.elements() {
+            if let Some(bounds) = &mut bounds {
+                bounds.path_element(*element);
             }
-            v if v == ElementType::LineTo as i64 => {
-                if let Some(b) = &mut bounds {
-                    b.line_to(values[4], values[5]);
+            match *element {
+                PathElement::LineTo(point) => builder.line_to((point.x, point.y)),
+                PathElement::QuadTo { control, end } => {
+                    builder.quad_to((control.x, control.y), (end.x, end.y))
                 }
-                builder.line_to((values[4], values[5]));
+                PathElement::CurveTo {
+                    control0,
+                    control1,
+                    end,
+                } => builder.cubic_to(
+                    (control0.x, control0.y),
+                    (control1.x, control1.y),
+                    (end.x, end.y),
+                ),
+            };
+        }
+        if subpath.is_closed() {
+            if let Some(bounds) = &mut bounds {
+                bounds.close();
             }
-            v if v == ElementType::QuadTo as i64 => {
-                if let Some(b) = &mut bounds {
-                    b.quad_to(values[0], values[1], values[4], values[5]);
-                }
-                builder.quad_to((values[0], values[1]), (values[4], values[5]));
-            }
-            v if v == ElementType::CurveTo as i64 => {
-                if let Some(b) = &mut bounds {
-                    b.curve_to(
-                        values[0], values[1], values[2], values[3], values[4], values[5],
-                    );
-                }
-                builder.cubic_to(
-                    (values[0], values[1]),
-                    (values[2], values[3]),
-                    (values[4], values[5]),
-                );
-            }
-            v if v == ElementType::Close as i64 => {
-                if let Some(b) = &mut bounds {
-                    b.close();
-                }
-                builder.close();
-            }
-            _ => break,
+            builder.close();
         }
     }
     (!builder.is_empty()).then(|| (builder.detach(), bounds.and_then(BoundsPen::finish)))
