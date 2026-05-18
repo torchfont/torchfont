@@ -2,7 +2,7 @@ use super::model::SubpathBuilder;
 use super::{Outline, PathElement, Point};
 
 impl Outline {
-    pub(crate) fn decode_lossy(types: &[i64], coords: &[f32]) -> Self {
+    pub(crate) fn decode(types: &[i64], coords: &[f32]) -> Self {
         debug_assert_eq!(types.len() * 6, coords.len());
         let mut subpaths = Vec::new();
         let mut current: Option<SubpathBuilder> = None;

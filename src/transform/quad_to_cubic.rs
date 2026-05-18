@@ -38,6 +38,6 @@ pub(crate) fn quad_to_cubic_and_merge(types: &[i64], coords: &[f32]) -> (Vec<i64
     let mut out_types = types.to_vec();
     let mut out_coords = coords.to_vec();
     quad_to_cubic(&mut out_types, &mut out_coords, types.len());
-    let outline = Outline::decode_lossy(&out_types, &out_coords);
+    let outline = Outline::decode(&out_types, &out_coords);
     merge_curves::merge_curves(&outline).encode()
 }

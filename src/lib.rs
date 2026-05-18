@@ -39,7 +39,7 @@ fn cubic_to_quad(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     transform::cubic_to_quad::cubic_to_quad(&outline)
         .map(|outline| outline.encode())
         .map_err(|err| match err {
@@ -59,7 +59,7 @@ fn merge_curves(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     Ok(transform::merge_curves::merge_curves(&outline).encode())
 }
 
@@ -71,7 +71,7 @@ fn normalize_subpath_start_points(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     Ok(transform::subpath::normalize_subpath_start_points(&outline).encode())
 }
 
@@ -90,7 +90,7 @@ fn randomize_subpath_start_points(
             "random_values length must equal types length",
         ));
     }
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     let subpath_random_values = t
         .iter()
         .enumerate()
@@ -110,7 +110,7 @@ fn remove_overlaps(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     Ok(transform::remove_overlaps::remove_overlaps(&outline).encode())
 }
 
@@ -122,7 +122,7 @@ fn tight_bbox(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     Ok(bounds::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
 
@@ -152,7 +152,7 @@ fn render_bitmap(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    let outline = outline::Outline::decode_lossy(t, c);
+    let outline = outline::Outline::decode(t, c);
     let rendered =
         transform::render_bitmap::render_bitmap(&outline, size, mode).map_err(|err| match err {
             transform::render_bitmap::RenderBitmapError::BboxTooLarge => {
