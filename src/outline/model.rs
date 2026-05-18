@@ -111,15 +111,11 @@ impl Subpath {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Outline {
     pub(super) subpaths: Vec<Subpath>,
-    pub(super) terminated: bool,
 }
 
 impl Outline {
     pub(crate) fn new(subpaths: Vec<Subpath>) -> Self {
-        Self {
-            subpaths,
-            terminated: true,
-        }
+        Self { subpaths }
     }
 
     pub(crate) fn subpaths(&self) -> &[Subpath] {
@@ -127,10 +123,7 @@ impl Outline {
     }
 
     pub(crate) fn with_subpaths(&self, subpaths: Vec<Subpath>) -> Self {
-        Self {
-            subpaths,
-            terminated: self.terminated,
-        }
+        Self { subpaths }
     }
 }
 

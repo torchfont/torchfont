@@ -36,6 +36,7 @@ def test_normalize_subpath_start_points_preserves_incoming_curve() -> None:
             ElementType.CURVE_TO.value,
             ElementType.LINE_TO.value,
             ElementType.CLOSE.value,
+            ElementType.END.value,
         ],
         dtype=torch.long,
     )
@@ -45,14 +46,15 @@ def test_normalize_subpath_start_points_preserves_incoming_curve() -> None:
             [0.7, 0.0, 0.3, 0.0, 0.0, 0.0],
             [0, 0, 0, 0, 1.0, 1.0],
             [0, 0, 0, 0, 0.0, 0.0],
+            [0, 0, 0, 0, 0.0, 0.0],
         ],
         dtype=torch.float32,
     )
 
     out_types, out_coords = normalize_subpath_start_points(types, coords)
 
-    assert out_types[-2].item() == ElementType.CURVE_TO.value
-    assert torch.equal(out_coords[-2], coords[1])
+    assert out_types[-3].item() == ElementType.CURVE_TO.value
+    assert torch.equal(out_coords[-3], coords[1])
 
 
 def test_normalize_subpath_start_points_leaves_open_subpaths_unchanged(
