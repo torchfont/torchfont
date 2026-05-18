@@ -30,7 +30,7 @@ pub(crate) fn reverse_closed_subpaths(outline: &Outline) -> Outline {
             }
         })
         .collect();
-    outline.with_subpaths(subpaths)
+    Outline::new(subpaths)
 }
 
 fn transform_start_points(
@@ -49,7 +49,7 @@ fn transform_start_points(
             }
         })
         .collect();
-    outline.with_subpaths(subpaths)
+    Outline::new(subpaths)
 }
 
 fn rotate_closed_subpath(subpath: &Subpath, start_idx: usize) -> Subpath {

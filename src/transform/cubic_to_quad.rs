@@ -38,7 +38,7 @@ pub(crate) fn cubic_to_quad(outline: &Outline) -> Result<Outline, CubicToQuadErr
         }
         subpaths.push(Subpath::new(subpath.start(), elements, subpath.is_closed()));
     }
-    Ok(outline.with_subpaths(subpaths))
+    Ok(Outline::new(subpaths))
 }
 
 // Port of fonttools.cu2qu's all_quadratic=True path.  The returned pairs encode
@@ -57,7 +57,7 @@ fn cubic_to_quads(
                 let end = if i + 1 == n {
                     p3
                 } else {
-                    midpoint(spline[i + 1], spline[i + 2])
+                    spline[i + 1].midpoint(spline[i + 2])
                 };
                 out.push((spline[i + 1], end));
             }
@@ -77,7 +77,7 @@ fn cubic_approx_spline(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> 
     let mut spline = Vec::with_capacity(n + 2);
     let mut next_q1 = cubic_approx_control(0.0, cubics[0]);
     let mut q2 = p0;
-    let mut d1 = Point::zero();
+    let mut d1 = Point::default();
     spline.push(p0);
     spline.push(next_q1);
 
@@ -88,16 +88,16 @@ fn cubic_approx_spline(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> 
         if i < n {
             next_q1 = cubic_approx_control(i as f32 / (n - 1) as f32, cubics[i]);
             spline.push(next_q1);
-            q2 = midpoint(q1, next_q1);
+            q2 = q1.midpoint(next_q1);
         } else {
             q2 = c3;
         }
 
         let d0 = d1;
-        d1 = sub(q2, c3);
-        let e1 = sub(lerp(q0, q1, 2.0 / 3.0), c1);
-        let e2 = sub(lerp(q2, q1, 2.0 / 3.0), c2);
-        if norm(d1) > TOLERANCE || !cubic_farthest_fit_inside(d0, e1, e2, d1, TOLERANCE) {
+        d1 = q2 - c3;
+        let e1 = q0.lerp(q1, 2.0 / 3.0) - c1;
+        let e2 = q2.lerp(q1, 2.0 / 3.0) - c2;
+        if d1.norm() > TOLERANCE || !cubic_farthest_fit_inside(d0, e1, e2, d1, TOLERANCE) {
             return None;
         }
     }
@@ -111,34 +111,34 @@ fn cubic_approx_quadratic(p0: Point, p1: Point, p2: Point, p3: Point) -> Option<
     // degree-elevated quadratics), the intersection is at infinity, so recover
     // the same control from each cubic handle and let the fit test below decide.
     let q1 = line_intersection(p0, p1, p2, p3)
-        .unwrap_or_else(|| midpoint(lerp(p0, p1, 1.5), lerp(p3, p2, 1.5)));
-    let c1 = lerp(p0, q1, 2.0 / 3.0);
-    let c2 = lerp(p3, q1, 2.0 / 3.0);
+        .unwrap_or_else(|| p0.lerp(p1, 1.5).midpoint(p3.lerp(p2, 1.5)));
+    let c1 = p0.lerp(q1, 2.0 / 3.0);
+    let c2 = p3.lerp(q1, 2.0 / 3.0);
     cubic_farthest_fit_inside(
-        Point::zero(),
-        sub(c1, p1),
-        sub(c2, p2),
-        Point::zero(),
+        Point::default(),
+        c1 - p1,
+        c2 - p2,
+        Point::default(),
         TOLERANCE,
     )
     .then_some(q1)
 }
 
 fn cubic_approx_control(t: f32, (p0, p1, p2, p3): Cubic) -> Point {
-    let a = lerp(p0, p1, 1.5);
-    let b = lerp(p3, p2, 1.5);
-    lerp(a, b, t)
+    let a = p0.lerp(p1, 1.5);
+    let b = p3.lerp(p2, 1.5);
+    a.lerp(b, t)
 }
 
 fn line_intersection(a: Point, b: Point, c: Point, d: Point) -> Option<Point> {
-    let ab = sub(b, a);
-    let cd = sub(d, c);
-    let den = cross(ab, cd);
+    let ab = b - a;
+    let cd = d - c;
+    let den = ab.cross(cd);
     if den.abs() < 1e-15 {
         return (b == c && (a == b || c == d)).then_some(b);
     }
-    let h = cross(sub(c, a), ab) / den;
-    Some(lerp(c, d, h))
+    let h = (c - a).cross(ab) / den;
+    Some(c.lerp(d, h))
 }
 
 fn split_cubic_into_n(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> Vec<Cubic> {
@@ -163,49 +163,30 @@ fn split_cubic_into_n(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> V
 }
 
 fn split_cubic_at(p0: Point, p1: Point, p2: Point, p3: Point, t: f32) -> (Cubic, Cubic) {
-    let q0 = lerp(p0, p1, t);
-    let q1 = lerp(p1, p2, t);
-    let q2 = lerp(p2, p3, t);
-    let r0 = lerp(q0, q1, t);
-    let r1 = lerp(q1, q2, t);
-    let s = lerp(r0, r1, t);
+    let q0 = p0.lerp(p1, t);
+    let q1 = p1.lerp(p2, t);
+    let q2 = p2.lerp(p3, t);
+    let r0 = q0.lerp(q1, t);
+    let r1 = q1.lerp(q2, t);
+    let s = r0.lerp(r1, t);
     ((p0, q0, r0, s), (s, r1, q2, p3))
 }
 
 fn cubic_farthest_fit_inside(p0: Point, p1: Point, p2: Point, p3: Point, tolerance: f32) -> bool {
-    if norm(p2) <= tolerance && norm(p1) <= tolerance {
+    if p2.norm() <= tolerance && p1.norm() <= tolerance {
         return true;
     }
     let mid = Point::new(
         (p0.x + 3.0 * (p1.x + p2.x) + p3.x) * 0.125,
         (p0.y + 3.0 * (p1.y + p2.y) + p3.y) * 0.125,
     );
-    if norm(mid) > tolerance {
+    if mid.norm() > tolerance {
         return false;
     }
     let deriv3 = Point::new(
         (p3.x + p2.x - p1.x - p0.x) * 0.125,
         (p3.y + p2.y - p1.y - p0.y) * 0.125,
     );
-    cubic_farthest_fit_inside(p0, midpoint(p0, p1), sub(mid, deriv3), mid, tolerance)
-        && cubic_farthest_fit_inside(mid, add(mid, deriv3), midpoint(p2, p3), p3, tolerance)
-}
-
-fn lerp(a: Point, b: Point, t: f32) -> Point {
-    a.lerp(b, t)
-}
-fn midpoint(a: Point, b: Point) -> Point {
-    a.midpoint(b)
-}
-fn sub(a: Point, b: Point) -> Point {
-    a.sub(b)
-}
-fn add(a: Point, b: Point) -> Point {
-    a.add(b)
-}
-fn cross(a: Point, b: Point) -> f32 {
-    a.cross(b)
-}
-fn norm(point: Point) -> f32 {
-    point.norm()
+    cubic_farthest_fit_inside(p0, p0.midpoint(p1), mid - deriv3, mid, tolerance)
+        && cubic_farthest_fit_inside(mid, mid + deriv3, p2.midpoint(p3), p3, tolerance)
 }

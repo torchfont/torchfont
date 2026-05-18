@@ -24,14 +24,6 @@ pub(crate) enum RenderBitmapError {
     BboxTooLarge,
 }
 
-struct RenderTransform {
-    sx: f32,
-    ky: f32,
-    sy: f32,
-    tx: f32,
-    ty: f32,
-}
-
 pub(crate) fn render_bitmap(
     outline: &Outline,
     size: u32,
@@ -43,7 +35,7 @@ pub(crate) fn render_bitmap(
     };
 
     let bitmap_size = size as f32;
-    let Some((width, height, transform)) = render_target(bounds, bitmap_size, mode)? else {
+    let Some((width, height, matrix)) = render_target(bounds, bitmap_size, mode)? else {
         return Ok(blank_for_mode(size, mode));
     };
 
@@ -60,7 +52,7 @@ pub(crate) fn render_bitmap(
     };
     let canvas = surface.canvas();
     canvas.clear(Color::TRANSPARENT);
-    canvas.concat(&transform.matrix());
+    canvas.concat(&matrix);
 
     let mut paint = Paint::default();
     paint.set_anti_alias(true);
@@ -79,18 +71,15 @@ fn render_target(
     bounds: Option<Bounds>,
     bitmap_size: f32,
     mode: RenderMode,
-) -> Result<Option<(u32, u32, RenderTransform)>, RenderBitmapError> {
+) -> Result<Option<(u32, u32, Matrix)>, RenderBitmapError> {
     match mode {
         RenderMode::Fixed => {
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
-            let transform = RenderTransform {
-                sx: scale,
-                ky: 0.0,
-                sy: -scale,
-                tx: -FIXED_MIN * scale,
-                ty: bitmap_size + FIXED_MIN * scale,
-            };
-            Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
+            Ok(Some((
+                bitmap_size as u32,
+                bitmap_size as u32,
+                render_matrix(scale, -FIXED_MIN * scale, bitmap_size + FIXED_MIN * scale),
+            )))
         }
         RenderMode::Bbox => {
             let Some(bounds) = bounds else {
@@ -110,14 +99,11 @@ fn render_target(
             if bitmap_width > MAX_BITMAP_SIDE || bitmap_height > MAX_BITMAP_SIDE {
                 return Err(RenderBitmapError::BboxTooLarge);
             }
-            let transform = RenderTransform {
-                sx: scale,
-                ky: 0.0,
-                sy: -scale,
-                tx: -bounds.x_min * scale,
-                ty: bounds.y_max * scale,
-            };
-            Ok(Some((bitmap_width, bitmap_height, transform)))
+            Ok(Some((
+                bitmap_width,
+                bitmap_height,
+                render_matrix(scale, -bounds.x_min * scale, bounds.y_max * scale),
+            )))
         }
         RenderMode::BboxSquare => {
             let Some(bounds) = bounds else {
@@ -131,24 +117,21 @@ fn render_target(
             let scale = bitmap_size / width.max(height);
             let offset_x = (bitmap_size - width * scale) * 0.5;
             let offset_y = (bitmap_size - height * scale) * 0.5;
-            let transform = RenderTransform {
-                sx: scale,
-                ky: 0.0,
-                sy: -scale,
-                tx: offset_x - bounds.x_min * scale,
-                ty: offset_y + bounds.y_max * scale,
-            };
-            Ok(Some((bitmap_size as u32, bitmap_size as u32, transform)))
+            Ok(Some((
+                bitmap_size as u32,
+                bitmap_size as u32,
+                render_matrix(
+                    scale,
+                    offset_x - bounds.x_min * scale,
+                    offset_y + bounds.y_max * scale,
+                ),
+            )))
         }
     }
 }
 
-impl RenderTransform {
-    fn matrix(&self) -> Matrix {
-        Matrix::new_all(
-            self.sx, 0.0, self.tx, self.ky, self.sy, self.ty, 0.0, 0.0, 1.0,
-        )
-    }
+fn render_matrix(scale: f32, tx: f32, ty: f32) -> Matrix {
+    Matrix::new_all(scale, 0.0, tx, 0.0, -scale, ty, 0.0, 0.0, 1.0)
 }
 
 fn blank_bitmap(width: u32, height: u32) -> RenderedBitmap {

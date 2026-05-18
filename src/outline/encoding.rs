@@ -8,21 +8,21 @@ impl Outline {
         let mut current: Option<SubpathBuilder> = None;
 
         for (&ty, values) in types.iter().zip(coords.chunks_exact(6)) {
-            match ty {
-                v if v == ElementType::MoveTo as i64 => {
+            match ElementType::try_from(ty) {
+                Ok(ElementType::MoveTo) => {
                     if let Some(builder) = current.take() {
                         subpaths.push(builder.finish(false));
                     }
                     current = Some(SubpathBuilder::new(Point::new(values[4], values[5])));
                 }
-                v if v == ElementType::LineTo as i64 => {
+                Ok(ElementType::LineTo) => {
                     if let Some(builder) = &mut current {
                         builder
                             .elements
                             .push(PathElement::LineTo(Point::new(values[4], values[5])));
                     }
                 }
-                v if v == ElementType::QuadTo as i64 => {
+                Ok(ElementType::QuadTo) => {
                     if let Some(builder) = &mut current {
                         builder.elements.push(PathElement::QuadTo {
                             control: Point::new(values[0], values[1]),
@@ -30,7 +30,7 @@ impl Outline {
                         });
                     }
                 }
-                v if v == ElementType::CurveTo as i64 => {
+                Ok(ElementType::CurveTo) => {
                     if let Some(builder) = &mut current {
                         builder.elements.push(PathElement::CurveTo {
                             control0: Point::new(values[0], values[1]),
@@ -39,12 +39,12 @@ impl Outline {
                         });
                     }
                 }
-                v if v == ElementType::Close as i64 => {
+                Ok(ElementType::Close) => {
                     if let Some(builder) = current.take() {
                         subpaths.push(builder.finish(true));
                     }
                 }
-                _ => break,
+                Ok(ElementType::End) | Err(_) => break,
             }
         }
         if let Some(builder) = current {
@@ -104,6 +104,21 @@ pub(crate) enum ElementType {
     CurveTo = 4,
     Close = 5,
     End = 6,
+}
+
+impl TryFrom<i64> for ElementType {
+    type Error = ();
+    fn try_from(v: i64) -> Result<Self, Self::Error> {
+        Ok(match v {
+            1 => Self::MoveTo,
+            2 => Self::LineTo,
+            3 => Self::QuadTo,
+            4 => Self::CurveTo,
+            5 => Self::Close,
+            6 => Self::End,
+            _ => return Err(()),
+        })
+    }
 }
 
 fn push_endpoint(types: &mut Vec<i64>, coords: &mut Vec<f32>, ty: ElementType, point: Point) {

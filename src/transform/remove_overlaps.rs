@@ -8,10 +8,7 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     };
     path.simplify().map_or_else(
         || outline.clone(),
-        |simplified| {
-            let simplified = outline_from_path(&simplified);
-            outline.with_subpaths(simplified.subpaths().to_vec())
-        },
+        |simplified| outline_from_path(&simplified),
     )
 }
 

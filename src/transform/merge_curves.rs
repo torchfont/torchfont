@@ -15,7 +15,7 @@ pub(crate) fn merge_curves(outline: &Outline) -> Outline {
             Subpath::new(subpath.start(), elements, subpath.is_closed())
         })
         .collect();
-    outline.with_subpaths(subpaths)
+    Outline::new(subpaths)
 }
 
 fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathElement> {
@@ -140,16 +140,15 @@ fn try_merge_quads_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
         let (prev_h, prev_end) = quad_points(segs[k - 1]);
         let (curr_h, _curr_end) = quad_points(segs[k]);
 
-        let end_tan = sub(prev_end, prev_h);
-        let start_tan = sub(curr_h, prev_end);
-        let len_end = hypot(end_tan.x, end_tan.y);
-        let len_start = hypot(start_tan.x, start_tan.y);
+        let end_tan = prev_end - prev_h;
+        let start_tan = curr_h - prev_end;
+        let len_end = end_tan.norm();
+        let len_start = start_tan.norm();
         if len_end < 1e-10 {
             return None;
         }
         if len_start > 1e-10 {
-            let cross = end_tan.x * start_tan.y - end_tan.y * start_tan.x;
-            if cross.abs() > TOLERANCE * len_end * len_start {
+            if end_tan.cross(start_tan).abs() > TOLERANCE * len_end * len_start {
                 return None;
             }
             if end_tan.x * start_tan.x + end_tan.y * start_tan.y < 0.0 {
@@ -171,10 +170,7 @@ fn try_merge_quads_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
     }
 
     let (first_h, _first_end) = quad_points(segs[0]);
-    let p1 = Point::new(
-        p0.x + (first_h.x - p0.x) / t1,
-        p0.y + (first_h.y - p0.y) / t1,
-    );
+    let p1 = p0.lerp(first_h, 1.0 / t1);
     let (_last_h, p2) = quad_points(segs[n - 1]);
 
     if !validate_quad_merge(p0, p1, p2, segs, &ts) {
@@ -191,9 +187,7 @@ fn validate_quad_merge(p0: Point, p1: Point, p2: Point, segs: &[PathElement], ts
     let pieces = split_quad_at_ts(p0, p1, p2, ts);
     for (k, (_rp0, rp1, rp2)) in pieces.iter().enumerate() {
         let (orig_h, orig_end) = quad_points(segs[k]);
-        if hypot(rp1.x - orig_h.x, rp1.y - orig_h.y) > TOLERANCE
-            || hypot(rp2.x - orig_end.x, rp2.y - orig_end.y) > TOLERANCE
-        {
+        if (*rp1 - orig_h).norm() > TOLERANCE || (*rp2 - orig_end).norm() > TOLERANCE {
             return false;
         }
     }
@@ -226,9 +220,9 @@ fn split_quad_at_t(
     p2: Point,
     t: f32,
 ) -> (Point, Point, Point, Point, Point, Point) {
-    let q1 = lerp(p0, p1, t);
-    let q2 = lerp(p1, p2, t);
-    let s = lerp(q1, q2, t);
+    let q1 = p0.lerp(p1, t);
+    let q2 = p1.lerp(p2, t);
+    let s = q1.lerp(q2, t);
     (p0, q1, s, s, q2, p2)
 }
 
@@ -252,11 +246,11 @@ fn try_merge_cubics_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
         let (_prev_h1, prev_h2, prev_end) = cubic_points(segs[k - 1]);
         let (curr_h1, _curr_h2, _curr_end) = cubic_points(segs[k]);
 
-        let end_tan = sub(prev_end, prev_h2);
-        let start_tan = sub(curr_h1, prev_end);
+        let end_tan = prev_end - prev_h2;
+        let start_tan = curr_h1 - prev_end;
 
-        let len_end = hypot(end_tan.x, end_tan.y);
-        let len_start = hypot(start_tan.x, start_tan.y);
+        let len_end = end_tan.norm();
+        let len_start = start_tan.norm();
 
         if len_end < 1e-10 {
             return None;
@@ -264,8 +258,7 @@ fn try_merge_cubics_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
 
         // Tangents at the junction must be parallel and in the same direction.
         if len_start > 1e-10 {
-            let cross = end_tan.x * start_tan.y - end_tan.y * start_tan.x;
-            if cross.abs() > TOLERANCE * len_end * len_start {
+            if end_tan.cross(start_tan).abs() > TOLERANCE * len_end * len_start {
                 return None;
             }
             if end_tan.x * start_tan.x + end_tan.y * start_tan.y < 0.0 {
@@ -296,14 +289,8 @@ fn try_merge_cubics_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
     // Recover outer control points from the split relationship:
     //   first_h1 = lerp(P0, P1, t1)  →  P1 = P0 + (first_h1 − P0) / t1
     //   last_h2  = lerp(P2, P3, t_last)  →  P2 = P3 + (last_h2 − P3) / (1 − t_last)
-    let p1 = Point::new(
-        p0.x + (first_h1.x - p0.x) / t1,
-        p0.y + (first_h1.y - p0.y) / t1,
-    );
-    let p2 = Point::new(
-        p3.x + (last_h2.x - p3.x) / (1.0 - t_last),
-        p3.y + (last_h2.y - p3.y) / (1.0 - t_last),
-    );
+    let p1 = p0.lerp(first_h1, 1.0 / t1);
+    let p2 = p3.lerp(last_h2, 1.0 / (1.0 - t_last));
 
     if !validate_cubic_merge(p0, p1, p2, p3, segs, &ts) {
         return None;
@@ -330,15 +317,15 @@ fn validate_cubic_merge(
     for (k, (rp0, rp1, rp2, rp3)) in pieces.iter().enumerate() {
         let (orig_h1, orig_h2, orig_end) = cubic_points(segs[k]);
 
-        if hypot(rp3.x - orig_end.x, rp3.y - orig_end.y) > TOLERANCE {
+        if (*rp3 - orig_end).norm() > TOLERANCE {
             return false;
         }
 
         // Check that the difference cubic lies within TOLERANCE of the origin.
-        let d0 = sub(*rp0, prev_end);
-        let d1 = sub(*rp1, orig_h1);
-        let d2 = sub(*rp2, orig_h2);
-        let d3 = sub(*rp3, orig_end);
+        let d0 = *rp0 - prev_end;
+        let d1 = *rp1 - orig_h1;
+        let d2 = *rp2 - orig_h2;
+        let d3 = *rp3 - orig_end;
 
         if !cubic_farthest_fit_inside(d0, d1, d2, d3, TOLERANCE) {
             return false;
@@ -380,19 +367,19 @@ fn split_cubic_at_t(
     p3: Point,
     t: f32,
 ) -> (Point, Point, Point, Point, Point, Point, Point, Point) {
-    let q1 = lerp(p0, p1, t);
-    let q2 = lerp(p1, p2, t);
-    let q3 = lerp(p2, p3, t);
-    let r1 = lerp(q1, q2, t);
-    let r2 = lerp(q2, q3, t);
-    let s = lerp(r1, r2, t);
+    let q1 = p0.lerp(p1, t);
+    let q2 = p1.lerp(p2, t);
+    let q3 = p2.lerp(p3, t);
+    let r1 = q1.lerp(q2, t);
+    let r2 = q2.lerp(q3, t);
+    let s = r1.lerp(r2, t);
     (p0, q1, r1, s, s, r2, q3, p3)
 }
 
 // Recursive check: does the cubic (as a displacement field relative to the origin)
 // lie entirely within `tolerance` of the origin?  Ported from fonttools qu2cu.
 fn cubic_farthest_fit_inside(p0: Point, p1: Point, p2: Point, p3: Point, tolerance: f32) -> bool {
-    if hypot(p2.x, p2.y) <= tolerance && hypot(p1.x, p1.y) <= tolerance {
+    if p2.norm() <= tolerance && p1.norm() <= tolerance {
         return true;
     }
 
@@ -400,7 +387,7 @@ fn cubic_farthest_fit_inside(p0: Point, p1: Point, p2: Point, p3: Point, toleran
         (p0.x + 3.0 * (p1.x + p2.x) + p3.x) * 0.125,
         (p0.y + 3.0 * (p1.y + p2.y) + p3.y) * 0.125,
     );
-    if hypot(mid.x, mid.y) > tolerance {
+    if mid.norm() > tolerance {
         return false;
     }
 
@@ -409,11 +396,11 @@ fn cubic_farthest_fit_inside(p0: Point, p1: Point, p2: Point, p3: Point, toleran
         (p3.y + p2.y - p1.y - p0.y) * 0.125,
     );
 
-    let p01 = lerp(p0, p1, 0.5);
-    let p23 = lerp(p2, p3, 0.5);
+    let p01 = p0.lerp(p1, 0.5);
+    let p23 = p2.lerp(p3, 0.5);
 
-    cubic_farthest_fit_inside(p0, p01, sub(mid, deriv3), mid, tolerance)
-        && cubic_farthest_fit_inside(mid, add(mid, deriv3), p23, p3, tolerance)
+    cubic_farthest_fit_inside(p0, p01, mid - deriv3, mid, tolerance)
+        && cubic_farthest_fit_inside(mid, mid + deriv3, p23, p3, tolerance)
 }
 
 fn can_merge_lines(start: Point, middle: Point, end: Point) -> bool {
@@ -429,7 +416,7 @@ fn can_merge_lines(start: Point, middle: Point, end: Point) -> bool {
 
     let total_dx = end.x - start.x;
     let total_dy = end.y - start.y;
-    let total_len = hypot(total_dx, total_dy);
+    let total_len = total_dx.hypot(total_dy);
     if total_len < 1e-6 {
         return false;
     }
@@ -443,24 +430,4 @@ fn can_merge_lines(start: Point, middle: Point, end: Point) -> bool {
     }
 
     dx1 * dx2 + dy1 * dy2 >= 0.0
-}
-
-#[inline]
-fn lerp(a: Point, b: Point, t: f32) -> Point {
-    a.lerp(b, t)
-}
-
-#[inline]
-fn sub(a: Point, b: Point) -> Point {
-    a.sub(b)
-}
-
-#[inline]
-fn add(a: Point, b: Point) -> Point {
-    a.add(b)
-}
-
-#[inline]
-fn hypot(x: f32, y: f32) -> f32 {
-    (x * x + y * y).sqrt()
 }

@@ -1,5 +1,5 @@
 use super::merge_curves;
-use crate::outline::{ElementType, Outline};
+use crate::outline::{ElementType, Outline, Point};
 
 pub(crate) fn quad_to_cubic(types: &mut [i64], coords: &mut [f32], seq_len: usize) {
     debug_assert_eq!(types.len() * 6, coords.len());
@@ -13,23 +13,21 @@ pub(crate) fn quad_to_cubic(types: &mut [i64], coords: &mut [f32], seq_len: usiz
         .chunks_mut(seq_len)
         .zip(coords.chunks_mut(seq_len * 6))
     {
-        let mut prev_x = 0.0f32;
-        let mut prev_y = 0.0f32;
+        let mut prev = Point::default();
         for (i, t) in t_seq.iter_mut().enumerate() {
             let base = i * 6;
-            let end_x = c_seq[base + 4];
-            let end_y = c_seq[base + 5];
+            let end = Point::new(c_seq[base + 4], c_seq[base + 5]);
             if *t == quad {
-                let cx0 = c_seq[base];
-                let cy0 = c_seq[base + 1];
-                c_seq[base] = prev_x + (2.0 / 3.0) * (cx0 - prev_x);
-                c_seq[base + 1] = prev_y + (2.0 / 3.0) * (cy0 - prev_y);
-                c_seq[base + 2] = end_x + (2.0 / 3.0) * (cx0 - end_x);
-                c_seq[base + 3] = end_y + (2.0 / 3.0) * (cy0 - end_y);
+                let ctrl = Point::new(c_seq[base], c_seq[base + 1]);
+                let c1 = prev.lerp(ctrl, 2.0 / 3.0);
+                let c2 = end.lerp(ctrl, 2.0 / 3.0);
+                c_seq[base] = c1.x;
+                c_seq[base + 1] = c1.y;
+                c_seq[base + 2] = c2.x;
+                c_seq[base + 3] = c2.y;
                 *t = cubic;
             }
-            prev_x = end_x;
-            prev_y = end_y;
+            prev = end;
         }
     }
 }

@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Point {
     pub(crate) x: f32,
     pub(crate) y: f32,
@@ -7,10 +7,6 @@ pub(crate) struct Point {
 impl Point {
     pub(crate) fn new(x: f32, y: f32) -> Self {
         Self { x, y }
-    }
-
-    pub(crate) fn zero() -> Self {
-        Self::new(0.0, 0.0)
     }
 
     pub(crate) fn lerp(self, other: Self, t: f32) -> Self {
@@ -24,14 +20,6 @@ impl Point {
         self.lerp(other, 0.5)
     }
 
-    pub(crate) fn sub(self, other: Self) -> Self {
-        Self::new(self.x - other.x, self.y - other.y)
-    }
-
-    pub(crate) fn add(self, other: Self) -> Self {
-        Self::new(self.x + other.x, self.y + other.y)
-    }
-
     pub(crate) fn cross(self, other: Self) -> f32 {
         self.x * other.y - self.y * other.x
     }
@@ -41,6 +29,20 @@ impl Point {
             return f32::INFINITY;
         }
         (self.x * self.x + self.y * self.y).sqrt()
+    }
+}
+
+impl std::ops::Add for Point {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self::new(self.x + other.x, self.y + other.y)
+    }
+}
+
+impl std::ops::Sub for Point {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self::new(self.x - other.x, self.y - other.y)
     }
 }
 
@@ -120,10 +122,6 @@ impl Outline {
 
     pub(crate) fn subpaths(&self) -> &[Subpath] {
         &self.subpaths
-    }
-
-    pub(crate) fn with_subpaths(&self, subpaths: Vec<Subpath>) -> Self {
-        Self { subpaths }
     }
 }
 
