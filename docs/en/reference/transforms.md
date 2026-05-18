@@ -184,12 +184,14 @@ Flips a glyph outline horizontally around its tight bounding-box centre.
 
 - both on-curve endpoints and off-curve control points are transformed
 - zero-coordinate element types (CLOSE, END, PAD) are not modified
-- flipping reverses subpath winding order
+- closed subpath winding is preserved by default
+- pass `preserve_winding=False` to keep the reflected winding order instead
+- open subpaths are reflected but not reversed
 
 ### I/O Shape
 
 - input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+- output: `types=(N,)`, `coords=(N, 6)`
 
 ## vertical_flip
 
@@ -205,12 +207,14 @@ Flips a glyph outline vertically around its tight bounding-box centre.
 
 - both on-curve endpoints and off-curve control points are transformed
 - zero-coordinate element types (CLOSE, END, PAD) are not modified
-- flipping reverses subpath winding order
+- closed subpath winding is preserved by default
+- pass `preserve_winding=False` to keep the reflected winding order instead
+- open subpaths are reflected but not reversed
 
 ### I/O Shape
 
 - input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+- output: `types=(N,)`, `coords=(N, 6)`
 
 ## affine
 
@@ -251,6 +255,7 @@ types, coords = random_horizontal_flip(types, coords, p=0.5)
 Randomly applies `horizontal_flip` with probability `p`.
 
 - `p`: flip probability (default: `0.5`)
+- `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
 - `generator`: optional `torch.Generator` for reproducibility
 
 ### I/O Shape
@@ -271,6 +276,7 @@ types, coords = random_vertical_flip(types, coords, p=0.5)
 Randomly applies `vertical_flip` with probability `p`.
 
 - `p`: flip probability (default: `0.5`)
+- `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
 - `generator`: optional `torch.Generator` for reproducibility
 
 ### I/O Shape

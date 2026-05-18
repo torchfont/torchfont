@@ -183,12 +183,14 @@ types, coords = horizontal_flip(types, coords)
 
 - on-curve 終点と off-curve 制御点の両方を変換します
 - 座標が 0 の element type（CLOSE、END、PAD）は変更しません
-- 反転により subpath の巻き順が逆転します
+- 閉じた subpath の巻き順はデフォルトで保持します
+- 反転後の巻き順をそのまま使うには `preserve_winding=False` を指定します
+- 開いた subpath は反転しますが、走査方向は反転しません
 
 ### 入出力
 
 - 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+- 出力: `types=(N,)`, `coords=(N, 6)`
 
 ## vertical_flip
 
@@ -204,12 +206,14 @@ types, coords = vertical_flip(types, coords)
 
 - on-curve 終点と off-curve 制御点の両方を変換します
 - 座標が 0 の element type（CLOSE、END、PAD）は変更しません
-- 反転により subpath の巻き順が逆転します
+- 閉じた subpath の巻き順はデフォルトで保持します
+- 反転後の巻き順をそのまま使うには `preserve_winding=False` を指定します
+- 開いた subpath は反転しますが、走査方向は反転しません
 
 ### 入出力
 
 - 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+- 出力: `types=(N,)`, `coords=(N, 6)`
 
 ## affine
 
@@ -250,6 +254,7 @@ types, coords = random_horizontal_flip(types, coords, p=0.5)
 確率 `p` で `horizontal_flip` をランダムに適用します。
 
 - `p`: 反転確率（デフォルト: `0.5`）
+- `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
 - `generator`: 再現性のためのオプション `torch.Generator`
 
 ### 入出力
@@ -270,6 +275,7 @@ types, coords = random_vertical_flip(types, coords, p=0.5)
 確率 `p` で `vertical_flip` をランダムに適用します。
 
 - `p`: 反転確率（デフォルト: `0.5`）
+- `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
 - `generator`: 再現性のためのオプション `torch.Generator`
 
 ### 入出力

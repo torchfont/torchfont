@@ -20,6 +20,9 @@ def normalize_subpath_start_points(
 def randomize_subpath_start_points(
     types: np.ndarray, coords: np.ndarray, random_values: np.ndarray
 ) -> tuple[list[int], list[float]]: ...
+def reverse_closed_subpaths(
+    types: np.ndarray, coords: np.ndarray
+) -> tuple[list[int], list[float]]: ...
 def remove_overlaps(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[list[int], list[float]]: ...

@@ -18,6 +18,21 @@ pub(crate) fn randomize_subpath_start_points(outline: &Outline, random_values: &
     })
 }
 
+pub(crate) fn reverse_closed_subpaths(outline: &Outline) -> Outline {
+    let subpaths = outline
+        .subpaths()
+        .iter()
+        .map(|subpath| {
+            if subpath.is_closed() {
+                reverse_closed_subpath(subpath)
+            } else {
+                subpath.clone()
+            }
+        })
+        .collect();
+    outline.with_subpaths(subpaths)
+}
+
 fn transform_start_points(
     outline: &Outline,
     choose_start: impl Fn(&Subpath, usize) -> usize,
@@ -52,6 +67,36 @@ fn rotate_closed_subpath(subpath: &Subpath, start_idx: usize) -> Subpath {
     }
     elements.extend_from_slice(&subpath.elements()[..split]);
     Subpath::new(start, elements, true)
+}
+
+fn reverse_closed_subpath(subpath: &Subpath) -> Subpath {
+    let Some(last) = subpath.elements().last() else {
+        return subpath.clone();
+    };
+
+    let nodes = subpath_nodes(subpath);
+    let elements = subpath
+        .elements()
+        .iter()
+        .enumerate()
+        .rev()
+        .map(|(idx, element)| reverse_element(*element, nodes[idx]))
+        .collect();
+    Subpath::new(last.end(), elements, true)
+}
+
+fn reverse_element(element: PathElement, end: Point) -> PathElement {
+    match element {
+        PathElement::LineTo(_) => PathElement::LineTo(end),
+        PathElement::QuadTo { control, .. } => PathElement::QuadTo { control, end },
+        PathElement::CurveTo {
+            control0, control1, ..
+        } => PathElement::CurveTo {
+            control0: control1,
+            control1: control0,
+            end,
+        },
+    }
 }
 
 fn subpath_nodes(subpath: &Subpath) -> Vec<Point> {

@@ -88,55 +88,77 @@ def _rotation_scale_shear_matrix(
     )
 
 
+def _preserve_closed_subpath_winding(
+    types: Tensor,
+    coords: Tensor,
+) -> tuple[Tensor, Tensor]:
+    out_types, out_coords = _torchfont.reverse_closed_subpaths(
+        types.cpu().contiguous().numpy(),
+        coords.cpu().contiguous().reshape(-1).numpy(),
+    )
+    return (
+        torch.tensor(out_types, dtype=torch.long, device=types.device),
+        torch.tensor(out_coords, dtype=torch.float32, device=coords.device).view(-1, 6),
+    )
+
+
 def horizontal_flip(
     types: Tensor,
     coords: Tensor,
+    *,
+    preserve_winding: bool = True,
 ) -> tuple[Tensor, Tensor]:
     """Flip a glyph outline horizontally around the bounding-box centre.
 
     Both on-curve endpoints and off-curve control points are transformed.
     Zero-coordinate element types (CLOSE, END, PAD) are left unchanged.
 
-    Note:
-        Flipping reverses subpath winding order. For most sequence models
-        this is acceptable; take care when consistent winding is required.
-
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+        preserve_winding: Reverse closed subpaths after reflection so their
+            winding direction matches the input. Default: ``True``.
 
     Returns:
         A new ``(types, coords)`` pair with coordinates reflected around the
-        bounding-box centre. ``types`` is returned unchanged (same object).
+        bounding-box centre. Closed subpaths are re-encoded when
+        ``preserve_winding`` is enabled.
 
     """
     matrix = torch.tensor([[-1.0, 0.0], [0.0, 1.0]])
     center = _bbox_center(types, coords)
-    return types, _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
+    out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
+    if preserve_winding:
+        return _preserve_closed_subpath_winding(types, out_coords)
+    return types, out_coords
 
 
 def vertical_flip(
     types: Tensor,
     coords: Tensor,
+    *,
+    preserve_winding: bool = True,
 ) -> tuple[Tensor, Tensor]:
     """Flip a glyph outline vertically around the bounding-box centre.
-
-    Note:
-        Flipping reverses subpath winding order. For most sequence models
-        this is acceptable; take care when consistent winding is required.
 
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+        preserve_winding: Reverse closed subpaths after reflection so their
+            winding direction matches the input. Default: ``True``.
 
     Returns:
         A new ``(types, coords)`` pair with coordinates reflected around the
-        bounding-box centre. ``types`` is returned unchanged (same object).
+        bounding-box centre. Closed subpaths are re-encoded when
+        ``preserve_winding`` is enabled.
 
     """
     matrix = torch.tensor([[1.0, 0.0], [0.0, -1.0]])
     center = _bbox_center(types, coords)
-    return types, _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
+    out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
+    if preserve_winding:
+        return _preserve_closed_subpath_winding(types, out_coords)
+    return types, out_coords
 
 
 def affine(
@@ -182,6 +204,7 @@ def random_horizontal_flip(
     coords: Tensor,
     *,
     p: float = 0.5,
+    preserve_winding: bool = True,
     generator: torch.Generator | None = None,
 ) -> tuple[Tensor, Tensor]:
     """Randomly flip a glyph outline horizontally with probability ``p``.
@@ -190,6 +213,8 @@ def random_horizontal_flip(
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         p: Probability of applying the flip. Default: ``0.5``.
+        preserve_winding: Reverse closed subpaths after reflection so their
+            winding direction matches the input. Default: ``True``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 
     Returns:
@@ -197,7 +222,7 @@ def random_horizontal_flip(
 
     """
     if torch.rand(1, generator=generator).item() < p:
-        return horizontal_flip(types, coords)
+        return horizontal_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
 
 
@@ -206,6 +231,7 @@ def random_vertical_flip(
     coords: Tensor,
     *,
     p: float = 0.5,
+    preserve_winding: bool = True,
     generator: torch.Generator | None = None,
 ) -> tuple[Tensor, Tensor]:
     """Randomly flip a glyph outline vertically with probability ``p``.
@@ -214,6 +240,8 @@ def random_vertical_flip(
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         p: Probability of applying the flip. Default: ``0.5``.
+        preserve_winding: Reverse closed subpaths after reflection so their
+            winding direction matches the input. Default: ``True``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 
     Returns:
@@ -221,7 +249,7 @@ def random_vertical_flip(
 
     """
     if torch.rand(1, generator=generator).item() < p:
-        return vertical_flip(types, coords)
+        return vertical_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
 
 

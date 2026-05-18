@@ -103,6 +103,18 @@ fn randomize_subpath_start_points(
 }
 
 #[pyfunction]
+fn reverse_closed_subpaths(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    let t = types.as_slice()?;
+    let c = coords.as_slice()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
+    let outline = outline::Outline::decode(t, c);
+    Ok(transform::subpath::reverse_closed_subpaths(&outline).encode())
+}
+
+#[pyfunction]
 fn remove_overlaps(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
@@ -189,6 +201,7 @@ fn _torchfont(_py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(remove_overlaps, &m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, &m)?)?;
     m.add_function(wrap_pyfunction!(randomize_subpath_start_points, &m)?)?;
+    m.add_function(wrap_pyfunction!(reverse_closed_subpaths, &m)?)?;
     m.add_function(wrap_pyfunction!(tight_bbox, &m)?)?;
     m.add_function(wrap_pyfunction!(render_bitmap, &m)?)?;
     Ok(())

@@ -8,7 +8,13 @@ def test_random_vertical_flip_applies_with_p1(
 ) -> None:
     types, coords = simple_outline
     g = torch.Generator().manual_seed(0)
-    _, out = random_vertical_flip(types, coords, p=1.0, generator=g)
+    _, out = random_vertical_flip(
+        types,
+        coords,
+        p=1.0,
+        preserve_winding=False,
+        generator=g,
+    )
     assert not torch.equal(out, coords)
 
 
