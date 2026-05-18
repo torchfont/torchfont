@@ -20,6 +20,10 @@ impl Point {
         self.lerp(other, 0.5)
     }
 
+    pub(crate) fn dot(self, other: Self) -> f32 {
+        self.x * other.x + self.y * other.y
+    }
+
     pub(crate) fn cross(self, other: Self) -> f32 {
         self.x * other.y - self.y * other.x
     }
@@ -28,7 +32,7 @@ impl Point {
         if !self.x.is_finite() || !self.y.is_finite() {
             return f32::INFINITY;
         }
-        (self.x * self.x + self.y * self.y).sqrt()
+        self.dot(self).sqrt()
     }
 }
 

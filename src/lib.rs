@@ -91,11 +91,11 @@ fn randomize_subpath_start_points(
         ));
     }
     let outline = outline::Outline::decode(t, c);
-    let subpath_random_values = t
+    let subpath_random_values: Vec<f32> = t
         .iter()
-        .enumerate()
-        .filter_map(|(idx, &ty)| (ty == outline::ElementType::MoveTo as i64).then_some(r[idx]))
-        .collect::<Vec<_>>();
+        .zip(r)
+        .filter_map(|(&ty, &rv)| (ty == outline::ElementType::MoveTo as i64).then_some(rv))
+        .collect();
     Ok(
         transform::subpath::randomize_subpath_start_points(&outline, &subpath_random_values)
             .encode(),
