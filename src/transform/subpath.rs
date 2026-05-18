@@ -80,23 +80,9 @@ fn reverse_closed_subpath(subpath: &Subpath) -> Subpath {
         .iter()
         .enumerate()
         .rev()
-        .map(|(idx, element)| reverse_element(*element, nodes[idx]))
+        .map(|(idx, element)| element.reversed_to(nodes[idx]))
         .collect();
     Subpath::new(last.end(), elements, true)
-}
-
-fn reverse_element(element: PathElement, end: Point) -> PathElement {
-    match element {
-        PathElement::LineTo(_) => PathElement::LineTo(end),
-        PathElement::QuadTo { control, .. } => PathElement::QuadTo { control, end },
-        PathElement::CurveTo {
-            control0, control1, ..
-        } => PathElement::CurveTo {
-            control0: control1,
-            control1: control0,
-            end,
-        },
-    }
 }
 
 fn subpath_nodes(subpath: &Subpath) -> Vec<Point> {

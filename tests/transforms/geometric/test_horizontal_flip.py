@@ -64,6 +64,15 @@ def test_horizontal_flip_transforms_cubic_control_points(
     assert out[curve_idx, 2].item() == pytest.approx(1.0 - coords[curve_idx, 2].item())
 
 
+def test_horizontal_flip_reverses_cubic_segments_when_preserving_winding(
+    cubic_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = cubic_outline
+    _, out = horizontal_flip(types, coords)
+    assert out[1, 0].item() == pytest.approx(1.0 - coords[2, 2].item())
+    assert out[1, 2].item() == pytest.approx(1.0 - coords[2, 0].item())
+
+
 def test_horizontal_flip_quad_pair1_stays_zero(
     quad_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:

@@ -65,6 +65,20 @@ impl PathElement {
             Self::LineTo(end) | Self::QuadTo { end, .. } | Self::CurveTo { end, .. } => end,
         }
     }
+
+    pub(crate) fn reversed_to(self, end: Point) -> Self {
+        match self {
+            Self::LineTo(_) => Self::LineTo(end),
+            Self::QuadTo { control, .. } => Self::QuadTo { control, end },
+            Self::CurveTo {
+                control0, control1, ..
+            } => Self::CurveTo {
+                control0: control1,
+                control1: control0,
+                end,
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
