@@ -7,7 +7,6 @@ impl Outline {
         let mut subpaths = Vec::new();
         let mut current: Option<SubpathBuilder> = None;
 
-        let mut terminated = false;
         for (&ty, values) in types.iter().zip(coords.chunks_exact(6)) {
             match ty {
                 v if v == ElementType::MoveTo as i64 => {
@@ -45,20 +44,13 @@ impl Outline {
                         subpaths.push(builder.finish(true));
                     }
                 }
-                v if v == ElementType::End as i64 => {
-                    terminated = true;
-                    break;
-                }
                 _ => break,
             }
         }
         if let Some(builder) = current {
             subpaths.push(builder.finish(false));
         }
-        Self {
-            subpaths,
-            terminated,
-        }
+        Self { subpaths }
     }
 
     pub(crate) fn encode(&self) -> (Vec<i64>, Vec<f32>) {
@@ -98,9 +90,7 @@ impl Outline {
                 push(&mut types, &mut coords, ElementType::Close, [0.0; 6]);
             }
         }
-        if self.terminated {
-            push(&mut types, &mut coords, ElementType::End, [0.0; 6]);
-        }
+        push(&mut types, &mut coords, ElementType::End, [0.0; 6]);
         (types, coords)
     }
 }
