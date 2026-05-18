@@ -1,9 +1,6 @@
+use super::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
 use crate::outline::{Outline, PathElement, Point, Subpath};
 
-// Absolute tolerance for merge validation (normalized coords ≈ 1 font-unit in 1000 UPM).
-const TOLERANCE: f32 = 1e-3;
-
-type Cubic = (Point, Point, Point, Point);
 type Quad = (Point, Point, Point);
 
 pub(crate) fn merge_curves(outline: &Outline) -> Outline {
@@ -60,23 +57,19 @@ fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathE
                 i += len;
             }
             PathElement::LineTo(end) => {
-                let merged = if let (Some(PathElement::LineTo(last_end)), Some(&last_start)) =
+                if let (Some(PathElement::LineTo(last_end)), Some(&last_start)) =
                     (result.last().copied(), result_starts.last())
+                    && can_merge_lines(last_start, last_end, end)
                 {
-                    can_merge_lines(last_start, last_end, end).then_some(PathElement::LineTo(end))
-                } else {
-                    None
-                };
-                if let Some(element) = merged {
-                    let saved_start = *result_starts.last().unwrap();
                     result.pop();
                     result_starts.pop();
-                    result.push(element);
-                    result_starts.push(saved_start);
-                } else {
-                    result.push(element);
-                    result_starts.push(seg_start);
+                    result.push(PathElement::LineTo(end));
+                    result_starts.push(last_start);
+                    i += 1;
+                    continue;
                 }
+                result.push(element);
+                result_starts.push(seg_start);
                 i += 1;
             }
         }
@@ -323,50 +316,13 @@ fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f32]) -> 
             return pieces;
         }
         let t_rel = (t - t_prev) / remaining;
-        let (left, right) = split_cubic_at_t(current.0, current.1, current.2, current.3, t_rel);
+        let (left, right) = split_cubic_at(current.0, current.1, current.2, current.3, t_rel);
         pieces.push(left);
         current = right;
         t_prev = t;
     }
     pieces.push(current);
     pieces
-}
-
-fn split_cubic_at_t(p0: Point, p1: Point, p2: Point, p3: Point, t: f32) -> (Cubic, Cubic) {
-    let q1 = p0.lerp(p1, t);
-    let q2 = p1.lerp(p2, t);
-    let q3 = p2.lerp(p3, t);
-    let r1 = q1.lerp(q2, t);
-    let r2 = q2.lerp(q3, t);
-    let s = r1.lerp(r2, t);
-    ((p0, q1, r1, s), (s, r2, q3, p3))
-}
-
-// Recursive check: does the cubic (as a displacement field relative to the origin)
-// lie entirely within `tolerance` of the origin?  Ported from fonttools qu2cu.
-fn cubic_farthest_fit_inside(p0: Point, p1: Point, p2: Point, p3: Point, tolerance: f32) -> bool {
-    if p2.norm() <= tolerance && p1.norm() <= tolerance {
-        return true;
-    }
-
-    let mid = Point::new(
-        (p0.x + 3.0 * (p1.x + p2.x) + p3.x) * 0.125,
-        (p0.y + 3.0 * (p1.y + p2.y) + p3.y) * 0.125,
-    );
-    if mid.norm() > tolerance {
-        return false;
-    }
-
-    let deriv3 = Point::new(
-        (p3.x + p2.x - p1.x - p0.x) * 0.125,
-        (p3.y + p2.y - p1.y - p0.y) * 0.125,
-    );
-
-    let p01 = p0.lerp(p1, 0.5);
-    let p23 = p2.lerp(p3, 0.5);
-
-    cubic_farthest_fit_inside(p0, p01, mid - deriv3, mid, tolerance)
-        && cubic_farthest_fit_inside(mid, mid + deriv3, p23, p3, tolerance)
 }
 
 fn can_merge_lines(start: Point, middle: Point, end: Point) -> bool {
