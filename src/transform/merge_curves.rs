@@ -28,7 +28,10 @@ fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathE
         match element {
             PathElement::CurveTo { .. } => {
                 let (element, len) = try_merge_run(
-                    seg_start, &elements, i, n,
+                    seg_start,
+                    &elements,
+                    i,
+                    n,
                     |e| matches!(e, PathElement::CurveTo { .. }),
                     try_merge_cubics_n,
                 );
@@ -38,7 +41,10 @@ fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathE
             }
             PathElement::QuadTo { .. } => {
                 let (element, len) = try_merge_run(
-                    seg_start, &elements, i, n,
+                    seg_start,
+                    &elements,
+                    i,
+                    n,
                     |e| matches!(e, PathElement::QuadTo { .. }),
                     try_merge_quads_n,
                 );
