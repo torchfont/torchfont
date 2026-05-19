@@ -1,128 +1,180 @@
 # Glyph Data Format
 
-TorchFont datasets return each glyph sample as a `GlyphSample`:
+## Accessing a sample
+
+Access a sample from the dataset created in the previous chapter. Run the following code:
 
 ```python
-sample = dataset[i]
+from torchfont.datasets import GlyphDataset
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(sample.types)        # element type sequence
+print(sample.coords)       # coordinates sequence
+print(sample.style_idx)    # style class ID
+print(sample.content_idx)  # content class ID
 ```
 
-| Field                | Type                | Shape          | Meaning                          |
-| -------------------- | ------------------- | -------------- | -------------------------------- |
-| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   | Element type sequence            |
-| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` | Coordinates per path element     |
-| `sample.style_idx`   | `int`               | scalar         | Style class ID                   |
-| `sample.content_idx` | `int`               | scalar         | Content class ID                 |
-| `sample.metrics`     | `torch.FloatTensor` | `(15,)`        | Per-glyph and font-level metrics |
-| `sample.glyph_name`  | `str`               | —              | PostScript glyph name            |
-
-`GlyphSample` is a dataclass; field access by name is the intended API.
+The return value is a `GlyphSample` dataclass. Access its fields by name.
 
 ## Outline model
 
-- **Outline**: a sequence of path elements
-- **Subpath**: a sequence of path elements starting with `MoveTo` and ending with `Close`; open subpaths (without a closing `Close`) are also treated as subpaths for convenience
-- **Path element**: one element type plus one coordinates row
-- **Element type**: `MoveTo`, `LineTo`, `QuadTo`, `CurveTo`, `Close`, `End`, or `Pad`
-- **Coordinates**: `[cx0, cy0, cx1, cy1, x, y]`
+A glyph outline is represented as a sequence of path elements.
 
-`sample.metrics` is a 1-D `float32` tensor of shape `(15,)`:
+- **Path element**: the smallest unit — one element type plus one coordinates row
+- **Subpath**: a sequence of path elements representing one continuous curve that makes up a glyph
+- **Outline**: a sequence of path elements representing the contour of one glyph
 
-```python
-# [adv_w, lsb, x_min, y_min, x_max, y_max,
-#  ascent, descent, leading, cap_height, x_height, avg_width,
-#  italic_angle, units_per_em, is_monospace]
-m = sample.metrics
-```
+`sample.types` is a `(seq_len,)` `LongTensor` of element types as integers. `sample.coords` is a `(seq_len, 6)` `FloatTensor` of coordinates as floats.
 
-Values are UPM-normalised where applicable; `nan` when missing.
+## Element type
 
-## `types`
+Element types are defined in `ElementType`. Run the following code to see the mapping between values and names:
 
 ```python
+from torchfont.datasets import GlyphDataset
 from torchfont.io import ElementType
 
-print(ElementType.QUAD_TO, ElementType.QUAD_TO.value)
-# ElementType.QUAD_TO 3
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(sample.types)
+print(ElementType(sample.types[0].item()).name)
 ```
 
-- `ElementType.END` marks end of sequence
+You will see output like:
+
+```
+tensor([1, 2, 3, ..., 5, 6])
+MOVE_TO
+```
+
+The seven types are `MoveTo`, `LineTo`, `QuadTo`, `CurveTo`, `Close`, `End`, and `Pad`.
+
+- `ElementType.END` marks the end of the sequence
 - `ElementType.PAD` is mainly introduced by `pad_sequence` or custom padding
 
-## `coords`
+## Coordinates
 
-Each step uses a 6D vector:
+Each path element uses a 6D coordinates vector. Run the following code to inspect the shape and contents:
 
-```text
-[cx0, cy0, cx1, cy1, x, y]
+```python
+from torchfont.datasets import GlyphDataset
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(sample.coords.shape)
+print(sample.coords[0])
 ```
 
-- `ElementType.MOVE_TO` / `ElementType.LINE_TO`: control points are zero;
-  endpoint `(x, y)` is used
-- `ElementType.QUAD_TO`: one control point `(cx0, cy0)` and endpoint `(x, y)`
-  are used (`cx1, cy1` are zero)
-- `ElementType.CURVE_TO`: two control points `(cx0, cy0)` and `(cx1, cy1)`,
-  and the endpoint
-  `(x, y)` are used
-- `ElementType.CLOSE` / `ElementType.END` / `ElementType.PAD`: zeros
+You will see output like:
+
+```
+torch.Size([seq_len, 6])
+tensor([cx0, cy0, cx1, cy1, x, y])
+```
+
+Which dimensions are used depends on the element type:
+
+- **`MoveTo` / `LineTo`**: endpoint `(x, y)` only; control points are zero
+- **`QuadTo`**: one control point `(cx0, cy0)` and endpoint `(x, y)`; `cx1`, `cy1` are zero
+- **`CurveTo`**: two control points `(cx0, cy0)`, `(cx1, cy1)`, and endpoint `(x, y)`
+- **`Close` / `End` / `Pad`**: all zeros
 
 ::: info
 Coordinates are normalized by the font `units_per_em`.
 :::
 
-## Quadratic Bezier handling
-
-Quadratic curves are emitted as `ElementType.QUAD_TO` without conversion. To
-keep tensor shape fixed, `ElementType.QUAD_TO` uses
-`[cx0, cy0, 0, 0, x, y]`.
+Quadratic curves are emitted as `QuadTo` without conversion to cubic. To keep tensor shape fixed, `QuadTo` uses `[cx0, cy0, 0, 0, x, y]`.
 
 ## Style and content labels
 
 ### `style_idx`
 
-- static fonts: usually `Family + Subfamily` (e.g. `Lato Regular`)
-- variable fonts: one class per named instance when available
-- variable fonts with empty instance names: `Family` only
-- variable fonts without named instances: fallback to `Family + Subfamily` (or
-  `Family`)
+`style_idx` is the style class ID. Run the following code to look up the corresponding name:
 
 ```python
-metadata = dataset.metadata
+from torchfont.datasets import GlyphDataset
 
-print(dataset.style_classes[:5])
-print(metadata.styles[:5])
-print(metadata.style_name_to_idxs)
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(dataset.style_classes[sample.style_idx])
 ```
 
-`metadata.styles` exposes source-based collision-safe IDs derived from relative
-font path / face / instance information, while
-`metadata.style_name_to_idxs` keeps every index for duplicate display names.
+You will see output like:
+
+```
+Aclonica Regular
+```
 
 ### `content_idx`
 
-- one class per Unicode character
+`content_idx` is the content class ID. `content_classes` returns the corresponding character. Run the following code to check the value:
 
 ```python
-metadata = dataset.metadata
+from torchfont.datasets import GlyphDataset
 
-print(dataset.content_classes[:5])
-print(metadata.contents[:5])
-print(metadata.content_id_to_idx)
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(dataset.content_classes[sample.content_idx])
 ```
 
-## `targets`
+You will see output like:
 
-```python
-t = dataset.targets  # shape: (N, 2), dtype: torch.long
-
-style_all = t[:, 0]    # column 0: style_idx
-content_all = t[:, 1]  # column 1: content_idx
 ```
-
-## Shapes after utilities
-
-`quad_to_cubic` preserves both `types` and `coords` shapes.
-
-`patchify` changes the shape: a sequence of length `N` becomes
-`(num_patches, patch_size)` for `types` and `(num_patches, patch_size, 6)` for
-`coords`. If you add custom dataset transforms for model-specific shaping, keep
-`style_idx` and `content_idx` aligned with the returned sample.
+A
+```

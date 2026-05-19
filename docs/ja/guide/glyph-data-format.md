@@ -2,122 +2,181 @@
 
 <!-- markdownlint-disable MD013 -->
 
-TorchFont の Dataset は、各グリフを `GlyphSample` として返します。
+## サンプルを取得する
+
+前のチャプターで作成した Dataset からサンプルを取得します。次のコードを実行してください。
 
 ```python
-sample = dataset[i]
+from torchfont.datasets import GlyphDataset
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(sample.types)        # Element Type の系列
+print(sample.coords)       # Coordinates の系列
+print(sample.style_idx)    # 書体スタイルのクラス ID
+print(sample.content_idx)  # 文字内容のクラス ID
 ```
 
-| フィールド | 型 | 形状 | 意味 |
-| --- | --- | --- | --- |
-| `sample.types` | `torch.LongTensor` | `(seq_len,)` | element type 列 |
-| `sample.coords` | `torch.FloatTensor` | `(seq_len, 6)` | 各 path element の coordinates |
-| `sample.style_idx` | `int` | スカラー | 書体スタイルのクラスID |
-| `sample.content_idx` | `int` | スカラー | 文字内容のクラスID |
-| `sample.metrics` | `torch.FloatTensor` | `(15,)` | グリフ・フォント単位のメトリクス |
-| `sample.glyph_name` | `str` | — | PostScript グリフ名 |
-
-`GlyphSample` は dataclass なので、名前付きフィールドでアクセスする使い方が前提です。
+返り値は `GlyphSample` という Dataclass です。各フィールドには名前でアクセスします。
 
 ## Outline モデル
 
-- **Outline**: path element の系列
-- **Subpath**: `MoveTo` ではじまり `Close` で終わる path element の系列（`Close` がない open subpath も便宜的に subpath として扱う）
-- **Path element**: 1 つの element type と 1 行の coordinates
-- **Element type**: `MoveTo`, `LineTo`, `QuadTo`, `CurveTo`, `Close`, `End`, `Pad`
-- **Coordinates**: `[cx0, cy0, cx1, cy1, x, y]`
+グリフのアウトラインは、Path Element の系列として表現されます。
 
-`sample.metrics` は形状 `(15,)` の 1-D `float32` テンソルです:
+- **Path element**: 1 つの Element Type と 1 行の Coordinates からなる最小単位
+- **Subpath**: グリフを構成する一続きの曲線ひとつを表す Path Element の系列
+- **Outline**: グリフ 1 文字分の輪郭を表す Path Element の系列
 
-```python
-# [adv_w, lsb, x_min, y_min, x_max, y_max,
-#  ascent, descent, leading, cap_height, x_height, avg_width,
-#  italic_angle, units_per_em, is_monospace]
-m = sample.metrics
-```
+`sample.types` は Element Type を整数で並べた `(seq_len,)` の `LongTensor`、`sample.coords` は Coordinates を並べた `(seq_len, 6)` の `FloatTensor` です。
 
-値は UPM で正規化済み（該当する場合）。欠損時は `nan`。
+## Element Type
 
-## `types` の定義
+Element Type は `ElementType` で定義されています。次のコードで値と名前の対応を確認できます。
 
 ```python
+from torchfont.datasets import GlyphDataset
 from torchfont.io import ElementType
 
-print(ElementType.QUAD_TO, ElementType.QUAD_TO.value)
-# ElementType.QUAD_TO 3
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(sample.types)
+print(ElementType(sample.types[0].item()).name)
 ```
 
-- `ElementType.END` はシーケンス終端
-- `ElementType.PAD` は主に `pad_sequence` や独自 padding で出現
+実行すると次のような出力が得られます。
 
-## `coords` の定義
-
-各ステップは 6 次元です。
-
-```text
-[cx0, cy0, cx1, cy1, x, y]
+```
+tensor([1, 2, 3, ..., 5, 6])
+MOVE_TO
 ```
 
-- `ElementType.MOVE_TO` / `ElementType.LINE_TO`: 制御点は 0、終点 `(x, y)` を使用
-- `ElementType.QUAD_TO`: 2 次ベジェの制御点 `(cx0, cy0)` と終点 `(x, y)` を使用（`cx1`,
-  `cy1` は 0）
-- `ElementType.CURVE_TO`: 3 次ベジェの制御点 `(cx0, cy0)` と `(cx1, cy1)` + 終点を使用
-- `ElementType.CLOSE` / `ElementType.END` / `ElementType.PAD`: coordinates は 0
+種類は `MoveTo`、`LineTo`、`QuadTo`、`CurveTo`、`Close`、`End`、`Pad` の 7 つです。
+
+- `ElementType.END` はシーケンス終端を表します
+- `ElementType.PAD` は `pad_sequence` や独自 Padding で出現します
+
+## Coordinates
+
+各 Path Element の Coordinates は 6 次元のベクトルです。次のコードで形状と内容を確認できます。
+
+```python
+from torchfont.datasets import GlyphDataset
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(sample.coords.shape)
+print(sample.coords[0])
+```
+
+実行すると次のような出力が得られます。
+
+```
+torch.Size([seq_len, 6])
+tensor([cx0, cy0, cx1, cy1, x, y])
+```
+
+使用する次元は Element Type によって異なります。
+
+- **`MoveTo` / `LineTo`**: 終点 `(x, y)` のみ使用。制御点は 0
+- **`QuadTo`**: 制御点 `(cx0, cy0)` と終点 `(x, y)` を使用。`cx1`、`cy1` は 0
+- **`CurveTo`**: 制御点 `(cx0, cy0)`、`(cx1, cy1)` と終点 `(x, y)` をすべて使用
+- **`Close` / `End` / `Pad`**: すべて 0
 
 ::: info
-coordinates はフォントの `units_per_em` で正規化されています。
+Coordinates はフォントの `units_per_em` で正規化されています。
 :::
 
-## 2 次ベジェの扱い
-
-2 次ベジェは `ElementType.QUAD_TO` としてそのまま出力されます。テンソル形状を固定するため、`ElementType.QUAD_TO` の coordinates は `[cx0, cy0, 0, 0, x, y]` です。
+2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の Coordinates は `[cx0, cy0, 0, 0, x, y]` です。
 
 ## スタイルとコンテンツのラベル
 
 ### `style_idx`
 
-- 静的フォント: 通常は `Family + Subfamily` 形式（例: `Lato Regular`）
-- 可変フォント: 名前付きインスタンスがあれば、その単位で 1 クラス
-- 可変フォントでインスタンス名が空の場合: `Family` のみ
-- 可変フォントで名前付きインスタンスがない場合: `Family + Subfamily`（または
-  `Family`）へフォールバック
+`style_idx` は書体スタイルのクラス ID です。次のコードで対応するスタイル名を確認できます。
 
 ```python
-metadata = dataset.metadata
+from torchfont.datasets import GlyphDataset
 
-print(dataset.style_classes[:5])
-print(metadata.styles[:5])
-print(metadata.style_name_to_idxs)
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(dataset.style_classes[sample.style_idx])
 ```
 
-`metadata.styles` は relative path / face / instance 由来の衝突しない識別子を持ち、重複表示名は `metadata.style_name_to_idxs` で全 index を取得できます。
+実行すると次のような出力が得られます。
+
+```
+Aclonica Regular
+```
 
 ### `content_idx`
 
-- Unicode 文字ごとのクラスID
+`content_idx` は文字内容のクラス ID です。`content_classes` から対応する文字を取得できます。次のコードで確認できます。
 
 ```python
-metadata = dataset.metadata
+from torchfont.datasets import GlyphDataset
 
-print(dataset.content_classes[:5])
-print(metadata.contents[:5])
-print(metadata.content_id_to_idx)
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    codepoints=range(0x41, 0x5B),
+)
+
+sample = dataset[0]
+
+print(dataset.content_classes[sample.content_idx])
 ```
 
-## `targets` で一括取得
+実行すると次のような出力が得られます。
 
-```python
-t = dataset.targets  # shape: (N, 2), dtype: torch.long
-
-style_all = t[:, 0]    # 1 列目: style_idx
-content_all = t[:, 1]  # 2 列目: content_idx
 ```
-
-## Utility 後の形状
-
-`quad_to_cubic` は `types` / `coords` の形状を保持します。
-
-`patchify` は形状を変更します。長さ `N` のシーケンスは `types` が
-`(num_patches, patch_size)`、`coords` が `(num_patches, patch_size, 6)` になります。
-モデル固有の整形を dataset transform として追加する場合も、返す sample の
-`style_idx` / `content_idx` との対応を保ってください。
+A
+```
