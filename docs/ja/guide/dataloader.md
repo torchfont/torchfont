@@ -1,4 +1,4 @@
-# DataLoader でのバッチ処理
+# DataLoader によるバッチ処理
 
 <!-- markdownlint-disable MD013 -->
 
