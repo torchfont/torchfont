@@ -21,6 +21,7 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 |Corpus checkout|`font_awesome.py`|Font Awesome checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons checkout|
 |Corpus checkout|`source_han_code_jp.py`|Source Han Code JP TTC checkout|
+
 ## Suggested reading order
 
 1. `local_fonts.py`

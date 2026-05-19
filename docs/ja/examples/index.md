@@ -22,6 +22,7 @@
 |Corpus checkout|`font_awesome.py`|Font Awesome の checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons の checkout|
 |Corpus checkout|`source_han_code_jp.py`|Source Han Code JP TTC の checkout|
+
 ## 読む順番のおすすめ
 
 1. `local_fonts.py`
