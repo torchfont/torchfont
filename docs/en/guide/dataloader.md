@@ -1,4 +1,4 @@
-# DataLoader Integration
+# Batching with DataLoader
 
 ## Why use a DataLoader
 

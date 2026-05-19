@@ -1,4 +1,4 @@
-# GlyphDataset Usage
+# Loading with GlyphDataset
 
 ## Loading the dataset
 

@@ -1,4 +1,4 @@
-# GlyphDataset の使い方
+# GlyphDataset での読み込み
 
 ## データセットを読み込む
 
