@@ -22,12 +22,9 @@
 |Corpus checkout|`font_awesome.py`|Font Awesome の checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons の checkout|
 |Corpus checkout|`source_han_code_jp.py`|Source Han Code JP TTC の checkout|
-|Subsetting|`subset_by_targets.py`|style/content を `targets` から抽出|
-
 ## 読む順番のおすすめ
 
 1. `local_fonts.py`
-2. `subset_by_targets.py`
-3. `google_fonts.py`
+2. `google_fonts.py`
 4. 必要なリポジトリ向けの `font_awesome.py` / `material_design_icons.py` /
    `source_han_code_jp.py`
