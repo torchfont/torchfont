@@ -10,9 +10,9 @@ use skrifa::{
 };
 
 use crate::{
-    bounds,
     error::{py_err, py_index_err},
-    outline,
+    font::extract_glyph_outline,
+    geom::bounds_from_outline,
 };
 
 use skrifa::raw::types::NameId;
@@ -81,7 +81,7 @@ impl GlyphReader {
             let inv_upem = 1.0 / units_per_em;
             let scale = |v: Option<f32>| v.map(|v| v * inv_upem).unwrap_or(f32::NAN);
 
-            let outline = outline::extract_glyph_outline(
+            let outline = extract_glyph_outline(
                 &glyph,
                 DrawSettings::unhinted(Size::unscaled(), location_ref),
                 units_per_em,
@@ -93,7 +93,7 @@ impl GlyphReader {
             let lsb = scale(glyph_metrics.left_side_bearing(glyph_id));
             let nan4 = (f32::NAN, f32::NAN, f32::NAN, f32::NAN);
             let (x_min, y_min, x_max, y_max) = if metrics_bounds_are_outline_based(&font) {
-                bounds::bounds_from_outline(&outline)
+                bounds_from_outline(&outline)
                     .map_or(nan4, |bb| (bb.x_min, bb.y_min, bb.x_max, bb.y_max))
             } else {
                 glyph_metrics.bounds(glyph_id).map_or(nan4, |bb| {

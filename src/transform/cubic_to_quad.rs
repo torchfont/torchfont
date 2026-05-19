@@ -1,5 +1,5 @@
-use super::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
-use crate::outline::{Outline, PathElement, Point, Subpath};
+use crate::geom::{Outline, PathElement, Point, Subpath};
+use crate::skia::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
 
 // Keep this aligned with fonttools.cu2qu.MAX_N.
 const MAX_N: usize = 100;

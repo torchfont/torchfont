@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub(super) fn canonicalize_root(root: &str) -> PyResult<PathBuf> {
+pub(crate) fn canonicalize_root(root: &str) -> PyResult<PathBuf> {
     let expanded = shellexpand::tilde(root);
     let path = PathBuf::from(expanded.as_ref());
     fs::canonicalize(&path).map_err(|err| {
@@ -18,7 +18,7 @@ pub(super) fn canonicalize_root(root: &str) -> PyResult<PathBuf> {
     })
 }
 
-pub(super) fn discover_font_files(
+pub(crate) fn discover_font_files(
     root: &Path,
     patterns: Option<&[String]>,
 ) -> PyResult<Vec<String>> {

@@ -1,4 +1,4 @@
-use crate::outline::{Outline, PathElement, Point};
+use super::{Outline, PathElement, Point};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Bounds {

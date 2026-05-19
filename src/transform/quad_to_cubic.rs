@@ -1,5 +1,5 @@
 use super::merge_curves;
-use crate::outline::{ElementType, Outline, Point};
+use crate::geom::{ElementType, Outline, Point};
 
 pub(crate) fn quad_to_cubic(types: &mut [i64], coords: &mut [f32], seq_len: usize) {
     debug_assert_eq!(types.len() * 6, coords.len());

@@ -1,7 +1,6 @@
 use skrifa::outline::{DrawError, DrawSettings, OutlineGlyph, OutlinePen};
 
-use super::model::SubpathBuilder;
-use super::{Outline, PathElement, Point, Subpath};
+use crate::geom::{Outline, PathElement, Point, Subpath, SubpathBuilder};
 
 struct OutlineEncodingPen {
     subpaths: Vec<Subpath>,
