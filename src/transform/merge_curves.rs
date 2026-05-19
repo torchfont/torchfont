@@ -8,14 +8,14 @@ pub(crate) fn merge_curves(outline: &Outline) -> Outline {
         .subpaths()
         .iter()
         .map(|subpath| {
-            let elements = merge_subpath_elements(subpath.start(), subpath.elements().to_vec());
+            let elements = merge_subpath_elements(subpath.start(), subpath.elements());
             Subpath::new(subpath.start(), elements, subpath.is_closed())
         })
         .collect();
     Outline::new(subpaths)
 }
 
-fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathElement> {
+fn merge_subpath_elements(start: Point, elements: &[PathElement]) -> Vec<PathElement> {
     let n = elements.len();
     let mut result = Vec::with_capacity(n);
     let mut result_starts = Vec::with_capacity(n);
@@ -30,18 +30,16 @@ fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathE
                 let (merged, len) = if matches!(element, PathElement::CurveTo { .. }) {
                     try_merge_run(
                         seg_start,
-                        &elements,
+                        elements,
                         i,
-                        n,
                         |e| matches!(e, PathElement::CurveTo { .. }),
                         try_merge_cubics_n,
                     )
                 } else {
                     try_merge_run(
                         seg_start,
-                        &elements,
+                        elements,
                         i,
-                        n,
                         |e| matches!(e, PathElement::QuadTo { .. }),
                         try_merge_quads_n,
                     )
@@ -51,8 +49,8 @@ fn merge_subpath_elements(start: Point, elements: Vec<PathElement>) -> Vec<PathE
                 i += len;
             }
             PathElement::LineTo(end) => {
-                if let (Some(PathElement::LineTo(last_end)), Some(&last_start)) =
-                    (result.last().copied(), result_starts.last())
+                if let (Some(PathElement::LineTo(last_end)), Some(last_start)) =
+                    (result.last().copied(), result_starts.last().copied())
                     && can_merge_lines(last_start, last_end, end)
                 {
                     result.pop();
@@ -75,12 +73,11 @@ fn try_merge_run(
     seg_start: Point,
     elements: &[PathElement],
     i: usize,
-    n: usize,
     is_same: impl Fn(PathElement) -> bool,
     try_merge: fn(Point, &[PathElement]) -> Option<PathElement>,
 ) -> (PathElement, usize) {
     let mut run_end = i + 1;
-    while run_end < n && is_same(elements[run_end]) {
+    while run_end < elements.len() && is_same(elements[run_end]) {
         run_end += 1;
     }
     let run_len = run_end - i;

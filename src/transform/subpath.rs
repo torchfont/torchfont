@@ -3,9 +3,9 @@ use crate::outline::{Outline, PathElement, Point, Subpath};
 pub(crate) fn normalize_subpath_start_points(outline: &Outline) -> Outline {
     transform_start_points(outline, |subpath, _| {
         subpath_nodes(subpath)
-            .iter()
+            .into_iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| compare_points(**a, **b))
+            .min_by(|(_, a), (_, b)| compare_points(*a, *b))
             .map_or(0, |(idx, _)| idx)
     })
 }
@@ -59,13 +59,16 @@ fn rotate_closed_subpath(subpath: &Subpath, start_idx: usize) -> Subpath {
 
     let nodes = subpath_nodes(subpath);
     let start = nodes[start_idx];
-    let split = start_idx;
     let mut elements = Vec::with_capacity(subpath.elements().len() + 1);
-    elements.extend_from_slice(&subpath.elements()[split..]);
-    if subpath.elements().last().map(|element| element.end()) != Some(subpath.start()) {
+    elements.extend_from_slice(&subpath.elements()[start_idx..]);
+    if subpath
+        .elements()
+        .last()
+        .is_none_or(|e| e.end() != subpath.start())
+    {
         elements.push(PathElement::LineTo(subpath.start()));
     }
-    elements.extend_from_slice(&subpath.elements()[..split]);
+    elements.extend_from_slice(&subpath.elements()[..start_idx]);
     Subpath::new(start, elements, true)
 }
 

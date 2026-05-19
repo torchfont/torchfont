@@ -57,9 +57,12 @@ fn is_vcs_metadata_dir(entry: &ignore::DirEntry) -> bool {
 fn has_font_extension(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_ascii_lowercase())
-        .map(|ext| matches!(ext.as_str(), "ttf" | "otf" | "ttc" | "otc"))
-        .unwrap_or(false)
+        .is_some_and(|ext| {
+            matches!(
+                ext.to_ascii_lowercase().as_str(),
+                "ttf" | "otf" | "ttc" | "otc"
+            )
+        })
 }
 
 pub(super) fn map_font(path: &str) -> PyResult<Mmap> {

@@ -24,35 +24,21 @@ pub(super) fn load_entries_and_index(
     let mut all_cps = Vec::new();
 
     for path in files {
-        let faces = FontEntry::load_faces(&path, filter)?;
-        for entry in faces
+        for entry in FontEntry::load_faces(&path, filter)?
             .into_iter()
-            .filter(|entry| entry.codepoint_count() > 0)
+            .filter(|e| e.codepoint_count() > 0)
         {
             all_cps.extend(entry.codepoints().iter().copied());
             entries.push(entry);
         }
     }
 
-    let sample_offsets = std::iter::once(0)
-        .chain(
-            entries
-                .iter()
-                .map(|entry| entry.codepoint_count() * entry.instance_count()),
-        )
-        .scan(0usize, |total, delta| {
-            *total += delta;
-            Some(*total)
-        })
-        .collect();
-
-    let inst_offsets = std::iter::once(0)
-        .chain(entries.iter().map(FontEntry::instance_count))
-        .scan(0usize, |total, delta| {
-            *total += delta;
-            Some(*total)
-        })
-        .collect();
+    let sample_offsets = cumulative_sums(
+        entries
+            .iter()
+            .map(|e| e.codepoint_count() * e.instance_count()),
+    );
+    let inst_offsets = cumulative_sums(entries.iter().map(FontEntry::instance_count));
 
     let mut content_classes = all_cps;
     content_classes.sort_unstable();
@@ -65,4 +51,14 @@ pub(super) fn load_entries_and_index(
     };
 
     Ok((entries, index))
+}
+
+fn cumulative_sums(deltas: impl Iterator<Item = usize>) -> Vec<usize> {
+    std::iter::once(0)
+        .chain(deltas)
+        .scan(0usize, |acc, d| {
+            *acc += d;
+            Some(*acc)
+        })
+        .collect()
 }

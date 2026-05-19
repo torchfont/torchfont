@@ -21,12 +21,11 @@ pub(crate) fn cubic_to_quad(outline: &Outline) -> Result<Outline, CubicToQuadErr
                     control1,
                     end,
                 } => {
-                    for (qcp, quad_end) in cubic_to_quads(prev, control0, control1, end)? {
-                        elements.push(PathElement::QuadTo {
-                            control: qcp,
-                            end: quad_end,
-                        });
-                    }
+                    elements.extend(
+                        cubic_to_quads(prev, control0, control1, end)?
+                            .into_iter()
+                            .map(|(control, end)| PathElement::QuadTo { control, end }),
+                    );
                     prev = end;
                 }
                 other => {
@@ -49,21 +48,22 @@ fn cubic_to_quads(
     p2: Point,
     p3: Point,
 ) -> Result<Vec<(Point, Point)>, CubicToQuadError> {
-    for n in 1..=MAX_N {
-        if let Some(spline) = cubic_approx_spline(p0, p1, p2, p3, n) {
-            let mut out = Vec::with_capacity(n);
-            for i in 0..n {
-                let end = if i + 1 == n {
-                    p3
-                } else {
-                    spline[i + 1].midpoint(spline[i + 2])
-                };
-                out.push((spline[i + 1], end));
-            }
-            return Ok(out);
-        }
-    }
-    Err(CubicToQuadError::ApproximationFailed)
+    (1..=MAX_N)
+        .find_map(|n| {
+            cubic_approx_spline(p0, p1, p2, p3, n).map(|spline| {
+                (0..n)
+                    .map(|i| {
+                        let end = if i + 1 < n {
+                            spline[i + 1].midpoint(spline[i + 2])
+                        } else {
+                            p3
+                        };
+                        (spline[i + 1], end)
+                    })
+                    .collect()
+            })
+        })
+        .ok_or(CubicToQuadError::ApproximationFailed)
 }
 
 fn cubic_approx_spline(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> Option<Vec<Point>> {

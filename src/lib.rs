@@ -42,12 +42,10 @@ fn cubic_to_quad(
     let outline = outline::Outline::decode(t, c);
     transform::cubic_to_quad::cubic_to_quad(&outline)
         .map(|outline| outline.encode())
-        .map_err(|err| match err {
-            transform::cubic_to_quad::CubicToQuadError::ApproximationFailed => {
-                pyo3::exceptions::PyValueError::new_err(
-                    "cubic_to_quad could not approximate a curve within MAX_N segments",
-                )
-            }
+        .map_err(|_| {
+            pyo3::exceptions::PyValueError::new_err(
+                "cubic_to_quad could not approximate a curve within MAX_N segments",
+            )
         })
 }
 
@@ -165,14 +163,9 @@ fn render_bitmap(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = outline::Outline::decode(t, c);
-    let rendered =
-        transform::render_bitmap::render_bitmap(&outline, size, mode).map_err(|err| match err {
-            transform::render_bitmap::RenderBitmapError::BboxTooLarge => {
-                pyo3::exceptions::PyValueError::new_err(
-                    "bbox output dimensions must be between 1 and 4096",
-                )
-            }
-        })?;
+    let rendered = transform::render_bitmap::render_bitmap(&outline, size, mode).map_err(|_| {
+        pyo3::exceptions::PyValueError::new_err("bbox output dimensions must be between 1 and 4096")
+    })?;
     Ok((
         rendered.data.into_pyarray(py).unbind(),
         rendered.width,

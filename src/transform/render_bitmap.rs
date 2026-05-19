@@ -82,14 +82,9 @@ fn render_target(
             )))
         }
         RenderMode::Bbox => {
-            let Some(bounds) = bounds else {
+            let Some((bounds, width, height)) = nonempty_bounds(bounds) else {
                 return Ok(None);
             };
-            let width = bounds.width();
-            let height = bounds.height();
-            if width <= f32::EPSILON || height <= f32::EPSILON {
-                return Ok(None);
-            }
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
             let bitmap_width = (width * scale).ceil() as u32;
             let bitmap_height = (height * scale).ceil() as u32;
@@ -106,14 +101,9 @@ fn render_target(
             )))
         }
         RenderMode::BboxSquare => {
-            let Some(bounds) = bounds else {
+            let Some((bounds, width, height)) = nonempty_bounds(bounds) else {
                 return Ok(None);
             };
-            let width = bounds.width();
-            let height = bounds.height();
-            if width <= f32::EPSILON || height <= f32::EPSILON {
-                return Ok(None);
-            }
             let scale = bitmap_size / width.max(height);
             let offset_x = (bitmap_size - width * scale) * 0.5;
             let offset_y = (bitmap_size - height * scale) * 0.5;
@@ -128,6 +118,13 @@ fn render_target(
             )))
         }
     }
+}
+
+fn nonempty_bounds(bounds: Option<Bounds>) -> Option<(Bounds, f32, f32)> {
+    let b = bounds?;
+    let w = b.width();
+    let h = b.height();
+    (w > f32::EPSILON && h > f32::EPSILON).then_some((b, w, h))
 }
 
 fn render_matrix(scale: f32, tx: f32, ty: f32) -> Matrix {
