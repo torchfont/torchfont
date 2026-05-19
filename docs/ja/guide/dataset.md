@@ -57,10 +57,6 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
 )
-
-print(f"{len(dataset)=}")
-print(f"{len(dataset.style_classes)=}")
-print(f"{len(dataset.content_classes)=}")
 ```
 
 各パターンの意図は次のとおりです。
@@ -89,7 +85,7 @@ len(dataset.content_classes)=114254
 
 `codepoints` を指定すると、インデックス時に対象外のコードポイントを除外できます。
 
-アルファベット26文字（A–Z）に絞るには、次のコードを実行してください。
+アルファベット26文字（A–Z）に絞るには、次のように `codepoints` 引数を追加して実行してください。
 
 ```python
 dataset = GlyphDataset(
@@ -112,7 +108,7 @@ len(dataset.style_classes)=8498
 len(dataset.content_classes)=26
 ```
 
-Unicode の基本多言語面（BMP、U+0000–U+FFFF）に絞るには、次のコードを実行してください。
+Unicode の基本多言語面（BMP、U+0000–U+FFFF）に絞るには、次のように指定してください。
 
 ```python
 dataset = GlyphDataset(
@@ -152,8 +148,8 @@ len(dataset.content_classes)=60004
 - `shallow = true`: `git submodule update` 実行時に shallow clone で取得します。`git submodule add` 時点での shallow 化は `--depth 1` で行い、この設定はそれ以降の更新にも shallow を維持するためのものです。
 - `ignore = dirty`: サブモジュール内のファイル変更を `git status` に表示しません。データファイルが意図せずダーティ扱いになることを防ぎます。
 
-Google Fonts の最新版に追従するには `git submodule update --remote` を使います。
-`shallow = true` が設定されているため `--depth 1` の明示は不要です。
+Google Fonts の最新版に追従するには次のコマンドを実行します。
+`.gitmodules` に `shallow = true` が設定されているため `--depth 1` の明示は不要です。
 
 ```bash
 git submodule update --remote
