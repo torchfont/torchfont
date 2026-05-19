@@ -1,27 +1,64 @@
 # DataLoader Integration
 
-TorchFont datasets subclass `torch.utils.data.Dataset`, so they fit standard
-PyTorch training loops.
+## Why use a DataLoader
 
-## Quick sanity check (`batch_size=1`)
+Neural network training processes data in batches rather than one sample at a
+time. Batching stabilizes gradient estimates and makes full use of GPU
+parallelism. `DataLoader` is PyTorch's standard utility that handles batch
+construction, shuffling, and parallel loading.
+
+## Define a `transform`
+
+`GlyphSample` bundles all available information about a glyph, but which fields
+you need depends on the task. Passing unused fields through the DataLoader adds
+unnecessary transfer overhead, so use `transform` to keep only the tensors you
+need.
+
+Like PyTorch datasets, `GlyphDataset` has a `transform` argument that applies a
+transformation to each item. Define a function that extracts `types` and `coords`
+from `GlyphSample`, pass it to the dataset, and verify the output. Run the
+following code:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import GlyphDataset, GlyphSample
 
-dataset = GlyphDataset(root="~/fonts")
-sample = dataset[0]
-print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
-print(sample.style_idx, sample.content_idx)
+
+def transform(sample: GlyphSample):
+    return sample.types, sample.coords
+
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    transform=transform,
+)
+
+types, coords = dataset[0]
+
+print(types.shape)
+print(coords.shape)
 ```
 
-Use this only to check end-to-end wiring. For batching, provide a small
-`collate_fn` that pads the variable-length outline tensors.
+With `transform`, `dataset[0]` now returns a `(types, coords)` tuple instead of
+a `GlyphSample`. `1` is the sequence length of this glyph; it varies per glyph.
+You will see output like:
 
-## Recommended `collate_fn` for training
+```
+torch.Size([1])
+torch.Size([1, 6])
+```
+
+## Create a DataLoader
+
+Glyph outline sequences are variable-length, so batching requires a `collate_fn`.
+Use `pad_sequence` to align sequences within a batch. Run the following code:
 
 ```python
-import sys
-
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
@@ -38,39 +75,89 @@ def collate_fn(batch):
     return types, coords
 
 
-dataset = GlyphDataset(root="~/fonts", transform=transform)
-num_workers = 8
-mp_context = "fork" if sys.platform.startswith("linux") else "spawn"
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    transform=transform,
+)
 
-loader_kwargs = {
-    "batch_size": 64,
-    "shuffle": True,
-    "num_workers": num_workers,
-    "collate_fn": collate_fn,
-}
-
-if num_workers > 0:
-    loader_kwargs["prefetch_factor"] = 2
-    loader_kwargs["multiprocessing_context"] = mp_context
-
-loader = DataLoader(dataset, **loader_kwargs)
+loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
 types_t, coords_t = next(iter(loader))
 
-print(types_t.shape)   # (64, L)
-print(coords_t.shape)  # (64, L, 6)
+print(types_t.shape)
+print(coords_t.shape)
 ```
 
-`num_workers > 0` enables worker prefetching and multiprocessing context.
-Keep those options unset when `num_workers=0`.
+`collate_fn` pads each sequence to the length of the longest one in the batch.
+The first dimension is the batch size. The second dimension is the longest
+sequence length in the batch and varies per batch. You will see output like:
 
-| Platform | Recommended `multiprocessing_context` |
-| -------- | ------------------------------------- |
-| Linux    | `"fork"`                              |
-| macOS    | `"spawn"` or `"forkserver"`           |
-| Windows  | `"spawn"`                             |
+```
+torch.Size([64, 369])
+torch.Size([64, 369, 6])
+```
 
-## Custom Sample Shapes
+## Multi-process loading
 
-This `collate_fn` pads only the leading sequence dimension. If your
-dataset transform returns extra trailing dimensions, those dimensions are
-preserved while batching.
+Set `num_workers` and `prefetch_factor` to load data in parallel worker
+processes. Long sequences increase transfer overhead, so the `transform` truncates
+each sequence to the first 512 elements. Use `tqdm` to iterate over all batches
+and measure throughput. Run the following code:
+
+```python
+from tqdm import tqdm
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
+
+from torchfont.datasets import GlyphDataset, GlyphSample
+
+
+def transform(sample: GlyphSample):
+    return sample.types[:512], sample.coords[:512]
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
+
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    transform=transform,
+)
+
+loader = DataLoader(
+    dataset,
+    batch_size=64,
+    shuffle=True,
+    collate_fn=collate_fn,
+    num_workers=8,
+    prefetch_factor=2,
+)
+
+print(f"{len(dataset)=}")
+
+for batch in tqdm(loader):
+    pass
+```
+
+You will see output like the following. `it/s` is the batch processing speed.
+The entire Google Fonts dataset of 12.4 million samples completes in just 2
+minutes — fast enough for practical training loops.
+
+```
+len(dataset)=12460609
+100%|██████████| 194698/194698 [02:03<00:00, 1570.64it/s]
+```

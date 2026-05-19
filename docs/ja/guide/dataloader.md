@@ -2,27 +2,53 @@
 
 <!-- markdownlint-disable MD013 -->
 
-TorchFont の Dataset は `torch.utils.data.Dataset` を継承しているため、通常の PyTorch ワークフローで使えます。
+## なぜ DataLoader を使うのか
 
-## まずは最小確認（`batch_size=1`）
+ニューラルネットワークの学習では、データを1件ずつ処理するのではなく、複数件をまとめたバッチ単位で処理します。バッチ処理により勾配の推定が安定し、GPU の並列演算を効率的に活用できます。`DataLoader` はバッチの構築・シャッフル・並列読み込みをまとめて担う PyTorch の標準ユーティリティです。
+
+## `transform` を定義する
+
+`GlyphSample` はグリフに関する情報をまとめて持っていますが、学習に必要なフィールドはタスクによって異なります。不要なフィールドを DataLoader に流すと転送コストが増えるため、`transform` で必要なテンソルだけを取り出します。
+
+`GlyphDataset` には、PyTorch の Dataset と同様にアイテムごとに変換を適用する `transform` 引数があります。ここでは `GlyphSample` から `types` と `coords` を取り出す関数を定義し、Dataset に渡して動作を確認します。次のコードを実行してください。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import GlyphDataset, GlyphSample
 
-dataset = GlyphDataset(root="~/fonts")
-sample = dataset[0]
-print(sample.types.shape, sample.coords.shape)  # (seq_len,), (seq_len, 6)
-print(sample.style_idx, sample.content_idx)
+
+def transform(sample: GlyphSample):
+    return sample.types, sample.coords
+
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    transform=transform,
+)
+
+types, coords = dataset[0]
+
+print(types.shape)
+print(coords.shape)
 ```
 
-この例は動作確認用です。バッチ化には、可変長の outline tensor を padding する
-小さな `collate_fn` を渡してください。
+`transform` を渡すと、`dataset[0]` の返り値が `GlyphSample` から `(types, coords)` のタプルに変わります。`1` はこのグリフのシーケンス長で、グリフごとに異なります。実行すると次のような出力が得られます。
 
-## 学習向けの `collate_fn`
+```
+torch.Size([1])
+torch.Size([1, 6])
+```
+
+## DataLoader を作成する
+
+グリフのアウトライン系列は可変長のため、バッチ化には `collate_fn` が必要です。`pad_sequence` を使ってバッチ内のシーケンスを揃えます。次のコードを実行してください。
 
 ```python
-import sys
-
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
@@ -39,37 +65,82 @@ def collate_fn(batch):
     return types, coords
 
 
-dataset = GlyphDataset(root="~/fonts", transform=transform)
-num_workers = 8
-mp_context = "fork" if sys.platform.startswith("linux") else "spawn"
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    transform=transform,
+)
 
-loader_kwargs = {
-    "batch_size": 64,
-    "shuffle": True,
-    "num_workers": num_workers,
-    "collate_fn": collate_fn,
-}
-
-if num_workers > 0:
-    loader_kwargs["prefetch_factor"] = 2
-    loader_kwargs["multiprocessing_context"] = mp_context
-
-loader = DataLoader(dataset, **loader_kwargs)
+loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
 types_t, coords_t = next(iter(loader))
 
-print(types_t.shape)   # (64, L)
-print(coords_t.shape)  # (64, L, 6)
+print(types_t.shape)
+print(coords_t.shape)
 ```
 
-`num_workers > 0` のときだけ、プリフェッチと multiprocessing の設定を有効にします。`num_workers=0` なら、これらの引数は指定しないでください。
+`collate_fn` はバッチ内の最長シーケンスに合わせて padding します。実行すると次のような出力が得られます。1 次元目はバッチサイズです。2 次元目はバッチ内の最長シーケンス長で、バッチごとに異なります。
 
-|OS|推奨 `multiprocessing_context`|
-|---|---|
-|Linux|`"fork"`|
-|macOS|`"spawn"` または `"forkserver"`|
-|Windows|`"spawn"`|
+```
+torch.Size([64, 369])
+torch.Size([64, 369, 6])
+```
 
-## カスタム sample 形状
+## マルチプロセス読み込み
 
-この `collate_fn` は先頭のシーケンス次元だけを padding します。dataset transform が
-末尾次元を増やす場合、その末尾次元は batch 化後も保持されます。
+`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。シーケンス長が長いと転送コストが大きくなるため、`transform` で先頭 512 要素に切り詰めます。`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
+
+```python
+from tqdm import tqdm
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader
+
+from torchfont.datasets import GlyphDataset, GlyphSample
+
+
+def transform(sample: GlyphSample):
+    return sample.types[:512], sample.coords[:512]
+
+
+def collate_fn(batch):
+    types = pad_sequence([types for types, _ in batch], batch_first=True)
+    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    return types, coords
+
+
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    patterns=(
+        "apache/*/*.ttf",
+        "ofl/*/*.ttf",
+        "ufl/*/*.ttf",
+        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+    ),
+    transform=transform,
+)
+
+loader = DataLoader(
+    dataset,
+    batch_size=64,
+    shuffle=True,
+    collate_fn=collate_fn,
+    num_workers=8,
+    prefetch_factor=2,
+)
+
+print(f"{len(dataset)=}")
+
+for batch in tqdm(loader):
+    pass
+```
+
+実行すると次のような出力が得られます。`it/s` はバッチの処理速度です。1,246 万サンプルからなる Google Fonts 全体をわずか 2 分でイテレートできています。1 エポックがこの速度で回るため、実用的な学習ループに十分なスループットです。
+
+```
+len(dataset)=12460609
+100%|██████████| 194698/194698 [02:03<00:00, 1570.64it/s]
+```
