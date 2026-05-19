@@ -2,125 +2,107 @@
 
 <!-- markdownlint-disable MD013 -->
 
-このページでは、TorchFont を導入して最初の Dataset と DataLoader を動かすまでを扱います。
+## uv のインストール
 
-## 前提
+PyTorch は CPU・CUDA・ROCm などのハードウェア環境ごとに異なるインデックスで配布されています。通常はインストール時にインデックスを手動で指定する必要があり、再現性の確保が難しくなりがちです。uv を使えばインデックスを `pyproject.toml` に一度設定するだけで、誰でも同じ環境を再現できます。
 
-- Python 3.10 以上
-- PyTorch 2.3 以上
+uv の [インストールガイド](https://docs.astral.sh/uv/getting-started/installation/) に従ってインストールしてください。
 
-## 1. インストール
+## PyTorch インデックスの設定
+
+`pyproject.toml` に PyTorch のインデックスとソースを追加します。環境に合わせて選択してください。
 
 ::: code-group
 
-```bash [uv (推奨)]
-uv add torchfont
+```toml [CPU-only]
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
 ```
 
-```bash [pip]
-pip install torchfont
+```toml [CUDA 11.8]
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu118" }]
+```
+
+```toml [CUDA 12.6]
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu126" }]
+```
+
+```toml [CUDA 12.8]
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+```
+
+```toml [CUDA 13.0]
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130" }]
+```
+
+```toml [ROCm 7.2]
+[[tool.uv.index]]
+name = "pytorch-rocm72"
+url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-rocm72" }]
+```
+
+```toml [Intel GPUs]
+[[tool.uv.index]]
+name = "pytorch-xpu"
+url = "https://download.pytorch.org/whl/xpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-xpu" }]
 ```
 
 :::
 
-## 2. ローカルフォントを読む
+複数プラットフォームへの対応など、より詳細な設定は [uv の PyTorch インテグレーションガイド](https://docs.astral.sh/uv/guides/integration/pytorch/) を参照してください。
 
-`GlyphDataset` はローカルディレクトリ配下のフォント（`.ttf` / `.otf` /
-`.ttc` / `.otc`）を走査して Dataset を作ります。
+## 依存関係のインストール
 
-```python
-from torchfont.datasets import GlyphDataset
-
-# root は存在するディレクトリを指定してください
-# 例: root="~/fonts"（このリポジトリを clone 済みなら "tests/fonts" も可）
-dataset = GlyphDataset(
-    root="~/fonts",
-    patterns=("*.ttf",),
-    codepoints=range(0x20, 0x7F),
-)
-
-print(f"samples={len(dataset)}")
-print(f"styles={len(dataset.style_classes)}")
-print(f"contents={len(dataset.content_classes)}")
-
-sample = dataset[0]
-print(sample.types.shape)   # (seq_len,)
-print(sample.coords.shape)  # (seq_len, 6)
-```
-
-::: warning
-`GlyphDataset` は `root` を絶対パス化してから読み込みます。存在しないパスを渡すと初期化時に例外になります。
-:::
-
-## 3. DataLoader に渡す
-
-グリフは可変長なので、batch ごとに outline tensor を padding する小さな
-`collate_fn` を定義します。
-
-```python
-from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader
-
-from torchfont.datasets import GlyphDataset, GlyphSample
-
-
-def transform(sample: GlyphSample):
-    return sample.types, sample.coords
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
-    return types, coords
-
-
-dataset = GlyphDataset(
-    root="~/fonts",
-    patterns=("*.ttf",),
-    codepoints=range(0x20, 0x7F),
-    transform=transform,
-)
-loader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
-
-types_t, coords_t = next(iter(loader))
-print(types_t.shape)   # (32, L)
-print(coords_t.shape)  # (32, L, 6)
-```
-
-## 4. ローカル checkout を大きなコーパスに向ける
-
-リポジトリの同期は TorchFont の外側で行い、その checkout を
-`GlyphDataset` に渡します。
+以下のコマンドで PyTorch と TorchFont をインストールします。
 
 ```bash
-git clone --depth 1 https://github.com/google/fonts data/google/fonts
+uv add torch torchfont
 ```
+
+## 動作確認
+
+カレントディレクトリのフォントを走査して Dataset を作成し、そのサンプル数を表示します。フォントがなければ `0` が表示されます。エラーなく実行できればインストール完了です。
 
 ```python
 from torchfont.datasets import GlyphDataset
 
-dataset = GlyphDataset(
-    root="data/google/fonts",
-    patterns=(
-        "apache/*/*.ttf",
-        "ofl/*/*.ttf",
-        "ufl/*/*.ttf",
-        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
-    ),
-)
-
-print(len(dataset), len(dataset.style_classes), len(dataset.content_classes))
+dataset = GlyphDataset(root=".")
+print(len(dataset))
 ```
-
-TorchFont は checkout 済みディレクトリを通常のローカルフォルダとして扱います。
-Git などで更新したあとは、ネイティブな indexing state がディスク内容と
-ずれないように Dataset インスタンスを作り直してください。Dataset の利用中
-にファイルが変わった場合の結果は未定義で、不正な sample や runtime error
-につながることがあります。
-
-## よくある最初の改善
-
-- 2 次セグメントを 3 次へ統一する: `quad_to_cubic(types, coords)`
-- シーケンス長の制限や整形は dataset transform やモデル固有 utility で行う
-- 学習対象を絞る: `codepoints=` や `patterns=`
-
