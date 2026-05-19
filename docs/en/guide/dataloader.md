@@ -155,7 +155,7 @@ for batch in tqdm(loader):
 
 You will see output like the following. `it/s` is the batch processing speed.
 The entire Google Fonts dataset of 12.4 million samples completes in just 2
-minutes — fast enough for practical training loops.
+minutes, fast enough for practical training loops.
 
 ```
 len(dataset)=12460609

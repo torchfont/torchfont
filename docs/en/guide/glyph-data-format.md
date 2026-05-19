@@ -32,7 +32,7 @@ The return value is a `GlyphSample` dataclass. Access its fields by name.
 
 A glyph outline is represented as a sequence of path elements.
 
-- **Path element**: the smallest unit — one element type plus one coordinates row
+- **Path element**: the smallest unit, consisting of one element type and one coordinates row
 - **Subpath**: a sequence of path elements representing one continuous curve that makes up a glyph
 - **Outline**: a sequence of path elements representing the contour of one glyph
 

@@ -2,7 +2,7 @@
 
 ## Install uv
 
-PyTorch is distributed across separate indexes for each target hardware — CPU, CUDA, ROCm, and more. Normally you have to specify the right index manually, making reproducibility hard to guarantee. With uv, you configure the index once in `pyproject.toml` and everyone installs the correct build with a single command.
+PyTorch is distributed across separate indexes depending on target hardware: CPU, CUDA, ROCm, and more. Normally you have to specify the right index manually, making reproducibility hard to guarantee. With uv, you configure the index once in `pyproject.toml` and everyone installs the correct build with a single command.
 
 Follow the [uv](https://docs.astral.sh/uv/) [installation guide](https://docs.astral.sh/uv/getting-started/installation/) to install it.
 
@@ -104,4 +104,3 @@ from torchfont.datasets import GlyphDataset
 dataset = GlyphDataset(root=".")
 print(len(dataset))
 ```
-

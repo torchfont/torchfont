@@ -5,7 +5,7 @@
 [Google Fonts](https://fonts.google.com/) is a font collection published by Google that works well as a machine learning dataset.
 
 - **Large collection**: Over 1,000 families and thousands of font files covering a wide range of styles and writing systems.
-- **ML-friendly licenses**: All fonts are distributed under open licenses — Apache, OFL, or UFL — with no restrictions on machine learning use.
+- **ML-friendly licenses**: All fonts are distributed under open licenses including Apache, OFL, and UFL, with no restrictions on machine learning use.
 - **Hosted on GitHub**: The repository is publicly available on GitHub, making it easy to fetch and integrate into CI pipelines or scripts via `git`.
 - **Reproducible**: Because it is a Git repository, you can pin a specific commit to reproduce the exact dataset at any point in time.
 

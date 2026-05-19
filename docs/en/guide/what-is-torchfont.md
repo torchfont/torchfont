@@ -1,78 +1,30 @@
 # What is TorchFont
 
-TorchFont is a **PyTorch library for treating font glyph outlines as
-machine-learning tensors**. Instead of rasterizing glyphs into images first, it
-works directly with path elements such as move, line, quadratic, and cubic
-segments.
-
 ::: info
 TorchFont is an unofficial library and is not affiliated with the PyTorch
 project.
 :::
 
-## In One Minute
+## Why Font Machine Learning?
 
-- **Primary dataset API**:
-  `GlyphDataset(root=...)` reads any local font directory or repository
-  checkout already on disk.
-- **Sample-first output**:
-  `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx, metrics, glyph_name)`.
-- **DataLoader-friendly outputs**:
-  outline tensors can be padded by a small user-defined `collate_fn`.
-- **Fast preprocessing**:
-  Rust backend (`skrifa` + PyO3) reduces Python-side overhead.
-- **DataLoader-friendly**:
-  worker processes rebuild native backend state after pickle/unpickle.
+Developing a font demands substantial time and effort. A Latin family with a few weights may take months; a CJK font covering tens of thousands of characters can take years. That cost is precisely why most of the world's writing systems remain poorly served by existing type libraries. Machine learning offers a path to scaling that effort:
 
-## Problems It Solves
+- **Font generation**: synthesizing new typefaces or interpolating smoothly between existing ones
+- **Style transfer**: applying the aesthetic of one typeface to the glyphs of another
+- **Classification and retrieval**: identifying fonts from images or finding visually similar typefaces
+- **Digitization**: reconstructing outlines from scanned specimens of historical or rare type
 
-Common pain points in font ML workflows:
+Fonts for minority languages in particular offer very limited choices, and that situation has changed little over the years. Reducing development costs is one of the most direct ways to change it.
 
-- the boundary between "how fonts are collected" and "how glyphs are read" is
-  often blurry
-- rasterization-heavy preprocessing makes experiments harder to compare
-- static and variable fonts are often handled with separate logic
+## Features
 
-TorchFont standardizes tensorization and labeling so you can spend
-more time on model design.
-
-## How It Works
-
-- **Dataset layer**
-  - `GlyphDataset`: scans local directories for fonts
-  - a Git repository is just another input directory once it is checked out
-- **Rust backend**
-  - maps charmap codepoints to glyphs
-  - converts outlines into element type sequences + 6D coordinates
-  - normalizes coordinates by `units_per_em`
-  - keeps quadratic and cubic Beziers as distinct element types
-- **Transform utilities**
-  - `quad_to_cubic`: normalize `QUAD_TO` into `CURVE_TO`
-  - model-specific tensor shaping can live in your dataset transform or training code
-- **Batching**
-  - variable-length `(types, coords)` pairs can be padded in your training code
-    with `torch.nn.utils.rnn.pad_sequence`
-
-## Minimal Example
-
-```python
-from torchfont.datasets import GlyphDataset
-
-# root must exist
-# e.g. root="~/fonts" (or "tests/fonts" if you cloned this repository)
-dataset = GlyphDataset(root="~/fonts")
-
-sample = dataset[0]
-print(sample.types.shape)         # (seq_len,)
-print(sample.coords.shape)        # (seq_len, 6)
-print(sample.style_idx, sample.content_idx)
-print(sample.glyph_name)
-```
-
-## When It Is a Good Fit
-
-- you want to disentangle content (character) and style (font instance)
-- you want to run experiments on large collections including variable fonts
-- you want a consistent vector-first representation for
-  generation/classification/representation learning
-
+- **Outline-first representation**:
+  fonts are used at many scales, making bitmap-based generation of limited practical value.
+  TorchFont provides font outlines, the native data format, as a dataset.
+- **Fast on-the-fly processing**:
+  the Rust backend reads font files directly at training time, fast enough to require no preprocessing step.
+  Font files remain the single source of truth.
+- **Freely composable transforms**:
+  rather than a class-based compose pattern like torchvision's `transforms.Compose`,
+  TorchFont provides utility functions that you wire together yourself,
+  giving you full control over how font data is prepared for your model.

@@ -2,72 +2,29 @@
 
 <!-- markdownlint-disable MD013 -->
 
-TorchFont は、**フォントのグリフアウトラインを機械学習向けテンソルとして扱う PyTorch ライブラリ**です。画像へラスタライズしてから学習するのではなく、move / line / quadratic / cubic などのパス情報を直接扱います。
-
 ::: info
 TorchFont は PyTorch の非公式ライブラリです。PyTorch プロジェクトとの公式な関係はありません。
 :::
 
-## 1分でわかる特徴
+## なぜフォントの機械学習か
 
-- **中心となる Dataset API**:
-  `GlyphDataset(root=...)` が、ローカルのフォントディレクトリや
-  checkout 済みリポジトリをそのまま読み込みます。
-- **sample-first な出力形式**:
-  `dataset[i] -> GlyphSample(types, coords, style_idx, content_idx, metrics, glyph_name)`。
-- **DataLoader に渡しやすい出力**:
-  outline tensor はユーザー定義の小さな `collate_fn` で padding できます。
-- **前処理を高速化**:
-  Rust バックエンド（`skrifa` + PyO3）で Python 側の変換コストを削減。
-- **DataLoader 連携**:
-  pickle 復元時に、ワーカー側でネイティブバックエンド状態を再構築可能。
+フォントの開発には、膨大な時間と労力がかかります。ラテン文字であれば数ウェイトのファミリーを完成させるのに数ヶ月、数万字をカバーする CJK フォントとなれば数年を要することもあります。このコストの高さが、世界の多くの文字体系でフォントの整備が遅れている根本的な理由です。機械学習はこの状況を変える可能性を持っており、いくつかの方向性が研究されています。
 
-## TorchFont が解決する課題
+- **フォント生成**: 新しい書体を合成したり、既存のフォント間を滑らかに補間したりする
+- **スタイル転送**: ある書体の意匠を別のフォントのグリフへ適用する
+- **分類・検索**: 画像からフォントを識別したり、視覚的に類似した書体を検索したりする
+- **デジタル化**: 歴史的・希少な書体の印刷物からアウトラインを復元する
 
-フォント研究では、次のようなコストがよく発生します。
+特に少数言語向けのフォントは選択肢が極めて少なく、利用できる書体が長らく限られたままです。開発コストを下げることは、こうした状況を変える現実的な手段となります。
 
-- フォント収集と glyph 読み出しの境界が曖昧で、実験系が散らばりやすい
-- 画像化パイプラインが実験ごとに分岐して比較しにくい
-- 可変フォントと静的フォントの扱いが統一されていない
+## 特長
 
-TorchFont はこの部分を「テンソル化」「ラベル付与」で標準化し、
-モデル設計に集中しやすくします。
-
-## 仕組み
-
-- **Dataset 層**
-  - `GlyphDataset`: ローカルディレクトリを走査してフォントを読み込む
-  - Git リポジトリも、checkout 済みなら通常のディレクトリとして扱える
-- **Rust バックエンド**
-  - フォントの charmap から codepoint と glyph を対応付け
-  - outline を element type 列と 6 次元 coordinates へ変換
-  - 座標は `units_per_em` で正規化
-  - 2 次ベジェと 3 次ベジェを別 element type として保持
-- **Transform utility**
-  - `quad_to_cubic`: `QUAD_TO` を `CURVE_TO` に統一
-  - モデル固有の tensor 整形は dataset transform や学習コード側で行える
-- **Batch 化**
-  - 可変長 `(types, coords)` ペアは、学習コード側で
-    `torch.nn.utils.rnn.pad_sequence` を使って padding できる
-
-## 最小サンプル
-
-```python
-from torchfont.datasets import GlyphDataset
-
-# root は実在ディレクトリである必要があります
-# 例: root="~/fonts"（このリポジトリを clone 済みなら "tests/fonts" も可）
-dataset = GlyphDataset(root="~/fonts")
-
-sample = dataset[0]
-print(sample.types.shape)         # (seq_len,)
-print(sample.coords.shape)        # (seq_len, 6)
-print(sample.style_idx, sample.content_idx)
-print(sample.glyph_name)
-```
-
-## どんなときに向いているか
-
-- 文字内容（content）と書体スタイル（style）を分離して学習したい
-- 可変フォントを含む大規模フォント群で実験したい
-- グリフ生成・分類・表現学習の入力をベクター表現で統一したい
+- **アウトラインファーストな表現**:
+  フォントは様々なスケールで利用されるため、ビットマップ形式での生成は実用性に乏しいです。
+  TorchFont はフォント本来のデータ形式であるアウトラインをデータセットとして提供します。
+- **高速なオンザフライ処理**:
+  Rust バックエンドが学習時にフォントファイルを直接高速に読み込みます。
+  事前処理は不要で、フォントファイルが信頼できる唯一の情報源として機能します。
+- **自由に組み立てられる transform**:
+  torchvision の `transforms.Compose` のようなクラスベースの compose パターンは採用せず、
+  ユーティリティ関数を提供するにとどめます。組み合わせ方はユーザーが自由に決められます。
