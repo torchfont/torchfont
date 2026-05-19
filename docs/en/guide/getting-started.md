@@ -123,9 +123,3 @@ incorrect samples or runtime errors.
 - Shape or limit tensors in your dataset or model-specific utility code
 - Narrow the dataset scope: `codepoints=` and `patterns=`
 
-## Read Next
-
-- [Glyph Data Format](/en/guide/glyph-data-format)
-- [DataLoader Integration](/en/guide/dataloader)
-- [Git Repository Checkouts](/en/guide/git-repos)
-- [Google Fonts](/en/guide/google-fonts)

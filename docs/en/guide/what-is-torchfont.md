@@ -76,8 +76,3 @@ print(sample.glyph_name)
 - you want a consistent vector-first representation for
   generation/classification/representation learning
 
-## Read Next
-
-- [Quickstart](/en/guide/getting-started)
-- [Glyph Data Format](/en/guide/glyph-data-format)
-- [DataLoader Integration](/en/guide/dataloader)
