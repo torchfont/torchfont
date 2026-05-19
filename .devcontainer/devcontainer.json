@@ -2,7 +2,7 @@
 	"name": "mise",
 	"image": "jdxcode/mise:latest",
 	"features": {
-		"ghcr.io/devcontainers/features/common-utils:2": {}
+		"ghcr.io/devcontainers/features/common-utils:": {}
 	},
 	"mounts": [
 		{
