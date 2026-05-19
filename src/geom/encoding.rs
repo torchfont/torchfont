@@ -1,4 +1,4 @@
-use super::model::SubpathBuilder;
+use super::outline::SubpathBuilder;
 use super::{Outline, PathElement, Point};
 
 impl Outline {

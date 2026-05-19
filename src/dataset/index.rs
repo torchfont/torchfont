@@ -2,21 +2,21 @@ use super::entry::FontEntry;
 use crate::error::py_index_err;
 use pyo3::prelude::*;
 
-pub(super) struct DatasetIndex {
-    pub(super) sample_offsets: Vec<usize>,
-    pub(super) inst_offsets: Vec<usize>,
-    pub(super) content_classes: Vec<u32>,
+pub(crate) struct DatasetIndex {
+    pub(crate) sample_offsets: Vec<usize>,
+    pub(crate) inst_offsets: Vec<usize>,
+    pub(crate) content_classes: Vec<u32>,
 }
 
 impl DatasetIndex {
-    pub(super) fn content_index(&self, codepoint: u32) -> PyResult<usize> {
+    pub(crate) fn content_index(&self, codepoint: u32) -> PyResult<usize> {
         self.content_classes
             .binary_search(&codepoint)
             .map_err(|_| py_index_err(format!("codepoint U+{codepoint:04X} missing from index")))
     }
 }
 
-pub(super) fn load_entries_and_index(
+pub(crate) fn load_entries_and_index(
     files: Vec<String>,
     filter: Option<&[u32]>,
 ) -> PyResult<(Vec<FontEntry>, DatasetIndex)> {

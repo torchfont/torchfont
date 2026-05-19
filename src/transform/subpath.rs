@@ -1,4 +1,4 @@
-use crate::outline::{Outline, PathElement, Point, Subpath};
+use crate::geom::{Outline, PathElement, Point, Subpath};
 
 pub(crate) fn normalize_subpath_start_points(outline: &Outline) -> Outline {
     transform_start_points(outline, |subpath, _| {

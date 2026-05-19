@@ -16,7 +16,7 @@ pub(super) struct GlyphIndex {
     glyph_ids: Vec<GlyphId>,
 }
 
-pub(super) struct FontEntry {
+pub(crate) struct FontEntry {
     index: GlyphIndex,
     reader: GlyphReader,
     units_per_em: f32,
@@ -25,7 +25,7 @@ pub(super) struct FontEntry {
 }
 
 impl FontEntry {
-    pub(super) fn load_faces(path: &str, filter: Option<&[u32]>) -> PyResult<Vec<Self>> {
+    pub(crate) fn load_faces(path: &str, filter: Option<&[u32]>) -> PyResult<Vec<Self>> {
         let mapped = Arc::new(map_font(path)?);
         let parsed = FileRef::new(&mapped[..])
             .map_err(|err| py_err(format!("failed to parse '{path}': {err}")))?;
@@ -51,7 +51,7 @@ impl FontEntry {
         Ok(entries)
     }
 
-    pub(super) fn glyph_complete(
+    pub(crate) fn glyph_complete(
         &self,
         codepoint: u32,
         instance_index: Option<usize>,
@@ -63,46 +63,46 @@ impl FontEntry {
             .draw_glyph(glyph_id, self.units_per_em, &self.locations, instance_index)
     }
 
-    pub(super) fn instance_count(&self) -> usize {
+    pub(crate) fn instance_count(&self) -> usize {
         self.style_axes.len()
     }
 
-    pub(super) fn is_variable(&self) -> bool {
+    pub(crate) fn is_variable(&self) -> bool {
         !self.locations.is_empty()
     }
 
-    pub(super) fn path(&self) -> &str {
+    pub(crate) fn path(&self) -> &str {
         self.reader.path()
     }
 
-    pub(super) fn face_index(&self) -> u32 {
+    pub(crate) fn face_index(&self) -> u32 {
         self.reader.face_index()
     }
 
-    pub(super) fn codepoints(&self) -> &[u32] {
+    pub(crate) fn codepoints(&self) -> &[u32] {
         &self.index.codepoints
     }
 
-    pub(super) fn codepoint_count(&self) -> usize {
+    pub(crate) fn codepoint_count(&self) -> usize {
         self.index.codepoints.len()
     }
 
-    pub(super) fn named_instance_names(&self) -> Vec<Option<String>> {
+    pub(crate) fn named_instance_names(&self) -> Vec<Option<String>> {
         if !self.is_variable() {
             return vec![];
         }
         self.reader.named_instance_names()
     }
 
-    pub(super) fn style_axes(&self) -> &[Vec<(String, f32)>] {
+    pub(crate) fn style_axes(&self) -> &[Vec<(String, f32)>] {
         &self.style_axes
     }
 
-    pub(super) fn family_name(&self) -> String {
+    pub(crate) fn family_name(&self) -> String {
         self.reader.family_name()
     }
 
-    pub(super) fn subfamily_name(&self) -> Option<String> {
+    pub(crate) fn subfamily_name(&self) -> Option<String> {
         self.reader.subfamily_name()
     }
 

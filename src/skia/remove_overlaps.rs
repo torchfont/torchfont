@@ -1,6 +1,6 @@
 use skia_safe::{Path, PathVerb};
 
-use crate::outline::{Outline, PathElement, Point, Subpath};
+use crate::geom::{Outline, PathElement, Point, Subpath};
 
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     let Some((path, _)) = super::build_skia_path(outline, false) else {

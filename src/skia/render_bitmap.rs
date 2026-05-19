@@ -1,7 +1,6 @@
 use skia_safe::{AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, surfaces};
 
-use crate::bounds::Bounds;
-use crate::outline::Outline;
+use crate::geom::{Bounds, Outline};
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
