@@ -103,11 +103,10 @@ impl GlyphDataset {
 
     #[getter]
     pub fn style_axes(&self) -> Vec<Vec<(String, f32)>> {
-        let mut axes = Vec::new();
-        for entry in self.entries.iter() {
-            axes.extend(entry.style_axes().iter().cloned());
-        }
-        axes
+        self.entries
+            .iter()
+            .flat_map(|e| e.style_axes().iter().cloned())
+            .collect()
     }
 
     pub fn item(&self, py: Python<'_>, idx: usize) -> PyResult<GlyphItem> {
@@ -133,10 +132,6 @@ impl GlyphDataset {
             glyph_name,
         ) = self.entries[font_idx].glyph_complete(codepoint, inst_idx)?;
 
-        let types_arr = types.into_pyarray(py).unbind();
-
-        let coords_arr = coords.into_pyarray(py).unbind();
-
         let metrics: Vec<f32> = vec![
             adv_w,
             lsb,
@@ -152,16 +147,14 @@ impl GlyphDataset {
             avg_width,
             italic_angle,
             upem as f32,
-            if is_monospace { 1.0_f32 } else { 0.0_f32 },
+            f32::from(is_monospace),
         ];
-        let metrics_arr = metrics.into_pyarray(py).unbind();
-
         Ok(GlyphItem {
-            types: types_arr,
-            coords: coords_arr,
+            types: types.into_pyarray(py).unbind(),
+            coords: coords.into_pyarray(py).unbind(),
             style_idx,
             content_idx,
-            metrics: metrics_arr,
+            metrics: metrics.into_pyarray(py).unbind(),
             glyph_name,
         })
     }
@@ -178,8 +171,7 @@ impl GlyphDataset {
                 let style_idx = inst_offset + inst_idx;
                 for &cp in entry.codepoints() {
                     let content_idx = self.index.content_index(cp)?;
-                    pairs.push(style_idx as i64);
-                    pairs.push(content_idx as i64);
+                    pairs.extend([style_idx as i64, content_idx as i64]);
                 }
             }
         }
@@ -194,31 +186,21 @@ impl GlyphDataset {
             let path = entry.path().to_owned();
             let face_idx = entry.face_index();
             let family_name = entry.family_name();
-
-            if entry.is_variable() {
-                let instance_names = entry.named_instance_names();
-                if instance_names.is_empty() {
-                    let display_name = if let Some(subfamily) = entry.subfamily_name() {
-                        format!("{family_name} {subfamily}")
-                    } else {
-                        family_name
+            let instance_names = entry.named_instance_names();
+            if !instance_names.is_empty() {
+                for (inst_idx, name_opt) in instance_names.iter().enumerate() {
+                    let display_name = match name_opt.as_deref().filter(|s| !s.is_empty()) {
+                        Some(name) => format!("{family_name} {name}"),
+                        None => family_name.clone(),
                     };
-                    rows.push((display_name, path, face_idx, None));
-                } else {
-                    for (inst_idx, name_opt) in instance_names.iter().enumerate() {
-                        let instance_name = name_opt.as_deref().unwrap_or("");
-                        let display_name = if instance_name.is_empty() {
-                            family_name.clone()
-                        } else {
-                            format!("{family_name} {instance_name}")
-                        };
-                        rows.push((display_name, path.clone(), face_idx, Some(inst_idx)));
-                    }
+                    rows.push((display_name, path.clone(), face_idx, Some(inst_idx)));
                 }
-            } else if let Some(subfamily) = entry.subfamily_name() {
-                rows.push((format!("{family_name} {subfamily}"), path, face_idx, None));
             } else {
-                rows.push((family_name, path, face_idx, None));
+                let display_name = match entry.subfamily_name() {
+                    Some(sub) => format!("{family_name} {sub}"),
+                    None => family_name,
+                };
+                rows.push((display_name, path, face_idx, None));
             }
         }
         rows
@@ -235,7 +217,7 @@ impl GlyphDataset {
         let font_idx = self
             .index
             .sample_offsets
-            .partition_point(|offset| *offset <= idx)
+            .partition_point(|&offset| offset <= idx)
             - 1;
 
         let entry = &self.entries[font_idx];

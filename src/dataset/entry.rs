@@ -11,8 +11,6 @@ use super::{
 };
 use crate::error::{py_err, py_index_err};
 
-pub(super) type GlyphCompleteResult = GlyphItemData;
-
 pub(super) struct GlyphIndex {
     codepoints: Vec<u32>,
     glyph_ids: Vec<GlyphId>,
@@ -38,8 +36,7 @@ impl FontEntry {
             .map(|(face_index, face)| {
                 let font = face.map_err(|err| {
                     py_err(format!(
-                        "failed to parse '{path}' (face {face_index}): {err}",
-                        face_index = face_index
+                        "failed to parse '{path}' (face {face_index}): {err}"
                     ))
                 })?;
                 Self::from_face(path, face_index as u32, Arc::clone(&mapped), &font, filter)
@@ -58,7 +55,7 @@ impl FontEntry {
         &self,
         codepoint: u32,
         instance_index: Option<usize>,
-    ) -> PyResult<GlyphCompleteResult> {
+    ) -> PyResult<GlyphItemData> {
         let glyph_idx = self.lookup_glyph_index(codepoint)?;
         let glyph_id = self.index.glyph_ids[glyph_idx];
 
@@ -150,13 +147,12 @@ impl FontEntry {
             named_instances
                 .iter()
                 .map(|inst| {
-                    let user_coords: Vec<f32> = inst.user_coords().collect();
                     debug_assert_eq!(
                         axis_tags.len(),
-                        user_coords.len(),
+                        inst.user_coords().count(),
                         "font '{base_path}' (face {face_index}) reported mismatched axis metadata",
                     );
-                    axis_tags.iter().cloned().zip(user_coords).collect()
+                    axis_tags.iter().cloned().zip(inst.user_coords()).collect()
                 })
                 .collect()
         };

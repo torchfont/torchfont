@@ -15,6 +15,8 @@ use crate::{
     outline,
 };
 
+use skrifa::raw::types::NameId;
+
 pub(super) type GlyphItemData = (
     Vec<i64>,
     Vec<f32>,
@@ -77,6 +79,7 @@ impl GlyphReader {
 
             let location_ref = self.location_ref(locations, instance_index)?;
             let inv_upem = 1.0 / units_per_em;
+            let scale = |v: Option<f32>| v.map(|v| v * inv_upem).unwrap_or(f32::NAN);
 
             let outline = outline::extract_glyph_outline(
                 &glyph,
@@ -86,31 +89,21 @@ impl GlyphReader {
             .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
 
             let glyph_metrics = font.glyph_metrics(Size::unscaled(), location_ref);
-            let advance_width = glyph_metrics
-                .advance_width(glyph_id)
-                .map(|v| v * inv_upem)
-                .unwrap_or(f32::NAN);
-            let lsb = glyph_metrics
-                .left_side_bearing(glyph_id)
-                .map(|v| v * inv_upem)
-                .unwrap_or(f32::NAN);
+            let advance_width = scale(glyph_metrics.advance_width(glyph_id));
+            let lsb = scale(glyph_metrics.left_side_bearing(glyph_id));
+            let nan4 = (f32::NAN, f32::NAN, f32::NAN, f32::NAN);
             let (x_min, y_min, x_max, y_max) = if metrics_bounds_are_outline_based(&font) {
                 bounds::bounds_from_outline(&outline)
-                    .map_or((f32::NAN, f32::NAN, f32::NAN, f32::NAN), |bb| {
-                        (bb.x_min, bb.y_min, bb.x_max, bb.y_max)
-                    })
+                    .map_or(nan4, |bb| (bb.x_min, bb.y_min, bb.x_max, bb.y_max))
             } else {
-                glyph_metrics.bounds(glyph_id).map_or(
-                    (f32::NAN, f32::NAN, f32::NAN, f32::NAN),
-                    |bb| {
-                        (
-                            bb.x_min * inv_upem,
-                            bb.y_min * inv_upem,
-                            bb.x_max * inv_upem,
-                            bb.y_max * inv_upem,
-                        )
-                    },
-                )
+                glyph_metrics.bounds(glyph_id).map_or(nan4, |bb| {
+                    (
+                        bb.x_min * inv_upem,
+                        bb.y_min * inv_upem,
+                        bb.x_max * inv_upem,
+                        bb.y_max * inv_upem,
+                    )
+                })
             };
 
             let m = font.metrics(Size::unscaled(), location_ref);
@@ -136,9 +129,9 @@ impl GlyphReader {
                 m.ascent * inv_upem,
                 m.descent * inv_upem,
                 m.leading * inv_upem,
-                m.cap_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
-                m.x_height.map(|v| v * inv_upem).unwrap_or(f32::NAN),
-                m.average_width.map(|v| v * inv_upem).unwrap_or(f32::NAN),
+                scale(m.cap_height),
+                scale(m.x_height),
+                scale(m.average_width),
                 m.is_monospace,
                 m.italic_angle,
                 glyph_name,
@@ -152,8 +145,7 @@ impl GlyphReader {
                 .named_instances()
                 .iter()
                 .map(|inst| {
-                    let name_id = inst.subfamily_name_id();
-                    font.localized_strings(name_id)
+                    font.localized_strings(inst.subfamily_name_id())
                         .english_or_first()
                         .map(|s| s.to_string())
                 })
@@ -164,16 +156,10 @@ impl GlyphReader {
 
     pub(super) fn family_name(&self) -> String {
         self.with_font_ref(|font| {
-            Ok([
-                skrifa::raw::types::NameId::TYPOGRAPHIC_FAMILY_NAME,
-                skrifa::raw::types::NameId::FAMILY_NAME,
-            ]
-            .into_iter()
-            .find_map(|id| {
-                font.localized_strings(id)
-                    .english_or_first()
-                    .map(|s| s.to_string())
-            })
+            Ok(localized_name(
+                &font,
+                [NameId::TYPOGRAPHIC_FAMILY_NAME, NameId::FAMILY_NAME],
+            )
             .unwrap_or_default())
         })
         .unwrap_or_default()
@@ -181,16 +167,10 @@ impl GlyphReader {
 
     pub(super) fn subfamily_name(&self) -> Option<String> {
         self.with_font_ref(|font| {
-            Ok([
-                skrifa::raw::types::NameId::TYPOGRAPHIC_SUBFAMILY_NAME,
-                skrifa::raw::types::NameId::SUBFAMILY_NAME,
-            ]
-            .into_iter()
-            .find_map(|id| {
-                font.localized_strings(id)
-                    .english_or_first()
-                    .map(|s| s.to_string())
-            }))
+            Ok(localized_name(
+                &font,
+                [NameId::TYPOGRAPHIC_SUBFAMILY_NAME, NameId::SUBFAMILY_NAME],
+            ))
         })
         .ok()
         .flatten()
@@ -211,18 +191,26 @@ impl GlyphReader {
         locations: &'a [Location],
         index: Option<usize>,
     ) -> PyResult<LocationRef<'a>> {
-        if let Some(idx) = index {
-            let location = locations.get(idx).ok_or_else(|| {
-                py_index_err(format!(
-                    "instance index {idx} out of range for '{}'",
-                    self.path
-                ))
-            })?;
-            Ok(LocationRef::from(location))
-        } else {
-            Ok(LocationRef::default())
-        }
+        index.map_or(Ok(LocationRef::default()), |idx| {
+            locations
+                .get(idx)
+                .ok_or_else(|| {
+                    py_index_err(format!(
+                        "instance index {idx} out of range for '{}'",
+                        self.path
+                    ))
+                })
+                .map(LocationRef::from)
+        })
     }
+}
+
+fn localized_name(font: &skrifa::FontRef<'_>, ids: [NameId; 2]) -> Option<String> {
+    ids.into_iter().find_map(|id| {
+        font.localized_strings(id)
+            .english_or_first()
+            .map(|s| s.to_string())
+    })
 }
 
 fn metrics_bounds_are_outline_based(font: &skrifa::FontRef<'_>) -> bool {

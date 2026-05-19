@@ -86,11 +86,9 @@ impl BoundsPen {
     }
 
     fn include(&mut self, point: Point) {
-        if let Some(bounds) = &mut self.bounds {
-            bounds.include(point);
-        } else {
-            self.bounds = Some(Bounds::new(point));
-        }
+        self.bounds
+            .get_or_insert_with(|| Bounds::new(point))
+            .include(point);
     }
 
     fn include_quad(&mut self, start: Point, control: Point, end: Point) {
@@ -111,15 +109,9 @@ impl BoundsPen {
 
     fn include_cubic(&mut self, start: Point, control0: Point, control1: Point, end: Point) {
         self.include(end);
-        for t in cubic_extrema(start.x, control0.x, control1.x, end.x)
-            .into_iter()
-            .flatten()
-            .chain(
-                cubic_extrema(start.y, control0.y, control1.y, end.y)
-                    .into_iter()
-                    .flatten(),
-            )
-        {
+        let x_ts = cubic_extrema(start.x, control0.x, control1.x, end.x);
+        let y_ts = cubic_extrema(start.y, control0.y, control1.y, end.y);
+        for t in x_ts.into_iter().chain(y_ts).flatten() {
             self.include(Point::new(
                 cubic_at(start.x, control0.x, control1.x, end.x, t),
                 cubic_at(start.y, control0.y, control1.y, end.y, t),
