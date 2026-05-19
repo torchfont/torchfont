@@ -72,8 +72,3 @@ print(sample.glyph_name)
 - 可変フォントを含む大規模フォント群で実験したい
 - グリフ生成・分類・表現学習の入力をベクター表現で統一したい
 
-## 次に読むページ
-
-- [クイックスタート](/ja/guide/getting-started)
-- [グリフデータ形式](/ja/guide/glyph-data-format)
-- [DataLoader との統合](/ja/guide/dataloader)

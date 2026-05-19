@@ -124,9 +124,3 @@ Git などで更新したあとは、ネイティブな indexing state がディ
 - シーケンス長の制限や整形は dataset transform やモデル固有 utility で行う
 - 学習対象を絞る: `codepoints=` や `patterns=`
 
-## 次に読むページ
-
-- [グリフデータ形式](/ja/guide/glyph-data-format)
-- [DataLoader との統合](/ja/guide/dataloader)
-- [Git checkout 済みリポジトリを使う](/ja/guide/git-repos)
-- [Google Fonts](/ja/guide/google-fonts)
