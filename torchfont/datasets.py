@@ -110,7 +110,12 @@ class GlyphSample:
         hmtx (Tensor): ``advance_width``, ``lsb`` (2,). UPM-normalised.
         bounds (Tensor): ``x_min``, ``y_min``, ``x_max``, ``y_max`` (4,).
             UPM-normalised.
-        name (NameRecord): Strings from the ``name`` table (IDs 0-25).
+        name (NameRecord): Strings from the ``name`` table. Covers IDs
+            0-14 and 16-25 (ID 15 is reserved and not exposed).
+            ``family_name`` prefers the typographic family name (ID 16)
+            with fallback to the legacy family name (ID 1);
+            ``subfamily_name`` prefers ID 17 with fallback to ID 2.
+            All fields are empty strings when absent in the font.
         codepoint (int): Unicode code point of the glyph (e.g. ``0x0041`` for 'A').
         glyph_name (str): PostScript name of the glyph.
 
