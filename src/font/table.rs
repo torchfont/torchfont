@@ -89,26 +89,26 @@ pub(crate) struct Maxp {
 /// Font-level strings from the `name` table (IDs 0–25, one field per ID).
 pub(crate) struct Name {
     pub copyright_notice: String,                  // ID 0
-    pub font_family_name: String,                  // ID 1
-    pub font_subfamily_name: String,               // ID 2
-    pub unique_font_identifier: String,            // ID 3
-    pub full_font_name: String,                    // ID 4
+    pub family_name: String,                       // ID 1
+    pub subfamily_name: String,                    // ID 2
+    pub unique_id: String,                         // ID 3
+    pub full_name: String,                         // ID 4
     pub version_string: String,                    // ID 5
     pub postscript_name: String,                   // ID 6
     pub trademark: String,                         // ID 7
-    pub manufacturer_name: String,                 // ID 8
+    pub manufacturer: String,                      // ID 8
     pub designer: String,                          // ID 9
     pub description: String,                       // ID 10
-    pub url_vendor: String,                        // ID 11
-    pub url_designer: String,                      // ID 12
+    pub vendor_url: String,                        // ID 11
+    pub designer_url: String,                      // ID 12
     pub license_description: String,               // ID 13
-    pub license_info_url: String,                  // ID 14
+    pub license_url: String,                       // ID 14
     pub reserved: String,                          // ID 15 (reserved; typically empty)
     pub typographic_family_name: String,           // ID 16
     pub typographic_subfamily_name: String,        // ID 17
     pub compatible_full_name: String,              // ID 18
     pub sample_text: String,                       // ID 19
-    pub postscript_cid_findfont_name: String,      // ID 20
+    pub postscript_cid_name: String,               // ID 20
     pub wws_family_name: String,                   // ID 21
     pub wws_subfamily_name: String,                // ID 22
     pub light_background_palette: String,          // ID 23

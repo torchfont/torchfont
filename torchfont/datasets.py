@@ -48,26 +48,26 @@ class NameRecord:
     """
 
     copyright_notice: str  # ID 0
-    font_family_name: str  # ID 1
-    font_subfamily_name: str  # ID 2
-    unique_font_identifier: str  # ID 3
-    full_font_name: str  # ID 4
+    family_name: str  # ID 1
+    subfamily_name: str  # ID 2
+    unique_id: str  # ID 3
+    full_name: str  # ID 4
     version_string: str  # ID 5
     postscript_name: str  # ID 6
     trademark: str  # ID 7
-    manufacturer_name: str  # ID 8
+    manufacturer: str  # ID 8
     designer: str  # ID 9
     description: str  # ID 10
-    url_vendor: str  # ID 11
-    url_designer: str  # ID 12
+    vendor_url: str  # ID 11
+    designer_url: str  # ID 12
     license_description: str  # ID 13
-    license_info_url: str  # ID 14
+    license_url: str  # ID 14
     reserved: str  # ID 15
     typographic_family_name: str  # ID 16
     typographic_subfamily_name: str  # ID 17
     compatible_full_name: str  # ID 18
     sample_text: str  # ID 19
-    postscript_cid_findfont_name: str  # ID 20
+    postscript_cid_name: str  # ID 20
     wws_family_name: str  # ID 21
     wws_subfamily_name: str  # ID 22
     light_background_palette: str  # ID 23

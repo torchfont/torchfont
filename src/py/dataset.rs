@@ -209,29 +209,26 @@ impl GlyphDataset {
         let name = {
             let d = PyDict::new(py);
             d.set_item("copyright_notice", &n.copyright_notice)?;
-            d.set_item("font_family_name", &n.font_family_name)?;
-            d.set_item("font_subfamily_name", &n.font_subfamily_name)?;
-            d.set_item("unique_font_identifier", &n.unique_font_identifier)?;
-            d.set_item("full_font_name", &n.full_font_name)?;
+            d.set_item("family_name", &n.family_name)?;
+            d.set_item("subfamily_name", &n.subfamily_name)?;
+            d.set_item("unique_id", &n.unique_id)?;
+            d.set_item("full_name", &n.full_name)?;
             d.set_item("version_string", &n.version_string)?;
             d.set_item("postscript_name", &n.postscript_name)?;
             d.set_item("trademark", &n.trademark)?;
-            d.set_item("manufacturer_name", &n.manufacturer_name)?;
+            d.set_item("manufacturer", &n.manufacturer)?;
             d.set_item("designer", &n.designer)?;
             d.set_item("description", &n.description)?;
-            d.set_item("url_vendor", &n.url_vendor)?;
-            d.set_item("url_designer", &n.url_designer)?;
+            d.set_item("vendor_url", &n.vendor_url)?;
+            d.set_item("designer_url", &n.designer_url)?;
             d.set_item("license_description", &n.license_description)?;
-            d.set_item("license_info_url", &n.license_info_url)?;
+            d.set_item("license_url", &n.license_url)?;
             d.set_item("reserved", &n.reserved)?;
             d.set_item("typographic_family_name", &n.typographic_family_name)?;
             d.set_item("typographic_subfamily_name", &n.typographic_subfamily_name)?;
             d.set_item("compatible_full_name", &n.compatible_full_name)?;
             d.set_item("sample_text", &n.sample_text)?;
-            d.set_item(
-                "postscript_cid_findfont_name",
-                &n.postscript_cid_findfont_name,
-            )?;
+            d.set_item("postscript_cid_name", &n.postscript_cid_name)?;
             d.set_item("wws_family_name", &n.wws_family_name)?;
             d.set_item("wws_subfamily_name", &n.wws_subfamily_name)?;
             d.set_item("light_background_palette", &n.light_background_palette)?;
@@ -291,7 +288,7 @@ impl GlyphDataset {
             let family = if !n.typographic_family_name.is_empty() {
                 &n.typographic_family_name
             } else {
-                &n.font_family_name
+                &n.family_name
             };
             let instance_names = entry.named_instance_names();
             if !instance_names.is_empty() {
@@ -306,7 +303,7 @@ impl GlyphDataset {
                 let sub = if !n.typographic_subfamily_name.is_empty() {
                     &n.typographic_subfamily_name
                 } else {
-                    &n.font_subfamily_name
+                    &n.subfamily_name
                 };
                 let display_name = if sub.is_empty() {
                     family.clone()
