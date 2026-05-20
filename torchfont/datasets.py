@@ -48,18 +48,18 @@ class NameRecord:
     """
 
     copyright_notice: str  # ID 0
-    family_name: str  # ID 1
-    subfamily_name: str  # ID 2
+    font_family_name: str  # ID 1
+    font_subfamily_name: str  # ID 2
     unique_font_identifier: str  # ID 3
-    full_name: str  # ID 4
+    full_font_name: str  # ID 4
     version_string: str  # ID 5
     postscript_name: str  # ID 6
     trademark: str  # ID 7
     manufacturer_name: str  # ID 8
     designer: str  # ID 9
     description: str  # ID 10
-    vendor_url: str  # ID 11
-    designer_url: str  # ID 12
+    url_vendor: str  # ID 11
+    url_designer: str  # ID 12
     license_description: str  # ID 13
     license_info_url: str  # ID 14
     reserved: str  # ID 15
