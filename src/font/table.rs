@@ -86,29 +86,32 @@ pub(crate) struct Maxp {
     pub max_component_depth: Option<u16>,
 }
 
-/// Font-level strings from the `name` table (English or first available).
+/// Font-level strings from the `name` table (IDs 0–25, one field per ID).
 pub(crate) struct Name {
-    pub copyright_notice: String,
-    pub family_name: String,
-    pub subfamily_name: String,
-    pub unique_font_identifier: String,
-    pub full_name: String,
-    pub version_string: String,
-    pub postscript_name: String,
-    pub trademark: String,
-    pub manufacturer_name: String,
-    pub designer: String,
-    pub description: String,
-    pub vendor_url: String,
-    pub designer_url: String,
-    pub license_description: String,
-    pub license_info_url: String,
-    pub compatible_full_name: String,
-    pub sample_text: String,
-    pub postscript_cid_findfont_name: String,
-    pub wws_family_name: String,
-    pub wws_subfamily_name: String,
-    pub light_background_palette: String,
-    pub dark_background_palette: String,
-    pub variations_postscript_name_prefix: String,
+    pub copyright_notice: String,                  // ID 0
+    pub family_name: String,                       // ID 1
+    pub subfamily_name: String,                    // ID 2
+    pub unique_font_identifier: String,            // ID 3
+    pub full_name: String,                         // ID 4
+    pub version_string: String,                    // ID 5
+    pub postscript_name: String,                   // ID 6
+    pub trademark: String,                         // ID 7
+    pub manufacturer_name: String,                 // ID 8
+    pub designer: String,                          // ID 9
+    pub description: String,                       // ID 10
+    pub vendor_url: String,                        // ID 11
+    pub designer_url: String,                      // ID 12
+    pub license_description: String,               // ID 13
+    pub license_info_url: String,                  // ID 14
+    pub reserved: String,                          // ID 15 (reserved; typically empty)
+    pub typographic_family_name: String,           // ID 16
+    pub typographic_subfamily_name: String,        // ID 17
+    pub compatible_full_name: String,              // ID 18
+    pub sample_text: String,                       // ID 19
+    pub postscript_cid_findfont_name: String,      // ID 20
+    pub wws_family_name: String,                   // ID 21
+    pub wws_subfamily_name: String,                // ID 22
+    pub light_background_palette: String,          // ID 23
+    pub dark_background_palette: String,           // ID 24
+    pub variations_postscript_name_prefix: String, // ID 25
 }

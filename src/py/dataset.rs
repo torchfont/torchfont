@@ -223,6 +223,9 @@ impl GlyphDataset {
             d.set_item("designer_url", &n.designer_url)?;
             d.set_item("license_description", &n.license_description)?;
             d.set_item("license_info_url", &n.license_info_url)?;
+            d.set_item("reserved", &n.reserved)?;
+            d.set_item("typographic_family_name", &n.typographic_family_name)?;
+            d.set_item("typographic_subfamily_name", &n.typographic_subfamily_name)?;
             d.set_item("compatible_full_name", &n.compatible_full_name)?;
             d.set_item("sample_text", &n.sample_text)?;
             d.set_item(
@@ -284,7 +287,12 @@ impl GlyphDataset {
         for entry in self.entries.iter() {
             let path = entry.path().to_owned();
             let face_idx = entry.face_index();
-            let family = &entry.name.family_name;
+            let n = &entry.name;
+            let family = if !n.typographic_family_name.is_empty() {
+                &n.typographic_family_name
+            } else {
+                &n.family_name
+            };
             let instance_names = entry.named_instance_names();
             if !instance_names.is_empty() {
                 for (inst_idx, name_opt) in instance_names.iter().enumerate() {
@@ -295,7 +303,11 @@ impl GlyphDataset {
                     rows.push((display_name, path.clone(), face_idx, Some(inst_idx)));
                 }
             } else {
-                let sub = &entry.name.subfamily_name;
+                let sub = if !n.typographic_subfamily_name.is_empty() {
+                    &n.typographic_subfamily_name
+                } else {
+                    &n.subfamily_name
+                };
                 let display_name = if sub.is_empty() {
                     family.clone()
                 } else {

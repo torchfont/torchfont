@@ -288,23 +288,18 @@ fn parse_font_tables(
         max_component_depth: raw_maxp.max_component_depth(),
     };
 
-    let localized = |ids: &[NameId]| -> String {
-        ids.iter()
-            .find_map(|&id| {
-                font.localized_strings(id)
-                    .english_or_first()
-                    .map(|s| s.to_string())
-            })
+    let one = |id: NameId| -> String {
+        font.localized_strings(id)
+            .english_or_first()
+            .map(|s| s.to_string())
             .unwrap_or_default()
     };
-
-    let one = |id: NameId| localized(&[id]);
     let name = Name {
         copyright_notice: one(NameId::COPYRIGHT_NOTICE),
-        family_name: localized(&[NameId::TYPOGRAPHIC_FAMILY_NAME, NameId::FAMILY_NAME]),
-        subfamily_name: localized(&[NameId::TYPOGRAPHIC_SUBFAMILY_NAME, NameId::SUBFAMILY_NAME]),
+        family_name: one(NameId::FAMILY_NAME),
+        subfamily_name: one(NameId::SUBFAMILY_NAME),
         unique_font_identifier: one(NameId::UNIQUE_ID),
-        full_name: localized(&[NameId::FULL_NAME]),
+        full_name: one(NameId::FULL_NAME),
         version_string: one(NameId::VERSION_STRING),
         postscript_name: one(NameId::POSTSCRIPT_NAME),
         trademark: one(NameId::TRADEMARK),
@@ -315,6 +310,9 @@ fn parse_font_tables(
         designer_url: one(NameId::DESIGNER_URL),
         license_description: one(NameId::LICENSE_DESCRIPTION),
         license_info_url: one(NameId::LICENSE_URL),
+        reserved: one(NameId::new(15)),
+        typographic_family_name: one(NameId::TYPOGRAPHIC_FAMILY_NAME),
+        typographic_subfamily_name: one(NameId::TYPOGRAPHIC_SUBFAMILY_NAME),
         compatible_full_name: one(NameId::COMPATIBLE_FULL_NAME),
         sample_text: one(NameId::SAMPLE_TEXT),
         postscript_cid_findfont_name: one(NameId::POSTSCRIPT_CID_NAME),

@@ -41,34 +41,38 @@ _T = TypeVar("_T")
 
 @dataclasses.dataclass(frozen=True)
 class NameRecord:
-    """Strings from a font's ``name`` table (IDs 0-25).
+    """Strings from a font's ``name`` table, one field per NameID (0-25).
 
-    Each field is an empty string when the entry is absent in the font.
+    Each field maps to exactly one NameID and is an empty string when
+    the entry is absent in the font.
     """
 
-    copyright_notice: str
-    family_name: str
-    subfamily_name: str
-    unique_font_identifier: str
-    full_name: str
-    version_string: str
-    postscript_name: str
-    trademark: str
-    manufacturer_name: str
-    designer: str
-    description: str
-    vendor_url: str
-    designer_url: str
-    license_description: str
-    license_info_url: str
-    compatible_full_name: str
-    sample_text: str
-    postscript_cid_findfont_name: str
-    wws_family_name: str
-    wws_subfamily_name: str
-    light_background_palette: str
-    dark_background_palette: str
-    variations_postscript_name_prefix: str
+    copyright_notice: str  # ID 0
+    family_name: str  # ID 1
+    subfamily_name: str  # ID 2
+    unique_font_identifier: str  # ID 3
+    full_name: str  # ID 4
+    version_string: str  # ID 5
+    postscript_name: str  # ID 6
+    trademark: str  # ID 7
+    manufacturer_name: str  # ID 8
+    designer: str  # ID 9
+    description: str  # ID 10
+    vendor_url: str  # ID 11
+    designer_url: str  # ID 12
+    license_description: str  # ID 13
+    license_info_url: str  # ID 14
+    reserved: str  # ID 15
+    typographic_family_name: str  # ID 16
+    typographic_subfamily_name: str  # ID 17
+    compatible_full_name: str  # ID 18
+    sample_text: str  # ID 19
+    postscript_cid_findfont_name: str  # ID 20
+    wws_family_name: str  # ID 21
+    wws_subfamily_name: str  # ID 22
+    light_background_palette: str  # ID 23
+    dark_background_palette: str  # ID 24
+    variations_postscript_name_prefix: str  # ID 25
 
 
 @dataclasses.dataclass
@@ -110,12 +114,8 @@ class GlyphSample:
         hmtx (Tensor): ``advance_width``, ``lsb`` (2,). UPM-normalised.
         bounds (Tensor): ``x_min``, ``y_min``, ``x_max``, ``y_max`` (4,).
             UPM-normalised.
-        name (NameRecord): Strings from the ``name`` table. Covers IDs
-            0-14 and 16-25 (ID 15 is reserved and not exposed).
-            ``family_name`` prefers the typographic family name (ID 16)
-            with fallback to the legacy family name (ID 1);
-            ``subfamily_name`` prefers ID 17 with fallback to ID 2.
-            All fields are empty strings when absent in the font.
+        name (NameRecord): Strings from the ``name`` table, one field
+            per NameID 0-25. Each field is an empty string when absent.
         codepoint (int): Unicode code point of the glyph (e.g. ``0x0041`` for 'A').
         glyph_name (str): PostScript name of the glyph.
 
