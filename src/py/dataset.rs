@@ -65,7 +65,7 @@ impl GlyphDataset {
             .copied()
             .map(|codepoint| {
                 let ch = char::from_u32(codepoint).ok_or_else(|| {
-                    crate::error::py_err(format!(
+                    pyo3::exceptions::PyValueError::new_err(format!(
                         "indexed codepoint U+{codepoint:04X} is not a Unicode scalar value"
                     ))
                 })?;
@@ -204,7 +204,7 @@ impl GlyphDataset {
     fn locate_parts(&self, idx: usize) -> PyResult<(usize, Option<usize>, u32, usize, usize)> {
         let total = self.sample_count();
         if idx >= total {
-            return Err(crate::error::py_index_err(format!(
+            return Err(pyo3::exceptions::PyIndexError::new_err(format!(
                 "sample index {idx} out of range (len={total})"
             )));
         }
@@ -251,7 +251,7 @@ fn style_label_id(
     instance_idx: Option<usize>,
 ) -> PyResult<String> {
     let relative_path = font_path.strip_prefix(root).map_err(|_| {
-        crate::error::py_err(format!(
+        pyo3::exceptions::PyValueError::new_err(format!(
             "font path '{}' is not under dataset root '{}'",
             font_path.display(),
             root.display()

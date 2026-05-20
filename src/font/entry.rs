@@ -1,15 +1,11 @@
-use std::sync::Arc;
+use std::{fs, sync::Arc};
 
 use memmap2::Mmap;
-use pyo3::prelude::*;
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::{GlyphId, MetadataProvider, instance::Location};
 
-use super::{
-    io::map_font,
-    reader::{GlyphItemData, GlyphReader},
-};
-use crate::error::{py_err, py_index_err};
+use super::reader::{GlyphItemData, GlyphReader};
+use crate::error::Error;
 
 pub(super) struct GlyphIndex {
     codepoints: Vec<u32>,
@@ -25,26 +21,26 @@ pub(crate) struct FontEntry {
 }
 
 impl FontEntry {
-    pub(crate) fn load_faces(path: &str, filter: Option<&[u32]>) -> PyResult<Vec<Self>> {
+    pub(crate) fn load_faces(path: &str, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
         let mapped = Arc::new(map_font(path)?);
         let parsed = FileRef::new(&mapped[..])
-            .map_err(|err| py_err(format!("failed to parse '{path}': {err}")))?;
+            .map_err(|err| Error::Parse(format!("failed to parse '{path}': {err}")))?;
 
         let entries = parsed
             .fonts()
             .enumerate()
             .map(|(face_index, face)| {
                 let font = face.map_err(|err| {
-                    py_err(format!(
+                    Error::Parse(format!(
                         "failed to parse '{path}' (face {face_index}): {err}"
                     ))
                 })?;
                 Self::from_face(path, face_index as u32, Arc::clone(&mapped), &font, filter)
             })
-            .collect::<PyResult<Vec<_>>>()?;
+            .collect::<Result<Vec<_>, Error>>()?;
 
         if entries.is_empty() {
-            return Err(py_err(format!(
+            return Err(Error::Parse(format!(
                 "font file '{path}' does not contain any fonts"
             )));
         }
@@ -55,10 +51,9 @@ impl FontEntry {
         &self,
         codepoint: u32,
         instance_index: Option<usize>,
-    ) -> PyResult<GlyphItemData> {
+    ) -> Result<GlyphItemData, Error> {
         let glyph_idx = self.lookup_glyph_index(codepoint)?;
         let glyph_id = self.index.glyph_ids[glyph_idx];
-
         self.reader
             .draw_glyph(glyph_id, self.units_per_em, &self.locations, instance_index)
     }
@@ -112,11 +107,11 @@ impl FontEntry {
         data: Arc<Mmap>,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
-    ) -> PyResult<Self> {
+    ) -> Result<Self, Error> {
         let upem = font
             .head()
             .map_err(|_| {
-                py_err(format!(
+                Error::Parse(format!(
                     "font '{base_path}' (face {face_index}) is missing a head table"
                 ))
             })?
@@ -169,15 +164,23 @@ impl FontEntry {
         })
     }
 
-    fn lookup_glyph_index(&self, codepoint: u32) -> PyResult<usize> {
+    fn lookup_glyph_index(&self, codepoint: u32) -> Result<usize, Error> {
         self.index
             .codepoints
             .binary_search(&codepoint)
             .map_err(|_| {
-                py_index_err(format!(
+                Error::OutOfRange(format!(
                     "codepoint U+{codepoint:04X} missing from '{}'",
                     self.reader.path()
                 ))
             })
     }
+}
+
+fn map_font(path: &str) -> Result<Mmap, Error> {
+    let file =
+        fs::File::open(path).map_err(|err| Error::Io(format!("failed to open '{path}': {err}")))?;
+    let mmap = unsafe { Mmap::map(&file) }
+        .map_err(|err| Error::Io(format!("failed to map '{path}': {err}")))?;
+    Ok(mmap)
 }
