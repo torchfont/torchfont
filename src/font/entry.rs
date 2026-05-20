@@ -5,11 +5,11 @@ use skrifa::raw::types::NameId;
 use skrifa::raw::{FileRef, TableProvider};
 use skrifa::{GlyphId, MetadataProvider, instance::Location};
 
-use super::glyph::{Bounds, Hmtx};
+use super::glyph::Hmtx;
 use super::reader::GlyphReader;
 use super::table::{Head, Hhea, Maxp, Name, Os2, Post};
 use crate::error::Error;
-use crate::geom::Outline;
+use crate::geom::{Bounds, Outline};
 
 pub(super) struct GlyphIndex {
     codepoints: Vec<u32>,
@@ -185,19 +185,19 @@ fn parse_font_tables(
     path: &str,
     face_index: u32,
 ) -> Result<(Head, Hhea, Os2, Post, Maxp, Name), Error> {
-    let missing = |table: &'static str| {
-        move |_| {
+    let table_err = |table: &'static str| {
+        move |err: skrifa::raw::ReadError| {
             Error::Parse(format!(
-                "font '{path}' (face {face_index}) is missing '{table}' table"
+                "font '{path}' (face {face_index}) '{table}' table error: {err}"
             ))
         }
     };
 
-    let raw_head = font.head().map_err(missing("head"))?;
-    let raw_hhea = font.hhea().map_err(missing("hhea"))?;
-    let raw_os2 = font.os2().map_err(missing("OS/2"))?;
-    let raw_post = font.post().map_err(missing("post"))?;
-    let raw_maxp = font.maxp().map_err(missing("maxp"))?;
+    let raw_head = font.head().map_err(table_err("head"))?;
+    let raw_hhea = font.hhea().map_err(table_err("hhea"))?;
+    let raw_os2 = font.os2().map_err(table_err("OS/2"))?;
+    let raw_post = font.post().map_err(table_err("post"))?;
+    let raw_maxp = font.maxp().map_err(table_err("maxp"))?;
 
     let inv = (raw_head.units_per_em() as f32).recip();
     let norm = |v: i16| v as f32 * inv;

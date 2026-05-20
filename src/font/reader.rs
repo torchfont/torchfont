@@ -10,11 +10,8 @@ use skrifa::{
 
 use crate::{
     error::Error,
-    font::{
-        extract_glyph_outline,
-        glyph::{Bounds, Hmtx},
-    },
-    geom::{Outline, bounds_from_outline},
+    font::{extract_glyph_outline, glyph::Hmtx},
+    geom::{Bounds, Outline, bounds_from_outline},
 };
 
 pub(super) struct GlyphReader {
@@ -73,19 +70,23 @@ impl GlyphReader {
                 .unwrap_or(f32::NAN)
                 * inv;
 
-            let nan4 = (f32::NAN, f32::NAN, f32::NAN, f32::NAN);
-            let (x_min, y_min, x_max, y_max) = if metrics_bounds_are_outline_based(&font) {
-                bounds_from_outline(&outline)
-                    .map_or(nan4, |bb| (bb.x_min, bb.y_min, bb.x_max, bb.y_max))
+            let nan_bounds = Bounds {
+                x_min: f32::NAN,
+                y_min: f32::NAN,
+                x_max: f32::NAN,
+                y_max: f32::NAN,
+            };
+            let bounds = if metrics_bounds_are_outline_based(&font) {
+                bounds_from_outline(&outline).unwrap_or(nan_bounds)
             } else {
-                glyph_metrics.bounds(glyph_id).map_or(nan4, |bb| {
-                    (
-                        bb.x_min * inv,
-                        bb.y_min * inv,
-                        bb.x_max * inv,
-                        bb.y_max * inv,
-                    )
-                })
+                glyph_metrics
+                    .bounds(glyph_id)
+                    .map_or(nan_bounds, |bb| Bounds {
+                        x_min: bb.x_min * inv,
+                        y_min: bb.y_min * inv,
+                        x_max: bb.x_max * inv,
+                        y_max: bb.y_max * inv,
+                    })
             };
 
             let glyph_name = font
@@ -94,17 +95,7 @@ impl GlyphReader {
                 .map(|n| n.to_string())
                 .unwrap_or_default();
 
-            Ok((
-                outline,
-                Hmtx { advance_width, lsb },
-                Bounds {
-                    x_min,
-                    y_min,
-                    x_max,
-                    y_max,
-                },
-                glyph_name,
-            ))
+            Ok((outline, Hmtx { advance_width, lsb }, bounds, glyph_name))
         })
     }
 
