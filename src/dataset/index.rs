@@ -1,6 +1,5 @@
-use super::entry::FontEntry;
-use crate::error::py_index_err;
-use pyo3::prelude::*;
+use crate::error::Error;
+use crate::font::FontEntry;
 
 pub(crate) struct DatasetIndex {
     pub(crate) sample_offsets: Vec<usize>,
@@ -9,17 +8,17 @@ pub(crate) struct DatasetIndex {
 }
 
 impl DatasetIndex {
-    pub(crate) fn content_index(&self, codepoint: u32) -> PyResult<usize> {
-        self.content_classes
-            .binary_search(&codepoint)
-            .map_err(|_| py_index_err(format!("codepoint U+{codepoint:04X} missing from index")))
+    pub(crate) fn content_index(&self, codepoint: u32) -> Result<usize, Error> {
+        self.content_classes.binary_search(&codepoint).map_err(|_| {
+            Error::OutOfRange(format!("codepoint U+{codepoint:04X} missing from index"))
+        })
     }
 }
 
 pub(crate) fn load_entries_and_index(
     files: Vec<String>,
     filter: Option<&[u32]>,
-) -> PyResult<(Vec<FontEntry>, DatasetIndex)> {
+) -> Result<(Vec<FontEntry>, DatasetIndex), Error> {
     let mut entries = Vec::new();
     let mut all_cps = Vec::new();
 

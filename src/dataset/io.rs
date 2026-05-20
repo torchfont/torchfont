@@ -1,17 +1,12 @@
-use crate::error::py_err;
+use crate::error::Error;
 use ignore::{WalkBuilder, overrides::OverrideBuilder};
-use memmap2::Mmap;
-use pyo3::prelude::*;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-pub(crate) fn canonicalize_root(root: &str) -> PyResult<PathBuf> {
+pub(crate) fn canonicalize_root(root: &str) -> Result<PathBuf, Error> {
     let expanded = shellexpand::tilde(root);
     let path = PathBuf::from(expanded.as_ref());
-    fs::canonicalize(&path).map_err(|err| {
-        py_err(format!(
+    std::fs::canonicalize(&path).map_err(|err| {
+        Error::Io(format!(
             "failed to resolve font root '{}': {err}",
             path.display()
         ))
@@ -21,7 +16,7 @@ pub(crate) fn canonicalize_root(root: &str) -> PyResult<PathBuf> {
 pub(crate) fn discover_font_files(
     root: &Path,
     patterns: Option<&[String]>,
-) -> PyResult<Vec<String>> {
+) -> Result<Vec<String>, Error> {
     let mut builder = WalkBuilder::new(root);
     builder.standard_filters(false);
     builder.filter_entry(|entry| !is_vcs_metadata_dir(entry));
@@ -32,8 +27,8 @@ pub(crate) fn discover_font_files(
     let mut files = Vec::new();
 
     for result in builder.build() {
-        let entry =
-            result.map_err(|err| py_err(format!("failed to walk '{}': {err}", root.display())))?;
+        let entry = result
+            .map_err(|err| Error::Io(format!("failed to walk '{}': {err}", root.display())))?;
 
         let path = entry.path();
 
@@ -65,23 +60,14 @@ fn has_font_extension(path: &Path) -> bool {
         })
 }
 
-pub(super) fn map_font(path: &str) -> PyResult<Mmap> {
-    let file =
-        fs::File::open(path).map_err(|err| py_err(format!("failed to open '{path}': {err}")))?;
-    let mmap = unsafe { Mmap::map(&file) }
-        .map_err(|err| py_err(format!("failed to map '{path}': {err}")))?;
-    Ok(mmap)
-}
-
-fn build_overrides(root: &Path, patterns: &[String]) -> PyResult<ignore::overrides::Override> {
+fn build_overrides(root: &Path, patterns: &[String]) -> Result<ignore::overrides::Override, Error> {
     let mut builder = OverrideBuilder::new(root);
     for pattern in patterns {
         builder
             .add(pattern)
-            .map_err(|err| py_err(format!("invalid pattern '{pattern}': {err}")))?;
+            .map_err(|err| Error::Io(format!("invalid pattern '{pattern}': {err}")))?;
     }
-
     builder
         .build()
-        .map_err(|err| py_err(format!("failed to compile patterns: {err}")))
+        .map_err(|err| Error::Io(format!("failed to compile patterns: {err}")))
 }

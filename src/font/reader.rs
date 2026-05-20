@@ -1,21 +1,15 @@
 use std::sync::Arc;
 
 use memmap2::Mmap;
-use pyo3::prelude::*;
 use skrifa::{
     GlyphId, MetadataProvider,
     instance::{Location, LocationRef, Size},
     outline::DrawSettings,
     raw::TableProvider,
+    raw::types::NameId,
 };
 
-use crate::{
-    error::{py_err, py_index_err},
-    font::extract_glyph_outline,
-    geom::bounds_from_outline,
-};
-
-use skrifa::raw::types::NameId;
+use crate::{error::Error, font::extract_glyph_outline, geom::bounds_from_outline};
 
 pub(super) type GlyphItemData = (
     Vec<i64>,
@@ -67,10 +61,10 @@ impl GlyphReader {
         units_per_em: f32,
         locations: &[Location],
         instance_index: Option<usize>,
-    ) -> PyResult<GlyphItemData> {
+    ) -> Result<GlyphItemData, Error> {
         self.with_font_ref(|font| {
             let glyph = font.outline_glyphs().get(glyph_id).ok_or_else(|| {
-                py_err(format!(
+                Error::Parse(format!(
                     "glyph id {} missing from '{}'",
                     glyph_id.to_u32(),
                     self.path
@@ -86,7 +80,7 @@ impl GlyphReader {
                 DrawSettings::unhinted(Size::unscaled(), location_ref),
                 units_per_em,
             )
-            .map_err(|err| py_err(format!("failed to draw glyph: {err}")))?;
+            .map_err(|err| Error::Parse(format!("failed to draw glyph: {err}")))?;
 
             let glyph_metrics = font.glyph_metrics(Size::unscaled(), location_ref);
             let advance_width = scale(glyph_metrics.advance_width(glyph_id));
@@ -176,9 +170,12 @@ impl GlyphReader {
         .flatten()
     }
 
-    fn with_font_ref<T>(&self, f: impl FnOnce(skrifa::FontRef<'_>) -> PyResult<T>) -> PyResult<T> {
+    fn with_font_ref<T>(
+        &self,
+        f: impl FnOnce(skrifa::FontRef<'_>) -> Result<T, Error>,
+    ) -> Result<T, Error> {
         let font = skrifa::FontRef::from_index(&self.data[..], self.face_index).map_err(|err| {
-            py_err(format!(
+            Error::Parse(format!(
                 "failed to parse '{}' (face {}): {err}",
                 self.path, self.face_index
             ))
@@ -190,12 +187,12 @@ impl GlyphReader {
         &self,
         locations: &'a [Location],
         index: Option<usize>,
-    ) -> PyResult<LocationRef<'a>> {
+    ) -> Result<LocationRef<'a>, Error> {
         index.map_or(Ok(LocationRef::default()), |idx| {
             locations
                 .get(idx)
                 .ok_or_else(|| {
-                    py_index_err(format!(
+                    Error::OutOfRange(format!(
                         "instance index {idx} out of range for '{}'",
                         self.path
                     ))
