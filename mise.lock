@@ -36,6 +36,28 @@ url = "https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip"
 version = "11.14.1"
 backend = "aqua:npm/cli"
 
+[tools.npm."platforms.linux-arm64"]
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
+[tools.npm."platforms.linux-arm64-musl"]
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
+[tools.npm."platforms.linux-x64"]
+checksum = "blake3:a8de705e3d92c2cf36caf4d5f6476118996416e8761d14b58f78b257ee0d2e82"
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
+[tools.npm."platforms.linux-x64-musl"]
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
+[tools.npm."platforms.macos-arm64"]
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
+[tools.npm."platforms.macos-x64"]
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
+[tools.npm."platforms.windows-x64"]
+url = "https://registry.npmjs.org/npm/-/npm-11.14.1.tgz"
+
 [[tools.rust]]
 version = "stable"
 backend = "core:rust"

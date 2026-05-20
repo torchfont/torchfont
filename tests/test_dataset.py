@@ -19,6 +19,7 @@ from torchfont.datasets import (
     DatasetMetadata,
     GlyphDataset,
     GlyphSample,
+    NameRecord,
     StyleAxis,
 )
 from torchfont.io import ElementType
@@ -123,10 +124,65 @@ def test_glyph_dataset_getitem() -> None:
     assert 0 <= sample.style_idx < len(dataset.style_classes)
     assert 0 <= sample.content_idx < len(dataset.content_classes)
 
-    assert isinstance(sample.metrics, torch.Tensor)
-    assert sample.metrics.dtype == torch.float32
-    assert sample.metrics.shape == (15,)
-    assert not torch.isnan(sample.metrics[0])  # advance_width should be present
+    assert isinstance(sample.hmtx, torch.Tensor)
+    assert sample.hmtx.dtype == torch.float32
+    assert sample.hmtx.shape == (2,)
+    assert not torch.isnan(sample.hmtx[0])  # advance_width should be present
+
+    assert isinstance(sample.head, torch.Tensor)
+    assert sample.head.dtype == torch.float32
+    assert sample.head.shape == (8,)
+
+    assert isinstance(sample.hhea, torch.Tensor)
+    assert sample.hhea.dtype == torch.float32
+    assert sample.hhea.shape == (10,)
+
+    assert isinstance(sample.os2, torch.Tensor)
+    assert sample.os2.dtype == torch.float32
+    assert sample.os2.shape == (42,)
+
+    assert isinstance(sample.post, torch.Tensor)
+    assert sample.post.dtype == torch.float32
+    assert sample.post.shape == (4,)
+
+    assert isinstance(sample.maxp, torch.Tensor)
+    assert sample.maxp.dtype == torch.float32
+    assert sample.maxp.shape == (14,)
+
+    assert isinstance(sample.bounds, torch.Tensor)
+    assert sample.bounds.dtype == torch.float32
+    assert sample.bounds.shape == (4,)
+
+    assert isinstance(sample.name, NameRecord)
+    for attr in (
+        "copyright_notice",
+        "family_name",
+        "subfamily_name",
+        "unique_font_identifier",
+        "full_name",
+        "version_string",
+        "postscript_name",
+        "trademark",
+        "manufacturer_name",
+        "designer",
+        "description",
+        "vendor_url",
+        "designer_url",
+        "license_description",
+        "license_info_url",
+        "compatible_full_name",
+        "sample_text",
+        "postscript_cid_findfont_name",
+        "wws_family_name",
+        "wws_subfamily_name",
+        "light_background_palette",
+        "dark_background_palette",
+        "variations_postscript_name_prefix",
+    ):
+        assert isinstance(getattr(sample.name, attr), str)
+
+    assert isinstance(sample.codepoint, int)
+    assert sample.codepoint == ord(dataset.content_classes[sample.content_idx])
 
     assert isinstance(sample.glyph_name, str)
     assert len(sample.glyph_name) > 0
@@ -961,10 +1017,11 @@ def test_glyph_dataset_filters_outline_less_glyphs() -> None:
     dataset[i] raised ValueError. After the fix, such glyphs are filtered out at
     construction time so that len(dataset) == the number of items that can actually
     be retrieved via __getitem__.
+
+    nocolortest/NoOutlines-Regular.ttf has all required metadata tables but no
+    glyf/CFF table, so skrifa's outline_glyphs().get() returns None for every
+    glyph and the dataset must be empty.
     """
-    # nocolortest/NoOutlines-Regular.ttf maps 'A' (U+0041) to a glyph with an
-    # empty glyf table entry (zero-length loca slot), so outline_glyphs().get()
-    # returns None for that glyph.
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("nocolortest/NoOutlines-Regular.ttf",),

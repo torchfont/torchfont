@@ -39,7 +39,15 @@ class GlyphItem:
     coords: np.ndarray
     style_idx: int
     content_idx: int
-    metrics: np.ndarray
+    head: np.ndarray
+    hhea: np.ndarray
+    os2: np.ndarray
+    post: np.ndarray
+    maxp: np.ndarray
+    hmtx: np.ndarray
+    bounds: np.ndarray
+    name: dict[str, str]
+    codepoint: int
     glyph_name: str
 
 class GlyphDataset:

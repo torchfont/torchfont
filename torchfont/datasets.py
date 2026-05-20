@@ -39,6 +39,38 @@ from torchfont.metadata import (
 _T = TypeVar("_T")
 
 
+@dataclasses.dataclass(frozen=True)
+class NameRecord:
+    """Strings from a font's ``name`` table (IDs 0-25).
+
+    Each field is an empty string when the entry is absent in the font.
+    """
+
+    copyright_notice: str
+    family_name: str
+    subfamily_name: str
+    unique_font_identifier: str
+    full_name: str
+    version_string: str
+    postscript_name: str
+    trademark: str
+    manufacturer_name: str
+    designer: str
+    description: str
+    vendor_url: str
+    designer_url: str
+    license_description: str
+    license_info_url: str
+    compatible_full_name: str
+    sample_text: str
+    postscript_cid_findfont_name: str
+    wws_family_name: str
+    wws_subfamily_name: str
+    light_background_palette: str
+    dark_background_palette: str
+    variations_postscript_name_prefix: str
+
+
 @dataclasses.dataclass
 class GlyphSample:
     """One glyph sample returned by a dataset.
@@ -49,13 +81,37 @@ class GlyphSample:
             coordinates for each path element.
         style_idx (int): Index into the dataset's ``style_classes`` list.
         content_idx (int): Index into the dataset's ``content_classes`` list.
-        metrics (Tensor): 1-D float tensor of shape ``(15,)`` holding per-sample
-            metrics. Column order: ``advance_width``, ``lsb``, ``x_min``,
-            ``y_min``, ``x_max``, ``y_max``, ``ascent``, ``descent``,
-            ``leading``, ``cap_height``, ``x_height``, ``average_width``,
-            ``italic_angle``, ``units_per_em`` (cast to f32),
-            ``is_monospace`` (0.0 or 1.0). UPM-normalised where applicable;
-            ``nan`` when missing.
+        head (Tensor): ``head`` table fields (8,): ``units_per_em``, ``flags``,
+            ``x_min``, ``y_min``, ``x_max``, ``y_max``, ``mac_style``,
+            ``lowest_rec_ppem``. Bounding box values are UPM-normalised.
+        hhea (Tensor): ``hhea`` table fields (10,): ``ascender``,
+            ``descender``, ``line_gap``, ``advance_width_max``, ``min_lsb``,
+            ``min_rsb``, ``x_max_extent``, ``caret_slope_rise``,
+            ``caret_slope_run``, ``caret_offset``. Metric lengths are
+            UPM-normalised; ``caret_slope_rise`` and ``caret_slope_run`` are
+            raw integers (dimensionless slope, not a length).
+        os2 (Tensor): ``OS/2`` table fields (42,): ``weight_class``,
+            ``width_class``, ``fs_type``, ``fs_selection``, typo/win metrics
+            (6: ``typo_ascender``, ``typo_descender``, ``typo_line_gap``,
+            ``win_ascent``, ``win_descent``, ``avg_char_width``),
+            subscript/superscript (8), strikeout (2),
+            ``s_family_class``, panose (10), vend_id (4), first/last char
+            index (2), ``x_height``, ``cap_height``, ``default_char``,
+            ``break_char``, ``max_context``. Metric values UPM-normalised;
+            ``nan`` when absent. Note: ``win_descent`` is stored as a
+            **positive** value (matching the OpenType spec's unsigned
+            ``usWinDescent``), whereas ``typo_descender`` and
+            ``hhea.descender`` are **negative**.
+        post (Tensor): ``post`` table fields (4,): ``italic_angle``,
+            ``is_fixed_pitch`` (0.0 or 1.0), ``underline_position``,
+            ``underline_thickness``. UPM-normalised.
+        maxp (Tensor): ``maxp`` table fields (14,) starting with
+            ``num_glyphs``. TrueType-only fields are ``nan`` for CFF fonts.
+        hmtx (Tensor): ``advance_width``, ``lsb`` (2,). UPM-normalised.
+        bounds (Tensor): ``x_min``, ``y_min``, ``x_max``, ``y_max`` (4,).
+            UPM-normalised.
+        name (NameRecord): Strings from the ``name`` table (IDs 0-25).
+        codepoint (int): Unicode code point of the glyph (e.g. ``0x0041`` for 'A').
         glyph_name (str): PostScript name of the glyph.
 
     """
@@ -64,7 +120,15 @@ class GlyphSample:
     coords: Tensor
     style_idx: int
     content_idx: int
-    metrics: Tensor
+    head: Tensor
+    hhea: Tensor
+    os2: Tensor
+    post: Tensor
+    maxp: Tensor
+    hmtx: Tensor
+    bounds: Tensor
+    name: NameRecord
+    codepoint: int
     glyph_name: str
 
 
@@ -245,13 +309,20 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         item = self._dataset.item(idx)
         types = torch.from_numpy(item.types)
         coords = torch.from_numpy(item.coords).view(-1, COORD_DIM)
-        metrics = torch.from_numpy(item.metrics)
         sample = GlyphSample(
             types=types,
             coords=coords,
             style_idx=item.style_idx,
             content_idx=item.content_idx,
-            metrics=metrics,
+            head=torch.from_numpy(item.head),
+            hhea=torch.from_numpy(item.hhea),
+            os2=torch.from_numpy(item.os2),
+            post=torch.from_numpy(item.post),
+            maxp=torch.from_numpy(item.maxp),
+            hmtx=torch.from_numpy(item.hmtx),
+            bounds=torch.from_numpy(item.bounds),
+            name=NameRecord(**item.name),
+            codepoint=item.codepoint,
             glyph_name=item.glyph_name,
         )
         if self.transform is not None:

@@ -1,15 +1,14 @@
 import torch
 
-from torchfont.datasets import GlyphSample
 from torchfont.io import ElementType
 from torchfont.transforms import cubic_to_quad, quad_to_cubic
 
 from ._helpers import (
     _CUBIC_CURVES,
-    _ZERO_METRICS,
     _assert_single_cubic_matches,
     _cubic_segs_to_tensors,
     _line_path_to_tensors,
+    make_sample,
 )
 
 
@@ -104,14 +103,7 @@ def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:
         dtype=torch.float32,
     )
 
-    sample = GlyphSample(
-        types=types,
-        coords=coords,
-        style_idx=4,
-        content_idx=5,
-        metrics=_ZERO_METRICS,
-        glyph_name="",
-    )
+    sample = make_sample(types, coords)
     out_types, out_coords = quad_to_cubic(sample.types, sample.coords)
 
     assert out_types.shape == types.shape
