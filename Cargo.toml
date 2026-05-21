@@ -15,6 +15,8 @@ ignore = "0.4.25"
 memmap2 = "0.9.10"
 numpy = "0.28.0"
 shellexpand = "3.1.2"
+# Intentionally non-optional: PyPI wheels are compiled binaries and Cargo
+# features cannot be selected via pip install.
 skia-safe = "0.97.0"
 skrifa = "0.42.1"
 urlencoding = "2.1.3"

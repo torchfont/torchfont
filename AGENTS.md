@@ -19,3 +19,9 @@
 
 - Use `gh` for issue and pull request operations.
 - Resolve PR conversations after addressing the feedback.
+
+## Known non-starters
+
+- **Making `skia-safe` an optional Cargo feature**: PyPI wheels are compiled
+  binaries — Cargo features cannot be selected via `pip install`. Truly optional
+  Skia would require a separate distribution package, which is not planned.
