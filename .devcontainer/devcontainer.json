@@ -2,12 +2,12 @@
 	"name": "mise",
 	"image": "jdxcode/mise:latest",
 	"features": {
-		"ghcr.io/devcontainers/features/common-utils:": {}
+		"ghcr.io/devcontainers/features/common-utils:2.5.9": {}
 	},
 	"mounts": [
 		{
 			"source": "uv",
-			"target": "/root/.cache/uv",
+			"target": "/home/vscode/.cache/uv",
 			"type": "volume"
 		},
 		{
@@ -32,6 +32,7 @@
 		"MISE_TRUSTED_CONFIG_PATHS": "/workspaces",
 		"UV_LINK_MODE": "copy"
 	},
+	"onCreateCommand": ".devcontainer/oncreate.sh",
 	"postCreateCommand": "mise run setup",
 	"customizations": {
 		"vscode": {
@@ -42,5 +43,6 @@
 				"tamasfe.even-better-toml"
 			]
 		}
-	}
+	},
+	"remoteUser": "vscode"
 }
