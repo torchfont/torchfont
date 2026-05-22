@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
+
+USER_NAME="${USER_NAME:-vscode}"
 
 paths=(
   "/mise"
@@ -13,6 +14,6 @@ paths=(
 
 for path in "${paths[@]}"; do
   if [[ -e "${path}" ]]; then
-    sudo chmod -R a+rwX "${path}"
+    sudo chown -R "${USER_NAME}:${USER_NAME}" "${path}"
   fi
 done
