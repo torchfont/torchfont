@@ -6,10 +6,10 @@ USER_NAME="${USER_NAME:-vscode}"
 paths=(
   "/mise"
   "/home/vscode/.cache/uv"
-  "${containerWorkspaceFolder:-/workspaces/torchfont}/.venv"
-  "${containerWorkspaceFolder:-/workspaces/torchfont}/target"
-  "${containerWorkspaceFolder:-/workspaces/torchfont}/node_modules"
-  "${containerWorkspaceFolder:-/workspaces/torchfont}/data"
+  ".venv"
+  "target"
+  "node_modules"
+  "data"
 )
 
 for path in "${paths[@]}"; do
