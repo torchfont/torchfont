@@ -75,13 +75,21 @@ GlyphDataset(
 sample = dataset[idx]
 ```
 
-| Field         | Type                | Shape          |
-| ------------- | ------------------- | -------------- |
+| Field                | Type                | Shape          |
+| -------------------- | ------------------- | -------------- |
 | `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
 | `sample.style_idx`   | `int`               | scalar         |
 | `sample.content_idx` | `int`               | scalar         |
-| `sample.metrics`     | `torch.FloatTensor` | `(15,)`        |
+| `sample.head`        | `torch.FloatTensor` | `(8,)`         |
+| `sample.hhea`        | `torch.FloatTensor` | `(10,)`        |
+| `sample.os2`         | `torch.FloatTensor` | `(42,)`        |
+| `sample.post`        | `torch.FloatTensor` | `(4,)`         |
+| `sample.maxp`        | `torch.FloatTensor` | `(14,)`        |
+| `sample.hmtx`        | `torch.FloatTensor` | `(2,)`         |
+| `sample.bounds`      | `torch.FloatTensor` | `(4,)`         |
+| `sample.name`        | `NameRecord`        | —              |
+| `sample.codepoint`   | `int`               | —              |
 | `sample.glyph_name`  | `str`               | —              |
 
 Without `transform`, `sample` is a `GlyphSample`. With `transform`, the

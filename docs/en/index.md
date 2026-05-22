@@ -35,7 +35,7 @@ features:
   - icon: 🧱
     title: Sample-first data model
     details:
-      "`GlyphSample` represents one glyph with outline, metrics, and name, so
+      "`GlyphSample` represents one glyph with outline, structured font metadata, and name, so
       batching policy can stay in your training code."
   - icon: 🧩
     title: Flexible preprocessing
