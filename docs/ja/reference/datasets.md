@@ -81,8 +81,16 @@ sample = dataset[idx]
 | `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
 | `sample.style_idx`   | `int`               | スカラー       |
 | `sample.content_idx` | `int`               | スカラー       |
-| `sample.metrics`     | `torch.FloatTensor` | `(15,)`       |
-| `sample.glyph_name`  | `str`               | —             |
+| `sample.head`        | `torch.FloatTensor` | `(8,)`         |
+| `sample.hhea`        | `torch.FloatTensor` | `(10,)`        |
+| `sample.os2`         | `torch.FloatTensor` | `(42,)`        |
+| `sample.post`        | `torch.FloatTensor` | `(4,)`         |
+| `sample.maxp`        | `torch.FloatTensor` | `(14,)`        |
+| `sample.hmtx`        | `torch.FloatTensor` | `(2,)`         |
+| `sample.bounds`      | `torch.FloatTensor` | `(4,)`         |
+| `sample.name`        | `NameRecord`        | —              |
+| `sample.codepoint`   | `int`               | —              |
+| `sample.glyph_name`  | `str`               | —              |
 
 `transform` なしでは `sample` 自体の型は `GlyphSample` です。`transform`
 ありでは、dataset item の型は transform の返り値型から推論されます。
