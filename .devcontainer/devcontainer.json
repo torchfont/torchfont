@@ -23,7 +23,7 @@
 			"type": "volume"
 		},
 		{
-			"source": "torchfont",
+			"source": "data-${devcontainerId}",
 			"target": "${containerWorkspaceFolder}/data",
 			"type": "volume"
 		}
