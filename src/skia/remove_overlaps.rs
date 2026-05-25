@@ -4,12 +4,11 @@ use crate::geom::{Outline, PathElement, Point, Subpath};
 
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     let Some((path, _)) = super::build_skia_path(outline, false) else {
-        return outline.clone();
+        return Outline::default();
     };
-    path.simplify().map_or_else(
-        || outline.clone(),
-        |simplified| outline_from_path(&simplified),
-    )
+    let simplified = path.simplify().unwrap_or(path);
+    let winding = simplified.as_winding().unwrap_or(simplified);
+    outline_from_path(&winding)
 }
 
 fn outline_from_path(path: &Path) -> Outline {
