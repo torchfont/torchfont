@@ -1,4 +1,4 @@
-use crate::geom::{Outline, PathElement, Point, Subpath, reverse_closed_subpath, subpath_nodes};
+use crate::geom::{Outline, PathElement, Point, Subpath};
 
 pub(crate) fn normalize_subpath_start_points(outline: &Outline) -> Outline {
     transform_start_points(outline, |subpath, _| {
@@ -70,6 +70,28 @@ fn rotate_closed_subpath(subpath: &Subpath, start_idx: usize) -> Subpath {
     }
     elements.extend_from_slice(&subpath.elements()[..start_idx]);
     Subpath::new(start, elements, true)
+}
+
+fn reverse_closed_subpath(subpath: &Subpath) -> Subpath {
+    let Some(last) = subpath.elements().last() else {
+        return subpath.clone();
+    };
+
+    let nodes = subpath_nodes(subpath);
+    let elements = subpath
+        .elements()
+        .iter()
+        .enumerate()
+        .rev()
+        .map(|(idx, element)| element.reversed_to(nodes[idx]))
+        .collect();
+    Subpath::new(last.end(), elements, true)
+}
+
+fn subpath_nodes(subpath: &Subpath) -> Vec<Point> {
+    std::iter::once(subpath.start())
+        .chain(subpath.elements().iter().map(|element| element.end()))
+        .collect()
 }
 
 fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
