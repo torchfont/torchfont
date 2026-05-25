@@ -66,6 +66,7 @@ explicit = true
 [tool.pytest.ini_options]
 addopts = ["--benchmark-skip"]
 filterwarnings = ["ignore:.*fork.*:DeprecationWarning"]
+markers = ["google_fonts_full: tests that scan the full Google Fonts corpus"]
 testpaths = ["tests"]
 
 [tool.ruff]
