@@ -26,13 +26,13 @@ pub(crate) struct GlyphItem {
 }
 
 #[pyclass]
-pub(crate) struct GlyphDataset {
+pub(crate) struct GlyphDatasetBackend {
     entries: Vec<FontEntry>,
     index: DatasetIndex,
 }
 
 #[pymethods]
-impl GlyphDataset {
+impl GlyphDatasetBackend {
     #[new]
     pub fn new(
         root: String,
@@ -278,7 +278,7 @@ impl GlyphDataset {
     }
 }
 
-impl GlyphDataset {
+impl GlyphDatasetBackend {
     fn style_rows(&self) -> Vec<(String, String, u32, Option<usize>)> {
         let mut rows = Vec::new();
         for entry in self.entries.iter() {

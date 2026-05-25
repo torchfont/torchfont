@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 
 import torchfont
 import torchfont.datasets as datasets_module
+from torchfont import _torchfont
 from torchfont.datasets import (
     DatasetMetadata,
     GlyphDataset,
@@ -207,6 +208,11 @@ def test_package_root_stays_thin() -> None:
     assert not hasattr(torchfont, "GlyphBatch")
 
 
+def test_native_dataset_backend_is_not_public_dataset_api() -> None:
+    assert hasattr(_torchfont, "GlyphDatasetBackend")
+    assert not hasattr(_torchfont, "GlyphDataset")
+
+
 def test_glyph_dataset_is_primary_local_api() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
@@ -217,6 +223,8 @@ def test_glyph_dataset_is_primary_local_api() -> None:
     sample = dataset[0]
 
     assert isinstance(dataset, GlyphDataset)
+    assert "_backend" in dataset.__dict__
+    assert "_dataset" not in dataset.__dict__
     assert isinstance(sample, GlyphSample)
     assert len(dataset) > 0
     assert not hasattr(dataset, "locate")

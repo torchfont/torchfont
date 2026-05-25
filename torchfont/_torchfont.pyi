@@ -50,7 +50,7 @@ class GlyphItem:
     codepoint: int
     glyph_name: str
 
-class GlyphDataset:
+class GlyphDatasetBackend:
     def __init__(
         self,
         root: str,

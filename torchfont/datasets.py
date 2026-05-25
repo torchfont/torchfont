@@ -237,7 +237,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         )
         self.codepoints = self._normalize_codepoints(codepoints)
 
-        self._dataset = _torchfont.GlyphDataset(
+        self._backend = _torchfont.GlyphDatasetBackend(
             str(self.root),
             self.codepoints,
             self.patterns,
@@ -264,8 +264,8 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             f"{type(self).__name__}("
             f"root={str(self.root)!r}, "
             f"samples={len(self)}, "
-            f"styles={self._dataset.style_class_count}, "
-            f"content_classes={self._dataset.content_class_count})"
+            f"styles={self._backend.style_class_count}, "
+            f"content_classes={self._backend.content_class_count})"
         )
 
     def __len__(self) -> int:
@@ -275,7 +275,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             int: Total number of glyph samples available in the dataset.
 
         """
-        return int(self._dataset.sample_count)
+        return int(self._backend.sample_count)
 
     @overload
     def __getitem__(
@@ -311,7 +311,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
 
         """
         idx = self._normalize_index(idx)
-        item = self._dataset.item(idx)
+        item = self._backend.item(idx)
         types = torch.from_numpy(item.types)
         coords = torch.from_numpy(item.coords).view(-1, COORD_DIM)
         sample = GlyphSample(
@@ -337,7 +337,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
     def __getstate__(self) -> dict[str, object]:
         """Return state without the native backend for worker reconstruction."""
         state = self.__dict__.copy()
-        state.pop("_dataset", None)
+        state.pop("_backend", None)
         return state
 
     def __setstate__(self, state: dict[str, object]) -> None:
@@ -345,7 +345,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         state.pop("_metadata", None)
         self.__dict__.update(state)
         self._validate_root_dir(self.root)
-        self._dataset = _torchfont.GlyphDataset(
+        self._backend = _torchfont.GlyphDatasetBackend(
             str(self.root),
             self.codepoints,
             self.patterns,
@@ -386,7 +386,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         """Return style axis metadata aligned with ``style_classes`` order."""
         return [
             tuple(StyleAxis(tag=tag, value=float(value)) for tag, value in axes)
-            for axes in self._dataset.style_axes
+            for axes in self._backend.style_axes
         ]
 
     @property
@@ -408,7 +408,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             tensor([style_idx, content_idx])
 
         """
-        arr = self._dataset.targets()
+        arr = self._backend.targets()
         if arr.size == 0:
             return torch.empty(0, 2, dtype=torch.long)
         return torch.from_numpy(arr).view(-1, 2)
@@ -432,7 +432,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             ['A', 'B', 'C']
 
         """
-        return [char for _, char, _ in self._dataset.content_metadata_rows()]
+        return [char for _, char, _ in self._backend.content_metadata_rows()]
 
     @property
     def content_class_to_idx(self) -> dict[str, int]:
@@ -448,13 +448,13 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         """
         return {
             char: idx
-            for idx, (_, char, _) in enumerate(self._dataset.content_metadata_rows())
+            for idx, (_, char, _) in enumerate(self._backend.content_metadata_rows())
         }
 
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
-        style_meta_rows = self._dataset.style_metadata_rows(str(self.root))
+        style_meta_rows = self._backend.style_metadata_rows(str(self.root))
         style_axes = self._style_axes()
         style_rows = [
             (name, label_id, axes)
@@ -462,7 +462,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         ]
         return build_dataset_metadata(
             style_rows=style_rows,
-            content_rows=self._dataset.content_metadata_rows(),
+            content_rows=self._backend.content_metadata_rows(),
         )
 
     @property
@@ -481,4 +481,4 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             ['Roboto Regular', 'Roboto Bold', 'Lato Regular']
 
         """
-        return [name for name, _ in self._dataset.style_metadata_rows(str(self.root))]
+        return [name for name, _ in self._backend.style_metadata_rows(str(self.root))]
