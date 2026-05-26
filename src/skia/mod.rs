@@ -8,8 +8,9 @@ pub(crate) mod render_bitmap;
 pub(crate) fn build_skia_path(
     outline: &Outline,
     track_bounds: bool,
+    fill_type: PathFillType,
 ) -> Option<(Path, Option<Bounds>)> {
-    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
+    let mut builder = PathBuilder::new_with_fill_type(fill_type);
     let mut bounds = track_bounds.then(BoundsPen::default);
     for subpath in outline.subpaths() {
         let start = subpath.start();

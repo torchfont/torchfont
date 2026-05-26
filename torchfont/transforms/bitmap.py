@@ -8,10 +8,15 @@ from torch import Tensor
 from torchfont import _torchfont
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
+FillRule = Literal["winding", "even_odd"]
 
 
 def render_bitmap(
-    types: Tensor, coords: Tensor, size: int = 64, mode: BitmapMode = "bbox_square"
+    types: Tensor,
+    coords: Tensor,
+    size: int = 64,
+    mode: BitmapMode = "bbox_square",
+    fill_rule: FillRule = "winding",
 ) -> Tensor:
     """Render a glyph outline to a greyscale bitmap tensor.
 
@@ -30,6 +35,7 @@ def render_bitmap(
             with the fixed-mode scale and returns a variable-size bitmap
             cropped to the tight glyph bounding box. ``"bbox_square"`` scales
             the tight glyph bounding box uniformly and centres it.
+        fill_rule: ``"winding"`` (non-zero) or ``"even_odd"``.
 
     Returns:
         uint8 tensor with values in ``[0, 255]``. Shape is ``(size, size)`` for
@@ -40,7 +46,7 @@ def render_bitmap(
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
     raw, width, height = _torchfont.render_bitmap(
-        types.numpy(), coords.reshape(-1).numpy(), size, mode
+        types.numpy(), coords.reshape(-1).numpy(), size, mode, fill_rule
     )
     if width == 0 or height == 0:
         return torch.empty((height, width), dtype=torch.uint8)

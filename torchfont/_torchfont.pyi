@@ -4,6 +4,7 @@ from typing import Literal, TypeAlias
 import numpy as np
 
 _BitmapMode: TypeAlias = Literal["fixed", "bbox", "bbox_square"]
+_FillRule: TypeAlias = Literal["winding", "even_odd"]
 
 def cubic_to_quad(
     types: np.ndarray, coords: np.ndarray
@@ -12,7 +13,11 @@ def merge_curves(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[list[int], list[float]]: ...
 def render_bitmap(
-    types: np.ndarray, coords: np.ndarray, size: int, mode: _BitmapMode
+    types: np.ndarray,
+    coords: np.ndarray,
+    size: int,
+    mode: _BitmapMode,
+    fill_rule: _FillRule,
 ) -> tuple[bytes, int, int]: ...
 def normalize_subpath_start_points(
     types: np.ndarray, coords: np.ndarray

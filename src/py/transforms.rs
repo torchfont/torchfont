@@ -1,6 +1,8 @@
 use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 
+use skia_safe::PathFillType;
+
 use crate::geom::{ElementType, Outline};
 use crate::skia::render_bitmap::RenderMode;
 use crate::{skia, transform};
@@ -140,6 +142,7 @@ pub(crate) fn render_bitmap(
     coords: PyReadonlyArray1<'_, f32>,
     size: u32,
     mode: &str,
+    fill_rule: &str,
 ) -> PyResult<(Py<PyArray1<u8>>, u32, u32)> {
     if size == 0 || size > 4096 {
         return Err(pyo3::exceptions::PyValueError::new_err(
@@ -156,13 +159,25 @@ pub(crate) fn render_bitmap(
             ));
         }
     };
+    let fill_type = match fill_rule {
+        "winding" => PathFillType::Winding,
+        "even_odd" => PathFillType::EvenOdd,
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "fill_rule must be 'winding' or 'even_odd'",
+            ));
+        }
+    };
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    let rendered = skia::render_bitmap::render_bitmap(&outline, size, mode).map_err(|_| {
-        pyo3::exceptions::PyValueError::new_err("bbox output dimensions must be between 1 and 4096")
-    })?;
+    let rendered =
+        skia::render_bitmap::render_bitmap(&outline, size, mode, fill_type).map_err(|_| {
+            pyo3::exceptions::PyValueError::new_err(
+                "bbox output dimensions must be between 1 and 4096",
+            )
+        })?;
     Ok((
         rendered.data.into_pyarray(py).unbind(),
         rendered.width,

@@ -1,4 +1,4 @@
-use skia_safe::{AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, surfaces};
+use skia_safe::{AlphaType, Color, ColorType, ImageInfo, Matrix, Paint, PathFillType, surfaces};
 
 use crate::geom::{Bounds, Outline};
 
@@ -27,8 +27,10 @@ pub(crate) fn render_bitmap(
     outline: &Outline,
     size: u32,
     mode: RenderMode,
+    fill_type: PathFillType,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let Some((path, bounds)) = super::build_skia_path(outline, !matches!(mode, RenderMode::Fixed))
+    let Some((path, bounds)) =
+        super::build_skia_path(outline, !matches!(mode, RenderMode::Fixed), fill_type)
     else {
         return Ok(blank_for_mode(size, mode));
     };
