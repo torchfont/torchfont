@@ -147,17 +147,15 @@ def _transform(sample: GlyphSample) -> dict[str, Tensor]:
 
     orig_bitmap = render_bitmap(sample.types, sample.coords, size=64, mode="fixed")
     po_bitmap = render_bitmap(po_types, po_coords, size=64, mode="fixed")
-    tf_bitmap = render_bitmap(tf_types, tf_coords, size=64, mode="fixed")
 
-    # If orig and pathops bitmaps match, pathops is trusted and TorchFont should
-    # match its outline. If they differ by a hard pixel (0↔255), pathops is not
-    # trusted; TorchFont should still render like the original, but must not
-    # return the unchanged original outline as a hidden fallback.
-    # Antialiasing-only differences (values between 0 and 255) are ignored.
+    # Antialiasing-only differences (values strictly between 0 and 255) are ignored.
     po_hard_diff = ((orig_bitmap == 255) & (po_bitmap == 0)) | (
         (orig_bitmap == 0) & (po_bitmap == 255)
     )
     pathops_untrusted = po_hard_diff.any()
+
+    # Trusted case: bitmap(orig) == bitmap(pathops)
+    # → check outline(pathops) == outline(tf)
     po_tf_outline_match = torch.equal(po_types, tf_types) and torch.equal(
         po_coords, tf_coords
     )
@@ -166,6 +164,9 @@ def _transform(sample: GlyphSample) -> dict[str, Tensor]:
         dtype=torch.bool,
     )
 
+    # Untrusted case: bitmap(orig) != bitmap(pathops)
+    # → check bitmap(orig) == bitmap(tf)
+    tf_bitmap = render_bitmap(tf_types, tf_coords, size=64, mode="fixed")
     orig_tf_hard_diff = ((orig_bitmap == 255) & (tf_bitmap == 0)) | (
         (orig_bitmap == 0) & (tf_bitmap == 255)
     )
@@ -173,18 +174,21 @@ def _transform(sample: GlyphSample) -> dict[str, Tensor]:
         pathops_untrusted.item() and orig_tf_hard_diff.any().item(),
         dtype=torch.bool,
     )
-    tf_matches_orig_outline = torch.equal(sample.types, tf_types) and torch.equal(
-        sample.coords, tf_coords
+    # → also check pathops(tf) == tf to rule out lazy fallback (returning orig
+    #    unchanged)
+    po_tf2_types, po_tf2_coords = remove_overlaps_pathops(tf_types, tf_coords)
+    tf_is_simplified = torch.equal(po_tf2_types, tf_types) and torch.equal(
+        po_tf2_coords, tf_coords
     )
-    untrusted_unchanged_from_original = torch.tensor(
-        pathops_untrusted.item() and tf_matches_orig_outline,
+    untrusted_tf_has_overlaps = torch.tensor(
+        pathops_untrusted.item() and not tf_is_simplified,
         dtype=torch.bool,
     )
     return {
         "pathops_untrusted": pathops_untrusted.detach().clone(),
         "trusted_outline_mismatch": trusted_outline_mismatch,
         "untrusted_bitmap_mismatch": untrusted_bitmap_mismatch,
-        "untrusted_unchanged_from_original": untrusted_unchanged_from_original,
+        "untrusted_tf_has_overlaps": untrusted_tf_has_overlaps,
         "orig_pathops_hard_diff": po_hard_diff.sum(),
         "orig_torchfont_hard_diff": orig_tf_hard_diff.sum(),
         "style_idx": torch.tensor(sample.style_idx, dtype=torch.long),
@@ -233,16 +237,14 @@ def test_remove_overlaps_google_fonts(
     failures: list[str] = []
     trusted_outline_mismatch_count = 0
     untrusted_bitmap_mismatch_count = 0
-    untrusted_unchanged_from_original_count = 0
+    untrusted_tf_has_overlaps_count = 0
     checked = 0
     pathops_skipped = 0
     for batch in dataloader:
         pathops_untrusted: Tensor = batch["pathops_untrusted"]
         trusted_outline_mismatch: Tensor = batch["trusted_outline_mismatch"]
         untrusted_bitmap_mismatch: Tensor = batch["untrusted_bitmap_mismatch"]
-        untrusted_unchanged_from_original: Tensor = batch[
-            "untrusted_unchanged_from_original"
-        ]
+        untrusted_tf_has_overlaps: Tensor = batch["untrusted_tf_has_overlaps"]
         orig_pathops_hard_diffs: Tensor = batch["orig_pathops_hard_diff"]
         orig_torchfont_hard_diffs: Tensor = batch["orig_torchfont_hard_diff"]
         checked += pathops_untrusted.numel()
@@ -251,7 +253,7 @@ def test_remove_overlaps_google_fonts(
         failed = (
             trusted_outline_mismatch
             | untrusted_bitmap_mismatch
-            | untrusted_unchanged_from_original
+            | untrusted_tf_has_overlaps
         )
         for i in failed.nonzero(as_tuple=True)[0].tolist():
             if len(failures) >= max_failures:
@@ -263,15 +265,16 @@ def test_remove_overlaps_google_fonts(
                 reason = "trusted_pathops_outline_mismatch"
                 trusted_outline_mismatch_count += 1
             elif untrusted_bitmap_mismatch[i].item():
-                reason = "untrusted_pathops_original_bitmap_mismatch"
+                reason = "untrusted_bitmap_mismatch"
                 untrusted_bitmap_mismatch_count += 1
             else:
-                reason = "untrusted_pathops_unchanged_from_original"
-                untrusted_unchanged_from_original_count += 1
+                reason = "untrusted_tf_has_overlaps"
+                untrusted_tf_has_overlaps_count += 1
             failures.append(
                 f"path={_style_path(style.label_id)!r} style={style.name!r} "
                 f"codepoint=U+{codepoint:04X} char={chr(codepoint)!r} "
-                f"orig_pathops_hard_diff_pixels={orig_pathops_hard_diffs[i].item()} "
+                f"orig_pathops_hard_diff_pixels="
+                f"{orig_pathops_hard_diffs[i].item()} "
                 f"orig_torchfont_hard_diff_pixels="
                 f"{orig_torchfont_hard_diffs[i].item()} "
                 f"reference={reference} "
@@ -292,8 +295,7 @@ def test_remove_overlaps_google_fonts(
         f"remove_overlaps mismatch in {count} / {checked} Google Fonts glyphs"
         f" ({pathops_skipped} treated pathops as untrusted): "
         f"trusted_pathops_outline_mismatch={trusted_outline_mismatch_count}, "
-        f"untrusted_pathops_original_bitmap_mismatch="
-        f"{untrusted_bitmap_mismatch_count}, "
-        f"untrusted_pathops_unchanged_from_original="
-        f"{untrusted_unchanged_from_original_count}\n" + "\n".join(failures)
+        f"untrusted_bitmap_mismatch={untrusted_bitmap_mismatch_count}, "
+        f"untrusted_tf_has_overlaps={untrusted_tf_has_overlaps_count}\n"
+        + "\n".join(failures)
     )
