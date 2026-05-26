@@ -76,7 +76,6 @@ run = [
 [tasks.test]
 depends = ["build"]
 run = "uv run pytest tests"
-# Google Fonts tests are skipped without --google-fonts; use test-google-fonts task instead.
 
 [tasks.test-google-fonts]
 depends = ["build", "data-sync"]

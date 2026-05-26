@@ -66,9 +66,9 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.pytest.ini_options]
-addopts = ["--benchmark-skip"]
+addopts = ["--benchmark-skip", "-rs"]
 filterwarnings = ["ignore:.*fork.*:DeprecationWarning"]
-markers = ["google_fonts_full: tests that scan the full Google Fonts corpus"]
+markers = ["google_fonts: tests that require a local Google Fonts checkout"]
 testpaths = ["tests"]
 
 [tool.ruff]
