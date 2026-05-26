@@ -209,7 +209,7 @@ def test_remove_overlaps_google_fonts(
     request: pytest.FixtureRequest,
 ) -> None:
     if not GOOGLE_FONTS_ROOT.is_dir():
-        pytest.skip(f"Google Fonts checkout not available: {GOOGLE_FONTS_ROOT}")
+        pytest.fail(f"Google Fonts checkout not available: {GOOGLE_FONTS_ROOT}")
 
     raw_limit: int = request.config.getoption("--google-fonts-limit")
     limit: int | None = None if raw_limit == 0 else raw_limit
