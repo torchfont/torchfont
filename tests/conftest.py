@@ -24,5 +24,5 @@ def pytest_collection_modifyitems(
         return
     skip = pytest.mark.skip(reason="pass --google-fonts to run")
     for item in items:
-        if "google_fonts_full" in item.keywords:
+        if "google_fonts" in item.keywords:
             item.add_marker(skip)

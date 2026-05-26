@@ -180,7 +180,7 @@ def _style_path(label_id: str) -> str:
     return unquote(path)
 
 
-@pytest.mark.google_fonts_full
+@pytest.mark.google_fonts
 def test_remove_overlaps_google_fonts(
     request: pytest.FixtureRequest,
 ) -> None:
