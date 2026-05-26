@@ -149,26 +149,46 @@ def _transform(sample: GlyphSample) -> dict[str, Tensor]:
     po_bitmap = render_bitmap(po_types, po_coords, size=64, mode="fixed")
     tf_bitmap = render_bitmap(tf_types, tf_coords, size=64, mode="fixed")
 
-    # If orig and pathops bitmaps differ by a hard pixel (0↔255), pathops has a
-    # bug — fall back to comparing torchfont against the original.  Otherwise
-    # trust pathops as the reference (it normalises winding).
+    # If orig and pathops bitmaps match, pathops is trusted and TorchFont should
+    # match its outline. If they differ by a hard pixel (0↔255), pathops is not
+    # trusted; TorchFont should still render like the original, but must not
+    # return the unchanged original outline as a hidden fallback.
     # Antialiasing-only differences (values between 0 and 255) are ignored.
     po_hard_diff = ((orig_bitmap == 255) & (po_bitmap == 0)) | (
         (orig_bitmap == 0) & (po_bitmap == 255)
     )
-    pathops_buggy = po_hard_diff.any()
-    reference = orig_bitmap if pathops_buggy else po_bitmap
+    pathops_untrusted = po_hard_diff.any()
+    po_tf_outline_match = torch.equal(po_types, tf_types) and torch.equal(
+        po_coords, tf_coords
+    )
+    trusted_outline_mismatch = torch.tensor(
+        not pathops_untrusted.item() and not po_tf_outline_match,
+        dtype=torch.bool,
+    )
 
-    hard_diff = ((reference == 255) & (tf_bitmap == 0)) | (
-        (reference == 0) & (tf_bitmap == 255)
+    orig_tf_hard_diff = ((orig_bitmap == 255) & (tf_bitmap == 0)) | (
+        (orig_bitmap == 0) & (tf_bitmap == 255)
+    )
+    untrusted_bitmap_mismatch = torch.tensor(
+        pathops_untrusted.item() and orig_tf_hard_diff.any().item(),
+        dtype=torch.bool,
+    )
+    tf_matches_orig_outline = torch.equal(sample.types, tf_types) and torch.equal(
+        sample.coords, tf_coords
+    )
+    untrusted_unchanged_from_original = torch.tensor(
+        pathops_untrusted.item() and tf_matches_orig_outline,
+        dtype=torch.bool,
     )
     return {
-        "hard_diff": hard_diff.sum(),
-        "pathops_buggy": pathops_buggy.detach().clone(),
+        "pathops_untrusted": pathops_untrusted.detach().clone(),
+        "trusted_outline_mismatch": trusted_outline_mismatch,
+        "untrusted_bitmap_mismatch": untrusted_bitmap_mismatch,
+        "untrusted_unchanged_from_original": untrusted_unchanged_from_original,
+        "orig_pathops_hard_diff": po_hard_diff.sum(),
+        "orig_torchfont_hard_diff": orig_tf_hard_diff.sum(),
         "style_idx": torch.tensor(sample.style_idx, dtype=torch.long),
         "codepoint": torch.tensor(sample.codepoint, dtype=torch.long),
-        "seq_len_before": torch.tensor(sample.types.numel(), dtype=torch.long),
-        "seq_len_after": torch.tensor(tf_types.numel(), dtype=torch.long),
     }
 
 
@@ -204,31 +224,58 @@ def test_remove_overlaps_google_fonts(
     dataloader = DataLoader(
         dataset,
         batch_size=256,
+        shuffle=True,
         num_workers=8,
         prefetch_factor=2,
     )
 
     max_failures = 20
     failures: list[str] = []
+    trusted_outline_mismatch_count = 0
+    untrusted_bitmap_mismatch_count = 0
+    untrusted_unchanged_from_original_count = 0
     checked = 0
     pathops_skipped = 0
     for batch in dataloader:
-        hard_diffs: Tensor = batch["hard_diff"]
-        buggy_flags: Tensor = batch["pathops_buggy"]
-        checked += hard_diffs.numel()
-        pathops_skipped += buggy_flags.sum().item()
+        pathops_untrusted: Tensor = batch["pathops_untrusted"]
+        trusted_outline_mismatch: Tensor = batch["trusted_outline_mismatch"]
+        untrusted_bitmap_mismatch: Tensor = batch["untrusted_bitmap_mismatch"]
+        untrusted_unchanged_from_original: Tensor = batch[
+            "untrusted_unchanged_from_original"
+        ]
+        orig_pathops_hard_diffs: Tensor = batch["orig_pathops_hard_diff"]
+        orig_torchfont_hard_diffs: Tensor = batch["orig_torchfont_hard_diff"]
+        checked += pathops_untrusted.numel()
+        pathops_skipped += pathops_untrusted.sum().item()
 
-        for i in hard_diffs.nonzero(as_tuple=True)[0].tolist():
+        failed = (
+            trusted_outline_mismatch
+            | untrusted_bitmap_mismatch
+            | untrusted_unchanged_from_original
+        )
+        for i in failed.nonzero(as_tuple=True)[0].tolist():
+            if len(failures) >= max_failures:
+                break
             style = metadata.styles[batch["style_idx"][i].item()]
             codepoint = batch["codepoint"][i].item()
-            reference = "original" if buggy_flags[i].item() else "pathops"
+            reference = "original" if pathops_untrusted[i].item() else "pathops"
+            if trusted_outline_mismatch[i].item():
+                reason = "trusted_pathops_outline_mismatch"
+                trusted_outline_mismatch_count += 1
+            elif untrusted_bitmap_mismatch[i].item():
+                reason = "untrusted_pathops_original_bitmap_mismatch"
+                untrusted_bitmap_mismatch_count += 1
+            else:
+                reason = "untrusted_pathops_unchanged_from_original"
+                untrusted_unchanged_from_original_count += 1
             failures.append(
                 f"path={_style_path(style.label_id)!r} style={style.name!r} "
                 f"codepoint=U+{codepoint:04X} char={chr(codepoint)!r} "
-                f"hard_diff_pixels={hard_diffs[i].item()} "
+                f"orig_pathops_hard_diff_pixels={orig_pathops_hard_diffs[i].item()} "
+                f"orig_torchfont_hard_diff_pixels="
+                f"{orig_torchfont_hard_diffs[i].item()} "
                 f"reference={reference} "
-                f"seq_len={batch['seq_len_before'][i].item()}"
-                f"->{batch['seq_len_after'][i].item()}"
+                f"reason={reason}"
             )
 
         if len(failures) >= max_failures:
@@ -242,7 +289,11 @@ def test_remove_overlaps_google_fonts(
     else:
         count = str(len(failures))
     assert not failures, (
-        f"remove_overlaps bitmap mismatch in {count} / {checked} Google Fonts glyphs"
-        f" ({pathops_skipped} used original as reference due to pathops bug):\n"
-        + "\n".join(failures)
+        f"remove_overlaps mismatch in {count} / {checked} Google Fonts glyphs"
+        f" ({pathops_skipped} treated pathops as untrusted): "
+        f"trusted_pathops_outline_mismatch={trusted_outline_mismatch_count}, "
+        f"untrusted_pathops_original_bitmap_mismatch="
+        f"{untrusted_bitmap_mismatch_count}, "
+        f"untrusted_pathops_unchanged_from_original="
+        f"{untrusted_unchanged_from_original_count}\n" + "\n".join(failures)
     )
