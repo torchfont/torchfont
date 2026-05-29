@@ -9,11 +9,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Run tests that scan the Google Fonts corpus",
     )
     parser.addoption(
-        "--google-fonts-limit",
+        "--limit",
         type=int,
-        default=1_000_000,
+        default=None,
         metavar="N",
-        help="Cap Google Fonts tests at N samples (default: 1000000; 0 = no limit)",
+        help="Limit Google Fonts tests to N samples (default: all)",
     )
 
 
