@@ -79,7 +79,7 @@ run = "uv run pytest tests"
 
 [tasks.test-google-fonts]
 depends = ["build", "data-sync"]
-run = "uv run pytest tests --google-fonts"
+run = "uv run pytest tests/google_fonts --google-fonts -s"
 
 [tasks.docs-build]
 sources = [
