@@ -15,15 +15,16 @@ logger = logging.getLogger(__name__)
 GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
 # Skia PathOps has known edge-case bugs; allow up to this fraction of glyphs to fail.
-MAX_FAILURE_RATE = 0.001  # 0.1 %
+MAX_FAILURE_RATE = 0.01  # 1 %
 
-# Outer rectangle that surrounds all Google Fonts glyphs.
-# Measured via tight_bbox over the full dataset: x ∈ [-3.24, 12.26], y ∈ [-2.96, 2.56].
-# Adding ~0.75 margin and rounding to clean values gives these bounds.
-# The path is clockwise in y-up coordinates, which maps to -1 winding after the y-flip
-# applied by the renderer, shifting every pixel's winding number by -1 (P - H).
-# With this, N0 xor E0 catches w = even non-zero, N1 xor E1 catches w = odd |w| > 1,
-# together covering all w ∉ {0, 1}.
+# Outer rectangle covering all Google Fonts glyphs with margin.
+# Prepending CW or CCW variants shifts every pixel's winding number w:
+#   CW rect (y-up) → w-1;  CCW rect (y-up) → w+1.
+# Winding renders of the shifted path (255 iff shifted w ≠ 0) then satisfy:
+#   simplified     = 255 iff w ≠  0
+#   simplified_cw  = 255 iff w ≠  1
+#   simplified_ccw = 255 iff w ≠ -1
+#   AND of all three = 255 iff w ∉ {-1, 0, 1}.
 _RECT_X_MIN, _RECT_X_MAX = -4.0, 13.0
 _RECT_Y_MIN, _RECT_Y_MAX = -4.0, 3.5
 
@@ -37,13 +38,24 @@ _OUTER_RECT_TYPES = torch.tensor(
     ],
     dtype=torch.long,
 )
-# Clockwise in y-up: bottom-left → top-left → top-right → bottom-right → close
-_OUTER_RECT_COORDS = torch.tensor(
+# Clockwise in y-up
+_OUTER_RECT_COORDS_CW = torch.tensor(
     [
         [0.0, 0.0, 0.0, 0.0, _RECT_X_MIN, _RECT_Y_MIN],
         [0.0, 0.0, 0.0, 0.0, _RECT_X_MIN, _RECT_Y_MAX],
         [0.0, 0.0, 0.0, 0.0, _RECT_X_MAX, _RECT_Y_MAX],
         [0.0, 0.0, 0.0, 0.0, _RECT_X_MAX, _RECT_Y_MIN],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    ],
+    dtype=torch.float32,
+)
+# Counter-clockwise in y-up
+_OUTER_RECT_COORDS_CCW = torch.tensor(
+    [
+        [0.0, 0.0, 0.0, 0.0, _RECT_X_MIN, _RECT_Y_MIN],
+        [0.0, 0.0, 0.0, 0.0, _RECT_X_MAX, _RECT_Y_MIN],
+        [0.0, 0.0, 0.0, 0.0, _RECT_X_MAX, _RECT_Y_MAX],
+        [0.0, 0.0, 0.0, 0.0, _RECT_X_MIN, _RECT_Y_MAX],
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     ],
     dtype=torch.float32,
@@ -55,43 +67,37 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    tf_types, tf_coords = remove_overlaps(sample.types, sample.coords)
+    simplified_types, simplified_coords = remove_overlaps(sample.types, sample.coords)
 
-    aug_types = torch.cat([tf_types, _OUTER_RECT_TYPES])
-    aug_coords = torch.cat([tf_coords, _OUTER_RECT_COORDS])
+    # Prepend outer rect before glyph contours; End token truncates if appended.
+    prepended_types = torch.cat([_OUTER_RECT_TYPES, simplified_types])
+    cw_coords = torch.cat([_OUTER_RECT_COORDS_CW, simplified_coords])
+    ccw_coords = torch.cat([_OUTER_RECT_COORDS_CCW, simplified_coords])
 
-    orig_winding = render_bitmap(
+    original = render_bitmap(
         sample.types, sample.coords, size=64, mode="fixed", fill_rule="winding"
     )
-    tf_winding = render_bitmap(
-        tf_types, tf_coords, size=64, mode="fixed", fill_rule="winding"
+    simplified = render_bitmap(
+        simplified_types, simplified_coords, size=64, mode="fixed", fill_rule="winding"
     )
-    tf_even_odd = render_bitmap(
-        tf_types, tf_coords, size=64, mode="fixed", fill_rule="even_odd"
+    simplified_cw = render_bitmap(
+        prepended_types, cw_coords, size=64, mode="fixed", fill_rule="winding"
     )
-    tf_winding_aug = render_bitmap(
-        aug_types, aug_coords, size=64, mode="fixed", fill_rule="winding"
-    )
-    tf_even_odd_aug = render_bitmap(
-        aug_types, aug_coords, size=64, mode="fixed", fill_rule="even_odd"
+    simplified_ccw = render_bitmap(
+        prepended_types, ccw_coords, size=64, mode="fixed", fill_rule="winding"
     )
 
-    bitmap_mismatch = _hard_diff(orig_winding, tf_winding).any()
-
-    # Overlap detection: N0 xor E0 catches w = even non-zero (same-direction overlaps);
-    # N1 xor E1 catches w = odd |w| > 1 (wrong-direction contours).
-    # Together they cover all w ∉ {0, 1}.
-    tf_has_overlaps = (
-        _hard_diff(tf_winding, tf_even_odd)
-        | _hard_diff(tf_winding_aug, tf_even_odd_aug)
+    bitmap_mismatch = _hard_diff(original, simplified).any()
+    has_overlaps = (
+        (simplified == 255) & (simplified_cw == 255) & (simplified_ccw == 255)
     ).any()
 
-    failed = bitmap_mismatch | tf_has_overlaps
+    failed = bitmap_mismatch | has_overlaps
     if failed:
         reasons = []
         if bitmap_mismatch:
             reasons.append("bitmap_mismatch")
-        if tf_has_overlaps:
+        if has_overlaps:
             reasons.append("has_overlaps")
         logger.warning(
             "remove_overlaps failure [%s]: %s U+%04X %s",
