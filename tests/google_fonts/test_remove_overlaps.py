@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
 # Skia PathOps has known edge-case bugs; allow up to this fraction of glyphs to fail.
-MAX_FAILURE_RATE = 0.01  # 1 %
+MAX_FAILURE_RATE = 0.001  # 0.1 %
 
 # Outer rectangle covering all Google Fonts glyphs with margin.
 # Prepending CW or CCW variants shifts every pixel's winding number w:
