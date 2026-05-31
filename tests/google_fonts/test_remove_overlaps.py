@@ -16,6 +16,7 @@ GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
 # Skia PathOps has known edge-case bugs; allow up to this fraction of glyphs to fail.
 MAX_FAILURE_RATE = 0.001  # 0.1 %
+BITMAP_SIZE = 128
 
 # Outer rectangle covering all Google Fonts glyphs with margin.
 # Prepending CW or CCW variants shifts every pixel's winding number w:
@@ -75,16 +76,32 @@ def _transform(sample: GlyphSample) -> Tensor:
     ccw_coords = torch.cat([_OUTER_RECT_COORDS_CCW, simplified_coords])
 
     original = render_bitmap(
-        sample.types, sample.coords, size=64, mode="fixed", fill_rule="winding"
+        sample.types,
+        sample.coords,
+        size=BITMAP_SIZE,
+        mode="fixed",
+        fill_rule="winding",
     )
     simplified = render_bitmap(
-        simplified_types, simplified_coords, size=64, mode="fixed", fill_rule="winding"
+        simplified_types,
+        simplified_coords,
+        size=BITMAP_SIZE,
+        mode="fixed",
+        fill_rule="winding",
     )
     simplified_cw = render_bitmap(
-        prepended_types, cw_coords, size=64, mode="fixed", fill_rule="winding"
+        prepended_types,
+        cw_coords,
+        size=BITMAP_SIZE,
+        mode="fixed",
+        fill_rule="winding",
     )
     simplified_ccw = render_bitmap(
-        prepended_types, ccw_coords, size=64, mode="fixed", fill_rule="winding"
+        prepended_types,
+        ccw_coords,
+        size=BITMAP_SIZE,
+        mode="fixed",
+        fill_rule="winding",
     )
 
     bitmap_mismatch = _hard_diff(original, simplified).any()
