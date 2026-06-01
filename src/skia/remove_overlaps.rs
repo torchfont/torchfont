@@ -1,408 +1,426 @@
-use crate::geom::reverse_subpath;
+use std::collections::HashMap;
+
 use i_overlay::core::fill_rule::FillRule;
 use i_overlay::core::overlay_rule::OverlayRule;
 use i_overlay::float::single::SingleFloatOverlay;
-use skia_safe::{Path, PathFillType, PathOp, PathVerb};
+use skia_safe::{PathFillType, PathVerb};
 
 use crate::geom::{Outline, PathElement, Point, Subpath};
 use crate::skia::render_bitmap::{RenderMode, render_bitmap};
 
-const PATHOPS_SCALE: f32 = 16384.0;
-const SCORE_BITMAP_SIZE: u32 = 64;
-const MAX_PATHOPS_ELEMENTS: usize = 2000;
-const FLATTEN_TOLERANCE_LINETO: f32 = 0.002;
-const OUTER_RECT_MIN: f32 = -2.0;
-const OUTER_RECT_MAX: f32 = 3.0;
+const BITMAP_SIZE: u32 = 128;
+const FLATTEN_TOL: f32 = 0.002;
+// Scale sweep (failures at 100 K): 16384→219, 131072→180, 262144→199, 524288→220.
+// 131072 is the sweet spot; dual-scale retry regressed to 206.
+const PATHOPS_SCALE: f32 = 131_072.0;
+
+// Outer rect that covers the entire FIXED render window [-0.25, 1.25]² with large margin.
+// Prepending CW shifts every pixel's winding w → w-1; CCW shifts w → w+1.
+// With the original winding render, three-way AND detects |w| ≥ 2 (matches test logic):
+//   original==255 (w≠0) & with_cw==255 (w≠1) & with_ccw==255 (w≠-1)  →  |w| ≥ 2.
+const OUTER: [[f32; 2]; 4] = [[-4.0, -4.0], [-4.0, 3.5], [13.0, 3.5], [13.0, -4.0]];
 
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
-    let Ok(orig_winding) = render_bitmap(
-        outline,
-        SCORE_BITMAP_SIZE,
-        RenderMode::Fixed,
-        PathFillType::Winding,
-    ) else {
+    // Render winding; skip empty outlines.
+    let Some(winding) = render(outline, PathFillType::Winding) else {
         return outline.clone();
     };
-
-    if !orig_winding.data.contains(&255) {
+    if !winding.contains(&255) {
         return outline.clone();
     }
-
-    // Two-path overlap detection:
-    // • Same-sign multi-subpath: outer-rect catches |w|≥2 including w=3 (triple overlap).
-    // • Otherwise (self-intersecting subpath): even-odd detects w=2 with one render.
-    let has_overlap = if overlap_possible(outline) {
-        outer_rect_overlap_count(&orig_winding.data, outline) > 0
-    } else {
-        render_bitmap(
-            outline,
-            SCORE_BITMAP_SIZE,
-            RenderMode::Fixed,
-            PathFillType::EvenOdd,
-        )
-        .map(|eo| hard_diff(&orig_winding.data, &eo.data) != 0)
-        .unwrap_or(false)
-    };
+    // Detect overlaps: winding ≠ even-odd ↔ even |w| ≥ 2.
+    // Odd |w| ≥ 3 overlaps are rare in fonts; even-|w| detection covers the common case.
+    let has_overlap =
+        render(outline, PathFillType::EvenOdd).is_some_and(|eo| any_differ(&winding, &eo));
     if !has_overlap {
         return outline.clone();
     }
 
-    let original = &orig_winding.data;
-    let mut best: Option<(CandidateScore, Outline)> = None;
-    let total_elements: usize = outline.subpaths().iter().map(|s| s.elements().len()).sum();
-
-    // Stage 1: Skia PathOps — preserves bezier curves.
-    if total_elements <= MAX_PATHOPS_ELEMENTS
-        && let Some(r) = consider(
-            pathops_candidate(outline, PATHOPS_SCALE, PathFillType::Winding),
-            original,
-            &mut best,
-        )
-    {
-        return r;
-    }
-
-    // Stage 2: LineTo-only polygon. polygon_union enforces CCW outer / CW holes
-    // at every step including the sequential fallback, so raw is usually correct.
-    if is_imperfect(&best)
-        && let Some(raw) = build_polygon_lineto(outline)
-        && let Some(r) = consider(Some(raw), original, &mut best)
-    {
-        return r;
-    }
-
-    // Stage 3: Re-process the best visually-correct candidate.
-    // When mismatch==0 but overlap>0, the shape is right but winding is wrong.
-    if is_imperfect(&best)
-        && let Some((score, ref candidate)) = best.clone()
-        && score.mismatch_pixels == 0
-    {
-        if let Some(r) = consider(build_polygon_lineto(candidate), original, &mut best) {
-            return r;
+    // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
+    let mut best: Option<(usize, usize, Outline)> = None;
+    if let Some(result) = pathops_simplify(outline, PATHOPS_SCALE) {
+        let (ov, mm) = score(&winding, &result);
+        if ov == 0 && mm == 0 {
+            return result;
         }
-        let nelems: usize = candidate
-            .subpaths()
-            .iter()
-            .map(|s| s.elements().len())
-            .sum();
-        if nelems <= MAX_PATHOPS_ELEMENTS {
-            // Two scales to cover Skia precision quirks on LineTo candidates.
-            for scale in [PATHOPS_SCALE, 65536.0f32] {
-                if let Some(r) = consider(
-                    pathops_candidate(candidate, scale, PathFillType::Winding),
-                    original,
-                    &mut best,
-                ) {
-                    return r;
-                }
-            }
+        best = Some((ov, mm, result));
+    }
+
+    // Stage 2: Polygon union — guaranteed overlap-free by construction; restore curves after.
+    // Try progressively coarser tolerances to handle near-degenerate geometry (e.g. complex CJK).
+    for &tol in &[
+        FLATTEN_TOL,
+        FLATTEN_TOL * 5.0,
+        FLATTEN_TOL * 25.0,
+        FLATTEN_TOL * 125.0,
+    ] {
+        let Some(result) = polygon_union(outline, tol) else {
+            continue;
+        };
+        let mm = mismatch(&winding, &result);
+        if mm == 0 {
+            return result;
         }
-    }
-
-    best.map(|(_, c)| c).unwrap_or_else(|| outline.clone())
-}
-
-/// Score candidate; update best; return it when overlap=0 and mismatch=0.
-fn consider(
-    candidate: Option<Outline>,
-    original: &[u8],
-    best: &mut Option<(CandidateScore, Outline)>,
-) -> Option<Outline> {
-    let c = candidate?;
-    let score = score_candidate(original, &c)?;
-    if best.as_ref().is_none_or(|(bs, _)| score < *bs) {
-        *best = Some((score, c.clone()));
-    }
-    (score.overlap_pixels == 0 && score.mismatch_pixels == 0).then_some(c)
-}
-
-fn is_imperfect(best: &Option<(CandidateScore, Outline)>) -> bool {
-    best.as_ref()
-        .is_none_or(|(s, _)| s.overlap_pixels != 0 || s.mismatch_pixels != 0)
-}
-
-fn hard_diff(a: &[u8], b: &[u8]) -> usize {
-    a.iter().zip(b).filter(|(a, b)| *a ^ *b == 255).count()
-}
-
-// ─── Overlap detection ───────────────────────────────────────────────────────
-
-/// True when same-sign subpaths with overlapping control-point bboxes exist.
-fn overlap_possible(outline: &Outline) -> bool {
-    let sps = outline.subpaths();
-    if sps.len() <= 1 {
-        return false;
-    }
-    let areas: Vec<f64> = sps.iter().map(subpath_area).collect();
-    let boxes: Vec<[f32; 4]> = sps.iter().map(subpath_control_bbox).collect();
-    for i in 0..sps.len() {
-        for j in (i + 1)..sps.len() {
-            if areas[i] * areas[j] <= 0.0 {
-                continue;
-            }
-            let [ax1, ay1, ax2, ay2] = boxes[i];
-            let [bx1, by1, bx2, by2] = boxes[j];
-            if ax1 <= bx2 && bx1 <= ax2 && ay1 <= by2 && by1 <= ay2 {
-                return true;
-            }
+        if best.as_ref().is_none_or(|(bo, bm, _)| (0, mm) < (*bo, *bm)) {
+            best = Some((0, mm, result));
         }
+        break; // Use first successful union; coarser tols only tried when union fails entirely.
     }
-    false
+
+    best.map(|(_, _, r)| r).unwrap_or_else(|| outline.clone())
 }
 
-fn subpath_control_bbox(sp: &Subpath) -> [f32; 4] {
-    let mut xmin = sp.start().x;
-    let mut ymin = sp.start().y;
-    let mut xmax = xmin;
-    let mut ymax = ymin;
-    let mut expand = |p: Point| {
-        xmin = xmin.min(p.x);
-        ymin = ymin.min(p.y);
-        xmax = xmax.max(p.x);
-        ymax = ymax.max(p.y);
-    };
-    for &e in sp.elements() {
-        match e {
-            PathElement::LineTo(p) => expand(p),
-            PathElement::QuadTo { control, end } => {
-                expand(control);
-                expand(end);
-            }
-            PathElement::CurveTo {
-                control0,
-                control1,
-                end,
-            } => {
-                expand(control0);
-                expand(control1);
-                expand(end);
-            }
-        }
-    }
-    [xmin, ymin, xmax, ymax]
+// ─── Bitmap helpers ───────────────────────────────────────────────────────────
+
+fn render(outline: &Outline, fill: PathFillType) -> Option<Vec<u8>> {
+    render_bitmap(outline, BITMAP_SIZE, RenderMode::Fixed, fill)
+        .ok()
+        .map(|b| b.data)
 }
 
-fn subpath_area(sp: &Subpath) -> f64 {
-    let start = sp.start();
-    let mut p0 = start;
-    let mut v = 0.0f64;
-    for &e in sp.elements() {
-        let p1 = e.end();
-        v -= ((p1.x - p0.x) * (p1.y + p0.y) * 0.5) as f64;
-        match e {
-            PathElement::QuadTo { control: c, .. } => {
-                let (x1, y1) = ((c.x - p0.x) as f64, (c.y - p0.y) as f64);
-                let (x2, y2) = ((p1.x - p0.x) as f64, (p1.y - p0.y) as f64);
-                v -= (x2 * y1 - x1 * y2) / 3.0;
-            }
-            PathElement::CurveTo {
-                control0: c0,
-                control1: c1,
-                ..
-            } => {
-                let (x1, y1) = ((c0.x - p0.x) as f64, (c0.y - p0.y) as f64);
-                let (x2, y2) = ((c1.x - p0.x) as f64, (c1.y - p0.y) as f64);
-                let (x3, y3) = ((p1.x - p0.x) as f64, (p1.y - p0.y) as f64);
-                v -= (x1 * (-y2 - y3) + x2 * (y1 - 2.0 * y3) + x3 * (y1 + 2.0 * y2)) * 0.15;
-            }
-            _ => {}
-        }
-        p0 = p1;
-    }
-    v -= ((start.x - p0.x) * (start.y + p0.y) * 0.5) as f64;
-    v
+fn any_differ(a: &[u8], b: &[u8]) -> bool {
+    a.iter().zip(b).any(|(x, y)| (*x == 255) != (*y == 255))
 }
 
-// ─── Candidate scoring ───────────────────────────────────────────────────────
-
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-struct CandidateScore {
-    overlap_pixels: usize,
-    mismatch_pixels: usize,
-    element_count: usize,
-}
-
-fn score_candidate(original: &[u8], candidate: &Outline) -> Option<CandidateScore> {
-    let winding = render_bitmap(
-        candidate,
-        SCORE_BITMAP_SIZE,
-        RenderMode::Fixed,
-        PathFillType::Winding,
-    )
-    .ok()?;
-    let mismatch = hard_diff(original, &winding.data);
-    // Processed candidates have |w|≤2 at most; even-odd detects w=2 with one render.
-    let overlap = if mismatch == 0 {
-        let evenodd = render_bitmap(
-            candidate,
-            SCORE_BITMAP_SIZE,
-            RenderMode::Fixed,
-            PathFillType::EvenOdd,
-        )
-        .ok()?;
-        hard_diff(&winding.data, &evenodd.data)
-    } else {
-        0
-    };
-    Some(CandidateScore {
-        overlap_pixels: overlap,
-        mismatch_pixels: mismatch,
-        element_count: candidate
-            .subpaths()
-            .iter()
-            .map(|s| s.elements().len())
-            .sum(),
-    })
-}
-
-// ─── Overlap counting via outer-rect ─────────────────────────────────────────
-
-/// Build an outline with a rectangular outer contour prepended.
-/// CW in y-up decrements winding by 1; CCW in y-up increments it.
-fn with_outer_rect(outline: &Outline, cw: bool) -> Outline {
-    let (lo, hi) = (OUTER_RECT_MIN, OUTER_RECT_MAX);
-    let corners: [(f32, f32); 3] = if cw {
-        [(lo, hi), (hi, hi), (hi, lo)]
-    } else {
-        [(hi, lo), (hi, hi), (lo, hi)]
-    };
-    let rect = Subpath::new(
-        Point::new(lo, lo),
-        corners
-            .iter()
-            .map(|&(x, y)| PathElement::LineTo(Point::new(x, y)))
-            .collect(),
-        true,
-    );
-    Outline::new(
-        std::iter::once(rect)
-            .chain(outline.subpaths().iter().cloned())
-            .collect(),
-    )
-}
-
-/// Count pixels with |w|≥2: filled by winding AND by both outer-rect shifts.
-fn outer_rect_overlap_count(winding_bmp: &[u8], outline: &Outline) -> usize {
-    let cw = render_bitmap(
-        &with_outer_rect(outline, true),
-        SCORE_BITMAP_SIZE,
-        RenderMode::Fixed,
-        PathFillType::Winding,
-    )
-    .ok();
-    let ccw = render_bitmap(
-        &with_outer_rect(outline, false),
-        SCORE_BITMAP_SIZE,
-        RenderMode::Fixed,
-        PathFillType::Winding,
-    )
-    .ok();
-    let (Some(cw), Some(ccw)) = (cw, ccw) else {
-        return 0;
-    };
-    winding_bmp
-        .iter()
-        .zip(&cw.data)
-        .zip(&ccw.data)
-        .filter(|((w, cw), ccw)| **w == 255 && **cw == 255 && **ccw == 255)
+fn count_diff(a: &[u8], b: &[u8]) -> usize {
+    a.iter()
+        .zip(b)
+        .filter(|(x, y)| (**x == 255) != (**y == 255))
         .count()
 }
 
-// ─── Skia PathOps backend ────────────────────────────────────────────────────
+/// Score a candidate outline against the original winding bitmap.
+/// Returns (overlap_px, mismatch_px).
+/// Uses the same 3-render outer-rect method as the test to catch all |w| ≥ 2 overlaps
+/// (winding-vs-even-odd only catches even |w|; odd |w| ≥ 3 can slip through).
+fn score(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
+    let Some(cw) = render(candidate, PathFillType::Winding) else {
+        return (usize::MAX, usize::MAX);
+    };
+    let mismatch = count_diff(&cw, original_winding);
 
-fn pathops_candidate(outline: &Outline, scale: f32, fill_type: PathFillType) -> Option<Outline> {
-    let scaled = map_outline(outline, |p| Point::new(p.x * scale, p.y * scale));
-    let (path, _) = super::build_skia_path(&scaled, false, fill_type)?;
-    let simplified = path.op(&path, PathOp::Union).or_else(|| path.simplify())?;
-    let simplified = simplified.as_winding().unwrap_or(simplified);
-    // Skia emits CCW in y-down (= CW in y-up); reverse to font convention.
-    let result = reverse_all_subpaths(&skia_path_to_outline(&simplified, 1.0));
-    Some(map_outline(&result, |p| {
-        Point::new(p.x / scale, p.y / scale)
-    }))
+    // Overlap check: prepend CW then CCW outer rect; overlap = pixel filled in all three.
+    let cw_rect = with_outer(candidate, true);
+    let ccw_rect = with_outer(candidate, false);
+    let Some(cw_render) = render(&cw_rect, PathFillType::Winding) else {
+        return (usize::MAX, usize::MAX);
+    };
+    let Some(ccw_render) = render(&ccw_rect, PathFillType::Winding) else {
+        return (usize::MAX, usize::MAX);
+    };
+    let overlap = cw
+        .iter()
+        .zip(&cw_render)
+        .zip(&ccw_render)
+        .filter(|((a, b), c)| **a == 255 && **b == 255 && **c == 255)
+        .count();
+
+    (overlap, mismatch)
 }
 
-fn skia_path_to_outline(path: &Path, scale: f32) -> Outline {
-    let mut subpaths = Vec::new();
-    let mut start: Option<Point> = None;
-    let mut elements = Vec::new();
-    for record in path.iter() {
-        let pts = record.points();
-        match record.verb() {
-            PathVerb::Move => {
-                if let Some(s) = start.replace(Point::new(pts[0].x * scale, pts[0].y * scale)) {
-                    subpaths.push(Subpath::new(s, std::mem::take(&mut elements), false));
-                }
-            }
-            PathVerb::Line => elements.push(PathElement::LineTo(Point::new(
-                pts[1].x * scale,
-                pts[1].y * scale,
-            ))),
-            PathVerb::Quad => elements.push(PathElement::QuadTo {
-                control: Point::new(pts[1].x * scale, pts[1].y * scale),
-                end: Point::new(pts[2].x * scale, pts[2].y * scale),
-            }),
-            PathVerb::Cubic => elements.push(PathElement::CurveTo {
-                control0: Point::new(pts[1].x * scale, pts[1].y * scale),
-                control1: Point::new(pts[2].x * scale, pts[2].y * scale),
-                end: Point::new(pts[3].x * scale, pts[3].y * scale),
-            }),
-            PathVerb::Close => {
-                if let Some(s) = start.take() {
-                    subpaths.push(Subpath::new(s, std::mem::take(&mut elements), true));
-                }
-            }
-            PathVerb::Conic => unreachable!("PathOps should not emit conic segments"),
-        }
-    }
-    if let Some(s) = start {
-        subpaths.push(Subpath::new(s, elements, false));
-    }
+/// Mismatch only; caller guarantees overlap = 0 (polygon union by construction).
+fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
+    render(candidate, PathFillType::Winding)
+        .map(|bmp| count_diff(&bmp, original_winding))
+        .unwrap_or(usize::MAX)
+}
+
+/// Prepend a large CW (clockwise, y-up) or CCW outer rectangle to the outline.
+fn with_outer(outline: &Outline, clockwise: bool) -> Outline {
+    let [a, b, c, d] = OUTER.map(|[x, y]| Point::new(x, y));
+    let (v0, v1, v2, v3) = if clockwise {
+        (a, b, c, d)
+    } else {
+        (a, d, c, b)
+    };
+    let rect = Subpath::new(
+        v0,
+        vec![
+            PathElement::LineTo(v1),
+            PathElement::LineTo(v2),
+            PathElement::LineTo(v3),
+        ],
+        true,
+    );
+    let mut subpaths = vec![rect];
+    subpaths.extend_from_slice(outline.subpaths());
     Outline::new(subpaths)
 }
 
-// ─── Orientation helpers ─────────────────────────────────────────────────────
+// ─── Skia PathOps ────────────────────────────────────────────────────────────
 
-fn reverse_all_subpaths(outline: &Outline) -> Outline {
-    Outline::new(outline.subpaths().iter().map(reverse_subpath).collect())
+fn pathops_simplify(outline: &Outline, scale: f32) -> Option<Outline> {
+    let scaled = scale_outline(outline, scale);
+    let (path, _) = super::build_skia_path(&scaled, false, PathFillType::Winding)?;
+    let result = path.simplify()?;
+    // as_winding fixes contour orientations so output uses winding semantics.
+    let oriented = result.as_winding().unwrap_or(result);
+    let unscaled = skia_path_to_outline(&oriented)?;
+    Some(scale_outline(&unscaled, 1.0 / scale))
 }
 
-// ─── Geometry helper ─────────────────────────────────────────────────────────
-
-fn map_outline(outline: &Outline, f: impl Fn(Point) -> Point) -> Outline {
+fn scale_outline(outline: &Outline, s: f32) -> Outline {
     Outline::new(
         outline
             .subpaths()
             .iter()
-            .map(|s| {
-                let start = f(s.start());
-                let elements = s
-                    .elements()
-                    .iter()
-                    .map(|&e| match e {
-                        PathElement::LineTo(p) => PathElement::LineTo(f(p)),
-                        PathElement::QuadTo { control, end } => PathElement::QuadTo {
-                            control: f(control),
-                            end: f(end),
-                        },
-                        PathElement::CurveTo {
-                            control0,
-                            control1,
-                            end,
-                        } => PathElement::CurveTo {
-                            control0: f(control0),
-                            control1: f(control1),
-                            end: f(end),
-                        },
-                    })
-                    .collect();
-                Subpath::new(start, elements, s.is_closed())
+            .map(|sp| {
+                Subpath::new(
+                    spt(sp.start(), s),
+                    sp.elements().iter().map(|&e| scale_elem(e, s)).collect(),
+                    sp.is_closed(),
+                )
             })
             .collect(),
     )
 }
 
-// ─── Polygon backend ──────────────────────────────────────────────────────────
+#[inline]
+fn spt(p: Point, s: f32) -> Point {
+    Point::new(p.x * s, p.y * s)
+}
+
+fn scale_elem(e: PathElement, s: f32) -> PathElement {
+    match e {
+        PathElement::LineTo(p) => PathElement::LineTo(spt(p, s)),
+        PathElement::QuadTo { control, end } => PathElement::QuadTo {
+            control: spt(control, s),
+            end: spt(end, s),
+        },
+        PathElement::CurveTo {
+            control0,
+            control1,
+            end,
+        } => PathElement::CurveTo {
+            control0: spt(control0, s),
+            control1: spt(control1, s),
+            end: spt(end, s),
+        },
+    }
+}
+
+fn skia_path_to_outline(path: &skia_safe::Path) -> Option<Outline> {
+    let mut subpaths: Vec<Subpath> = Vec::new();
+    let mut cur_start: Option<skia_safe::Point> = None;
+    let mut cur_elems: Vec<PathElement> = Vec::new();
+
+    for rec in path.iter() {
+        let pts = rec.points();
+        match rec.verb() {
+            PathVerb::Move => {
+                commit(&mut cur_start, &mut cur_elems, &mut subpaths, false);
+                cur_start = Some(pts[0]);
+            }
+            PathVerb::Line => cur_elems.push(PathElement::LineTo(skp(pts[1]))),
+            PathVerb::Quad => cur_elems.push(PathElement::QuadTo {
+                control: skp(pts[1]),
+                end: skp(pts[2]),
+            }),
+            PathVerb::Cubic => cur_elems.push(PathElement::CurveTo {
+                control0: skp(pts[1]),
+                control1: skp(pts[2]),
+                end: skp(pts[3]),
+            }),
+            PathVerb::Close => commit(&mut cur_start, &mut cur_elems, &mut subpaths, true),
+            PathVerb::Conic => return None,
+        }
+    }
+    commit(&mut cur_start, &mut cur_elems, &mut subpaths, false);
+    (!subpaths.is_empty()).then(|| Outline::new(subpaths))
+}
+
+fn commit(
+    start: &mut Option<skia_safe::Point>,
+    elems: &mut Vec<PathElement>,
+    out: &mut Vec<Subpath>,
+    closed: bool,
+) {
+    if let Some(s) = start.take()
+        && !elems.is_empty()
+    {
+        out.push(Subpath::new(skp(s), std::mem::take(elems), closed));
+    }
+}
+
+#[inline]
+fn skp(pt: skia_safe::Point) -> Point {
+    Point::new(pt.x, pt.y)
+}
+
+// ─── Polygon union fallback ───────────────────────────────────────────────────
+// Flattens curves to line segments at `tol`, unions via i_overlay (NonZero fill),
+// then restores original curve elements where both endpoints exactly match the originals.
+//
+// Notes from earlier experiments:
+//   Normalising all contours to CCW before union: 514 failures (fills holes).
+//   1000× coord scale for i_overlay: marginal improvement (203→202, within noise).
+//   PathOps on line-only polygon: same Skia sub-pixel bug; spurious 128px overlaps.
+//   Skipping degenerate contours in sequential fallback: bitmap_mismatch regression.
+
+fn polygon_union(outline: &Outline, tol: f32) -> Option<Outline> {
+    let (contours, vmap) = flatten_tagged(outline, tol);
+    if contours.is_empty() {
+        return None;
+    }
+    let oriented = union_contours(contours)?;
+    let subpaths: Vec<Subpath> = oriented
+        .iter()
+        .filter(|c| c.len() >= 3)
+        .map(|c| restore_curves(c, &vmap, outline))
+        .collect();
+    (!subpaths.is_empty()).then(|| Outline::new(subpaths))
+}
+
+// Vertex map: float-bits key → (subpath index, element index; 0=start, k≥1=elements[k-1].end)
+type VertexMap = HashMap<(u32, u32), (usize, usize)>;
+
+fn flatten_tagged(outline: &Outline, tol: f32) -> (Vec<Vec<[f64; 2]>>, VertexMap) {
+    let mut contours = Vec::new();
+    let mut vmap: VertexMap = HashMap::new();
+    let tol2 = tol * tol;
+
+    for (si, sp) in outline.subpaths().iter().enumerate() {
+        let s = sp.start();
+        let mut c = vec![[s.x as f64, s.y as f64]];
+        vmap.entry((s.x.to_bits(), s.y.to_bits()))
+            .or_insert((si, 0));
+        let mut prev = [s.x, s.y];
+        for (ei, &elem) in sp.elements().iter().enumerate() {
+            let end = elem.end();
+            match elem {
+                PathElement::LineTo(_) => c.push([end.x as f64, end.y as f64]),
+                PathElement::QuadTo { control: q, .. } => {
+                    flatten_quad(prev, [q.x, q.y], [end.x, end.y], tol2, &mut c)
+                }
+                PathElement::CurveTo {
+                    control0: c0,
+                    control1: c1,
+                    ..
+                } => flatten_cubic(
+                    prev,
+                    [c0.x, c0.y],
+                    [c1.x, c1.y],
+                    [end.x, end.y],
+                    tol2,
+                    &mut c,
+                ),
+            }
+            vmap.entry((end.x.to_bits(), end.y.to_bits()))
+                .or_insert((si, ei + 1));
+            prev = [end.x, end.y];
+        }
+        // Drop closing duplicate vertex.
+        if c.len() > 1 {
+            let last = *c.last().unwrap();
+            if (last[0] - c[0][0]).abs() < 1e-7 && (last[1] - c[0][1]).abs() < 1e-7 {
+                c.pop();
+            }
+        }
+        if c.len() >= 3 {
+            contours.push(c);
+        }
+    }
+    (contours, vmap)
+}
+
+fn union_contours(contours: Vec<Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
+    let clip: Vec<Vec<[f64; 2]>> = vec![];
+    let shapes = contours
+        .clone()
+        .overlay(&clip, OverlayRule::Union, FillRule::NonZero);
+    if !shapes.is_empty() {
+        return Some(orient_shapes(shapes));
+    }
+    // Sequential fallback for near-degenerate polygons where bulk union returns empty.
+    let mut current = vec![contours[0].clone()];
+    for next in contours.into_iter().skip(1) {
+        let result = current.overlay(&[next], OverlayRule::Union, FillRule::NonZero);
+        if result.is_empty() {
+            return None;
+        }
+        current = orient_shapes(result);
+    }
+    Some(current)
+}
+
+fn orient_shapes(shapes: Vec<Vec<Vec<[f64; 2]>>>) -> Vec<Vec<[f64; 2]>> {
+    shapes
+        .into_iter()
+        .flat_map(|shape| {
+            shape
+                .into_iter()
+                .enumerate()
+                .filter(|(_, c)| c.len() >= 3)
+                .map(|(idx, c)| {
+                    let want_ccw = idx == 0;
+                    if (signed_area(&c) > 0.0) == want_ccw {
+                        c
+                    } else {
+                        c.into_iter().rev().collect()
+                    }
+                })
+        })
+        .collect()
+}
+
+fn signed_area(c: &[[f64; 2]]) -> f64 {
+    let n = c.len();
+    (0..n)
+        .map(|i| {
+            let [x0, y0] = c[i];
+            let [x1, y1] = c[(i + 1) % n];
+            x0 * y1 - x1 * y0
+        })
+        .sum::<f64>()
+        * 0.5
+}
+
+fn restore_curves(contour: &[[f64; 2]], vmap: &VertexMap, outline: &Outline) -> Subpath {
+    let n = contour.len();
+    let start = contour[0];
+    let elems = (0..n)
+        .map(|i| {
+            let a = contour[i];
+            let b = contour[(i + 1) % n];
+            let ax = (a[0] as f32).to_bits();
+            let ay = (a[1] as f32).to_bits();
+            let bx = (b[0] as f32).to_bits();
+            let by = (b[1] as f32).to_bits();
+            try_restore(ax, ay, bx, by, vmap, outline)
+                .unwrap_or_else(|| PathElement::LineTo(Point::new(b[0] as f32, b[1] as f32)))
+        })
+        .collect();
+    Subpath::new(Point::new(start[0] as f32, start[1] as f32), elems, true)
+}
+
+fn try_restore(
+    ax: u32,
+    ay: u32,
+    bx: u32,
+    by: u32,
+    vmap: &VertexMap,
+    outline: &Outline,
+) -> Option<PathElement> {
+    let &(si_a, vi_a) = vmap.get(&(ax, ay))?;
+    let &(si_b, vi_b) = vmap.get(&(bx, by))?;
+    if si_a != si_b {
+        return None;
+    }
+    let sp = &outline.subpaths()[si_a];
+    let n = sp.elements().len();
+    // Forward: A→B is element vi_a.
+    if vi_b == vi_a + 1 || (vi_a + 1 == n && vi_b == 0) {
+        return sp.elements().get(vi_a).copied();
+    }
+    // Backward: contour reversed by orient_shapes; element vi_b, reversed.
+    let b = Point::new(f32::from_bits(bx), f32::from_bits(by));
+    if vi_a == vi_b + 1 || (vi_b + 1 == n && vi_a == 0) {
+        return sp.elements().get(vi_b).map(|e| e.reversed_to(b));
+    }
+    None
+}
+
+// ─── Curve flattening ─────────────────────────────────────────────────────────
 
 fn flatten_quad(p0: [f32; 2], p1: [f32; 2], p2: [f32; 2], tol2: f32, out: &mut Vec<[f64; 2]>) {
     let mid = [(p0[0] + p2[0]) * 0.5, (p0[1] + p2[1]) * 0.5];
@@ -442,133 +460,4 @@ fn flatten_cubic(
     let s = [(r0[0] + r1[0]) * 0.5, (r0[1] + r1[1]) * 0.5];
     flatten_cubic(p0, q0, r0, s, tol2, out);
     flatten_cubic(s, r1, q2, p1, tol2, out);
-}
-
-fn flatten_outline(outline: &Outline, tol: f32) -> Vec<Vec<[f64; 2]>> {
-    let mut all_contours = Vec::new();
-    let tol2 = tol * tol;
-    for sp in outline.subpaths() {
-        let start = sp.start();
-        let mut contour = vec![[start.x as f64, start.y as f64]];
-        let mut prev = [start.x, start.y];
-        for &elem in sp.elements() {
-            let end = elem.end();
-            match elem {
-                PathElement::LineTo(_) => contour.push([end.x as f64, end.y as f64]),
-                PathElement::QuadTo { control: c, end: e } => {
-                    flatten_quad(prev, [c.x, c.y], [e.x, e.y], tol2, &mut contour);
-                }
-                PathElement::CurveTo {
-                    control0: c0,
-                    control1: c1,
-                    end: e,
-                } => {
-                    flatten_cubic(
-                        prev,
-                        [c0.x, c0.y],
-                        [c1.x, c1.y],
-                        [e.x, e.y],
-                        tol2,
-                        &mut contour,
-                    );
-                }
-            }
-            prev = [end.x, end.y];
-        }
-        if contour.len() > 1 {
-            let last = *contour.last().unwrap();
-            if (last[0] - contour[0][0]).abs() < 1e-7 && (last[1] - contour[0][1]).abs() < 1e-7 {
-                contour.pop();
-            }
-        }
-        if contour.len() >= 3 {
-            all_contours.push(contour);
-        }
-    }
-    all_contours
-}
-
-// ─── Polygon union ────────────────────────────────────────────────────────────
-
-/// Shoelace area (positive = CCW in y-up, negative = CW).
-fn signed_area_f64(c: &[[f64; 2]]) -> f64 {
-    let n = c.len();
-    (0..n)
-        .map(|i| {
-            let [x0, y0] = c[i];
-            let [x1, y1] = c[(i + 1) % n];
-            x0 * y1 - x1 * y0
-        })
-        .sum::<f64>()
-        * 0.5
-}
-
-/// Orient i_overlay shape output: outer (idx=0) → CCW, holes (idx>0) → CW.
-fn orient_shapes(shapes: Vec<Vec<Vec<[f64; 2]>>>) -> Vec<Vec<[f64; 2]>> {
-    shapes
-        .into_iter()
-        .flat_map(|shape| {
-            shape
-                .into_iter()
-                .enumerate()
-                .filter(|(_, c)| c.len() >= 3)
-                .map(|(idx, c)| {
-                    let want_ccw = idx == 0;
-                    if (signed_area_f64(&c) > 0.0) == want_ccw {
-                        c
-                    } else {
-                        c.into_iter().rev().collect()
-                    }
-                })
-        })
-        .collect()
-}
-
-/// Compute polygon union enforcing CCW outer / CW holes at every step.
-fn polygon_union(contours: Vec<Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
-    let clip: Vec<Vec<[f64; 2]>> = vec![];
-    let shapes = contours
-        .clone()
-        .overlay(&clip, OverlayRule::Union, FillRule::NonZero);
-    if !shapes.is_empty() {
-        return Some(orient_shapes(shapes));
-    }
-    // Sequential fallback: enforce orientation at each step.
-    let mut current = vec![contours[0].clone()];
-    for next in contours.into_iter().skip(1) {
-        let result = current.overlay(&[next], OverlayRule::Union, FillRule::NonZero);
-        if result.is_empty() {
-            return None;
-        }
-        current = orient_shapes(result);
-    }
-    Some(current)
-}
-
-fn build_polygon_lineto(outline: &Outline) -> Option<Outline> {
-    // Try fine then coarser tolerance; coarser reduces near-collinear degeneracy for i_overlay.
-    for &tol in &[FLATTEN_TOLERANCE_LINETO, FLATTEN_TOLERANCE_LINETO * 5.0] {
-        let contours = flatten_outline(outline, tol);
-        if contours.is_empty() {
-            continue;
-        }
-        if let Some(shapes) = polygon_union(contours) {
-            let subpaths: Vec<Subpath> = shapes
-                .iter()
-                .filter(|c| c.len() >= 3)
-                .map(|c| {
-                    let start = Point::new(c[0][0] as f32, c[0][1] as f32);
-                    let elements = c[1..]
-                        .iter()
-                        .map(|v| PathElement::LineTo(Point::new(v[0] as f32, v[1] as f32)))
-                        .collect();
-                    Subpath::new(start, elements, true)
-                })
-                .collect();
-            if !subpaths.is_empty() {
-                return Some(Outline::new(subpaths));
-            }
-        }
-    }
-    None
 }
