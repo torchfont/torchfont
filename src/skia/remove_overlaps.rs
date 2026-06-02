@@ -14,12 +14,6 @@ const FLATTEN_TOL: f32 = 0.002;
 // 131072 is the sweet spot.
 const PATHOPS_SCALE: f32 = 131_072.0;
 
-// Outer rect covering the FIXED render window [-0.25, 1.25]^2 with large margin.
-// Prepending CW shifts every pixel's winding w -> w-1; CCW shifts w -> w+1.
-// All three winding renders together detect |w| >= 2 (matches test logic):
-//   original==255 (w!=0) & with_cw==255 (w!=1) & with_ccw==255 (w!=-1)  =>  |w| >= 2.
-const OUTER: [[f32; 2]; 4] = [[-4.0, -4.0], [-4.0, 3.5], [13.0, 3.5], [13.0, -4.0]];
-
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // Render winding; skip empty outlines.
     let Some(winding) = render(outline, PathFillType::Winding) else {
@@ -44,6 +38,7 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
     // Dual-scale for ALL glyphs regressed to 206 failures at 100 K; alt scales tried only
     // when primary leaves overlaps (~1% of glyphs). Primary is 131072 (empirical sweet spot).
+    // Alt-scale sweep: 65536/32768/262144 tested; 65536 alone fixes all cases 32768 and 262144 fix.
     let mut overlap_free: Option<Outline> = None;
     let primary_ov = match pathops_simplify(outline, PATHOPS_SCALE) {
         None => usize::MAX,
@@ -58,21 +53,15 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
             ov
         }
     };
-    if primary_ov > 0 {
-        for &scale in &[
-            PATHOPS_SCALE / 2.0,
-            PATHOPS_SCALE / 4.0,
-            PATHOPS_SCALE * 2.0,
-        ] {
-            if let Some(result) = pathops_simplify(outline, scale) {
-                let (ov, mm) = score(&winding, &result);
-                if ov == 0 && mm == 0 {
-                    return result;
-                }
-                if ov == 0 && overlap_free.is_none() {
-                    overlap_free = Some(result);
-                }
-            }
+    if primary_ov > 0
+        && let Some(result) = pathops_simplify(outline, PATHOPS_SCALE / 2.0)
+    {
+        let (ov, mm) = score(&winding, &result);
+        if ov == 0 && mm == 0 {
+            return result;
+        }
+        if ov == 0 && overlap_free.is_none() {
+            overlap_free = Some(result);
         }
     }
 
@@ -115,25 +104,23 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
-// 3-render outer-rect overlap score -- catches all |w| >= 2 including odd |w| >= 3 that
-// winding-vs-even-odd misses. Returns (overlap_px, mismatch_px); (0,0) is perfect.
+// 2-render score: winding for mismatch, even-odd for overlap detection.
+// Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
+// Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
+// NOTE: lazy mm>0 early-exit was tried but caused ~12% regression by triggering unnecessary
+// alt-scale retries for glyphs where primary pathops has ov=0, mm>0 (shape mismatch bug).
+// Must return actual ov so primary_ov=0 correctly suppresses alt-scale retry.
 fn score(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
     let Some(cw) = render(candidate, PathFillType::Winding) else {
         return (usize::MAX, usize::MAX);
     };
     let mm = count_diff(&cw, original_winding);
-    let Some(cw_r) = render(&with_outer(candidate, true), PathFillType::Winding) else {
-        return (usize::MAX, usize::MAX);
-    };
-    let Some(ccw_r) = render(&with_outer(candidate, false), PathFillType::Winding) else {
-        return (usize::MAX, usize::MAX);
-    };
-    let ov = cw
-        .iter()
-        .zip(&cw_r)
-        .zip(&ccw_r)
-        .filter(|((a, b), c)| **a == 255 && **b == 255 && **c == 255)
-        .count();
+    let ov = render(candidate, PathFillType::EvenOdd).map_or(usize::MAX, |eo| {
+        cw.iter()
+            .zip(&eo)
+            .filter(|&(&w, &e)| w == 255 && e == 0)
+            .count()
+    });
     (ov, mm)
 }
 
@@ -142,28 +129,6 @@ fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
     render(candidate, PathFillType::Winding)
         .map(|bmp| count_diff(&bmp, original_winding))
         .unwrap_or(usize::MAX)
-}
-
-// Prepend a large CW or CCW outer rect (covers the full render window with margin).
-fn with_outer(outline: &Outline, clockwise: bool) -> Outline {
-    let [a, b, c, d] = OUTER.map(|[x, y]| Point::new(x, y));
-    let (v0, v1, v2, v3) = if clockwise {
-        (a, b, c, d)
-    } else {
-        (a, d, c, b)
-    };
-    let rect = Subpath::new(
-        v0,
-        vec![
-            PathElement::LineTo(v1),
-            PathElement::LineTo(v2),
-            PathElement::LineTo(v3),
-        ],
-        true,
-    );
-    let mut subpaths = vec![rect];
-    subpaths.extend_from_slice(outline.subpaths());
-    Outline::new(subpaths)
 }
 
 // --- Skia PathOps ------------------------------------------------------------
