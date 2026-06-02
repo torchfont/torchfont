@@ -27,6 +27,8 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // NOTE: a bbox-disjoint pre-check was tried but caused 0.7% failures at 100 K: subpath
     // bboxes can be mutually disjoint while one subpath self-intersects (e.g. figure-8 crossbar),
     // which the bbox check misses but the even-odd render catches.
+    // NOTE: segment-level cp-bbox check (O(N²)) was tried but failed for adjacent bezier crossings
+    // (e.g. Alexandria "five"): adjacent segments are skipped but CAN cross, causing has_overlaps.
     if render(outline, PathFillType::EvenOdd).is_none_or(|eo| {
         !eo.iter()
             .zip(&winding)
@@ -43,23 +45,27 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     let primary_ov = match pathops_simplify(outline, PATHOPS_SCALE) {
         None => usize::MAX,
         Some(result) => {
-            let (ov, mm) = score(&winding, &result);
-            if ov == 0 && mm == 0 {
+            let mm = mismatch(&winding, &result);
+            if mm == 0 {
                 return result;
             }
+            let ov = overlap_count(&result);
             if ov == 0 {
                 overlap_free = Some(result);
             }
             ov
         }
     };
+    // NOTE: removing this ov-gated alt-scale/overlap-free path and always falling through to
+    // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
     if primary_ov > 0
         && let Some(result) = pathops_simplify(outline, PATHOPS_SCALE / 2.0)
     {
-        let (ov, mm) = score(&winding, &result);
-        if ov == 0 && mm == 0 {
+        let mm = mismatch(&winding, &result);
+        if mm == 0 {
             return result;
         }
+        let ov = overlap_count(&result);
         if ov == 0 && overlap_free.is_none() {
             overlap_free = Some(result);
         }
@@ -104,24 +110,18 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
-// 2-render score: winding for mismatch, even-odd for overlap detection.
 // Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
 // Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
-// NOTE: lazy mm>0 early-exit was tried but caused ~12% regression by triggering unnecessary
-// alt-scale retries for glyphs where primary pathops has ov=0, mm>0 (shape mismatch bug).
-// Must return actual ov so primary_ov=0 correctly suppresses alt-scale retry.
-fn score(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
+fn overlap_count(candidate: &Outline) -> usize {
     let Some(cw) = render(candidate, PathFillType::Winding) else {
-        return (usize::MAX, usize::MAX);
+        return usize::MAX;
     };
-    let mm = count_diff(&cw, original_winding);
-    let ov = render(candidate, PathFillType::EvenOdd).map_or(usize::MAX, |eo| {
+    render(candidate, PathFillType::EvenOdd).map_or(usize::MAX, |eo| {
         cw.iter()
             .zip(&eo)
             .filter(|&(&w, &e)| w == 255 && e == 0)
             .count()
-    });
-    (ov, mm)
+    })
 }
 
 // Mismatch only; polygon union guarantees ov = 0 by construction.
@@ -309,29 +309,9 @@ fn flatten_tagged(outline: &Outline, tol: f32) -> (Vec<Vec<[f64; 2]>>, VertexMap
 }
 
 fn union_contours(contours: Vec<Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
-    let clip: Vec<Vec<[f64; 2]>> = vec![];
-    let shapes = contours
-        .clone()
-        .overlay(&clip, OverlayRule::Union, FillRule::NonZero);
-    if !shapes.is_empty() {
-        return Some(orient_shapes(shapes));
-    }
-    // Sequential fallback for near-degenerate polygons where bulk union returns empty.
-    // Try forward order, then reverse -- some pairwise failures are order-dependent.
-    seq_union(contours.iter().cloned()).or_else(|| seq_union(contours.into_iter().rev()))
-}
-
-fn seq_union(mut iter: impl Iterator<Item = Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
-    let first = iter.next()?;
-    let mut current = vec![first];
-    for next in iter {
-        let result = current.overlay(&[next], OverlayRule::Union, FillRule::NonZero);
-        if result.is_empty() {
-            return None;
-        }
-        current = orient_shapes(result);
-    }
-    Some(current)
+    let clip: Vec<Vec<[f64; 2]>> = Vec::new();
+    let shapes = contours.overlay(&clip, OverlayRule::Union, FillRule::NonZero);
+    (!shapes.is_empty()).then(|| orient_shapes(shapes))
 }
 
 fn orient_shapes(shapes: Vec<Vec<Vec<[f64; 2]>>>) -> Vec<Vec<[f64; 2]>> {
