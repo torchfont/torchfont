@@ -269,6 +269,7 @@ fn skp(pt: skia_safe::Point) -> Point {
 // Notes from earlier experiments:
 //   Normalising all contours to CCW before union: 514 failures (fills holes).
 //   1000× coord scale for i_overlay: marginal improvement (203→202, within noise).
+//   10000× coord scale for i_overlay: regression (2.0→2.3/run in 20-run batches).
 //   PathOps on line-only polygon: same Skia sub-pixel bug; spurious 128px overlaps.
 //   Skipping degenerate contours in sequential fallback: bitmap_mismatch regression.
 
