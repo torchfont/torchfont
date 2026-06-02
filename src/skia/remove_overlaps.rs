@@ -45,17 +45,13 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // Primary scale is 131072 (empirical sweet spot). The old ov-gated 65536 retry was
     // removed after two 100 K runs stayed under threshold; extra PathOps did not buy speed.
     let mut pathops_candidate = None;
-    match pathops_simplify(&mut path, PATHOPS_SCALE) {
-        None => {}
-        Some(result) => {
-            if let Some(candidate_winding) = render(&result, PathFillType::Winding) {
-                let mm = count_diff(&candidate_winding, &winding);
-                if mm == 0 {
-                    return result;
-                }
-                pathops_candidate = Some((result, candidate_winding));
-            }
+    if let Some((result, mut result_path)) = pathops_simplify(&mut path, PATHOPS_SCALE) {
+        let candidate_winding =
+            render_fixed_path(&mut result_path, BITMAP_SIZE, PathFillType::Winding);
+        if count_diff(&candidate_winding, &winding) == 0 {
+            return result;
         }
+        pathops_candidate = Some((result, result_path, candidate_winding));
     }
     // NOTE: removing this ov-gated alt-scale/overlap-free path and always falling through to
     // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
@@ -76,8 +72,8 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
         polygon = Some(result);
     }
 
-    if let Some((result, candidate_winding)) = pathops_candidate
-        && overlap_count(&candidate_winding, &result) == 0
+    if let Some((result, mut result_path, candidate_winding)) = pathops_candidate
+        && overlap_count(&candidate_winding, &mut result_path) == 0
     {
         return result;
     }
@@ -85,11 +81,6 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
 }
 
 // --- Bitmap helpers -----------------------------------------------------------
-
-fn render(outline: &Outline, fill: PathFillType) -> Option<Vec<u8>> {
-    let mut path = build_path(outline, fill)?;
-    Some(render_fixed_path(&mut path, BITMAP_SIZE, fill))
-}
 
 fn build_path(outline: &Outline, fill: PathFillType) -> Option<skia_safe::Path> {
     super::build_skia_path(outline, false, fill).map(|(path, _)| path)
@@ -104,11 +95,8 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
 
 // Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
 // Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
-fn overlap_count(winding: &[u8], candidate: &Outline) -> usize {
-    let Some(mut path) = build_path(candidate, PathFillType::EvenOdd) else {
-        return usize::MAX;
-    };
-    let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
+fn overlap_count(winding: &[u8], path: &mut skia_safe::Path) -> usize {
+    let even_odd = render_fixed_path(path, BITMAP_SIZE, PathFillType::EvenOdd);
     winding
         .iter()
         .zip(&even_odd)
@@ -118,21 +106,25 @@ fn overlap_count(winding: &[u8], candidate: &Outline) -> usize {
 
 // Mismatch only; polygon union guarantees ov = 0 by construction.
 fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
-    render(candidate, PathFillType::Winding)
-        .map(|bmp| count_diff(&bmp, original_winding))
-        .unwrap_or(usize::MAX)
+    let Some(mut path) = build_path(candidate, PathFillType::Winding) else {
+        return usize::MAX;
+    };
+    count_diff(
+        &render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding),
+        original_winding,
+    )
 }
 
 // --- Skia PathOps ------------------------------------------------------------
 
-fn pathops_simplify(path: &mut skia_safe::Path, scale: f32) -> Option<Outline> {
+fn pathops_simplify(path: &mut skia_safe::Path, scale: f32) -> Option<(Outline, skia_safe::Path)> {
     path.set_fill_type(PathFillType::Winding);
     let path = path.try_make_scale((scale, scale))?;
     let result = path.simplify()?;
     // as_winding fixes contour orientations so output uses winding semantics.
     let oriented = result.as_winding().unwrap_or(result);
     let unscaled = oriented.try_make_scale((scale.recip(), scale.recip()))?;
-    skia_path_to_outline(&unscaled)
+    skia_path_to_outline(&unscaled).map(|outline| (outline, unscaled))
 }
 
 fn skia_path_to_outline(path: &skia_safe::Path) -> Option<Outline> {
