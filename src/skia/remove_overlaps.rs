@@ -28,22 +28,48 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     if !winding.contains(&255) {
         return outline.clone();
     }
-    // Detect overlaps: winding ≠ even-odd ↔ even |w| ≥ 2.
-    // Odd |w| ≥ 3 overlaps are rare in fonts; even-|w| detection covers the common case.
-    let has_overlap =
-        render(outline, PathFillType::EvenOdd).is_some_and(|eo| any_differ(&winding, &eo));
-    if !has_overlap {
+    // Detect overlaps: winding ≠ even-odd ↔ even |w| ≥ 2 (odd |w| ≥ 3 is rare in practice).
+    let no_overlap = render(outline, PathFillType::EvenOdd).is_none_or(|eo| {
+        !eo.iter()
+            .zip(&winding)
+            .any(|(a, b)| (*a == 255) != (*b == 255))
+    });
+    if no_overlap {
         return outline.clone();
     }
 
     // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
+    // If primary scale leaves overlaps, try alternate scales (rare path, ~0.03% of glyphs).
+    // Dual-scale for ALL glyphs was tried and regressed (206 failures); this targeted retry avoids that.
     let mut best: Option<(usize, usize, Outline)> = None;
+    let mut pathops_ov = usize::MAX;
     if let Some(result) = pathops_simplify(outline, PATHOPS_SCALE) {
         let (ov, mm) = score(&winding, &result);
         if ov == 0 && mm == 0 {
             return result;
         }
+        pathops_ov = ov;
         best = Some((ov, mm, result));
+    }
+    if pathops_ov > 0 {
+        for &scale in &[
+            PATHOPS_SCALE / 2.0,
+            PATHOPS_SCALE / 4.0,
+            PATHOPS_SCALE * 2.0,
+        ] {
+            if let Some(result) = pathops_simplify(outline, scale) {
+                let (ov, mm) = score(&winding, &result);
+                if ov == 0 && mm == 0 {
+                    return result;
+                }
+                if best
+                    .as_ref()
+                    .is_none_or(|(bo, bm, _)| (ov, mm) < (*bo, *bm))
+                {
+                    best = Some((ov, mm, result));
+                }
+            }
+        }
     }
 
     // Stage 2: Polygon union — guaranteed overlap-free by construction; restore curves after.
@@ -78,10 +104,6 @@ fn render(outline: &Outline, fill: PathFillType) -> Option<Vec<u8>> {
         .map(|b| b.data)
 }
 
-fn any_differ(a: &[u8], b: &[u8]) -> bool {
-    a.iter().zip(b).any(|(x, y)| (*x == 255) != (*y == 255))
-}
-
 fn count_diff(a: &[u8], b: &[u8]) -> usize {
     a.iter()
         .zip(b)
@@ -89,43 +111,36 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
-/// Score a candidate outline against the original winding bitmap.
-/// Returns (overlap_px, mismatch_px).
-/// Uses the same 3-render outer-rect method as the test to catch all |w| ≥ 2 overlaps
-/// (winding-vs-even-odd only catches even |w|; odd |w| ≥ 3 can slip through).
+// 3-render outer-rect overlap score — catches all |w| ≥ 2 including odd |w| ≥ 3 that
+// winding-vs-even-odd misses. Returns (overlap_px, mismatch_px); (0,0) is perfect.
 fn score(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
     let Some(cw) = render(candidate, PathFillType::Winding) else {
         return (usize::MAX, usize::MAX);
     };
-    let mismatch = count_diff(&cw, original_winding);
-
-    // Overlap check: prepend CW then CCW outer rect; overlap = pixel filled in all three.
-    let cw_rect = with_outer(candidate, true);
-    let ccw_rect = with_outer(candidate, false);
-    let Some(cw_render) = render(&cw_rect, PathFillType::Winding) else {
+    let mm = count_diff(&cw, original_winding);
+    let Some(cw_r) = render(&with_outer(candidate, true), PathFillType::Winding) else {
         return (usize::MAX, usize::MAX);
     };
-    let Some(ccw_render) = render(&ccw_rect, PathFillType::Winding) else {
+    let Some(ccw_r) = render(&with_outer(candidate, false), PathFillType::Winding) else {
         return (usize::MAX, usize::MAX);
     };
-    let overlap = cw
+    let ov = cw
         .iter()
-        .zip(&cw_render)
-        .zip(&ccw_render)
+        .zip(&cw_r)
+        .zip(&ccw_r)
         .filter(|((a, b), c)| **a == 255 && **b == 255 && **c == 255)
         .count();
-
-    (overlap, mismatch)
+    (ov, mm)
 }
 
-/// Mismatch only; caller guarantees overlap = 0 (polygon union by construction).
+// Mismatch only; polygon union guarantees ov = 0 by construction.
 fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
     render(candidate, PathFillType::Winding)
         .map(|bmp| count_diff(&bmp, original_winding))
         .unwrap_or(usize::MAX)
 }
 
-/// Prepend a large CW (clockwise, y-up) or CCW outer rectangle to the outline.
+// Prepend a large CW or CCW outer rect (covers the full render window with margin).
 fn with_outer(outline: &Outline, clockwise: bool) -> Outline {
     let [a, b, c, d] = OUTER.map(|[x, y]| Point::new(x, y));
     let (v0, v1, v2, v3) = if clockwise {
@@ -332,8 +347,14 @@ fn union_contours(contours: Vec<Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
         return Some(orient_shapes(shapes));
     }
     // Sequential fallback for near-degenerate polygons where bulk union returns empty.
-    let mut current = vec![contours[0].clone()];
-    for next in contours.into_iter().skip(1) {
+    // Try forward order, then reverse — some pairwise failures are order-dependent.
+    seq_union(contours.iter().cloned()).or_else(|| seq_union(contours.into_iter().rev()))
+}
+
+fn seq_union(mut iter: impl Iterator<Item = Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
+    let first = iter.next()?;
+    let mut current = vec![first];
+    for next in iter {
         let result = current.overlay(&[next], OverlayRule::Union, FillRule::NonZero);
         if result.is_empty() {
             return None;
