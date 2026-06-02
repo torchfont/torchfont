@@ -30,6 +30,8 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // which the bbox check misses but the even-odd render catches.
     // NOTE: segment-level cp-bbox check (O(N²)) was tried but failed for adjacent bezier crossings
     // (e.g. Alexandria "five"): adjacent segments are skipped but CAN cross, causing has_overlaps.
+    // NOTE: lower-res overlap prechecks lost accuracy or speed: 64px -> 223 failures at 100 K;
+    // 96px stayed under threshold once but was slower due to the extra 128px original render.
     let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
     if !even_odd
         .iter()
@@ -40,52 +42,30 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     }
 
     // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
-    // Dual-scale for ALL glyphs regressed to 206 failures at 100 K; alt scales tried only
-    // when primary leaves overlaps (~1% of glyphs). Primary is 131072 (empirical sweet spot).
-    // Alt-scale sweep: 65536/32768/262144 tested; 65536 alone fixes all cases 32768 and 262144 fix.
+    // Primary scale is 131072 (empirical sweet spot). The old ov-gated 65536 retry was
+    // removed after two 100 K runs stayed under threshold; extra PathOps did not buy speed.
     let mut overlap_free: Option<Outline> = None;
-    let primary_ov = match pathops_simplify(outline, PATHOPS_SCALE) {
-        None => usize::MAX,
+    match pathops_simplify(&mut path, PATHOPS_SCALE) {
+        None => {}
         Some(result) => {
-            let mm = mismatch(&winding, &result);
+            let (mm, ov) = candidate_stats(&winding, &result);
             if mm == 0 {
                 return result;
             }
-            let ov = overlap_count(&result);
             if ov == 0 {
                 overlap_free = Some(result);
             }
-            ov
         }
-    };
+    }
     // NOTE: removing this ov-gated alt-scale/overlap-free path and always falling through to
     // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
     // NOTE: skipping overlap_count and keeping the first mismatched PathOps result was not faster
     // and regressed to 930/100096 failures (0.9291%), mostly complex CJK has_overlaps.
-    if primary_ov > 0
-        && let Some(result) = pathops_simplify(outline, PATHOPS_SCALE / 2.0)
-    {
-        let mm = mismatch(&winding, &result);
-        if mm == 0 {
-            return result;
-        }
-        let ov = overlap_count(&result);
-        if ov == 0 && overlap_free.is_none() {
-            overlap_free = Some(result);
-        }
-    }
 
     // Stage 2: Polygon union — overlap-free by construction; restores curves where endpoints match.
-    // Progressively coarser tolerances for near-degenerate geometry (e.g. complex CJK).
-    for &tol in &[
-        FLATTEN_TOL,
-        FLATTEN_TOL * 5.0,
-        FLATTEN_TOL * 25.0,
-        FLATTEN_TOL * 125.0,
-    ] {
-        let Some(result) = polygon_union(outline, tol) else {
-            continue;
-        };
+    // Older progressive coarser tolerances were unnecessary in current 100 K runs; the first
+    // successful union is the only one used.
+    if let Some(result) = polygon_union(outline, FLATTEN_TOL) {
         let mm = mismatch(&winding, &result);
         if mm == 0 {
             return result;
@@ -93,7 +73,6 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
         if overlap_free.is_none() {
             overlap_free = Some(result);
         }
-        break; // First successful union; coarser tols only tried when union returns empty.
     }
 
     overlap_free.unwrap_or_else(|| outline.clone())
@@ -104,13 +83,6 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
 fn render(outline: &Outline, fill: PathFillType) -> Option<Vec<u8>> {
     let mut path = build_path(outline, fill)?;
     Some(render_fixed_path(&mut path, BITMAP_SIZE, fill))
-}
-
-fn render_pair(outline: &Outline) -> Option<(Vec<u8>, Vec<u8>)> {
-    let mut path = build_path(outline, PathFillType::Winding)?;
-    let winding = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding);
-    let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
-    Some((winding, even_odd))
 }
 
 fn build_path(outline: &Outline, fill: PathFillType) -> Option<skia_safe::Path> {
@@ -124,16 +96,25 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
+// Returns (bitmap mismatch against the original winding render, overlap pixels).
 // Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
 // Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
-fn overlap_count(candidate: &Outline) -> usize {
-    let Some((cw, eo)) = render_pair(candidate) else {
-        return usize::MAX;
+fn candidate_stats(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
+    let Some(mut path) = build_path(candidate, PathFillType::Winding) else {
+        return (usize::MAX, usize::MAX);
     };
-    cw.iter()
-        .zip(&eo)
+    let winding = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding);
+    let mismatch = count_diff(&winding, original_winding);
+    if mismatch == 0 {
+        return (0, 0);
+    }
+    let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
+    let overlaps = winding
+        .iter()
+        .zip(&even_odd)
         .filter(|&(&w, &e)| w == 255 && e == 0)
-        .count()
+        .count();
+    (mismatch, overlaps)
 }
 
 // Mismatch only; polygon union guarantees ov = 0 by construction.
@@ -145,8 +126,8 @@ fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
 
 // --- Skia PathOps ------------------------------------------------------------
 
-fn pathops_simplify(outline: &Outline, scale: f32) -> Option<Outline> {
-    let (path, _) = super::build_skia_path(outline, false, PathFillType::Winding)?;
+fn pathops_simplify(path: &mut skia_safe::Path, scale: f32) -> Option<Outline> {
+    path.set_fill_type(PathFillType::Winding);
     let path = path.try_make_scale((scale, scale))?;
     let result = path.simplify()?;
     // as_winding fixes contour orientations so output uses winding semantics.
