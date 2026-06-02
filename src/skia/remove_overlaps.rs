@@ -45,35 +45,37 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // Primary scale is 131072 (empirical sweet spot). The old ov-gated 65536 retry was
     // removed after two 100 K runs stayed under threshold; extra PathOps did not buy speed.
     let mut pathops_candidate = None;
-    if let Some((result, mut result_path)) = pathops_simplify(&mut path, PATHOPS_SCALE) {
+    if let Some(mut result_path) = pathops_simplify(&mut path, PATHOPS_SCALE) {
         let candidate_winding =
             render_fixed_path(&mut result_path, BITMAP_SIZE, PathFillType::Winding);
-        if count_diff(&candidate_winding, &winding) == 0 {
+        if !hard_diff(&candidate_winding, &winding)
+            && let Some(result) = skia_path_to_outline(&result_path)
+        {
             return result;
         }
-        pathops_candidate = Some((result, result_path, candidate_winding));
+        pathops_candidate = Some((result_path, candidate_winding));
     }
     // NOTE: removing this ov-gated alt-scale/overlap-free path and always falling through to
     // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
     // NOTE: skipping overlap_count and keeping the first mismatched PathOps result was not faster
     // and regressed to 930/100096 failures (0.9291%), mostly complex CJK has_overlaps.
     // NOTE: deferring overlap_count without caching candidate_winding re-rendered it and lost time.
+    // NOTE: retrying 65536 only after mismatched polygon was noisy (3-8 failures) and not faster.
 
     // Stage 2: Polygon union — overlap-free by construction; restores curves where endpoints match.
-    // Older progressive coarser tolerances were unnecessary in current 100 K runs; the first
-    // successful union is the only one used.
+    // Older progressive coarser tolerances were unnecessary in current 100 K runs.
     // NOTE: trying 0.5x/2x tolerance after a mismatched union regressed to 8 failures and 16.1s.
     let mut polygon = polygon_union(outline, FLATTEN_TOL);
     if let Some(result) = polygon.take() {
-        let mm = mismatch(&winding, &result);
-        if mm == 0 {
+        if matches_winding(&winding, &result) {
             return result;
         }
         polygon = Some(result);
     }
 
-    if let Some((result, mut result_path, candidate_winding)) = pathops_candidate
-        && overlap_count(&candidate_winding, &mut result_path) == 0
+    if let Some((mut result_path, candidate_winding)) = pathops_candidate
+        && !has_even_overlap(&candidate_winding, &mut result_path)
+        && let Some(result) = skia_path_to_outline(&result_path)
     {
         return result;
     }
@@ -86,30 +88,26 @@ fn build_path(outline: &Outline, fill: PathFillType) -> Option<skia_safe::Path> 
     super::build_skia_path(outline, false, fill).map(|(path, _)| path)
 }
 
-fn count_diff(a: &[u8], b: &[u8]) -> usize {
-    a.iter()
-        .zip(b)
-        .filter(|(x, y)| (**x == 255) != (**y == 255))
-        .count()
+fn hard_diff(a: &[u8], b: &[u8]) -> bool {
+    a.iter().zip(b).any(|(x, y)| (*x == 255) != (*y == 255))
 }
 
 // Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
 // Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
-fn overlap_count(winding: &[u8], path: &mut skia_safe::Path) -> usize {
+fn has_even_overlap(winding: &[u8], path: &mut skia_safe::Path) -> bool {
     let even_odd = render_fixed_path(path, BITMAP_SIZE, PathFillType::EvenOdd);
     winding
         .iter()
         .zip(&even_odd)
-        .filter(|&(&w, &e)| w == 255 && e == 0)
-        .count()
+        .any(|(&w, &e)| w == 255 && e == 0)
 }
 
 // Mismatch only; polygon union guarantees ov = 0 by construction.
-fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
+fn matches_winding(original_winding: &[u8], candidate: &Outline) -> bool {
     let Some(mut path) = build_path(candidate, PathFillType::Winding) else {
-        return usize::MAX;
+        return false;
     };
-    count_diff(
+    !hard_diff(
         &render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding),
         original_winding,
     )
@@ -117,14 +115,13 @@ fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
 
 // --- Skia PathOps ------------------------------------------------------------
 
-fn pathops_simplify(path: &mut skia_safe::Path, scale: f32) -> Option<(Outline, skia_safe::Path)> {
+fn pathops_simplify(path: &mut skia_safe::Path, scale: f32) -> Option<skia_safe::Path> {
     path.set_fill_type(PathFillType::Winding);
     let path = path.try_make_scale((scale, scale))?;
     let result = path.simplify()?;
     // as_winding fixes contour orientations so output uses winding semantics.
     let oriented = result.as_winding().unwrap_or(result);
-    let unscaled = oriented.try_make_scale((scale.recip(), scale.recip()))?;
-    skia_path_to_outline(&unscaled).map(|outline| (outline, unscaled))
+    oriented.try_make_scale((scale.recip(), scale.recip()))
 }
 
 fn skia_path_to_outline(path: &skia_safe::Path) -> Option<Outline> {
@@ -176,8 +173,7 @@ fn skp(pt: skia_safe::Point) -> Point {
 }
 
 // --- Polygon union fallback --------------------------------------------------
-// Flattens curves to line segments at `tol`, unions via i_overlay (NonZero fill),
-// then restores original curve elements where both endpoints exactly match the originals.
+// Flattens curves, unions via i_overlay, then restores curves by exact endpoint matches.
 //
 // Notes from earlier experiments:
 //   Normalising all contours to CCW before union: 514 failures (fills holes).
@@ -327,15 +323,15 @@ fn try_restore(a: Point, b: Point, vmap: &VertexMap, outline: &Outline) -> Optio
 // --- Curve flattening --------------------------------------------------------
 
 fn flatten_quad(p0: Point, p1: Point, p2: Point, tol2: f32, out: &mut Vec<[f64; 2]>) {
-    let mid = midpoint(p0, p2);
+    let mid = p0.midpoint(p2);
     let (dx, dy) = (p1.x - mid.x, p1.y - mid.y);
     if dx * dx + dy * dy <= tol2 {
         out.push(coord(p2));
         return;
     }
-    let q0 = midpoint(p0, p1);
-    let q1 = midpoint(p1, p2);
-    let r = midpoint(q0, q1);
+    let q0 = p0.midpoint(p1);
+    let q1 = p1.midpoint(p2);
+    let r = q0.midpoint(q1);
     flatten_quad(p0, q0, r, tol2, out);
     flatten_quad(r, q1, p2, tol2, out);
 }
@@ -349,16 +345,12 @@ fn flatten_cubic(p0: Point, c0: Point, c1: Point, p1: Point, tol2: f32, out: &mu
         out.push(coord(p1));
         return;
     }
-    let q0 = midpoint(p0, c0);
-    let q1 = midpoint(c0, c1);
-    let q2 = midpoint(c1, p1);
-    let r0 = midpoint(q0, q1);
-    let r1 = midpoint(q1, q2);
-    let s = midpoint(r0, r1);
+    let q0 = p0.midpoint(c0);
+    let q1 = c0.midpoint(c1);
+    let q2 = c1.midpoint(p1);
+    let r0 = q0.midpoint(q1);
+    let r1 = q1.midpoint(q2);
+    let s = r0.midpoint(r1);
     flatten_cubic(p0, q0, r0, s, tol2, out);
     flatten_cubic(s, r1, q2, p1, tol2, out);
-}
-
-fn midpoint(a: Point, b: Point) -> Point {
-    Point::new((a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
 }
