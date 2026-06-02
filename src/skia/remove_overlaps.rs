@@ -10,14 +10,14 @@ use crate::skia::render_bitmap::{RenderMode, render_bitmap};
 
 const BITMAP_SIZE: u32 = 128;
 const FLATTEN_TOL: f32 = 0.002;
-// Scale sweep (failures at 100 K): 16384→219, 131072→180, 262144→199, 524288→220.
-// 131072 is the sweet spot; dual-scale retry regressed to 206.
+// Scale sweep (failures at 100 K): 16384->219, 131072->180, 262144->199, 524288->220.
+// 131072 is the sweet spot.
 const PATHOPS_SCALE: f32 = 131_072.0;
 
-// Outer rect that covers the entire FIXED render window [-0.25, 1.25]² with large margin.
-// Prepending CW shifts every pixel's winding w → w-1; CCW shifts w → w+1.
-// With the original winding render, three-way AND detects |w| ≥ 2 (matches test logic):
-//   original==255 (w≠0) & with_cw==255 (w≠1) & with_ccw==255 (w≠-1)  →  |w| ≥ 2.
+// Outer rect covering the FIXED render window [-0.25, 1.25]^2 with large margin.
+// Prepending CW shifts every pixel's winding w -> w-1; CCW shifts w -> w+1.
+// All three winding renders together detect |w| >= 2 (matches test logic):
+//   original==255 (w!=0) & with_cw==255 (w!=1) & with_ccw==255 (w!=-1)  =>  |w| >= 2.
 const OUTER: [[f32; 2]; 4] = [[-4.0, -4.0], [-4.0, 3.5], [13.0, 3.5], [13.0, -4.0]];
 
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
@@ -28,30 +28,37 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     if !winding.contains(&255) {
         return outline.clone();
     }
-    // Detect overlaps: winding ≠ even-odd ↔ even |w| ≥ 2 (odd |w| ≥ 3 is rare in practice).
-    let no_overlap = render(outline, PathFillType::EvenOdd).is_none_or(|eo| {
+    // Detect overlaps: winding != even-odd -> |w| >= 2 at some pixel.
+    // Misses rare |w| >= 3 odd; the score check below catches those if they survive.
+    // NOTE: a bbox-disjoint pre-check was tried but caused 0.7% failures at 100 K: subpath
+    // bboxes can be mutually disjoint while one subpath self-intersects (e.g. figure-8 crossbar),
+    // which the bbox check misses but the even-odd render catches.
+    if render(outline, PathFillType::EvenOdd).is_none_or(|eo| {
         !eo.iter()
             .zip(&winding)
             .any(|(a, b)| (*a == 255) != (*b == 255))
-    });
-    if no_overlap {
+    }) {
         return outline.clone();
     }
 
     // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
-    // If primary scale leaves overlaps, try alternate scales (rare path, ~0.03% of glyphs).
-    // Dual-scale for ALL glyphs was tried and regressed (206 failures); this targeted retry avoids that.
-    let mut best: Option<(usize, usize, Outline)> = None;
-    let mut pathops_ov = usize::MAX;
-    if let Some(result) = pathops_simplify(outline, PATHOPS_SCALE) {
-        let (ov, mm) = score(&winding, &result);
-        if ov == 0 && mm == 0 {
-            return result;
+    // Dual-scale for ALL glyphs regressed to 206 failures at 100 K; alt scales tried only
+    // when primary leaves overlaps (~1% of glyphs). Primary is 131072 (empirical sweet spot).
+    let mut overlap_free: Option<Outline> = None;
+    let primary_ov = match pathops_simplify(outline, PATHOPS_SCALE) {
+        None => usize::MAX,
+        Some(result) => {
+            let (ov, mm) = score(&winding, &result);
+            if ov == 0 && mm == 0 {
+                return result;
+            }
+            if ov == 0 {
+                overlap_free = Some(result);
+            }
+            ov
         }
-        pathops_ov = ov;
-        best = Some((ov, mm, result));
-    }
-    if pathops_ov > 0 {
+    };
+    if primary_ov > 0 {
         for &scale in &[
             PATHOPS_SCALE / 2.0,
             PATHOPS_SCALE / 4.0,
@@ -62,18 +69,15 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
                 if ov == 0 && mm == 0 {
                     return result;
                 }
-                if best
-                    .as_ref()
-                    .is_none_or(|(bo, bm, _)| (ov, mm) < (*bo, *bm))
-                {
-                    best = Some((ov, mm, result));
+                if ov == 0 && overlap_free.is_none() {
+                    overlap_free = Some(result);
                 }
             }
         }
     }
 
-    // Stage 2: Polygon union — guaranteed overlap-free by construction; restore curves after.
-    // Try progressively coarser tolerances to handle near-degenerate geometry (e.g. complex CJK).
+    // Stage 2: Polygon union — overlap-free by construction; restores curves where endpoints match.
+    // Progressively coarser tolerances for near-degenerate geometry (e.g. complex CJK).
     for &tol in &[
         FLATTEN_TOL,
         FLATTEN_TOL * 5.0,
@@ -87,16 +91,16 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
         if mm == 0 {
             return result;
         }
-        if best.as_ref().is_none_or(|(bo, bm, _)| (0, mm) < (*bo, *bm)) {
-            best = Some((0, mm, result));
+        if overlap_free.is_none() {
+            overlap_free = Some(result);
         }
-        break; // Use first successful union; coarser tols only tried when union fails entirely.
+        break; // First successful union; coarser tols only tried when union returns empty.
     }
 
-    best.map(|(_, _, r)| r).unwrap_or_else(|| outline.clone())
+    overlap_free.unwrap_or_else(|| outline.clone())
 }
 
-// ─── Bitmap helpers ───────────────────────────────────────────────────────────
+// --- Bitmap helpers -----------------------------------------------------------
 
 fn render(outline: &Outline, fill: PathFillType) -> Option<Vec<u8>> {
     render_bitmap(outline, BITMAP_SIZE, RenderMode::Fixed, fill)
@@ -111,7 +115,7 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
-// 3-render outer-rect overlap score — catches all |w| ≥ 2 including odd |w| ≥ 3 that
+// 3-render outer-rect overlap score -- catches all |w| >= 2 including odd |w| >= 3 that
 // winding-vs-even-odd misses. Returns (overlap_px, mismatch_px); (0,0) is perfect.
 fn score(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
     let Some(cw) = render(candidate, PathFillType::Winding) else {
@@ -162,7 +166,7 @@ fn with_outer(outline: &Outline, clockwise: bool) -> Outline {
     Outline::new(subpaths)
 }
 
-// ─── Skia PathOps ────────────────────────────────────────────────────────────
+// --- Skia PathOps ------------------------------------------------------------
 
 fn pathops_simplify(outline: &Outline, scale: f32) -> Option<Outline> {
     let scaled = scale_outline(outline, scale);
@@ -262,14 +266,14 @@ fn skp(pt: skia_safe::Point) -> Point {
     Point::new(pt.x, pt.y)
 }
 
-// ─── Polygon union fallback ───────────────────────────────────────────────────
+// --- Polygon union fallback --------------------------------------------------
 // Flattens curves to line segments at `tol`, unions via i_overlay (NonZero fill),
 // then restores original curve elements where both endpoints exactly match the originals.
 //
 // Notes from earlier experiments:
 //   Normalising all contours to CCW before union: 514 failures (fills holes).
-//   1000× coord scale for i_overlay: marginal improvement (203→202, within noise).
-//   10000× coord scale for i_overlay: regression (2.0→2.3/run in 20-run batches).
+//   1000x coord scale for i_overlay: marginal improvement (203->202, within noise).
+//   10000x coord scale for i_overlay: regression (2.0->2.3/run in 20-run batches).
 //   PathOps on line-only polygon: same Skia sub-pixel bug; spurious 128px overlaps.
 //   Skipping degenerate contours in sequential fallback: bitmap_mismatch regression.
 
@@ -287,7 +291,7 @@ fn polygon_union(outline: &Outline, tol: f32) -> Option<Outline> {
     (!subpaths.is_empty()).then(|| Outline::new(subpaths))
 }
 
-// Vertex map: float-bits key → (subpath index, element index; 0=start, k≥1=elements[k-1].end)
+// Vertex map: float-bits key -> (subpath index, element index; 0=start, k>=1=elements[k-1].end)
 type VertexMap = HashMap<(u32, u32), (usize, usize)>;
 
 fn flatten_tagged(outline: &Outline, tol: f32) -> (Vec<Vec<[f64; 2]>>, VertexMap) {
@@ -348,7 +352,7 @@ fn union_contours(contours: Vec<Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
         return Some(orient_shapes(shapes));
     }
     // Sequential fallback for near-degenerate polygons where bulk union returns empty.
-    // Try forward order, then reverse — some pairwise failures are order-dependent.
+    // Try forward order, then reverse -- some pairwise failures are order-dependent.
     seq_union(contours.iter().cloned()).or_else(|| seq_union(contours.into_iter().rev()))
 }
 
@@ -430,7 +434,7 @@ fn try_restore(
     }
     let sp = &outline.subpaths()[si_a];
     let n = sp.elements().len();
-    // Forward: A→B is element vi_a.
+    // Forward: A->B is element vi_a.
     if vi_b == vi_a + 1 || (vi_a + 1 == n && vi_b == 0) {
         return sp.elements().get(vi_a).copied();
     }
@@ -442,7 +446,7 @@ fn try_restore(
     None
 }
 
-// ─── Curve flattening ─────────────────────────────────────────────────────────
+// --- Curve flattening --------------------------------------------------------
 
 fn flatten_quad(p0: [f32; 2], p1: [f32; 2], p2: [f32; 2], tol2: f32, out: &mut Vec<[f64; 2]>) {
     let mid = [(p0[0] + p2[0]) * 0.5, (p0[1] + p2[1]) * 0.5];
