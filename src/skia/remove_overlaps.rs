@@ -44,16 +44,16 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
     // Primary scale is 131072 (empirical sweet spot). The old ov-gated 65536 retry was
     // removed after two 100 K runs stayed under threshold; extra PathOps did not buy speed.
-    let mut overlap_free: Option<Outline> = None;
+    let mut pathops_candidate = None;
     match pathops_simplify(&mut path, PATHOPS_SCALE) {
         None => {}
         Some(result) => {
-            let (mm, ov) = candidate_stats(&winding, &result);
-            if mm == 0 {
-                return result;
-            }
-            if ov == 0 {
-                overlap_free = Some(result);
+            if let Some(candidate_winding) = render(&result, PathFillType::Winding) {
+                let mm = count_diff(&candidate_winding, &winding);
+                if mm == 0 {
+                    return result;
+                }
+                pathops_candidate = Some((result, candidate_winding));
             }
         }
     }
@@ -61,21 +61,27 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
     // NOTE: skipping overlap_count and keeping the first mismatched PathOps result was not faster
     // and regressed to 930/100096 failures (0.9291%), mostly complex CJK has_overlaps.
+    // NOTE: deferring overlap_count without caching candidate_winding re-rendered it and lost time.
 
     // Stage 2: Polygon union — overlap-free by construction; restores curves where endpoints match.
     // Older progressive coarser tolerances were unnecessary in current 100 K runs; the first
     // successful union is the only one used.
-    if let Some(result) = polygon_union(outline, FLATTEN_TOL) {
+    // NOTE: trying 0.5x/2x tolerance after a mismatched union regressed to 8 failures and 16.1s.
+    let mut polygon = polygon_union(outline, FLATTEN_TOL);
+    if let Some(result) = polygon.take() {
         let mm = mismatch(&winding, &result);
         if mm == 0 {
             return result;
         }
-        if overlap_free.is_none() {
-            overlap_free = Some(result);
-        }
+        polygon = Some(result);
     }
 
-    overlap_free.unwrap_or_else(|| outline.clone())
+    if let Some((result, candidate_winding)) = pathops_candidate
+        && overlap_count(&candidate_winding, &result) == 0
+    {
+        return result;
+    }
+    polygon.unwrap_or_else(|| outline.clone())
 }
 
 // --- Bitmap helpers -----------------------------------------------------------
@@ -96,25 +102,18 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
-// Returns (bitmap mismatch against the original winding render, overlap pixels).
 // Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
 // Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
-fn candidate_stats(original_winding: &[u8], candidate: &Outline) -> (usize, usize) {
-    let Some(mut path) = build_path(candidate, PathFillType::Winding) else {
-        return (usize::MAX, usize::MAX);
+fn overlap_count(winding: &[u8], candidate: &Outline) -> usize {
+    let Some(mut path) = build_path(candidate, PathFillType::EvenOdd) else {
+        return usize::MAX;
     };
-    let winding = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding);
-    let mismatch = count_diff(&winding, original_winding);
-    if mismatch == 0 {
-        return (0, 0);
-    }
     let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
-    let overlaps = winding
+    winding
         .iter()
         .zip(&even_odd)
         .filter(|&(&w, &e)| w == 255 && e == 0)
-        .count();
-    (mismatch, overlaps)
+        .count()
 }
 
 // Mismatch only; polygon union guarantees ov = 0 by construction.
@@ -210,7 +209,8 @@ fn polygon_union(outline: &Outline, tol: f32) -> Option<Outline> {
 }
 
 // Vertex map: float-bits key -> (subpath index, element index; 0=start, k>=1=elements[k-1].end)
-type VertexMap = HashMap<(u32, u32), (usize, usize)>;
+type VertexKey = (u32, u32);
+type VertexMap = HashMap<VertexKey, (usize, usize)>;
 
 fn flatten_tagged(outline: &Outline, tol: f32) -> (Vec<Vec<[f64; 2]>>, VertexMap) {
     let mut contours = Vec::new();
@@ -219,33 +219,22 @@ fn flatten_tagged(outline: &Outline, tol: f32) -> (Vec<Vec<[f64; 2]>>, VertexMap
 
     for (si, sp) in outline.subpaths().iter().enumerate() {
         let s = sp.start();
-        let mut c = vec![[s.x as f64, s.y as f64]];
-        vmap.entry((s.x.to_bits(), s.y.to_bits()))
-            .or_insert((si, 0));
-        let mut prev = [s.x, s.y];
+        let mut c = vec![coord(s)];
+        vmap.entry(vertex_key(s)).or_insert((si, 0));
+        let mut prev = s;
         for (ei, &elem) in sp.elements().iter().enumerate() {
             let end = elem.end();
             match elem {
-                PathElement::LineTo(_) => c.push([end.x as f64, end.y as f64]),
-                PathElement::QuadTo { control: q, .. } => {
-                    flatten_quad(prev, [q.x, q.y], [end.x, end.y], tol2, &mut c)
-                }
+                PathElement::LineTo(_) => c.push(coord(end)),
+                PathElement::QuadTo { control: q, .. } => flatten_quad(prev, q, end, tol2, &mut c),
                 PathElement::CurveTo {
                     control0: c0,
                     control1: c1,
                     ..
-                } => flatten_cubic(
-                    prev,
-                    [c0.x, c0.y],
-                    [c1.x, c1.y],
-                    [end.x, end.y],
-                    tol2,
-                    &mut c,
-                ),
+                } => flatten_cubic(prev, c0, c1, end, tol2, &mut c),
             }
-            vmap.entry((end.x.to_bits(), end.y.to_bits()))
-                .or_insert((si, ei + 1));
-            prev = [end.x, end.y];
+            vmap.entry(vertex_key(end)).or_insert((si, ei + 1));
+            prev = end;
         }
         // Drop closing duplicate vertex.
         if c.len() > 1 {
@@ -301,32 +290,32 @@ fn signed_area(c: &[[f64; 2]]) -> f64 {
 
 fn restore_curves(contour: &[[f64; 2]], vmap: &VertexMap, outline: &Outline) -> Subpath {
     let n = contour.len();
-    let start = contour[0];
+    let start = point(contour[0]);
     let elems = (0..n)
         .map(|i| {
-            let a = contour[i];
-            let b = contour[(i + 1) % n];
-            let ax = (a[0] as f32).to_bits();
-            let ay = (a[1] as f32).to_bits();
-            let bx = (b[0] as f32).to_bits();
-            let by = (b[1] as f32).to_bits();
-            try_restore(ax, ay, bx, by, vmap, outline)
-                .unwrap_or_else(|| PathElement::LineTo(Point::new(b[0] as f32, b[1] as f32)))
+            let a = point(contour[i]);
+            let b = point(contour[(i + 1) % n]);
+            try_restore(a, b, vmap, outline).unwrap_or(PathElement::LineTo(b))
         })
         .collect();
-    Subpath::new(Point::new(start[0] as f32, start[1] as f32), elems, true)
+    Subpath::new(start, elems, true)
 }
 
-fn try_restore(
-    ax: u32,
-    ay: u32,
-    bx: u32,
-    by: u32,
-    vmap: &VertexMap,
-    outline: &Outline,
-) -> Option<PathElement> {
-    let &(si_a, vi_a) = vmap.get(&(ax, ay))?;
-    let &(si_b, vi_b) = vmap.get(&(bx, by))?;
+fn point(p: [f64; 2]) -> Point {
+    Point::new(p[0] as f32, p[1] as f32)
+}
+
+fn coord(p: Point) -> [f64; 2] {
+    [p.x as f64, p.y as f64]
+}
+
+fn vertex_key(p: Point) -> VertexKey {
+    (p.x.to_bits(), p.y.to_bits())
+}
+
+fn try_restore(a: Point, b: Point, vmap: &VertexMap, outline: &Outline) -> Option<PathElement> {
+    let &(si_a, vi_a) = vmap.get(&vertex_key(a))?;
+    let &(si_b, vi_b) = vmap.get(&vertex_key(b))?;
     if si_a != si_b {
         return None;
     }
@@ -337,7 +326,6 @@ fn try_restore(
         return sp.elements().get(vi_a).copied();
     }
     // Backward: contour reversed by orient_shapes; element vi_b, reversed.
-    let b = Point::new(f32::from_bits(bx), f32::from_bits(by));
     if vi_a == vi_b + 1 || (vi_b + 1 == n && vi_a == 0) {
         return sp.elements().get(vi_b).map(|e| e.reversed_to(b));
     }
@@ -346,42 +334,39 @@ fn try_restore(
 
 // --- Curve flattening --------------------------------------------------------
 
-fn flatten_quad(p0: [f32; 2], p1: [f32; 2], p2: [f32; 2], tol2: f32, out: &mut Vec<[f64; 2]>) {
-    let mid = [(p0[0] + p2[0]) * 0.5, (p0[1] + p2[1]) * 0.5];
-    let (dx, dy) = (p1[0] - mid[0], p1[1] - mid[1]);
+fn flatten_quad(p0: Point, p1: Point, p2: Point, tol2: f32, out: &mut Vec<[f64; 2]>) {
+    let mid = midpoint(p0, p2);
+    let (dx, dy) = (p1.x - mid.x, p1.y - mid.y);
     if dx * dx + dy * dy <= tol2 {
-        out.push([p2[0] as f64, p2[1] as f64]);
+        out.push(coord(p2));
         return;
     }
-    let q0 = [(p0[0] + p1[0]) * 0.5, (p0[1] + p1[1]) * 0.5];
-    let q1 = [(p1[0] + p2[0]) * 0.5, (p1[1] + p2[1]) * 0.5];
-    let r = [(q0[0] + q1[0]) * 0.5, (q0[1] + q1[1]) * 0.5];
+    let q0 = midpoint(p0, p1);
+    let q1 = midpoint(p1, p2);
+    let r = midpoint(q0, q1);
     flatten_quad(p0, q0, r, tol2, out);
     flatten_quad(r, q1, p2, tol2, out);
 }
 
-fn flatten_cubic(
-    p0: [f32; 2],
-    c0: [f32; 2],
-    c1: [f32; 2],
-    p1: [f32; 2],
-    tol2: f32,
-    out: &mut Vec<[f64; 2]>,
-) {
-    let (dx, dy) = (p1[0] - p0[0], p1[1] - p0[1]);
+fn flatten_cubic(p0: Point, c0: Point, c1: Point, p1: Point, tol2: f32, out: &mut Vec<[f64; 2]>) {
+    let (dx, dy) = (p1.x - p0.x, p1.y - p0.y);
     let len2 = dx * dx + dy * dy;
-    let dc0 = (c0[0] - p0[0]) * dy - (c0[1] - p0[1]) * dx;
-    let dc1 = (c1[0] - p0[0]) * dy - (c1[1] - p0[1]) * dx;
+    let dc0 = (c0.x - p0.x) * dy - (c0.y - p0.y) * dx;
+    let dc1 = (c1.x - p0.x) * dy - (c1.y - p0.y) * dx;
     if dc0 * dc0 <= tol2 * len2 * 9.0 && dc1 * dc1 <= tol2 * len2 * 9.0 {
-        out.push([p1[0] as f64, p1[1] as f64]);
+        out.push(coord(p1));
         return;
     }
-    let q0 = [(p0[0] + c0[0]) * 0.5, (p0[1] + c0[1]) * 0.5];
-    let q1 = [(c0[0] + c1[0]) * 0.5, (c0[1] + c1[1]) * 0.5];
-    let q2 = [(c1[0] + p1[0]) * 0.5, (c1[1] + p1[1]) * 0.5];
-    let r0 = [(q0[0] + q1[0]) * 0.5, (q0[1] + q1[1]) * 0.5];
-    let r1 = [(q1[0] + q2[0]) * 0.5, (q1[1] + q2[1]) * 0.5];
-    let s = [(r0[0] + r1[0]) * 0.5, (r0[1] + r1[1]) * 0.5];
+    let q0 = midpoint(p0, c0);
+    let q1 = midpoint(c0, c1);
+    let q2 = midpoint(c1, p1);
+    let r0 = midpoint(q0, q1);
+    let r1 = midpoint(q1, q2);
+    let s = midpoint(r0, r1);
     flatten_cubic(p0, q0, r0, s, tol2, out);
     flatten_cubic(s, r1, q2, p1, tol2, out);
+}
+
+fn midpoint(a: Point, b: Point) -> Point {
+    Point::new((a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
 }
