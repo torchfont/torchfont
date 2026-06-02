@@ -6,7 +6,7 @@ use i_overlay::float::single::SingleFloatOverlay;
 use skia_safe::{PathFillType, PathVerb};
 
 use crate::geom::{Outline, PathElement, Point, Subpath};
-use crate::skia::render_bitmap::{RenderMode, render_bitmap};
+use crate::skia::render_bitmap::render_fixed_path;
 
 const BITMAP_SIZE: u32 = 128;
 const FLATTEN_TOL: f32 = 0.002;
@@ -16,9 +16,10 @@ const PATHOPS_SCALE: f32 = 131_072.0;
 
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // Render winding; skip empty outlines.
-    let Some(winding) = render(outline, PathFillType::Winding) else {
+    let Some(mut path) = build_path(outline, PathFillType::Winding) else {
         return outline.clone();
     };
+    let winding = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding);
     if !winding.contains(&255) {
         return outline.clone();
     }
@@ -29,11 +30,12 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     // which the bbox check misses but the even-odd render catches.
     // NOTE: segment-level cp-bbox check (O(N²)) was tried but failed for adjacent bezier crossings
     // (e.g. Alexandria "five"): adjacent segments are skipped but CAN cross, causing has_overlaps.
-    if render(outline, PathFillType::EvenOdd).is_none_or(|eo| {
-        !eo.iter()
-            .zip(&winding)
-            .any(|(a, b)| (*a == 255) != (*b == 255))
-    }) {
+    let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
+    if !even_odd
+        .iter()
+        .zip(&winding)
+        .any(|(a, b)| (*a == 255) != (*b == 255))
+    {
         return outline.clone();
     }
 
@@ -58,6 +60,8 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     };
     // NOTE: removing this ov-gated alt-scale/overlap-free path and always falling through to
     // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
+    // NOTE: skipping overlap_count and keeping the first mismatched PathOps result was not faster
+    // and regressed to 930/100096 failures (0.9291%), mostly complex CJK has_overlaps.
     if primary_ov > 0
         && let Some(result) = pathops_simplify(outline, PATHOPS_SCALE / 2.0)
     {
@@ -98,9 +102,19 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
 // --- Bitmap helpers -----------------------------------------------------------
 
 fn render(outline: &Outline, fill: PathFillType) -> Option<Vec<u8>> {
-    render_bitmap(outline, BITMAP_SIZE, RenderMode::Fixed, fill)
-        .ok()
-        .map(|b| b.data)
+    let mut path = build_path(outline, fill)?;
+    Some(render_fixed_path(&mut path, BITMAP_SIZE, fill))
+}
+
+fn render_pair(outline: &Outline) -> Option<(Vec<u8>, Vec<u8>)> {
+    let mut path = build_path(outline, PathFillType::Winding)?;
+    let winding = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding);
+    let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
+    Some((winding, even_odd))
+}
+
+fn build_path(outline: &Outline, fill: PathFillType) -> Option<skia_safe::Path> {
+    super::build_skia_path(outline, false, fill).map(|(path, _)| path)
 }
 
 fn count_diff(a: &[u8], b: &[u8]) -> usize {
@@ -113,15 +127,13 @@ fn count_diff(a: &[u8], b: &[u8]) -> usize {
 // Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
 // Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
 fn overlap_count(candidate: &Outline) -> usize {
-    let Some(cw) = render(candidate, PathFillType::Winding) else {
+    let Some((cw, eo)) = render_pair(candidate) else {
         return usize::MAX;
     };
-    render(candidate, PathFillType::EvenOdd).map_or(usize::MAX, |eo| {
-        cw.iter()
-            .zip(&eo)
-            .filter(|&(&w, &e)| w == 255 && e == 0)
-            .count()
-    })
+    cw.iter()
+        .zip(&eo)
+        .filter(|&(&w, &e)| w == 255 && e == 0)
+        .count()
 }
 
 // Mismatch only; polygon union guarantees ov = 0 by construction.
@@ -134,53 +146,13 @@ fn mismatch(original_winding: &[u8], candidate: &Outline) -> usize {
 // --- Skia PathOps ------------------------------------------------------------
 
 fn pathops_simplify(outline: &Outline, scale: f32) -> Option<Outline> {
-    let scaled = scale_outline(outline, scale);
-    let (path, _) = super::build_skia_path(&scaled, false, PathFillType::Winding)?;
+    let (path, _) = super::build_skia_path(outline, false, PathFillType::Winding)?;
+    let path = path.try_make_scale((scale, scale))?;
     let result = path.simplify()?;
     // as_winding fixes contour orientations so output uses winding semantics.
     let oriented = result.as_winding().unwrap_or(result);
-    let unscaled = skia_path_to_outline(&oriented)?;
-    Some(scale_outline(&unscaled, 1.0 / scale))
-}
-
-fn scale_outline(outline: &Outline, s: f32) -> Outline {
-    Outline::new(
-        outline
-            .subpaths()
-            .iter()
-            .map(|sp| {
-                Subpath::new(
-                    spt(sp.start(), s),
-                    sp.elements().iter().map(|&e| scale_elem(e, s)).collect(),
-                    sp.is_closed(),
-                )
-            })
-            .collect(),
-    )
-}
-
-#[inline]
-fn spt(p: Point, s: f32) -> Point {
-    Point::new(p.x * s, p.y * s)
-}
-
-fn scale_elem(e: PathElement, s: f32) -> PathElement {
-    match e {
-        PathElement::LineTo(p) => PathElement::LineTo(spt(p, s)),
-        PathElement::QuadTo { control, end } => PathElement::QuadTo {
-            control: spt(control, s),
-            end: spt(end, s),
-        },
-        PathElement::CurveTo {
-            control0,
-            control1,
-            end,
-        } => PathElement::CurveTo {
-            control0: spt(control0, s),
-            control1: spt(control1, s),
-            end: spt(end, s),
-        },
-    }
+    let unscaled = oriented.try_make_scale((scale.recip(), scale.recip()))?;
+    skia_path_to_outline(&unscaled)
 }
 
 fn skia_path_to_outline(path: &skia_safe::Path) -> Option<Outline> {
