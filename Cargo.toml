@@ -17,7 +17,7 @@ numpy = "0.28.0"
 shellexpand = "3.1.2"
 # Intentionally non-optional: PyPI wheels are compiled binaries and Cargo
 # features cannot be selected via pip install.
-skia-safe = "0.97.0"
+skia-safe = "0.97.2"
 skrifa = "0.42.1"
 urlencoding = "2.1.3"
 walkdir = "2.5.0"
