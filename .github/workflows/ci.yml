@@ -58,6 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Install skia-safe native dependencies
+        run: sudo sh .github/scripts/install-linux-deps.sh host
+      - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo check --all-targets --all-features
@@ -78,6 +81,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install skia-safe native dependencies
         run: sudo sh .github/scripts/install-linux-deps.sh host
+      - uses: Swatinem/rust-cache@v2
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -174,6 +178,8 @@ jobs:
             target: aarch64
     steps:
       - uses: actions/checkout@v6
+      - name: Install skia-safe native dependencies
+        run: brew install ninja
       - uses: actions/setup-python@v6
         with:
           python-version: "3.10"

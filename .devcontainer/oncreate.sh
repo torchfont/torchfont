@@ -3,6 +3,9 @@ set -euo pipefail
 
 USER_NAME="${USER_NAME:-vscode}"
 
+sudo apt-get update -qq
+sudo apt-get install -y --no-install-recommends clang
+
 paths=(
   "/mise"
   "/home/vscode/.cache/uv"

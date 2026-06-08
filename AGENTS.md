@@ -25,3 +25,15 @@
 - **Making `skia-safe` an optional Cargo feature**: PyPI wheels are compiled
   binaries — Cargo features cannot be selected via `pip install`. Truly optional
   Skia would require a separate distribution package, which is not planned.
+
+## Skia build
+
+`skia-safe` is declared with `default-features = false, features = ["binary-cache"]`
+so only path operations are compiled in (no PDF, JPEG, ICU).
+
+`binary-cache` downloads prebuilts when available. When no prebuilt matches, a
+full source build runs automatically, requiring:
+- `clang` / `clang++` — installed via apt in `.devcontainer/oncreate.sh`
+- `ninja` — managed via mise (`mise.toml`)
+- Python 3 with `jinja2` — available from the project venv
+- Skia source and `gn` — downloaded automatically by the build script

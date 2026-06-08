@@ -3,6 +3,7 @@ uv = "latest"
 rust = { version = "stable", profile = "default", components = "rust-src" }
 npm = "latest"
 node = "lts"
+ninja = "latest"
 
 [settings]
 lockfile = true

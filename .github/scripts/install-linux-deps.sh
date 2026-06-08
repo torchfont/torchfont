@@ -9,13 +9,17 @@ case "${target}" in
     apt-get install -y --no-install-recommends \
       pkg-config \
       libfreetype6-dev \
-      libfontconfig1-dev
+      libfontconfig1-dev \
+      clang \
+      ninja-build
     ;;
   x86_64)
     yum install -y \
       freetype-devel \
       fontconfig-devel \
-      pkgconfig
+      pkgconfig \
+      clang \
+      ninja-build
     ;;
   aarch64)
     . /etc/os-release
@@ -32,7 +36,9 @@ EOF
     apt-get install -y --no-install-recommends \
       pkg-config \
       libfreetype6-dev:arm64 \
-      libfontconfig1-dev:arm64
+      libfontconfig1-dev:arm64 \
+      clang \
+      ninja-build
     export PKG_CONFIG_ALLOW_CROSS=1
     export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
     ;;
