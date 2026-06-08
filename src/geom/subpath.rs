@@ -1,6 +1,6 @@
 use super::{Point, Subpath};
 
-pub(crate) fn subpath_nodes(subpath: &Subpath) -> Vec<Point> {
+fn subpath_nodes(subpath: &Subpath) -> Vec<Point> {
     std::iter::once(subpath.start())
         .chain(subpath.elements().iter().map(|element| element.end()))
         .collect()

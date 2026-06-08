@@ -8,4 +8,4 @@ pub(crate) use bounds::{Bounds, BoundsPen, bounds_from_outline};
 pub(crate) use encoding::ElementType;
 pub(crate) use outline::{Outline, PathElement, Subpath, SubpathBuilder};
 pub(crate) use point::Point;
-pub(crate) use subpath::{reverse_subpath, subpath_nodes};
+pub(crate) use subpath::reverse_subpath;
