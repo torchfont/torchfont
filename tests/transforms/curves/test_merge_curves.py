@@ -33,6 +33,16 @@ def test_merge_curves_collinear_lines_are_merged() -> None:
     assert out_coords[line_idx, 5].item() == pytest.approx(0.0)
 
 
+def test_merge_curves_allows_normalization_roundoff_for_lines() -> None:
+    upm = 1000.0
+    points = [(x / upm, y / upm) for x, y in [(101, 37), (202, 74), (303, 111)]]
+    types, coords = _line_path_to_tensors(points)
+
+    out_types, _out_coords = merge_curves(types, coords)
+
+    assert out_types.tolist().count(ElementType.LINE_TO.value) == 1
+
+
 @pytest.mark.parametrize(
     "points",
     [
@@ -41,6 +51,7 @@ def test_merge_curves_collinear_lines_are_merged() -> None:
         pytest.param(
             [(0.0, 0.0), (1_000.0, 0.0), (2_000.0, 0.5)], id="absolute-tolerance"
         ),
+        pytest.param([(0.0, 0.0), (1.0, 1e-7), (2.0, 0.0)], id="tiny-bend"),
         pytest.param([(0.0, 0.0), (1.0, 0.0), (0.5, 0.0)], id="antiparallel"),
     ],
 )
@@ -50,6 +61,20 @@ def test_merge_curves_non_mergeable_lines_stay_separate(points: list[_Point]) ->
     out_types, _out_coords = merge_curves(types, coords)
 
     assert out_types.tolist().count(ElementType.LINE_TO.value) == 2
+
+
+def test_merge_curves_does_not_accumulate_line_error() -> None:
+    # A one-unit perpendicular segment is within the absolute tolerance when
+    # preceded by a long line, but must not turn the following polyline into a
+    # single diagonal chord.
+    upm = 1024.0
+    points = [(87.0 / upm, 193.0 / upm), (87.0 / upm, 0.0)]
+    points.extend((x / upm, -(x // 64) / upm) for x in range(88, 184))
+    types, coords = _line_path_to_tensors(points)
+
+    out_types, _out_coords = merge_curves(types, coords)
+
+    assert out_types.tolist().count(ElementType.LINE_TO.value) > 1
 
 
 @pytest.mark.parametrize(
