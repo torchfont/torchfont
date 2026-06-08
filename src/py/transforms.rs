@@ -1,11 +1,10 @@
 use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
-
-use skia_safe::PathFillType;
+use tiny_skia::FillRule;
 
 use crate::geom::{ElementType, Outline};
-use crate::skia::render_bitmap::RenderMode;
-use crate::{skia, transform};
+use crate::transform::render_bitmap::RenderMode;
+use crate::{curves, skia, transform};
 
 #[pyfunction]
 pub(crate) fn quad_to_cubic<'py>(
@@ -15,7 +14,7 @@ pub(crate) fn quad_to_cubic<'py>(
 ) -> PyResult<()> {
     let t = types.as_slice_mut()?;
     let c = coords.as_slice_mut()?;
-    transform::quad_to_cubic::quad_to_cubic(t, c, seq_len);
+    curves::quad_to_cubic::quad_to_cubic(t, c, seq_len);
     Ok(())
 }
 
@@ -27,7 +26,7 @@ pub(crate) fn quad_to_cubic_and_merge(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::quad_to_cubic::quad_to_cubic_and_merge(t, c))
+    Ok(curves::quad_to_cubic::quad_to_cubic_and_merge(t, c))
 }
 
 #[pyfunction]
@@ -39,7 +38,7 @@ pub(crate) fn cubic_to_quad(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    transform::cubic_to_quad::cubic_to_quad(&outline)
+    curves::cubic_to_quad::cubic_to_quad(&outline)
         .map(|outline| outline.encode())
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
@@ -57,7 +56,7 @@ pub(crate) fn merge_curves(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    Ok(transform::merge_curves::merge_curves(&outline).encode())
+    Ok(curves::merge_curves::merge_curves(&outline).encode())
 }
 
 #[pyfunction]
@@ -159,9 +158,9 @@ pub(crate) fn render_bitmap(
             ));
         }
     };
-    let fill_type = match fill_rule {
-        "winding" => PathFillType::Winding,
-        "even_odd" => PathFillType::EvenOdd,
+    let fill_rule = match fill_rule {
+        "winding" => FillRule::Winding,
+        "even_odd" => FillRule::EvenOdd,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "fill_rule must be 'winding' or 'even_odd'",
@@ -172,8 +171,8 @@ pub(crate) fn render_bitmap(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    let rendered =
-        skia::render_bitmap::render_bitmap(&outline, size, mode, fill_type).map_err(|_| {
+    let rendered = crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_rule)
+        .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
                 "bbox output dimensions must be between 1 and 4096",
             )
