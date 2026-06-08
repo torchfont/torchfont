@@ -46,6 +46,12 @@ EOF
       clang \
       g++-aarch64-linux-gnu \
       ninja-build
+
+    # The rust-cross Docker image ships an old aarch64-unknown-linux-gnu-g++ that
+    # predates C++20; shadow it with the GCC 11 cross-compiler we just installed
+    ln -sf /usr/bin/aarch64-linux-gnu-g++ /usr/local/bin/aarch64-unknown-linux-gnu-g++
+    ln -sf /usr/bin/aarch64-linux-gnu-gcc /usr/local/bin/aarch64-unknown-linux-gnu-gcc
+
     export PKG_CONFIG_ALLOW_CROSS=1
     export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
     ;;
