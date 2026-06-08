@@ -19,6 +19,7 @@ case "${target}" in
       fontconfig-devel \
       pkgconfig \
       clang \
+      gcc-c++ \
       ninja-build
     ;;
   aarch64)
