@@ -1,356 +1,224 @@
-use std::collections::HashMap;
+use skia_safe::{Path, PathFillType, PathVerb};
 
-use i_overlay::core::fill_rule::FillRule;
-use i_overlay::core::overlay_rule::OverlayRule;
-use i_overlay::float::single::SingleFloatOverlay;
-use skia_safe::{PathFillType, PathVerb};
+use crate::geom::{Outline, PathElement, Point, Subpath, reverse_subpath};
 
-use crate::geom::{Outline, PathElement, Point, Subpath};
-use crate::skia::render_bitmap::render_fixed_path;
-
-const BITMAP_SIZE: u32 = 128;
-const FLATTEN_TOL: f32 = 0.002;
-// Scale sweep (failures at 100 K): 16384->219, 131072->180, 262144->199, 524288->220.
-// 131072 is the sweet spot.
+// TorchFont outlines are normalized to roughly em-sized coordinates. PathOps is
+// more reliable at conventional font-unit magnitudes, so simplify a scaled copy.
 const PATHOPS_SCALE: f32 = 131_072.0;
 
 pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
-    // Render winding; skip empty outlines.
-    let Some(mut path) = build_path(outline, PathFillType::Winding) else {
-        return outline.clone();
-    };
-    let winding = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding);
-    if !winding.contains(&255) {
-        return outline.clone();
-    }
-    // Detect overlaps: winding != even-odd -> |w| >= 2 at some pixel.
-    // Misses rare |w| >= 3 odd; the score check below catches those if they survive.
-    // NOTE: a bbox-disjoint pre-check was tried but caused 0.7% failures at 100 K: subpath
-    // bboxes can be mutually disjoint while one subpath self-intersects (e.g. figure-8 crossbar),
-    // which the bbox check misses but the even-odd render catches.
-    // NOTE: segment-level cp-bbox check (O(N²)) was tried but failed for adjacent bezier crossings
-    // (e.g. Alexandria "five"): adjacent segments are skipped but CAN cross, causing has_overlaps.
-    // NOTE: lower-res overlap prechecks lost accuracy or speed: 64px -> 223 failures at 100 K;
-    // 96px stayed under threshold once but was slower due to the extra 128px original render.
-    let even_odd = render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::EvenOdd);
-    if !even_odd
-        .iter()
-        .zip(&winding)
-        .any(|(a, b)| (*a == 255) != (*b == 255))
-    {
-        return outline.clone();
-    }
-
-    // Stage 1: Skia PathOps simplify (preserves curves; fails on sub-pixel geometry).
-    // Primary scale is 131072 (empirical sweet spot). The old ov-gated 65536 retry was
-    // removed after two 100 K runs stayed under threshold; extra PathOps did not buy speed.
-    let mut pathops_candidate = None;
-    if let Some(mut result_path) = pathops_simplify(&mut path, PATHOPS_SCALE) {
-        let candidate_winding =
-            render_fixed_path(&mut result_path, BITMAP_SIZE, PathFillType::Winding);
-        if !hard_diff(&candidate_winding, &winding)
-            && let Some(result) = skia_path_to_outline(&result_path)
-        {
-            return result;
-        }
-        pathops_candidate = Some((result_path, candidate_winding));
-    }
-    // NOTE: removing this ov-gated alt-scale/overlap-free path and always falling through to
-    // polygon_union was fast but failed badly: 34.5% has_overlaps at 100 K.
-    // NOTE: skipping overlap_count and keeping the first mismatched PathOps result was not faster
-    // and regressed to 930/100096 failures (0.9291%), mostly complex CJK has_overlaps.
-    // NOTE: deferring overlap_count without caching candidate_winding re-rendered it and lost time.
-    // NOTE: retrying 65536 only after mismatched polygon was noisy (3-8 failures) and not faster.
-
-    // Stage 2: Polygon union — overlap-free by construction; restores curves where endpoints match.
-    // Older progressive coarser tolerances were unnecessary in current 100 K runs.
-    // NOTE: trying 0.5x/2x tolerance after a mismatched union regressed to 8 failures and 16.1s.
-    let mut polygon = polygon_union(outline, FLATTEN_TOL);
-    if let Some(result) = polygon.take() {
-        if matches_winding(&winding, &result) {
-            return result;
-        }
-        polygon = Some(result);
-    }
-
-    if let Some((mut result_path, candidate_winding)) = pathops_candidate
-        && !has_even_overlap(&candidate_winding, &mut result_path)
-        && let Some(result) = skia_path_to_outline(&result_path)
-    {
-        return result;
-    }
-    polygon.unwrap_or_else(|| outline.clone())
+    simplify(outline).unwrap_or_else(|| outline.clone())
 }
 
-// --- Bitmap helpers -----------------------------------------------------------
+fn simplify(outline: &Outline) -> Option<Outline> {
+    let (path, _) = super::build_skia_path(outline, false, PathFillType::Winding)?;
+    let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;
+    let simplified = scaled.simplify()?;
 
-fn build_path(outline: &Outline, fill: PathFillType) -> Option<skia_safe::Path> {
-    super::build_skia_path(outline, false, fill).map(|(path, _)| path)
+    // Simplify emits an even-odd path. Reorient nested contours before
+    // returning to TorchFont, whose outlines use non-zero winding semantics.
+    let simplified = outline_from_path(&simplified)?;
+    let winding = winding_from_even_odd(&simplified)?;
+    Some(scale_outline(&winding, PATHOPS_SCALE.recip()))
 }
 
-fn hard_diff(a: &[u8], b: &[u8]) -> bool {
-    a.iter().zip(b).any(|(x, y)| (*x == 255) != (*y == 255))
-}
+fn outline_from_path(path: &Path) -> Option<Outline> {
+    let mut subpaths = Vec::new();
+    let mut start = None;
+    let mut elements = Vec::new();
 
-// Overlap: w!=0 (winding=255) AND |w| even (even-odd=0) => |w|>=2 even overlap.
-// Misses |w|>=3 odd — same limitation as the pre-check; verified empirically not to occur.
-fn has_even_overlap(winding: &[u8], path: &mut skia_safe::Path) -> bool {
-    let even_odd = render_fixed_path(path, BITMAP_SIZE, PathFillType::EvenOdd);
-    winding
-        .iter()
-        .zip(&even_odd)
-        .any(|(&w, &e)| w == 255 && e == 0)
-}
-
-// Mismatch only; polygon union guarantees ov = 0 by construction.
-fn matches_winding(original_winding: &[u8], candidate: &Outline) -> bool {
-    let Some(mut path) = build_path(candidate, PathFillType::Winding) else {
-        return false;
-    };
-    !hard_diff(
-        &render_fixed_path(&mut path, BITMAP_SIZE, PathFillType::Winding),
-        original_winding,
-    )
-}
-
-// --- Skia PathOps ------------------------------------------------------------
-
-fn pathops_simplify(path: &mut skia_safe::Path, scale: f32) -> Option<skia_safe::Path> {
-    path.set_fill_type(PathFillType::Winding);
-    let path = path.try_make_scale((scale, scale))?;
-    let result = path.simplify()?;
-    // as_winding fixes contour orientations so output uses winding semantics.
-    let oriented = result.as_winding().unwrap_or(result);
-    oriented.try_make_scale((scale.recip(), scale.recip()))
-}
-
-fn skia_path_to_outline(path: &skia_safe::Path) -> Option<Outline> {
-    let mut subpaths: Vec<Subpath> = Vec::new();
-    let mut cur_start: Option<skia_safe::Point> = None;
-    let mut cur_elems: Vec<PathElement> = Vec::new();
-
-    for rec in path.iter() {
-        let pts = rec.points();
-        match rec.verb() {
+    for record in path.iter() {
+        let points = record.points();
+        match record.verb() {
             PathVerb::Move => {
-                commit(&mut cur_start, &mut cur_elems, &mut subpaths, false);
-                cur_start = Some(pts[0]);
+                commit_subpath(&mut start, &mut elements, &mut subpaths, false);
+                start = Some(point(points[0]));
             }
-            PathVerb::Line => cur_elems.push(PathElement::LineTo(skp(pts[1]))),
-            PathVerb::Quad => cur_elems.push(PathElement::QuadTo {
-                control: skp(pts[1]),
-                end: skp(pts[2]),
+            PathVerb::Line => elements.push(PathElement::LineTo(point(points[1]))),
+            PathVerb::Quad => elements.push(PathElement::QuadTo {
+                control: point(points[1]),
+                end: point(points[2]),
             }),
-            PathVerb::Cubic => cur_elems.push(PathElement::CurveTo {
-                control0: skp(pts[1]),
-                control1: skp(pts[2]),
-                end: skp(pts[3]),
+            PathVerb::Cubic => elements.push(PathElement::CurveTo {
+                control0: point(points[1]),
+                control1: point(points[2]),
+                end: point(points[3]),
             }),
-            PathVerb::Close => commit(&mut cur_start, &mut cur_elems, &mut subpaths, true),
+            PathVerb::Close => {
+                commit_subpath(&mut start, &mut elements, &mut subpaths, true);
+            }
             PathVerb::Conic => return None,
         }
     }
-    commit(&mut cur_start, &mut cur_elems, &mut subpaths, false);
+    commit_subpath(&mut start, &mut elements, &mut subpaths, false);
+
     (!subpaths.is_empty()).then(|| Outline::new(subpaths))
 }
 
-fn commit(
-    start: &mut Option<skia_safe::Point>,
-    elems: &mut Vec<PathElement>,
-    out: &mut Vec<Subpath>,
+fn commit_subpath(
+    start: &mut Option<Point>,
+    elements: &mut Vec<PathElement>,
+    subpaths: &mut Vec<Subpath>,
     closed: bool,
 ) {
-    if let Some(s) = start.take()
-        && !elems.is_empty()
+    if let Some(start) = start.take()
+        && !elements.is_empty()
     {
-        out.push(Subpath::new(skp(s), std::mem::take(elems), closed));
+        subpaths.push(Subpath::new(start, std::mem::take(elements), closed));
     }
 }
 
-#[inline]
-fn skp(pt: skia_safe::Point) -> Point {
-    Point::new(pt.x, pt.y)
+fn point(point: skia_safe::Point) -> Point {
+    Point::new(point.x, point.y)
 }
 
-// --- Polygon union fallback --------------------------------------------------
-// Flattens curves, unions via i_overlay, then restores curves by exact endpoint matches.
-//
-// Notes from earlier experiments:
-//   Normalising all contours to CCW before union: 514 failures (fills holes).
-//   1000x coord scale for i_overlay: marginal improvement (203->202, within noise).
-//   10000x coord scale for i_overlay: regression (2.0->2.3/run in 20-run batches).
-//   PathOps on line-only polygon: same Skia sub-pixel bug; spurious 128px overlaps.
-//   Skipping degenerate contours in sequential fallback: bitmap_mismatch regression.
-
-fn polygon_union(outline: &Outline, tol: f32) -> Option<Outline> {
-    let (contours, vmap) = flatten_tagged(outline, tol);
-    if contours.is_empty() {
-        return None;
-    }
-    let oriented = union_contours(contours)?;
-    let subpaths: Vec<Subpath> = oriented
+fn winding_from_even_odd(outline: &Outline) -> Option<Outline> {
+    // skia-pathops uses nesting depth instead of Skia's AsWinding operation;
+    // keep that behavior while using TorchFont's native outline types.
+    let mut contours: Vec<_> = outline
+        .subpaths()
         .iter()
-        .filter(|c| c.len() >= 3)
-        .map(|c| restore_curves(c, &vmap, outline))
-        .collect();
-    (!subpaths.is_empty()).then(|| Outline::new(subpaths))
-}
+        .map(|subpath| {
+            let path = subpath_path(subpath)?;
+            Some((subpath_area(subpath), path, subpath))
+        })
+        .collect::<Option<_>>()?;
+    contours.sort_by(|a, b| {
+        b.0.abs()
+            .partial_cmp(&a.0.abs())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-// Vertex map: float-bits key -> (subpath index, element index; 0=start, k>=1=elements[k-1].end)
-type VertexKey = (u32, u32);
-type VertexMap = HashMap<VertexKey, (usize, usize)>;
-
-fn flatten_tagged(outline: &Outline, tol: f32) -> (Vec<Vec<[f64; 2]>>, VertexMap) {
-    let mut contours = Vec::new();
-    let mut vmap: VertexMap = HashMap::new();
-    let tol2 = tol * tol;
-
-    for (si, sp) in outline.subpaths().iter().enumerate() {
-        let s = sp.start();
-        let mut c = vec![coord(s)];
-        vmap.entry(vertex_key(s)).or_insert((si, 0));
-        let mut prev = s;
-        for (ei, &elem) in sp.elements().iter().enumerate() {
-            let end = elem.end();
-            match elem {
-                PathElement::LineTo(_) => c.push(coord(end)),
-                PathElement::QuadTo { control: q, .. } => flatten_quad(prev, q, end, tol2, &mut c),
-                PathElement::CurveTo {
-                    control0: c0,
-                    control1: c1,
-                    ..
-                } => flatten_cubic(prev, c0, c1, end, tol2, &mut c),
+    let mut nesting = vec![0usize; contours.len()];
+    for inner in 0..contours.len() {
+        for outer in 0..inner {
+            if path_is_inside(&contours[outer].1, &contours[inner].1) {
+                nesting[inner] += 1;
             }
-            vmap.entry(vertex_key(end)).or_insert((si, ei + 1));
-            prev = end;
-        }
-        // Drop closing duplicate vertex.
-        if c.len() > 1 {
-            let last = *c.last().unwrap();
-            if (last[0] - c[0][0]).abs() < 1e-7 && (last[1] - c[0][1]).abs() < 1e-7 {
-                c.pop();
-            }
-        }
-        if c.len() >= 3 {
-            contours.push(c);
         }
     }
-    (contours, vmap)
-}
 
-fn union_contours(contours: Vec<Vec<[f64; 2]>>) -> Option<Vec<Vec<[f64; 2]>>> {
-    let clip: Vec<Vec<[f64; 2]>> = Vec::new();
-    let shapes = contours.overlay(&clip, OverlayRule::Union, FillRule::NonZero);
-    (!shapes.is_empty()).then(|| orient_shapes(shapes))
-}
-
-fn orient_shapes(shapes: Vec<Vec<Vec<[f64; 2]>>>) -> Vec<Vec<[f64; 2]>> {
-    shapes
+    let subpaths = contours
         .into_iter()
-        .flat_map(|shape| {
-            shape
-                .into_iter()
-                .enumerate()
-                .filter(|(_, c)| c.len() >= 3)
-                .map(|(idx, c)| {
-                    let want_ccw = idx == 0;
-                    if (signed_area(&c) > 0.0) == want_ccw {
-                        c
-                    } else {
-                        c.into_iter().rev().collect()
-                    }
-                })
-        })
-        .collect()
-}
-
-fn signed_area(c: &[[f64; 2]]) -> f64 {
-    let n = c.len();
-    (0..n)
-        .map(|i| {
-            let [x0, y0] = c[i];
-            let [x1, y1] = c[(i + 1) % n];
-            x0 * y1 - x1 * y0
-        })
-        .sum::<f64>()
-        * 0.5
-}
-
-fn restore_curves(contour: &[[f64; 2]], vmap: &VertexMap, outline: &Outline) -> Subpath {
-    let n = contour.len();
-    let start = point(contour[0]);
-    let elems = (0..n)
-        .map(|i| {
-            let a = point(contour[i]);
-            let b = point(contour[(i + 1) % n]);
-            try_restore(a, b, vmap, outline).unwrap_or(PathElement::LineTo(b))
+        .zip(nesting)
+        .map(|((area, _, subpath), depth)| {
+            let is_clockwise = area < 0.0;
+            let is_outer = depth.is_multiple_of(2);
+            if is_clockwise == is_outer {
+                reverse_subpath(subpath)
+            } else {
+                subpath.clone()
+            }
         })
         .collect();
-    Subpath::new(start, elems, true)
+    Some(Outline::new(subpaths))
 }
 
-fn point(p: [f64; 2]) -> Point {
-    Point::new(p[0] as f32, p[1] as f32)
+fn subpath_path(subpath: &Subpath) -> Option<Path> {
+    super::build_skia_path(
+        &Outline::new(vec![subpath.clone()]),
+        false,
+        PathFillType::EvenOdd,
+    )
+    .map(|(path, _)| path)
 }
 
-fn coord(p: Point) -> [f64; 2] {
-    [p.x as f64, p.y as f64]
-}
-
-fn vertex_key(p: Point) -> VertexKey {
-    (p.x.to_bits(), p.y.to_bits())
-}
-
-fn try_restore(a: Point, b: Point, vmap: &VertexMap, outline: &Outline) -> Option<PathElement> {
-    let &(si_a, vi_a) = vmap.get(&vertex_key(a))?;
-    let &(si_b, vi_b) = vmap.get(&vertex_key(b))?;
-    if si_a != si_b {
-        return None;
+fn path_is_inside(outer: &Path, inner: &Path) -> bool {
+    if !outer
+        .compute_tight_bounds()
+        .intersects(inner.compute_tight_bounds())
+    {
+        return false;
     }
-    let sp = &outline.subpaths()[si_a];
-    let n = sp.elements().len();
-    // Forward: A->B is element vi_a.
-    if vi_b == vi_a + 1 || (vi_a + 1 == n && vi_b == 0) {
-        return sp.elements().get(vi_a).copied();
-    }
-    // Backward: contour reversed by orient_shapes; element vi_b, reversed.
-    if vi_a == vi_b + 1 || (vi_b + 1 == n && vi_a == 0) {
-        return sp.elements().get(vi_b).map(|e| e.reversed_to(b));
-    }
-    None
+
+    inner.iter().all(|record| {
+        let points = record.points();
+        match record.verb() {
+            PathVerb::Move => outer.contains(points[0]),
+            PathVerb::Line => outer.contains(points[1]),
+            PathVerb::Quad => outer.contains(points[2]),
+            PathVerb::Cubic => outer.contains(points[3]),
+            PathVerb::Close => true,
+            PathVerb::Conic => false,
+        }
+    })
 }
 
-// --- Curve flattening --------------------------------------------------------
+fn subpath_area(subpath: &Subpath) -> f64 {
+    let start = subpath.start();
+    let mut previous = start;
+    let mut area = 0.0f64;
 
-fn flatten_quad(p0: Point, p1: Point, p2: Point, tol2: f32, out: &mut Vec<[f64; 2]>) {
-    let mid = p0.midpoint(p2);
-    let (dx, dy) = (p1.x - mid.x, p1.y - mid.y);
-    if dx * dx + dy * dy <= tol2 {
-        out.push(coord(p2));
-        return;
+    for element in subpath.elements() {
+        match *element {
+            PathElement::LineTo(end) => {
+                area -= ((end.x - previous.x) * (end.y + previous.y) * 0.5) as f64;
+                previous = end;
+            }
+            PathElement::QuadTo { control, end } => {
+                let control = control - previous;
+                let end_offset = end - previous;
+                area -= ((end_offset.x * control.y - control.x * end_offset.y) / 3.0) as f64;
+                area -= ((end.x - previous.x) * (end.y + previous.y) * 0.5) as f64;
+                previous = end;
+            }
+            PathElement::CurveTo {
+                control0,
+                control1,
+                end,
+            } => {
+                let control0 = control0 - previous;
+                let control1 = control1 - previous;
+                let end_offset = end - previous;
+                area -= (control0.x * (-control1.y - end_offset.y)
+                    + control1.x * (control0.y - 2.0 * end_offset.y)
+                    + end_offset.x * (control0.y + 2.0 * control1.y))
+                    as f64
+                    * 0.15;
+                area -= ((end.x - previous.x) * (end.y + previous.y) * 0.5) as f64;
+                previous = end;
+            }
+        }
     }
-    let q0 = p0.midpoint(p1);
-    let q1 = p1.midpoint(p2);
-    let r = q0.midpoint(q1);
-    flatten_quad(p0, q0, r, tol2, out);
-    flatten_quad(r, q1, p2, tol2, out);
+    area - ((start.x - previous.x) * (start.y + previous.y) * 0.5) as f64
 }
 
-fn flatten_cubic(p0: Point, c0: Point, c1: Point, p1: Point, tol2: f32, out: &mut Vec<[f64; 2]>) {
-    let (dx, dy) = (p1.x - p0.x, p1.y - p0.y);
-    let len2 = dx * dx + dy * dy;
-    let dc0 = (c0.x - p0.x) * dy - (c0.y - p0.y) * dx;
-    let dc1 = (c1.x - p0.x) * dy - (c1.y - p0.y) * dx;
-    if dc0 * dc0 <= tol2 * len2 * 9.0 && dc1 * dc1 <= tol2 * len2 * 9.0 {
-        out.push(coord(p1));
-        return;
-    }
-    let q0 = p0.midpoint(c0);
-    let q1 = c0.midpoint(c1);
-    let q2 = c1.midpoint(p1);
-    let r0 = q0.midpoint(q1);
-    let r1 = q1.midpoint(q2);
-    let s = r0.midpoint(r1);
-    flatten_cubic(p0, q0, r0, s, tol2, out);
-    flatten_cubic(s, r1, q2, p1, tol2, out);
+fn scale_outline(outline: &Outline, scale: f32) -> Outline {
+    Outline::new(
+        outline
+            .subpaths()
+            .iter()
+            .map(|subpath| {
+                let elements = subpath
+                    .elements()
+                    .iter()
+                    .map(|element| match *element {
+                        PathElement::LineTo(end) => PathElement::LineTo(scale_point(end, scale)),
+                        PathElement::QuadTo { control, end } => PathElement::QuadTo {
+                            control: scale_point(control, scale),
+                            end: scale_point(end, scale),
+                        },
+                        PathElement::CurveTo {
+                            control0,
+                            control1,
+                            end,
+                        } => PathElement::CurveTo {
+                            control0: scale_point(control0, scale),
+                            control1: scale_point(control1, scale),
+                            end: scale_point(end, scale),
+                        },
+                    })
+                    .collect();
+                Subpath::new(
+                    scale_point(subpath.start(), scale),
+                    elements,
+                    subpath.is_closed(),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn scale_point(point: Point, scale: f32) -> Point {
+    Point::new(point.x * scale, point.y * scale)
 }

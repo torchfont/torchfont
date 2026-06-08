@@ -50,14 +50,6 @@ pub(crate) fn render_bitmap(
     })
 }
 
-pub(crate) fn render_fixed_path(path: &mut Path, size: u32, fill_type: PathFillType) -> Vec<u8> {
-    path.set_fill_type(fill_type);
-    let bitmap_size = size as f32;
-    let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
-    let matrix = render_matrix(scale, -FIXED_MIN * scale, bitmap_size + FIXED_MIN * scale);
-    draw_alpha_path(path, size, size, &matrix)
-}
-
 fn draw_alpha_path(path: &Path, width: u32, height: u32, matrix: &Matrix) -> Vec<u8> {
     let mut data = vec![0u8; (width as usize).saturating_mul(height as usize)];
     let image_info = ImageInfo::new(
