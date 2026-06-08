@@ -18,7 +18,6 @@ pub(crate) fn merge_curves(outline: &Outline) -> Outline {
 fn merge_subpath_elements(start: Point, elements: &[PathElement]) -> Vec<PathElement> {
     let n = elements.len();
     let mut result = Vec::with_capacity(n);
-    let mut result_starts = Vec::with_capacity(n);
     let mut i = 0;
 
     while i < n {
@@ -26,43 +25,32 @@ fn merge_subpath_elements(start: Point, elements: &[PathElement]) -> Vec<PathEle
         let seg_start = result.last().map_or(start, |e: &PathElement| e.end());
 
         match element {
-            PathElement::CurveTo { .. } | PathElement::QuadTo { .. } => {
-                let (merged, len) = if matches!(element, PathElement::CurveTo { .. }) {
-                    try_merge_run(
+            PathElement::CurveTo { .. } | PathElement::QuadTo { .. } | PathElement::LineTo(_) => {
+                let (merged, len) = match element {
+                    PathElement::CurveTo { .. } => try_merge_run(
                         seg_start,
                         elements,
                         i,
                         |e| matches!(e, PathElement::CurveTo { .. }),
                         try_merge_cubics_n,
-                    )
-                } else {
-                    try_merge_run(
+                    ),
+                    PathElement::QuadTo { .. } => try_merge_run(
                         seg_start,
                         elements,
                         i,
                         |e| matches!(e, PathElement::QuadTo { .. }),
                         try_merge_quads_n,
-                    )
+                    ),
+                    PathElement::LineTo(_) => try_merge_run(
+                        seg_start,
+                        elements,
+                        i,
+                        |e| matches!(e, PathElement::LineTo(_)),
+                        try_merge_lines_n,
+                    ),
                 };
                 result.push(merged);
-                result_starts.push(seg_start);
                 i += len;
-            }
-            PathElement::LineTo(end) => {
-                if let (Some(PathElement::LineTo(last_end)), Some(last_start)) =
-                    (result.last().copied(), result_starts.last().copied())
-                    && can_merge_lines(last_start, last_end, end)
-                {
-                    result.pop();
-                    result_starts.pop();
-                    result.push(PathElement::LineTo(end));
-                    result_starts.push(last_start);
-                    i += 1;
-                    continue;
-                }
-                result.push(element);
-                result_starts.push(seg_start);
-                i += 1;
             }
         }
     }
@@ -311,29 +299,34 @@ fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f32]) -> 
     pieces
 }
 
-fn can_merge_lines(start: Point, middle: Point, end: Point) -> bool {
-    let d1 = middle - start;
-    let d2 = end - middle;
-
-    let len1_sq = d1.dot(d1);
-    let len2_sq = d2.dot(d2);
-
-    if len1_sq < 1e-12 || len2_sq < 1e-12 {
-        return true;
-    }
-
+fn try_merge_lines_n(start: Point, segs: &[PathElement]) -> Option<PathElement> {
+    let end = segs.last()?.end();
     let total = end - start;
-    let total_len = total.norm();
-    if total_len < 1e-6 {
-        return false;
+    if total.x == 0.0 && total.y == 0.0 {
+        return segs
+            .iter()
+            .all(|seg| seg.end() == start)
+            .then_some(PathElement::LineTo(end));
     }
 
-    // Measure the actual geometric deviation of the join from the merged line,
-    // not just its angle. The rest of the module interprets TOLERANCE as an
-    // absolute distance in normalized coordinates.
-    if d1.cross(total).abs() / total_len > TOLERANCE {
-        return false;
+    let mut previous = start;
+    for seg in segs {
+        let point = seg.end();
+        let direction = point - previous;
+        if !points_are_collinear(start, point, end) || direction.dot(total) < 0.0 {
+            return None;
+        }
+        previous = point;
     }
 
-    d1.dot(d2) >= 0.0
+    Some(PathElement::LineTo(end))
+}
+
+fn points_are_collinear(a: Point, b: Point, c: Point) -> bool {
+    let ab = b - a;
+    let ac = c - a;
+    let cross = ab.cross(ac).abs();
+    let product_scale = (ab.x * ac.y).abs() + (ab.y * ac.x).abs();
+
+    cross <= 8.0 * f32::EPSILON * product_scale
 }
