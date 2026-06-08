@@ -1,10 +1,9 @@
 use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
-
-use skia_safe::PathFillType;
+use tiny_skia::FillRule;
 
 use crate::geom::{ElementType, Outline};
-use crate::skia::render_bitmap::RenderMode;
+use crate::transform::render_bitmap::RenderMode;
 use crate::{skia, transform};
 
 #[pyfunction]
@@ -160,8 +159,8 @@ pub(crate) fn render_bitmap(
         }
     };
     let fill_type = match fill_rule {
-        "winding" => PathFillType::Winding,
-        "even_odd" => PathFillType::EvenOdd,
+        "winding" => FillRule::Winding,
+        "even_odd" => FillRule::EvenOdd,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "fill_rule must be 'winding' or 'even_odd'",
@@ -173,7 +172,7 @@ pub(crate) fn render_bitmap(
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
     let rendered =
-        skia::render_bitmap::render_bitmap(&outline, size, mode, fill_type).map_err(|_| {
+        crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_type).map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
                 "bbox output dimensions must be between 1 and 4096",
             )

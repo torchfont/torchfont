@@ -3,7 +3,6 @@ use skia_safe::{Path, PathBuilder, PathFillType};
 use crate::geom::{Bounds, BoundsPen, Outline, PathElement, Point};
 
 pub(crate) mod remove_overlaps;
-pub(crate) mod render_bitmap;
 
 pub(crate) fn build_skia_path(
     outline: &Outline,

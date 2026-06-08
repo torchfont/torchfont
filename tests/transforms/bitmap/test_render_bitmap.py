@@ -76,6 +76,47 @@ def test_render_bitmap_bbox_returns_variable_size() -> None:
     assert bitmap.device.type == "cpu"
 
 
+def test_render_bitmap_supports_fill_rules() -> None:
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.CLOSE.value,
+            ElementType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.tensor(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.1, 0.1],
+            [0.0, 0.0, 0.0, 0.0, 0.9, 0.1],
+            [0.0, 0.0, 0.0, 0.0, 0.9, 0.9],
+            [0.0, 0.0, 0.0, 0.0, 0.1, 0.9],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.3, 0.3],
+            [0.0, 0.0, 0.0, 0.0, 0.7, 0.3],
+            [0.0, 0.0, 0.0, 0.0, 0.7, 0.7],
+            [0.0, 0.0, 0.0, 0.0, 0.3, 0.7],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+        dtype=torch.float32,
+    )
+
+    winding = render_bitmap(types, coords, size=64, fill_rule="winding")
+    even_odd = render_bitmap(types, coords, size=64, fill_rule="even_odd")
+
+    assert winding[32, 32] == 255
+    assert even_odd[32, 32] == 0
+
+
 def test_render_bitmap_rejects_unknown_mode() -> None:
     types = torch.tensor([ElementType.END.value], dtype=torch.long)
     coords = torch.zeros(1, 6, dtype=torch.float32)
