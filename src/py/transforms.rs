@@ -4,7 +4,7 @@ use tiny_skia::FillRule;
 
 use crate::geom::{ElementType, Outline};
 use crate::transform::render_bitmap::RenderMode;
-use crate::{skia, transform};
+use crate::{curves, skia, transform};
 
 #[pyfunction]
 pub(crate) fn quad_to_cubic<'py>(
@@ -14,7 +14,7 @@ pub(crate) fn quad_to_cubic<'py>(
 ) -> PyResult<()> {
     let t = types.as_slice_mut()?;
     let c = coords.as_slice_mut()?;
-    transform::quad_to_cubic::quad_to_cubic(t, c, seq_len);
+    curves::quad_to_cubic::quad_to_cubic(t, c, seq_len);
     Ok(())
 }
 
@@ -26,7 +26,7 @@ pub(crate) fn quad_to_cubic_and_merge(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
-    Ok(transform::quad_to_cubic::quad_to_cubic_and_merge(t, c))
+    Ok(curves::quad_to_cubic::quad_to_cubic_and_merge(t, c))
 }
 
 #[pyfunction]
@@ -38,7 +38,7 @@ pub(crate) fn cubic_to_quad(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    transform::cubic_to_quad::cubic_to_quad(&outline)
+    curves::cubic_to_quad::cubic_to_quad(&outline)
         .map(|outline| outline.encode())
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
@@ -56,7 +56,7 @@ pub(crate) fn merge_curves(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    Ok(transform::merge_curves::merge_curves(&outline).encode())
+    Ok(curves::merge_curves::merge_curves(&outline).encode())
 }
 
 #[pyfunction]

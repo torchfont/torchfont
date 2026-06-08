@@ -1,3 +1,4 @@
+mod curves;
 mod dataset;
 mod error;
 mod font;
