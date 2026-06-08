@@ -13,7 +13,7 @@ case "${target}" in
       clang \
       ninja-build
     ;;
-  x86_64)
+  x86_64|aarch64)
     yum install -y \
       freetype-devel \
       fontconfig-devel \
@@ -26,34 +26,6 @@ case "${target}" in
     printf '#!/bin/sh\nexec /usr/bin/clang++ --gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr "$@"\n' \
       > /usr/local/bin/clang++
     chmod +x /usr/local/bin/clang++
-    ;;
-  aarch64)
-    . /etc/os-release
-
-    dpkg --add-architecture arm64
-    sed -i 's#^deb #deb [arch=amd64] #' /etc/apt/sources.list
-    cat >/etc/apt/sources.list.d/arm64.list <<EOF
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME} main
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-updates main
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main
-EOF
-
-    apt-get update
-    apt-get install -y --no-install-recommends \
-      pkg-config \
-      libfreetype6-dev:arm64 \
-      libfontconfig1-dev:arm64 \
-      clang \
-      g++-aarch64-linux-gnu \
-      ninja-build
-
-    # The rust-cross Docker image ships an old aarch64-unknown-linux-gnu-g++ that
-    # predates C++20; shadow it with the GCC 11 cross-compiler we just installed
-    ln -sf /usr/bin/aarch64-linux-gnu-g++ /usr/local/bin/aarch64-unknown-linux-gnu-g++
-    ln -sf /usr/bin/aarch64-linux-gnu-gcc /usr/local/bin/aarch64-unknown-linux-gnu-gcc
-
-    export PKG_CONFIG_ALLOW_CROSS=1
-    export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
     ;;
   *)
     echo "Unsupported Linux dependency target: ${target}" >&2

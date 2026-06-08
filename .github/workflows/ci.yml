@@ -98,10 +98,15 @@ jobs:
         platform:
           - runner: ubuntu-22.04
             target: x86_64
+            container: quay.io/pypa/manylinux_2_28_x86_64:latest
           - runner: ubuntu-22.04
             target: aarch64
+            container: quay.io/pypa/manylinux_2_28_aarch64:latest
     steps:
       - uses: actions/checkout@v6
+      - name: Set up QEMU
+        if: matrix.platform.target == 'aarch64'
+        uses: docker/setup-qemu-action@v3
       - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
@@ -115,6 +120,7 @@ jobs:
           before-script-linux: . .github/scripts/install-linux-deps.sh ${{ matrix.platform.target }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: manylinux_2_28
+          container: ${{ matrix.platform.container }}
       - name: Build free-threaded wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -123,6 +129,7 @@ jobs:
           before-script-linux: . .github/scripts/install-linux-deps.sh ${{ matrix.platform.target }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: manylinux_2_28
+          container: ${{ matrix.platform.container }}
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
@@ -147,8 +154,10 @@ jobs:
         run: |
           git config --system core.longpaths true
           Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1
-          # GetFullPathNameA (ANSI) ignores LongPathsEnabled; keep the build tree
-          # shallow so the un-normalized CWD+relative path stays under MAX_PATH (260)
+          # GetFullPathNameA (ANSI) ignores LongPathsEnabled; shorten both the
+          # Cargo registry path and the build tree so that the un-normalized
+          # CWD+relative intermediate path stays under MAX_PATH (260 chars)
+          "CARGO_HOME=C:\c" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "CARGO_TARGET_DIR=C:\t" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
         shell: powershell
       - uses: actions/checkout@v6
