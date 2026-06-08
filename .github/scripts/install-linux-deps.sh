@@ -19,8 +19,13 @@ case "${target}" in
       fontconfig-devel \
       pkgconfig \
       clang \
-      gcc-c++ \
+      gcc-toolset-12-gcc-c++ \
       ninja-build
+
+    # AlmaLinux 8 ships GCC 8.5 which lacks C++20 <bit>; point clang at GCC 12 headers
+    printf '#!/bin/sh\nexec /usr/bin/clang++ --gcc-toolchain=/opt/rh/gcc-toolset-12/root/usr "$@"\n' \
+      > /usr/local/bin/clang++
+    chmod +x /usr/local/bin/clang++
     ;;
   aarch64)
     . /etc/os-release
@@ -39,6 +44,7 @@ EOF
       libfreetype6-dev:arm64 \
       libfontconfig1-dev:arm64 \
       clang \
+      g++-aarch64-linux-gnu \
       ninja-build
     export PKG_CONFIG_ALLOW_CROSS=1
     export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig

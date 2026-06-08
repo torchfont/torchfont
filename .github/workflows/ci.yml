@@ -133,6 +133,7 @@ jobs:
     runs-on: ${{ matrix.platform.runner }}
     # needs: test  # temporarily disabled for wheel build iteration
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: windows-latest
@@ -142,6 +143,11 @@ jobs:
             target: aarch64
             python_arch: arm64
     steps:
+      - name: Enable long paths
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1
+        shell: powershell
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
@@ -173,6 +179,7 @@ jobs:
     runs-on: ${{ matrix.platform.runner }}
     # needs: test  # temporarily disabled for wheel build iteration
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - runner: macos-15-intel
