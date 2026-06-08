@@ -158,7 +158,7 @@ pub(crate) fn render_bitmap(
             ));
         }
     };
-    let fill_type = match fill_rule {
+    let fill_rule = match fill_rule {
         "winding" => FillRule::Winding,
         "even_odd" => FillRule::EvenOdd,
         _ => {
@@ -171,7 +171,7 @@ pub(crate) fn render_bitmap(
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
     let outline = Outline::decode(t, c);
-    let rendered = crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_type)
+    let rendered = crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_rule)
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
                 "bbox output dimensions must be between 1 and 4096",
