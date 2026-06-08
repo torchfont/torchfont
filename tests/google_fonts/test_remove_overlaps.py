@@ -142,8 +142,6 @@ def test_remove_overlaps_google_fonts(
             "ofl/*/*.ttf",
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
-            "!ofl/handjet/*.ttf",
-            "!ofl/bitcount*/*.ttf",
         ),
         transform=_transform,
     )
