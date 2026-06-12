@@ -82,7 +82,6 @@ ignore = ["COM812", "D203", "D213", "EXE002"]
 [tool.ruff.lint.per-file-ignores]
 "examples/**/*.py" = ["D", "T201"]
 "torchfont/transforms/geometric.py" = ["PLR0913"]
-"torchfont/datasets/*.py" = ["PLR0913"]
 "tests/**/*.py" = ["D", "PLR2004", "S101"]
 
 [tool.maturin]
