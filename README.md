@@ -90,11 +90,9 @@ If you find TorchFont useful in your work, please consider citing the following 
 
 ```bibtex
 @software{fujioka2025torchfont,
-    title        = {TorchFont: A Machine Learning library for Vector Fonts},
-    author       = {Takumu Fujioka},
-    year         = 2025,
-    journal      = {GitHub repository},
-    publisher    = {GitHub},
-    howpublished = {\url{https://github.com/torchfont/torchfont}}
+    author = {Fujioka, Takumu},
+    title  = {{TorchFont: A Machine Learning library for Vector Fonts}},
+    year   = {2025},
+    url    = {https://github.com/torchfont/torchfont}
 }
 ```
