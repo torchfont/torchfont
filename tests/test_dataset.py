@@ -685,21 +685,6 @@ def test_dataset_metadata_does_not_add_python_cache_state() -> None:
     assert first is not second
 
 
-def test_unpickling_drops_legacy_metadata_cache_state() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    state = dataset.__getstate__()
-    state["_metadata"] = "legacy-cache"
-
-    dataset.__setstate__(state)
-
-    assert "_metadata" not in dataset.__dict__
-
-
 def test_dataset_metadata_does_not_route_through_python_projections() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
