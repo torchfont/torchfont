@@ -7,6 +7,11 @@ Notes:
     is still in use, results are undefined and may include incorrect samples
     or runtime errors.
 
+    Unpickling (including ``DataLoader`` worker spawn) rebuilds the index from
+    the files on disk and verifies it against the pickled structure
+    fingerprint, raising ``RuntimeError`` instead of silently misaligning
+    labels when the files changed in between.
+
 Examples:
     Iterate glyph samples from a directory of fonts::
 
@@ -242,6 +247,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             self.codepoints,
             self.patterns,
         )
+        self._fingerprint: int = self._backend.fingerprint
 
     def __repr__(self) -> str:
         """Return a human-readable summary of this dataset.
@@ -341,14 +347,36 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         return state
 
     def __setstate__(self, state: dict[str, object]) -> None:
-        """Restore state and recreate the native backend after unpickling."""
+        """Restore state and recreate the native backend after unpickling.
+
+        The backend is rebuilt by re-scanning ``root``, so the restored index
+        is verified against the pickled structure fingerprint. The fingerprint
+        covers everything that determines the sample-to-label mapping: font
+        file order, paths, face indices, code points, and variation instance
+        counts.
+
+        Raises:
+            RuntimeError: If the font files under ``root`` no longer produce
+                the same index structure as when the dataset was pickled,
+                which would silently misalign ``targets`` and class indices.
+
+        """
         self.__dict__.update(state)
         self._validate_root_dir(self.root)
-        self._backend = _torchfont.GlyphDatasetBackend(
+        backend = _torchfont.GlyphDatasetBackend(
             str(self.root),
             self.codepoints,
             self.patterns,
         )
+        if backend.fingerprint != self._fingerprint:
+            msg = (
+                f"font files under {str(self.root)!r} no longer match the "
+                "dataset this object was pickled from; sample indices and "
+                "targets would be inconsistent. Recreate the dataset from "
+                "the current files."
+            )
+            raise RuntimeError(msg)
+        self._backend = backend
 
     @staticmethod
     def _validate_root_dir(root: Path) -> None:

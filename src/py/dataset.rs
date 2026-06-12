@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::dataset::{
     DatasetIndex, FontEntry, canonicalize_root, discover_font_files, load_entries_and_index,
+    structure_fingerprint,
 };
 
 #[pyclass(get_all)]
@@ -29,6 +30,7 @@ pub(crate) struct GlyphItem {
 pub(crate) struct GlyphDatasetBackend {
     entries: Vec<FontEntry>,
     index: DatasetIndex,
+    fingerprint: u64,
 }
 
 #[pymethods]
@@ -48,8 +50,18 @@ impl GlyphDatasetBackend {
         let root_path = canonicalize_root(&root)?;
         let files = discover_font_files(&root_path, patterns.as_deref())?;
         let (entries, index) = load_entries_and_index(files, filter.as_deref())?;
+        let fingerprint = structure_fingerprint(&entries);
 
-        Ok(Self { entries, index })
+        Ok(Self {
+            entries,
+            index,
+            fingerprint,
+        })
+    }
+
+    #[getter]
+    pub fn fingerprint(&self) -> u64 {
+        self.fingerprint
     }
 
     #[getter]

@@ -52,6 +52,53 @@ pub(crate) fn load_entries_and_index(
     Ok((entries, index))
 }
 
+/// Hash everything that determines the sample -> (style, content) mapping:
+/// entry order, paths, face indices, code point lists, and instance counts.
+pub(crate) fn structure_fingerprint(entries: &[FontEntry]) -> u64 {
+    let mut hash = Fnv1a::new();
+    hash.write_u64(entries.len() as u64);
+    for entry in entries {
+        let path = entry.path().as_bytes();
+        hash.write_u64(path.len() as u64);
+        hash.write(path);
+        hash.write_u32(entry.face_index());
+        hash.write_u64(entry.instance_count() as u64);
+        hash.write_u64(entry.codepoint_count() as u64);
+        for &codepoint in entry.codepoints() {
+            hash.write_u32(codepoint);
+        }
+    }
+    hash.finish()
+}
+
+/// FNV-1a (64-bit). Fingerprints are compared across processes and library
+/// versions, so the hash must stay stable, unlike `std::hash::DefaultHasher`.
+struct Fnv1a(u64);
+
+impl Fnv1a {
+    fn new() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
+            self.0 = (self.0 ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+
+    fn write_u32(&mut self, value: u32) {
+        self.write(&value.to_le_bytes());
+    }
+
+    fn write_u64(&mut self, value: u64) {
+        self.write(&value.to_le_bytes());
+    }
+
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
 fn cumulative_sums(deltas: impl Iterator<Item = usize>) -> Vec<usize> {
     std::iter::once(0)
         .chain(deltas)
