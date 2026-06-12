@@ -481,7 +481,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
     @property
     def metadata(self) -> DatasetMetadata:
         """Structured style/content metadata for this dataset."""
-        style_meta_rows = self._backend.style_metadata_rows(str(self.root))
+        style_meta_rows = self._backend.style_metadata_rows()
         style_axes = self._style_axes()
         style_rows = [
             (name, label_id, axes)
@@ -508,4 +508,4 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             ['Roboto Regular', 'Roboto Bold', 'Lato Regular']
 
         """
-        return [name for name, _ in self._backend.style_metadata_rows(str(self.root))]
+        return [name for name, _ in self._backend.style_metadata_rows()]

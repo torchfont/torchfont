@@ -1,7 +1,7 @@
 use numpy::{IntoPyArray as _, PyArray1};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::dataset::{
     DatasetIndex, FontEntry, canonicalize_root, discover_font_files, load_entries_and_index,
@@ -28,6 +28,7 @@ pub(crate) struct GlyphItem {
 
 #[pyclass]
 pub(crate) struct GlyphDatasetBackend {
+    root: PathBuf,
     entries: Vec<FontEntry>,
     index: DatasetIndex,
     fingerprint: u64,
@@ -53,6 +54,7 @@ impl GlyphDatasetBackend {
         let fingerprint = structure_fingerprint(&entries);
 
         Ok(Self {
+            root: root_path,
             entries,
             index,
             fingerprint,
@@ -99,14 +101,13 @@ impl GlyphDatasetBackend {
         self.index.inst_offsets.last().copied().unwrap_or(0)
     }
 
-    pub fn style_metadata_rows(&self, root: String) -> PyResult<Vec<(String, String)>> {
-        let root_path = Path::new(&root);
+    pub fn style_metadata_rows(&self) -> PyResult<Vec<(String, String)>> {
         self.style_rows()
             .into_iter()
             .map(|(name, path, face_idx, instance_idx)| {
                 Ok((
                     name,
-                    style_label_id(root_path, Path::new(&path), face_idx, instance_idx)?,
+                    style_label_id(&self.root, Path::new(&path), face_idx, instance_idx)?,
                 ))
             })
             .collect()
