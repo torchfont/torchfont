@@ -221,7 +221,7 @@ tight bounding-box の中心を基準に一様スケール・x-shear・回転を
 座標が 0 の element type（CLOSE、END、PAD）は変更しません。
 
 - `angle`: 反時計回りの回転角度（単位: 度、デフォルト: `0.0`）
-- `translate`: UPM 正規化単位での平行移動 `(tx, ty)`（デフォルト: `(0.0, 0.0)`）
+- `translate`: em 単位での平行移動 `(tx, ty)`（デフォルト: `(0.0, 0.0)`）
 - `scale`: 一様スケール係数（正かつ有限の値が必須、デフォルト: `1.0`）
 - `shear`: x-shear 角度（単位: 度、デフォルト: `0.0`）
 
@@ -291,7 +291,7 @@ types, coords = random_affine(
 指定した範囲から一様サンプリングしたランダムなアフィン変換を適用します。
 
 - `degrees`: 回転範囲（度）。単一の float `d` を指定すると `[-d, d]` になります
-- `translate`: UPM 正規化単位での最大絶対平行移動 `(max_dx, max_dy)`。
+- `translate`: em 単位での最大絶対平行移動 `(max_dx, max_dy)`。
   各軸を `[-max_d, max_d]` からサンプリングします（デフォルト: 平行移動なし）
 - `scale`: スケール範囲 `(min, max)`。両値は正かつ有限の値が必須
   （デフォルト: スケールなし）
@@ -315,7 +315,7 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 各アクティブな outline 座標に独立したガウスノイズを加算します。
 
-- `std`: UPM 正規化単位での有限な非負の標準偏差。`0.005` は
+- `std`: em 単位での有限な非負の標準偏差。`0.005` は
   1000-UPM フォントで約 5 フォントユニットに相当します
 - 座標が 0 の element type（CLOSE、END、PAD）と未使用の座標列は変更しません
 - `generator`: 再現性のためのオプション `torch.Generator`
@@ -339,7 +339,7 @@ bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
 `mode` に応じた座標変換で出力ビットマップへ配置します。
 
 - `size` は 1〜4096 の整数（デフォルト: 64）
-- `mode="fixed"` は UPM 正規化済みの固定範囲 `[-0.25, 1.25] x [-0.25, 1.25]` に配置
+- `mode="fixed"` は em 単位の固定範囲 `[-0.25, 1.25] x [-0.25, 1.25]` に配置
 - `mode="bbox"` は fixed と同じ座標スケールを保ち、tight bbox に合わせた可変サイズのビットマップを返します
 - `mode="bbox_square"` は tight bbox を縦横比を保って正方形内に中央配置（デフォルト）
 - patchify 前のクリップ済みアウトラインを渡すと元の形状を正確に再現できます

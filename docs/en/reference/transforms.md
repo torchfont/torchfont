@@ -223,7 +223,7 @@ centre, then applies `translate`. All active control points and endpoints are
 transformed; zero-coordinate element types (CLOSE, END, PAD) are not modified.
 
 - `angle`: counter-clockwise rotation in degrees (default: `0.0`)
-- `translate`: translation `(tx, ty)` in UPM-normalised units (default: `(0.0, 0.0)`)
+- `translate`: translation `(tx, ty)` in em units (default: `(0.0, 0.0)`)
 - `scale`: uniform scale factor, must be positive and finite (default: `1.0`)
 - `shear`: x-shear angle in degrees (default: `0.0`)
 
@@ -293,8 +293,8 @@ types, coords = random_affine(
 Applies a random affine transformation sampled uniformly from the given ranges.
 
 - `degrees`: rotation range in degrees; a single float `d` gives `[-d, d]`
-- `translate`: maximum absolute translation `(max_dx, max_dy)` in UPM-normalised
-  units; each axis is sampled from `[-max_d, max_d]` (default: no translation)
+- `translate`: maximum absolute translation `(max_dx, max_dy)` in em units;
+  each axis is sampled from `[-max_d, max_d]` (default: no translation)
 - `scale`: scale range `(min, max)`; both values must be positive and finite
   (default: no scaling)
 - `shear`: x-shear range in degrees; same format as `degrees` (default: `0.0`)
@@ -317,7 +317,7 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 Adds independent Gaussian noise to each active value in the outline coordinates.
 
-- `std`: non-negative, finite standard deviation in UPM-normalised units;
+- `std`: non-negative, finite standard deviation in em units;
   `0.005` ≈ 5 font-units in a 1000-UPM font
 - only active `coords` columns are perturbed (zero-coordinate element types
   CLOSE, END, PAD and unused zero-padding columns are left unchanged)
@@ -342,7 +342,7 @@ Renders a glyph outline to a greyscale bitmap tensor. `mode` controls how
 coordinates are mapped to the output bitmap.
 
 - `size` must be between 1 and 4096 (default: 64)
-- `mode="fixed"` maps the fixed UPM-normalised range `[-0.25, 1.25] x [-0.25, 1.25]`
+- `mode="fixed"` maps the fixed em-unit range `[-0.25, 1.25] x [-0.25, 1.25]`
 - `mode="bbox"` keeps the fixed-mode scale and returns a variable-size bitmap
   cropped to the tight glyph bounding box
 - `mode="bbox_square"` scales the tight glyph bounding box uniformly and centres

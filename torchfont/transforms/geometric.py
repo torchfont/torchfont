@@ -12,7 +12,8 @@ Coordinates layout (``coords`` shape ``(N, 6)``)::
     Pair 1 (cx1, cy1): off-curve control point 2 — active for CURVE_TO only
     Pair 2 (x,   y  ): on-curve endpoint        — active for all drawing path elements
 
-All coordinates are UPM-normalised. The glyph body typically occupies
+All coordinates are in em units: font design units divided by ``unitsPerEm``.
+The glyph body typically occupies
 ``[0, 1] x [0, 1]`` inside the full canvas ``[-0.25, 1.25] x [-0.25, 1.25]``.
 """
 
@@ -182,7 +183,7 @@ def affine(
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         angle: Counter-clockwise rotation in degrees.
-        translate: Translation ``(tx, ty)`` in UPM-normalised units applied
+        translate: Translation ``(tx, ty)`` in em units applied
             after rotation and scaling.
         scale: Uniform scale factor (must be positive and finite).
         shear: x-shear angle in degrees.
@@ -322,8 +323,8 @@ def random_affine(
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         degrees: Rotation range in degrees. A single float ``d`` gives
             ``[-d, d]``; a ``(min, max)`` tuple is used directly.
-        translate: Maximum absolute translation ``(max_dx, max_dy)`` in
-            UPM-normalised units. Each axis is sampled uniformly from
+        translate: Maximum absolute translation ``(max_dx, max_dy)`` in em
+            units. Each axis is sampled uniformly from
             ``[-max_d, max_d]``. Default: no translation.
         scale: Scale range ``(min, max)``. Values must be positive and finite,
             and satisfy ``min <= max``. Default: no scaling.
@@ -372,7 +373,7 @@ def random_coord_jitter(
     """Add independent Gaussian noise to each active value in the outline coordinates.
 
     Noise is sampled per scalar value in ``coords`` with standard deviation
-    ``std`` in UPM-normalised units. Non-active zero-coordinate element types
+    ``std`` in em units. Non-active zero-coordinate element types
     (CLOSE, END, PAD) and unused zero-padding columns (e.g. ``cx1, cy1`` for
     QUAD_TO) are not perturbed.
 
@@ -383,7 +384,7 @@ def random_coord_jitter(
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
-        std: Standard deviation of the Gaussian noise in UPM-normalised units.
+        std: Standard deviation of the Gaussian noise in em units.
             Must be non-negative and finite.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 

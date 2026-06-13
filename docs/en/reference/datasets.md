@@ -94,7 +94,7 @@ sample = dataset[idx]
 
 `sample.post` stores `(italic_angle, is_fixed_pitch, underline_position,
 underline_thickness)`. The italic angle is in degrees, `is_fixed_pitch` is
-`0.0` or `1.0`, and the two underline metrics are UPM-normalised.
+`0.0` or `1.0`, and the two underline metrics are in em units.
 
 Without `transform`, `sample` is a `GlyphSample`. With `transform`, the
 dataset item type is inferred from the transform return type.

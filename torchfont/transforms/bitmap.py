@@ -25,12 +25,12 @@ def render_bitmap(
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)`` holding
-            UPM-normalised coordinates for each path element.
+            coordinates in em units for each path element.
         size: Output image side length in pixels for ``"fixed"`` and
             ``"bbox_square"``. For ``"bbox"``, this sets the `coords` scale
             using the same fixed ``[-0.25, 1.25]`` range, then crops the output to
             the tight glyph bounding box. Must be between 1 and 4096.
-        mode: `coords` mapping mode. ``"fixed"`` maps the fixed UPM-normalised
+        mode: `coords` mapping mode. ``"fixed"`` maps the fixed em-unit
             range ``[-0.25, 1.25] x [-0.25, 1.25]`` to the canvas. ``"bbox"`` scales
             with the fixed-mode scale and returns a variable-size bitmap
             cropped to the tight glyph bounding box. ``"bbox_square"`` scales

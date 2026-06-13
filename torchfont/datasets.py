@@ -94,12 +94,13 @@ class GlyphSample:
         content_idx (int): Index into the dataset's ``content_classes`` list.
         head (Tensor): ``head`` table fields (8,): ``units_per_em``, ``flags``,
             ``x_min``, ``y_min``, ``x_max``, ``y_max``, ``mac_style``,
-            ``lowest_rec_ppem``. Bounding box values are UPM-normalised.
+            ``lowest_rec_ppem``. Bounding box values are in em units (font
+            design units divided by ``unitsPerEm``).
         hhea (Tensor): ``hhea`` table fields (10,): ``ascender``,
             ``descender``, ``line_gap``, ``advance_width_max``, ``min_lsb``,
             ``min_rsb``, ``x_max_extent``, ``caret_slope_rise``,
             ``caret_slope_run``, ``caret_offset``. Metric lengths are
-            UPM-normalised; ``caret_slope_rise`` and ``caret_slope_run`` are
+            in em units; ``caret_slope_rise`` and ``caret_slope_run`` are
             raw integers (dimensionless slope, not a length).
         os2 (Tensor): ``OS/2`` table fields (42,): ``weight_class``,
             ``width_class``, ``fs_type``, ``fs_selection``, typo/win metrics
@@ -108,7 +109,7 @@ class GlyphSample:
             subscript/superscript (8), strikeout (2),
             ``s_family_class``, panose (10), vend_id (4), first/last char
             index (2), ``x_height``, ``cap_height``, ``default_char``,
-            ``break_char``, ``max_context``. Metric values UPM-normalised;
+            ``break_char``, ``max_context``. Metric values are in em units;
             ``nan`` when absent. Note: ``win_descent`` is stored as a
             **positive** value (matching the OpenType spec's unsigned
             ``usWinDescent``), whereas ``typo_descender`` and
@@ -116,12 +117,12 @@ class GlyphSample:
         post (Tensor): ``post`` table fields (4,): ``italic_angle``,
             ``is_fixed_pitch`` (0.0 or 1.0), ``underline_position``,
             ``underline_thickness``. ``italic_angle`` is stored in degrees;
-            underline metrics are UPM-normalised.
+            underline metrics are in em units.
         maxp (Tensor): ``maxp`` table fields (14,) starting with
             ``num_glyphs``. TrueType-only fields are ``nan`` for CFF fonts.
-        hmtx (Tensor): ``advance_width``, ``lsb`` (2,). UPM-normalised.
+        hmtx (Tensor): ``advance_width``, ``lsb`` (2,). Values are in em units.
         bounds (Tensor): ``x_min``, ``y_min``, ``x_max``, ``y_max`` (4,).
-            UPM-normalised.
+            Values are in em units.
         name (NameRecord): Strings from the ``name`` table, one field
             per NameID 0-25. Each field is an empty string when absent.
         codepoint (int): Unicode code point of the glyph (e.g. ``0x0041`` for 'A').
