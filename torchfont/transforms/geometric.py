@@ -184,7 +184,7 @@ def affine(
         angle: Counter-clockwise rotation in degrees.
         translate: Translation ``(tx, ty)`` in UPM-normalised units applied
             after rotation and scaling.
-        scale: Uniform scale factor (must be positive).
+        scale: Uniform scale factor (must be positive and finite).
         shear: x-shear angle in degrees.
 
     Returns:
@@ -192,8 +192,8 @@ def affine(
         ``types`` is returned unchanged (same object).
 
     """
-    if scale <= 0:
-        msg = "scale must be positive"
+    if not math.isfinite(scale) or scale <= 0:
+        msg = "scale must be positive and finite"
         raise ValueError(msg)
     matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
     center = _bbox_center(types, coords)
@@ -274,8 +274,8 @@ def _sym_range(value: float | tuple[float, float]) -> tuple[float, float]:
 
 def _validate_scale_range(scale: tuple[float, float]) -> tuple[float, float]:
     lo, hi = float(scale[0]), float(scale[1])
-    if lo <= 0 or hi <= 0:
-        msg = "scale values must be positive"
+    if not math.isfinite(lo) or not math.isfinite(hi) or lo <= 0 or hi <= 0:
+        msg = "scale values must be positive and finite"
         raise ValueError(msg)
     if lo > hi:
         msg = "scale range must satisfy min <= max"
@@ -309,8 +309,8 @@ def random_affine(
         translate: Maximum absolute translation ``(max_dx, max_dy)`` in
             UPM-normalised units. Each axis is sampled uniformly from
             ``[-max_d, max_d]``. Default: no translation.
-        scale: Scale range ``(min, max)``. Values must be positive and
-            satisfy ``min <= max``. Default: no scaling.
+        scale: Scale range ``(min, max)``. Values must be positive and finite,
+            and satisfy ``min <= max``. Default: no scaling.
         shear: x-shear range in degrees. Same format as ``degrees``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 
