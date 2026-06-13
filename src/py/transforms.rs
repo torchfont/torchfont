@@ -4,7 +4,7 @@ use tiny_skia::FillRule;
 
 use crate::geom::{DecodeError, Outline};
 use crate::transform::render_bitmap::RenderMode;
-use crate::{curves, skia, transform};
+use crate::{curves, transform::subpath};
 
 fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
     Outline::try_from((types, coords)).map_err(|e| match e {
@@ -67,7 +67,7 @@ pub(crate) fn normalize_subpath_start_points(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(transform::subpath::normalize_subpath_start_points(&outline).encode())
+    Ok(subpath::normalize_subpath_start_points(&outline).encode())
 }
 
 #[pyfunction]
@@ -80,9 +80,9 @@ pub(crate) fn randomize_subpath_start_points(
     let t = types.as_slice()?;
     let r = random_values.as_slice()?;
     let outline = decode(t, coords.as_slice()?)?;
-    if r.len() != t.len() {
+    if r.len() < t.len() {
         return Err(pyo3::exceptions::PyValueError::new_err(
-            "random_values length must equal types length",
+            "random_values length must be at least types length",
         ));
     }
     let subpath_random_values: Vec<f32> = t
@@ -90,10 +90,7 @@ pub(crate) fn randomize_subpath_start_points(
         .zip(r)
         .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
         .collect();
-    Ok(
-        transform::subpath::randomize_subpath_start_points(&outline, &subpath_random_values)
-            .encode(),
-    )
+    Ok(subpath::randomize_subpath_start_points(&outline, &subpath_random_values).encode())
 }
 
 #[pyfunction]
@@ -102,7 +99,7 @@ pub(crate) fn reverse_closed_subpaths(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(transform::subpath::reverse_closed_subpaths(&outline).encode())
+    Ok(subpath::reverse_closed_subpaths(&outline).encode())
 }
 
 #[pyfunction]
@@ -111,7 +108,7 @@ pub(crate) fn remove_overlaps(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(skia::remove_overlaps::remove_overlaps(&outline).encode())
+    Ok(crate::transform::remove_overlaps::remove_overlaps(&outline).encode())
 }
 
 #[pyfunction]

@@ -62,6 +62,12 @@ impl Subpath {
     pub(crate) fn is_closed(&self) -> bool {
         self.closed
     }
+
+    pub(crate) fn nodes(&self) -> Vec<Point> {
+        std::iter::once(self.start)
+            .chain(self.elements.iter().map(|e| e.end()))
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
