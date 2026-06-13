@@ -16,6 +16,11 @@ fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
                 "invalid element type {value} at index {index}"
             ))
         }
+        DecodeError::NonPaddingAfterEnd { index, value } => {
+            pyo3::exceptions::PyValueError::new_err(format!(
+                "only PAD elements may follow END; found {value} at index {index}"
+            ))
+        }
     })
 }
 
