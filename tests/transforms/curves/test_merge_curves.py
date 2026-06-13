@@ -244,6 +244,39 @@ def test_variable_length_transforms_reject_invalid_element_types(
 
 
 @pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
+@pytest.mark.parametrize(
+    ("values", "index"),
+    [
+        ([ElementType.LINE_TO.value, ElementType.END.value], 0),
+        (
+            [
+                ElementType.MOVE_TO.value,
+                ElementType.CLOSE.value,
+                ElementType.LINE_TO.value,
+                ElementType.END.value,
+            ],
+            2,
+        ),
+    ],
+)
+def test_variable_length_transforms_reject_elements_outside_subpath(
+    transform: Callable[
+        [torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]
+    ],
+    values: list[int],
+    index: int,
+) -> None:
+    types = torch.tensor(values, dtype=torch.long)
+    coords = torch.zeros(len(values), 6, dtype=torch.float32)
+
+    with pytest.raises(
+        ValueError,
+        match=rf"element type 2 at index {index} requires a preceding MOVE_TO",
+    ):
+        transform(types, coords)
+
+
+@pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
 def test_variable_length_transforms_strip_padding_after_end(
     transform: Callable[
         [torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]

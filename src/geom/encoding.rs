@@ -5,6 +5,7 @@ use super::{Outline, PathElement, Point};
 pub(crate) enum DecodeError {
     CoordsLen,
     InvalidElementType { index: usize, value: i64 },
+    ElementOutsideSubpath { index: usize, value: i64 },
     NonPaddingAfterEnd { index: usize, value: i64 },
 }
 
@@ -26,6 +27,25 @@ impl<'a> TryFrom<(&'a [i64], &'a [f32])> for Outline {
             .find(|&(_, v)| !(1..=ElementType::End as i64).contains(&v))
         {
             return Err(DecodeError::InvalidElementType { index, value });
+        }
+        let mut in_subpath = false;
+        for (index, &value) in types[..outline_len].iter().enumerate() {
+            match ElementType::try_from(value) {
+                Ok(ElementType::MoveTo) => in_subpath = true,
+                Ok(ElementType::LineTo | ElementType::QuadTo | ElementType::CurveTo)
+                    if !in_subpath =>
+                {
+                    return Err(DecodeError::ElementOutsideSubpath { index, value });
+                }
+                Ok(ElementType::Close) => {
+                    if !in_subpath {
+                        return Err(DecodeError::ElementOutsideSubpath { index, value });
+                    }
+                    in_subpath = false;
+                }
+                Ok(ElementType::End) => break,
+                Ok(_) | Err(_) => {}
+            }
         }
         if let Some((offset, value)) = types[outline_len..]
             .iter()
@@ -215,6 +235,33 @@ mod tests {
         assert!(matches!(
             Outline::try_from((types.as_slice(), coords.as_slice())),
             Err(DecodeError::NonPaddingAfterEnd { index: 2, value: 2 })
+        ));
+    }
+
+    #[test]
+    fn try_from_rejects_drawing_element_before_move() {
+        let types = [ElementType::LineTo as i64, ElementType::End as i64];
+        let coords = [0.0; 12];
+
+        assert!(matches!(
+            Outline::try_from((types.as_slice(), coords.as_slice())),
+            Err(DecodeError::ElementOutsideSubpath { index: 0, value: 2 })
+        ));
+    }
+
+    #[test]
+    fn try_from_rejects_drawing_element_after_close() {
+        let types = [
+            ElementType::MoveTo as i64,
+            ElementType::Close as i64,
+            ElementType::LineTo as i64,
+            ElementType::End as i64,
+        ];
+        let coords = [0.0; 24];
+
+        assert!(matches!(
+            Outline::try_from((types.as_slice(), coords.as_slice())),
+            Err(DecodeError::ElementOutsideSubpath { index: 2, value: 2 })
         ));
     }
 }
