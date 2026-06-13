@@ -998,7 +998,7 @@ def test_targets_survives_pickle() -> None:
 
 
 def test_unpickle_raises_when_font_removed(tmp_path: Path) -> None:
-    """Unpickling must fail loudly when fonts changed since pickling."""
+    """Unpickling must fail when the dataset structure changed."""
     shutil.copy("tests/fonts/lato/Lato-Regular.ttf", tmp_path)
     shutil.copy("tests/fonts/ubuntu/Ubuntu-Regular.ttf", tmp_path)
 
@@ -1007,7 +1007,7 @@ def test_unpickle_raises_when_font_removed(tmp_path: Path) -> None:
 
     (tmp_path / "Ubuntu-Regular.ttf").unlink()
 
-    with pytest.raises(RuntimeError, match="no longer match"):
+    with pytest.raises(RuntimeError, match="same dataset structure"):
         pickle.loads(payload)  # noqa: S301
 
 
@@ -1019,7 +1019,7 @@ def test_unpickle_raises_when_font_added(tmp_path: Path) -> None:
 
     shutil.copy("tests/fonts/ubuntu/Ubuntu-Regular.ttf", tmp_path)
 
-    with pytest.raises(RuntimeError, match="no longer match"):
+    with pytest.raises(RuntimeError, match="same dataset structure"):
         pickle.loads(payload)  # noqa: S301
 
 
@@ -1030,6 +1030,22 @@ def test_unpickle_succeeds_when_fonts_unchanged(tmp_path: Path) -> None:
     restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
 
     assert len(restored) == len(dataset)
+    assert torch.equal(restored.targets, dataset.targets)
+
+
+def test_unpickle_uses_changed_font_when_structure_is_unchanged(
+    tmp_path: Path,
+) -> None:
+    font_path = tmp_path / "font.ttf"
+    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", font_path)
+
+    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x41, 0x44))
+    payload = pickle.dumps(dataset)
+
+    shutil.copy("tests/fonts/ubuntu/Ubuntu-Regular.ttf", font_path)
+    restored = pickle.loads(payload)  # noqa: S301
+
+    assert restored.style_classes == ["Ubuntu Regular"]
     assert torch.equal(restored.targets, dataset.targets)
 
 

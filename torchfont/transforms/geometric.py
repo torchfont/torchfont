@@ -384,7 +384,7 @@ def random_coord_jitter(
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         std: Standard deviation of the Gaussian noise in UPM-normalised units.
-            Must be non-negative.
+            Must be non-negative and finite.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 
     Returns:
@@ -392,8 +392,8 @@ def random_coord_jitter(
         ``types`` is returned unchanged (same object).
 
     """
-    if std < 0:
-        msg = "std must be non-negative"
+    if not math.isfinite(std) or std < 0:
+        msg = "std must be non-negative and finite"
         raise ValueError(msg)
     if std == 0.0:
         return types, coords

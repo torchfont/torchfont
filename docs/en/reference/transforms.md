@@ -317,8 +317,8 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 Adds independent Gaussian noise to each active value in the outline coordinates.
 
-- `std`: standard deviation in UPM-normalised units; `0.005` ≈ 5 font-units in
-  a 1000-UPM font
+- `std`: non-negative, finite standard deviation in UPM-normalised units;
+  `0.005` ≈ 5 font-units in a 1000-UPM font
 - only active `coords` columns are perturbed (zero-coordinate element types
   CLOSE, END, PAD and unused zero-padding columns are left unchanged)
 - `generator`: optional `torch.Generator` for reproducibility

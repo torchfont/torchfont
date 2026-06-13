@@ -70,12 +70,14 @@ def test_random_coord_jitter_does_not_modify_types(
     assert torch.equal(out_types, types)
 
 
-def test_random_coord_jitter_negative_std_raises(
+@pytest.mark.parametrize("std", [-0.1, float("nan"), float("inf")])
+def test_random_coord_jitter_invalid_std_raises(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
+    std: float,
 ) -> None:
     types, coords = simple_outline
-    with pytest.raises(ValueError, match="std must be non-negative"):
-        random_coord_jitter(types, coords, std=-0.1)
+    with pytest.raises(ValueError, match="std must be non-negative and finite"):
+        random_coord_jitter(types, coords, std=std)
 
 
 def test_random_coord_jitter_deterministic_with_generator(

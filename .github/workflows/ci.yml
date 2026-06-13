@@ -51,8 +51,10 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: "true"
-      - run: uvx ruff format --check
-      - run: uvx ruff check
+      # Keep lint isolated from project dependencies so this job never syncs Torch.
+      # The version matches uv.lock and should be updated alongside it.
+      - run: uvx --from ruff==0.15.12 ruff format --check
+      - run: uvx --from ruff==0.15.12 ruff check
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo check --all-targets --all-features
