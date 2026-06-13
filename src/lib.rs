@@ -4,7 +4,6 @@ mod error;
 mod font;
 mod geom;
 mod py;
-mod skia;
 mod transform;
 
 use pyo3::{Bound, prelude::*, types::PyModule};

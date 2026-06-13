@@ -1,6 +1,7 @@
-use skia_safe::{Path, PathFillType, PathVerb};
+use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
-use crate::geom::{Outline, PathElement, Point, Subpath, reverse_subpath};
+use super::subpath::reverse_subpath;
+use crate::geom::{Bounds, BoundsPen, Outline, PathElement, Point, Subpath};
 
 // TorchFont outlines are normalized to roughly em-sized coordinates. PathOps is
 // more reliable at conventional font-unit magnitudes, so simplify a scaled copy.
@@ -11,7 +12,7 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
 }
 
 fn simplify(outline: &Outline) -> Option<Outline> {
-    let (path, _) = super::build_skia_path(outline, false, PathFillType::Winding)?;
+    let (path, _) = build_skia_path(outline.subpaths(), false, PathFillType::Winding)?;
     let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;
     let simplified = scaled.simplify()?;
 
@@ -20,6 +21,49 @@ fn simplify(outline: &Outline) -> Option<Outline> {
     let simplified = outline_from_path(&simplified)?;
     let winding = winding_from_even_odd(&simplified)?;
     Some(scale_outline(&winding, PATHOPS_SCALE.recip()))
+}
+
+fn build_skia_path(
+    subpaths: &[Subpath],
+    track_bounds: bool,
+    fill_type: PathFillType,
+) -> Option<(Path, Option<Bounds>)> {
+    let mut builder = PathBuilder::new_with_fill_type(fill_type);
+    let mut bounds = track_bounds.then(BoundsPen::default);
+    for subpath in subpaths {
+        let start = subpath.start();
+        if let Some(bounds) = &mut bounds {
+            bounds.move_to(start);
+        }
+        builder.move_to((start.x, start.y));
+        for element in subpath.elements() {
+            if let Some(bounds) = &mut bounds {
+                bounds.path_element(*element);
+            }
+            match *element {
+                PathElement::LineTo(point) => builder.line_to((point.x, point.y)),
+                PathElement::QuadTo { control, end } => {
+                    builder.quad_to((control.x, control.y), (end.x, end.y))
+                }
+                PathElement::CurveTo {
+                    control0,
+                    control1,
+                    end,
+                } => builder.cubic_to(
+                    (control0.x, control0.y),
+                    (control1.x, control1.y),
+                    (end.x, end.y),
+                ),
+            };
+        }
+        if subpath.is_closed() {
+            if let Some(bounds) = &mut bounds {
+                bounds.close();
+            }
+            builder.close();
+        }
+    }
+    (!builder.is_empty()).then(|| (builder.detach(), bounds.and_then(BoundsPen::finish)))
 }
 
 fn outline_from_path(path: &Path) -> Option<Outline> {
@@ -115,12 +159,8 @@ fn winding_from_even_odd(outline: &Outline) -> Option<Outline> {
 }
 
 fn subpath_path(subpath: &Subpath) -> Option<Path> {
-    super::build_skia_path(
-        &Outline::new(vec![subpath.clone()]),
-        false,
-        PathFillType::EvenOdd,
-    )
-    .map(|(path, _)| path)
+    build_skia_path(std::slice::from_ref(subpath), false, PathFillType::EvenOdd)
+        .map(|(path, _)| path)
 }
 
 fn path_is_inside(outer: &Path, inner: &Path) -> bool {
@@ -152,14 +192,16 @@ fn subpath_area(subpath: &Subpath) -> f64 {
     for element in subpath.elements() {
         match *element {
             PathElement::LineTo(end) => {
-                area -= ((end.x - previous.x) * (end.y + previous.y) * 0.5) as f64;
+                area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
                 previous = end;
             }
             PathElement::QuadTo { control, end } => {
                 let control = control - previous;
                 let end_offset = end - previous;
-                area -= ((end_offset.x * control.y - control.x * end_offset.y) / 3.0) as f64;
-                area -= ((end.x - previous.x) * (end.y + previous.y) * 0.5) as f64;
+                area -= (end_offset.x as f64 * control.y as f64
+                    - control.x as f64 * end_offset.y as f64)
+                    / 3.0;
+                area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
                 previous = end;
             }
             PathElement::CurveTo {
@@ -170,17 +212,17 @@ fn subpath_area(subpath: &Subpath) -> f64 {
                 let control0 = control0 - previous;
                 let control1 = control1 - previous;
                 let end_offset = end - previous;
-                area -= (control0.x * (-control1.y - end_offset.y)
-                    + control1.x * (control0.y - 2.0 * end_offset.y)
-                    + end_offset.x * (control0.y + 2.0 * control1.y))
-                    as f64
-                    * 0.15;
-                area -= ((end.x - previous.x) * (end.y + previous.y) * 0.5) as f64;
+                let (c0x, c0y) = (control0.x as f64, control0.y as f64);
+                let (c1x, c1y) = (control1.x as f64, control1.y as f64);
+                let (ex, ey) = (end_offset.x as f64, end_offset.y as f64);
+                area -=
+                    (c0x * (-c1y - ey) + c1x * (c0y - 2.0 * ey) + ex * (c0y + 2.0 * c1y)) * 0.15;
+                area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
                 previous = end;
             }
         }
     }
-    area - ((start.x - previous.x) * (start.y + previous.y) * 0.5) as f64
+    area - (start.x - previous.x) as f64 * (start.y + previous.y) as f64 * 0.5
 }
 
 fn scale_outline(outline: &Outline, scale: f32) -> Outline {
