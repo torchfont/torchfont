@@ -17,27 +17,19 @@ types, coords = quad_to_cubic(types, coords, merge_curves=True)
 
 Converts `ElementType.QUAD_TO` path elements to `ElementType.CURVE_TO`.
 
-- path element shape is unchanged
-- `coords` shape is unchanged (`(..., 6)`)
+- path element count is unchanged
 - for each quadratic segment, `[cx0, cy0, 0, 0, x, y]` is rewritten to cubic
   control points using the previous endpoint
-- the last `types` dimension is the sequence dimension; leading dimensions are
-  treated as independent sequences
-
-Call `quad_to_cubic` before chunking one continuous outline into patches when
-endpoint continuity must cross chunk boundaries.
 
 Set `merge_curves=True` to merge adjacent reconstructable curves and collinear
 lines in the same Rust call immediately after conversion. This mode is useful
-after `cubic_to_quad`, and because merging can shorten the outline it accepts
-one continuous outline sequence rather than batched inputs.
+after `cubic_to_quad`.
 
 ### I/O Shape
 
-- input: `types=(...)`, `coords=(..., 6)`
-- output: `types=(...)`, `coords=(..., 6)`
-- with `merge_curves=True`: input `types=(N,)`, `coords=(N, 6)`; output
-  `types=(M,)`, `coords=(M, 6)`
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(N,)`, `coords=(N, 6)`
+- with `merge_curves=True`: output `types=(M,)`, `coords=(M, 6)` (length may differ)
 
 ## cubic_to_quad
 
@@ -162,8 +154,6 @@ then splits it into contiguous patches.
 
 - `patch_size` must be >= 1
 - padding is zero-filled and appended only when `seq_len % patch_size != 0`
-- call `quad_to_cubic` before `patchify` when endpoint continuity must cross
-  patch boundaries
 
 ### I/O Shape
 

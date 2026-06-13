@@ -12,19 +12,14 @@ def quad_to_cubic(
 ) -> tuple[Tensor, Tensor]:
     """Convert ``ElementType.QUAD_TO`` entries to ``ElementType.CURVE_TO``.
 
-    The ``types`` and ``coords`` shapes are preserved. Rows in ``coords`` use the
-    ``[cx0, cy0, cx1, cy1, x, y]`` layout, with quadratic control points read
-    from ``[cx0, cy0]`` and endpoints from ``[x, y]``.
-
-    By default, the last dimension of ``types`` is treated as the sequence
-    dimension. Any leading dimensions are independent sequences, so call this
-    before chunking a continuous outline if endpoint continuity must cross chunk
-    boundaries.
+    Accepts a 1-D ``types`` tensor and a 2-D ``coords`` tensor of shape
+    ``(N, 6)``. The output has the same shape as the input. Rows in ``coords``
+    use the ``[cx0, cy0, cx1, cy1, x, y]`` layout, with quadratic control
+    points read from ``[cx0, cy0]`` and endpoints from ``[x, y]``.
 
     When ``merge_curves=True``, adjacent mergeable curves and lines are merged
-    in the same Rust call after conversion. This variable-length mode accepts
-    one continuous outline sequence and returns ``types=(M,)`` and
-    ``coords=(M, 6)``.
+    in the same Rust call after conversion. The output length may differ from
+    the input in this mode.
     """
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
@@ -38,16 +33,13 @@ def quad_to_cubic(
         )
     if not torch.any(types == ElementType.QUAD_TO.value):
         return types, coords
-
-    seq_len = types.size(-1)
-    out_types = types.clone()
-    out_coords = coords.clone()
-    _torchfont.quad_to_cubic(
-        out_types.reshape(-1).numpy(),
-        out_coords.reshape(-1).numpy(),
-        seq_len,
+    out_types, out_coords = _torchfont.quad_to_cubic(
+        types.numpy(), coords.reshape(-1).numpy()
     )
-    return out_types, out_coords
+    return (
+        torch.tensor(out_types, dtype=torch.long),
+        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+    )
 
 
 def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:

@@ -9,7 +9,6 @@ from ._helpers import (
     _assert_single_cubic_matches,
     _cubic_segs_to_tensors,
     _line_path_to_tensors,
-    make_sample,
 )
 
 
@@ -101,75 +100,6 @@ def test_quad_to_cubic_rejects_mismatched_coords() -> None:
 
     with pytest.raises(ValueError, match="coords length"):
         quad_to_cubic(types, coords)
-
-
-def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:
-    types = torch.tensor(
-        [
-            [ElementType.MOVE_TO.value, ElementType.QUAD_TO.value],
-            [ElementType.LINE_TO.value, ElementType.END.value],
-        ],
-        dtype=torch.long,
-    )
-    coords = torch.tensor(
-        [
-            [[0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0, 1.0, 1.0]],
-            [[0.0, 0.0, 0.0, 0.0, 2.0, 1.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]],
-        ],
-        dtype=torch.float32,
-    )
-
-    sample = make_sample(types, coords)
-    out_types, out_coords = quad_to_cubic(sample.types, sample.coords)
-
-    assert out_types.shape == types.shape
-    assert out_coords.shape == coords.shape
-    assert out_types[0, 1].item() == ElementType.CURVE_TO.value
-    assert torch.allclose(
-        out_coords[0, 1],
-        torch.tensor([0.0, 2.0 / 3.0, 1.0 / 3.0, 1.0, 1.0, 1.0], dtype=torch.float32),
-    )
-
-
-def test_quad_to_cubic_keeps_batched_sequences_independent() -> None:
-    types = torch.tensor(
-        [
-            [
-                ElementType.MOVE_TO.value,
-                ElementType.LINE_TO.value,
-                ElementType.END.value,
-            ],
-            [
-                ElementType.QUAD_TO.value,
-                ElementType.LINE_TO.value,
-                ElementType.END.value,
-            ],
-        ],
-        dtype=torch.long,
-    )
-    coords = torch.tensor(
-        [
-            [
-                [0.0, 0.0, 0.0, 0.0, 7.0, 7.0],
-                [0.0, 0.0, 0.0, 0.0, 9.0, 9.0],
-                [0.0, 0.0, 0.0, 0.0, 9.0, 9.0],
-            ],
-            [
-                [0.0, 3.0, 0.0, 0.0, 3.0, 3.0],
-                [0.0, 0.0, 0.0, 0.0, 4.0, 3.0],
-                [0.0, 0.0, 0.0, 0.0, 4.0, 3.0],
-            ],
-        ],
-        dtype=torch.float32,
-    )
-
-    out_types, out_coords = quad_to_cubic(types, coords)
-
-    assert out_types[1, 0].item() == ElementType.CURVE_TO.value
-    assert torch.allclose(
-        out_coords[1, 0],
-        torch.tensor([0.0, 2.0, 1.0, 3.0, 3.0, 3.0], dtype=torch.float32),
-    )
 
 
 def test_quad_to_cubic_can_merge_curves_in_same_transform() -> None:

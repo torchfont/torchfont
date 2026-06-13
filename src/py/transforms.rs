@@ -1,23 +1,31 @@
-use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1, PyReadwriteArray1};
+use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 use tiny_skia::FillRule;
 
-use crate::geom::{ElementType, Outline};
+use crate::geom::{DecodeError, Outline};
 use crate::transform::render_bitmap::RenderMode;
 use crate::{curves, skia, transform};
 
+fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
+    Outline::try_from((types, coords)).map_err(|e| match e {
+        DecodeError::CoordsLen => {
+            pyo3::exceptions::PyValueError::new_err("coords length must equal types length times 6")
+        }
+        DecodeError::InvalidElementType { index, value } => {
+            pyo3::exceptions::PyValueError::new_err(format!(
+                "invalid element type {value} at index {index}"
+            ))
+        }
+    })
+}
+
 #[pyfunction]
-pub(crate) fn quad_to_cubic<'py>(
-    mut types: PyReadwriteArray1<'py, i64>,
-    mut coords: PyReadwriteArray1<'py, f32>,
-    seq_len: usize,
-) -> PyResult<()> {
-    let t = types.as_slice_mut()?;
-    let c = coords.as_slice_mut()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    curves::quad_to_cubic::quad_to_cubic(t, c, seq_len);
-    Ok(())
+pub(crate) fn quad_to_cubic(
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    Ok(curves::quad_to_cubic::quad_to_cubic(&outline).encode())
 }
 
 #[pyfunction]
@@ -25,11 +33,8 @@ pub(crate) fn quad_to_cubic_and_merge(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    Ok(curves::quad_to_cubic::quad_to_cubic_and_merge(t, c))
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    Ok(curves::quad_to_cubic::quad_to_cubic_and_merge(&outline).encode())
 }
 
 #[pyfunction]
@@ -37,11 +42,7 @@ pub(crate) fn cubic_to_quad(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     curves::cubic_to_quad::cubic_to_quad(&outline)
         .map(|outline| outline.encode())
         .map_err(|_| {
@@ -56,11 +57,7 @@ pub(crate) fn merge_curves(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     Ok(curves::merge_curves::merge_curves(&outline).encode())
 }
 
@@ -69,11 +66,7 @@ pub(crate) fn normalize_subpath_start_points(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     Ok(transform::subpath::normalize_subpath_start_points(&outline).encode())
 }
 
@@ -83,17 +76,15 @@ pub(crate) fn randomize_subpath_start_points(
     coords: PyReadonlyArray1<'_, f32>,
     random_values: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
+    use crate::geom::ElementType;
     let t = types.as_slice()?;
-    let c = coords.as_slice()?;
     let r = random_values.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
+    let outline = decode(t, coords.as_slice()?)?;
     if r.len() != t.len() {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "random_values length must equal types length",
         ));
     }
-    let outline = Outline::decode(t, c);
     let subpath_random_values: Vec<f32> = t
         .iter()
         .zip(r)
@@ -110,11 +101,7 @@ pub(crate) fn reverse_closed_subpaths(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     Ok(transform::subpath::reverse_closed_subpaths(&outline).encode())
 }
 
@@ -123,11 +110,7 @@ pub(crate) fn remove_overlaps(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     Ok(skia::remove_overlaps::remove_overlaps(&outline).encode())
 }
 
@@ -136,11 +119,7 @@ pub(crate) fn tight_bbox(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<Option<(f32, f32, f32, f32)>> {
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     Ok(crate::geom::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
 
@@ -177,11 +156,7 @@ pub(crate) fn render_bitmap(
             ));
         }
     };
-    let t = types.as_slice()?;
-    let c = coords.as_slice()?;
-    ensure_flat_coords_len(t.len(), c.len())?;
-    ensure_element_types(t)?;
-    let outline = Outline::decode(t, c);
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     let rendered = crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_rule)
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
@@ -207,29 +182,4 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(tight_bbox, m)?)?;
     m.add_function(wrap_pyfunction!(render_bitmap, m)?)?;
     Ok(())
-}
-
-fn ensure_flat_coords_len(types_len: usize, coords_len: usize) -> PyResult<()> {
-    if coords_len == types_len * 6 {
-        Ok(())
-    } else {
-        Err(pyo3::exceptions::PyValueError::new_err(
-            "coords length must equal types length times 6",
-        ))
-    }
-}
-
-fn ensure_element_types(types: &[i64]) -> PyResult<()> {
-    if let Some((index, value)) = types
-        .iter()
-        .copied()
-        .enumerate()
-        .find(|(_, value)| !(0..=ElementType::End as i64).contains(value))
-    {
-        Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "invalid element type {value} at index {index}"
-        )))
-    } else {
-        Ok(())
-    }
 }

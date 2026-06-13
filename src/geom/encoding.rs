@@ -1,8 +1,32 @@
 use super::outline::SubpathBuilder;
 use super::{Outline, PathElement, Point};
 
+#[derive(Debug)]
+pub(crate) enum DecodeError {
+    CoordsLen,
+    InvalidElementType { index: usize, value: i64 },
+}
+
+impl<'a> TryFrom<(&'a [i64], &'a [f32])> for Outline {
+    type Error = DecodeError;
+    fn try_from((types, coords): (&'a [i64], &'a [f32])) -> Result<Self, Self::Error> {
+        if coords.len() != types.len() * 6 {
+            return Err(DecodeError::CoordsLen);
+        }
+        if let Some((index, value)) = types
+            .iter()
+            .copied()
+            .enumerate()
+            .find(|&(_, v)| !(1..=ElementType::End as i64).contains(&v))
+        {
+            return Err(DecodeError::InvalidElementType { index, value });
+        }
+        Ok(Self::decode(types, coords))
+    }
+}
+
 impl Outline {
-    pub(crate) fn decode(types: &[i64], coords: &[f32]) -> Self {
+    fn decode(types: &[i64], coords: &[f32]) -> Self {
         debug_assert_eq!(types.len() * 6, coords.len());
         let mut subpaths = Vec::new();
         let mut current: Option<SubpathBuilder> = None;

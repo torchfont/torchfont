@@ -17,27 +17,18 @@ types, coords = quad_to_cubic(types, coords, merge_curves=True)
 
 `ElementType.QUAD_TO` を `ElementType.CURVE_TO` へ変換します。
 
-- element type の形状は変わりません
-- 座標形状は変わりません（`(..., 6)`）
+- path element の数は変わりません
 - 各 2 次セグメントの `[cx0, cy0, 0, 0, x, y]` は、直前終点を使って
   3 次制御点に書き換えられます
-- `types` の最後の次元をシーケンス次元として扱い、先行次元は独立した
-  シーケンスとして扱います
-
-1 つの連続した outline を patch に分割し、patch 境界をまたいだ終点の連続性が
-必要な場合は、分割前に `quad_to_cubic` を呼び出してください。
 
 `merge_curves=True` を指定すると、変換直後に復元可能な隣接カーブと共線の line を
 同じ Rust 呼び出し内でまとめます。`cubic_to_quad` の後段で特に有用です。
-マージ後は outline が短くなることがあるため、このモードは batched 入力ではなく
-1 つの連続した outline シーケンスを受け取ります。
 
 ### 入出力
 
-- 入力: `types=(...)`, `coords=(..., 6)`
-- 出力: `types=(...)`, `coords=(..., 6)`
-- `merge_curves=True` の場合: 入力 `types=(N,)`, `coords=(N, 6)`、出力
-  `types=(M,)`, `coords=(M, 6)`
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(N,)`, `coords=(N, 6)`
+- `merge_curves=True` の場合: 出力 `types=(M,)`, `coords=(M, 6)`（長さが変わる場合あり）
 
 ## cubic_to_quad
 
@@ -161,8 +152,6 @@ patch_types, patch_coords = patchify(types, coords, patch_size=32)
 
 - `patch_size` は 1 以上が必要です
 - `seq_len % patch_size != 0` の場合のみ末尾にゼロが追加されます
-- patch 境界をまたいだ終点の連続性が必要な場合は、`patchify` の前に
-  `quad_to_cubic` を呼び出してください
 
 ### 入出力
 
