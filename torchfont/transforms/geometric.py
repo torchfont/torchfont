@@ -74,17 +74,18 @@ def _rotation_scale_shear_matrix(
     angle_deg: float,
     scale: float,
     shear_deg: float,
+    *,
+    like: Tensor,
 ) -> Tensor:
     """Return a 2x2 matrix for scale * x-shear * rotation (all applied in place)."""
     a = math.radians(angle_deg)
     s = math.radians(shear_deg)
     cos_a, sin_a, tan_s = math.cos(a), math.sin(a), math.tan(s)
-    return torch.tensor(
+    return like.new_tensor(
         [
             [scale * (cos_a + sin_a * tan_s), scale * (-sin_a + cos_a * tan_s)],
             [scale * sin_a, scale * cos_a],
         ],
-        dtype=torch.float32,
     )
 
 
@@ -125,7 +126,7 @@ def horizontal_flip(
         ``preserve_winding`` is enabled.
 
     """
-    matrix = torch.tensor([[-1.0, 0.0], [0.0, 1.0]])
+    matrix = coords.new_tensor([[-1.0, 0.0], [0.0, 1.0]])
     center = _bbox_center(types, coords)
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
     if preserve_winding:
@@ -153,7 +154,7 @@ def vertical_flip(
         ``preserve_winding`` is enabled.
 
     """
-    matrix = torch.tensor([[1.0, 0.0], [0.0, -1.0]])
+    matrix = coords.new_tensor([[1.0, 0.0], [0.0, -1.0]])
     center = _bbox_center(types, coords)
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
     if preserve_winding:
@@ -194,7 +195,7 @@ def affine(
     if scale <= 0:
         msg = "scale must be positive"
         raise ValueError(msg)
-    matrix = _rotation_scale_shear_matrix(angle, scale, shear)
+    matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
     center = _bbox_center(types, coords)
     return types, _apply_matrix(types, coords, matrix, center, translate)
 

@@ -104,3 +104,15 @@ def test_affine_non_positive_scale_raises(
     types, coords = simple_outline
     with pytest.raises(ValueError, match="scale must be positive"):
         affine(types, coords, scale=0.0)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_affine_preserves_cuda_device(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = (tensor.cuda() for tensor in simple_outline)
+
+    out_types, out_coords = affine(types, coords, angle=15.0)
+
+    assert out_types.device.type == "cuda"
+    assert out_coords.device.type == "cuda"
