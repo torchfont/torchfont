@@ -82,6 +82,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install skia-safe native dependencies
         run: sudo sh .github/scripts/install-linux-deps.sh host
+      - run: cargo test --all-targets --all-features
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
