@@ -38,6 +38,10 @@ def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
     return pair0, pair1, pair2
 
 
+def _random_device(generator: torch.Generator | None, fallback: Tensor) -> torch.device:
+    return generator.device if generator is not None else fallback.device
+
+
 def _bbox_center(types: Tensor, coords: Tensor) -> Tensor:
     """Return the tight bounding-box centre via the Rust ``tight_bbox`` implementation.
 
@@ -233,7 +237,14 @@ def random_horizontal_flip(
 
     """
     _validate_probability(p)
-    if torch.rand(1, generator=generator).item() < p:
+    if (
+        torch.rand(
+            1,
+            device=_random_device(generator, coords),
+            generator=generator,
+        ).item()
+        < p
+    ):
         return horizontal_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
 
@@ -261,7 +272,14 @@ def random_vertical_flip(
 
     """
     _validate_probability(p)
-    if torch.rand(1, generator=generator).item() < p:
+    if (
+        torch.rand(
+            1,
+            device=_random_device(generator, coords),
+            generator=generator,
+        ).item()
+        < p
+    ):
         return vertical_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
 
@@ -342,7 +360,11 @@ def random_affine(
         msg = "translate values must be finite"
         raise ValueError(msg)
 
-    r = torch.rand(5, generator=generator)
+    r = torch.rand(
+        5,
+        device=_random_device(generator, coords),
+        generator=generator,
+    )
 
     def _u(lo: float, hi: float, i: int) -> float:
         return lo + (hi - lo) * r[i].item()
@@ -400,5 +422,10 @@ def random_coord_jitter(
         return types, coords
     active = torch.stack(list(_active_pairs(types)), dim=1).unsqueeze(-1)
     pts = coords.reshape(-1, 3, 2)
-    noise = torch.empty_like(pts).normal_(std=std, generator=generator)
+    noise = torch.empty(
+        pts.shape,
+        dtype=pts.dtype,
+        device=_random_device(generator, coords),
+    ).normal_(std=std, generator=generator)
+    noise = noise.to(device=coords.device)
     return types, torch.where(active, pts + noise, pts).reshape_as(coords)

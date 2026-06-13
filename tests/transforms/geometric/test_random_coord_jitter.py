@@ -89,3 +89,21 @@ def test_random_coord_jitter_deterministic_with_generator(
     _, out1 = random_coord_jitter(types, coords, std=0.05, generator=g1)
     _, out2 = random_coord_jitter(types, coords, std=0.05, generator=g2)
     assert torch.equal(out1, out2)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_random_coord_jitter_accepts_cpu_generator_for_cuda_input(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = (tensor.cuda() for tensor in simple_outline)
+    generator = torch.Generator().manual_seed(99)
+
+    out_types, out_coords = random_coord_jitter(
+        types,
+        coords,
+        std=0.05,
+        generator=generator,
+    )
+
+    assert out_types.device.type == "cuda"
+    assert out_coords.device.type == "cuda"

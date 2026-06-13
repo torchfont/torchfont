@@ -42,7 +42,11 @@ def randomize_subpath_start_points(
     """
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
-    random_values = torch.rand(types.size(0), generator=generator)
+    random_values = torch.rand(
+        types.size(0),
+        device=generator.device if generator is not None else types.device,
+        generator=generator,
+    ).cpu()
     out_types, out_coords = _torchfont.randomize_subpath_start_points(
         types.numpy(),
         coords.reshape(-1).numpy(),

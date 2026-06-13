@@ -128,3 +128,21 @@ def test_random_affine_quad_pair1_stays_zero(
     quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
     assert out[quad_idx, 2].item() == pytest.approx(0.0)
     assert out[quad_idx, 3].item() == pytest.approx(0.0)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_random_affine_accepts_cpu_generator_for_cuda_input(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = (tensor.cuda() for tensor in simple_outline)
+    generator = torch.Generator().manual_seed(5)
+
+    out_types, out_coords = random_affine(
+        types,
+        coords,
+        degrees=45.0,
+        generator=generator,
+    )
+
+    assert out_types.device.type == "cuda"
+    assert out_coords.device.type == "cuda"
