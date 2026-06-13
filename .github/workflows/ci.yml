@@ -59,37 +59,46 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     needs: check
     strategy:
       fail-fast: false
       matrix:
         include:
-          - python-version: "3.10"
+          - environment: development
+            runner: ubuntu-latest
+          - environment: minimum
+            runner: ubuntu-latest
+            python-version: "3.10"
             torch-version: "2.3.*"
-          - python-version: "3.14"
-            torch-version: "2.10.*"
+          - environment: windows
+            runner: windows-latest
     steps:
       - uses: actions/checkout@v6
       - name: Install skia-safe native dependencies
+        if: runner.os == 'Linux'
         run: sudo sh .github/scripts/install-linux-deps.sh host
-      - run: cargo test --all-targets --all-features
       - uses: astral-sh/setup-uv@v7
         with:
-          python-version: ${{ matrix.python-version }}
           enable-cache: "true"
-      - run: uv run --locked ty check
-      - run: >-
+      - run: cargo test --all-targets --all-features
+      - if: matrix.environment == 'development'
+        run: uv run --locked ty check
+      - if: matrix.environment != 'minimum'
+        run: uv run --locked pytest tests
+      - if: matrix.environment == 'minimum'
+        run: >-
           uv run
           --isolated
           --locked
+          --python ${{ matrix.python-version }}
           --index https://download.pytorch.org/whl/cpu
           --with "torch==${{ matrix.torch-version }}"
           pytest tests
 
   linux:
     runs-on: ${{ matrix.platform.runner }}
-    needs: test
+    needs: check
     strategy:
       matrix:
         platform:
@@ -126,7 +135,7 @@ jobs:
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
-    needs: test
+    needs: check
     strategy:
       matrix:
         platform:
@@ -166,7 +175,7 @@ jobs:
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
-    needs: test
+    needs: check
     strategy:
       matrix:
         platform:
@@ -202,7 +211,7 @@ jobs:
 
   sdist:
     runs-on: ubuntu-latest
-    needs: test
+    needs: check
     steps:
       - uses: actions/checkout@v6
       - name: Build sdist
@@ -220,7 +229,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, windows, macos, sdist]
+    needs: [test, linux, windows, macos, sdist]
     environment: pypi
     permissions:
       id-token: write
