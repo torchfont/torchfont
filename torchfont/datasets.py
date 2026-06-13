@@ -113,7 +113,8 @@ class GlyphSample:
             ``hhea.descender`` are **negative**.
         post (Tensor): ``post`` table fields (4,): ``italic_angle``,
             ``is_fixed_pitch`` (0.0 or 1.0), ``underline_position``,
-            ``underline_thickness``. UPM-normalised.
+            ``underline_thickness``. ``italic_angle`` is stored in degrees;
+            underline metrics are UPM-normalised.
         maxp (Tensor): ``maxp`` table fields (14,) starting with
             ``num_glyphs``. TrueType-only fields are ``nan`` for CFF fonts.
         hmtx (Tensor): ``advance_width``, ``lsb`` (2,). UPM-normalised.

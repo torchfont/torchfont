@@ -92,6 +92,10 @@ sample = dataset[idx]
 | `sample.codepoint`   | `int`               | —              |
 | `sample.glyph_name`  | `str`               | —              |
 
+`sample.post` は `(italic_angle, is_fixed_pitch, underline_position,
+underline_thickness)` を保持します。`italic_angle` の単位は度、
+`is_fixed_pitch` は `0.0` または `1.0`、下線の2値は UPM 正規化済みです。
+
 `transform` なしでは `sample` 自体の型は `GlyphSample` です。`transform`
 ありでは、dataset item の型は transform の返り値型から推論されます。
 
