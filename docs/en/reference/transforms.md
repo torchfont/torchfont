@@ -254,7 +254,7 @@ types, coords = random_horizontal_flip(types, coords, p=0.5)
 
 Randomly applies `horizontal_flip` with probability `p`.
 
-- `p`: flip probability (default: `0.5`)
+- `p`: flip probability in the inclusive range `[0.0, 1.0]` (default: `0.5`)
 - `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
 - `generator`: optional `torch.Generator` for reproducibility
 
@@ -275,7 +275,7 @@ types, coords = random_vertical_flip(types, coords, p=0.5)
 
 Randomly applies `vertical_flip` with probability `p`.
 
-- `p`: flip probability (default: `0.5`)
+- `p`: flip probability in the inclusive range `[0.0, 1.0]` (default: `0.5`)
 - `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
 - `generator`: optional `torch.Generator` for reproducibility
 

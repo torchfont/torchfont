@@ -253,7 +253,7 @@ types, coords = random_horizontal_flip(types, coords, p=0.5)
 
 確率 `p` で `horizontal_flip` をランダムに適用します。
 
-- `p`: 反転確率（デフォルト: `0.5`）
+- `p`: `[0.0, 1.0]` の範囲の反転確率（デフォルト: `0.5`）
 - `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
 - `generator`: 再現性のためのオプション `torch.Generator`
 
@@ -274,7 +274,7 @@ types, coords = random_vertical_flip(types, coords, p=0.5)
 
 確率 `p` で `vertical_flip` をランダムに適用します。
 
-- `p`: 反転確率（デフォルト: `0.5`）
+- `p`: `[0.0, 1.0]` の範囲の反転確率（デフォルト: `0.5`）
 - `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
 - `generator`: 再現性のためのオプション `torch.Generator`
 

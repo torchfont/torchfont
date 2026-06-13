@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torchfont.transforms import random_horizontal_flip
@@ -29,3 +30,14 @@ def test_random_horizontal_flip_deterministic_with_generator(
     _, out1 = random_horizontal_flip(types, coords, generator=g1)
     _, out2 = random_horizontal_flip(types, coords, generator=g2)
     assert torch.equal(out1, out2)
+
+
+@pytest.mark.parametrize("p", [-0.1, 1.1, float("nan"), float("inf")])
+def test_random_horizontal_flip_rejects_invalid_probability(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    p: float,
+) -> None:
+    types, coords = simple_outline
+
+    with pytest.raises(ValueError, match="p must be between 0 and 1"):
+        random_horizontal_flip(types, coords, p=p)

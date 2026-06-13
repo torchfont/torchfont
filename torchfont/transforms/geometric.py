@@ -221,6 +221,7 @@ def random_horizontal_flip(
         Either the original ``(types, coords)`` unchanged, or a flipped copy.
 
     """
+    _validate_probability(p)
     if torch.rand(1, generator=generator).item() < p:
         return horizontal_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
@@ -248,9 +249,16 @@ def random_vertical_flip(
         Either the original ``(types, coords)`` unchanged, or a flipped copy.
 
     """
+    _validate_probability(p)
     if torch.rand(1, generator=generator).item() < p:
         return vertical_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
+
+
+def _validate_probability(p: float) -> None:
+    if not 0.0 <= p <= 1.0:
+        msg = "p must be between 0 and 1"
+        raise ValueError(msg)
 
 
 def _sym_range(value: float | tuple[float, float]) -> tuple[float, float]:
