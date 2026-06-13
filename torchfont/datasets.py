@@ -44,6 +44,9 @@ from torchfont.metadata import (
 )
 
 _T = TypeVar("_T")
+_MAX_UNICODE = 0x10FFFF
+_SURROGATE_START = 0xD800
+_SURROGATE_END = 0xDFFF
 
 
 @dataclasses.dataclass(frozen=True)
@@ -212,10 +215,9 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
                 of Unicode code points used to restrict the dataset content.
                 Duplicate values are ignored and the effective filter is stored
                 as sorted unique integers on ``dataset.codepoints``.
-                Values that do not appear in any font charmap (including
-                surrogates or values outside the Unicode range) simply
-                produce no samples. Negative values will fail during
-                conversion to the native unsigned integer type.
+                Values must be Unicode scalar values (``0 <= cp <= 0x10FFFF``,
+                excluding surrogates). Values that do not appear in any font
+                charmap simply produce no samples.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
                 describing which font paths to include. No implicit filtering
                 from hidden directories or ignore files (such as ``.gitignore``,
@@ -400,7 +402,17 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         """Convert an optional codepoint filter into a canonical tuple."""
         if codepoints is None:
             return None
-        return tuple(sorted({index(cp) for cp in codepoints}))
+        normalized: set[int] = set()
+        for codepoint in codepoints:
+            value = index(codepoint)
+            if (
+                not 0 <= value <= _MAX_UNICODE
+                or _SURROGATE_START <= value <= _SURROGATE_END
+            ):
+                msg = f"invalid Unicode scalar value: {value}"
+                raise ValueError(msg)
+            normalized.add(value)
+        return tuple(sorted(normalized))
 
     def _normalize_index(self, idx: SupportsIndex) -> int:
         """Resolve one dataset index, including negative indices."""
