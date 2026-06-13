@@ -5,7 +5,7 @@
 - TorchFont is a beta Python + Rust library for font-focused PyTorch workflows; prefer better architecture over backward compatibility.
 - Keep Python thin and pickle-friendly; put font parsing and computation in deterministic Rust using crates such as `skrifa` and `read-fonts`.
 - Avoid mutable Rust runtime state unless the design clearly requires it.
-- Avoid broad fallback paths and excessive validation unless they protect a real external boundary.
+- Add validation only to prevent **silent data corruption** at real external boundaries (user files and arguments). Do not validate when: invalid input would trigger a loud error in a dependency or subsequent operation; a dependency already rejects the value; or the documented behavior for invalid input is a reasonable empty/no-op result. Validate once at the entry point.
 
 ## Workflow
 

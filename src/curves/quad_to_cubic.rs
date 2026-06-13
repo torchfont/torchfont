@@ -1,4 +1,3 @@
-use super::merge_curves;
 use crate::geom::{Outline, PathElement, Subpath};
 
 pub(crate) fn quad_to_cubic(outline: &Outline) -> Outline {
@@ -30,8 +29,4 @@ pub(crate) fn quad_to_cubic(outline: &Outline) -> Outline {
         })
         .collect();
     Outline::new(subpaths)
-}
-
-pub(crate) fn quad_to_cubic_and_merge(outline: &Outline) -> Outline {
-    merge_curves::merge_curves(&quad_to_cubic(outline))
 }

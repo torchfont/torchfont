@@ -16,7 +16,7 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
-        patch_size: Number of time steps per patch. Must be >= 1.
+        patch_size: Number of time steps per patch.
 
     Returns:
         Tuple ``(patch_types, patch_coords)`` where ``patch_types`` has shape
@@ -24,9 +24,6 @@ def patchify(types: Tensor, coords: Tensor, patch_size: int) -> tuple[Tensor, Te
         ``(num_patches, patch_size, 6)``.
 
     """
-    if patch_size < 1:
-        msg = "patch_size must be >= 1"
-        raise ValueError(msg)
     seq_len = types.size(0)
     pad = (-seq_len) % patch_size
     num_patches = (seq_len + pad) // patch_size

@@ -32,10 +32,7 @@ def remove_overlaps(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[list[int], list[float]]: ...
 def quad_to_cubic(
-    types: np.ndarray, coords: np.ndarray
-) -> tuple[list[int], list[float]]: ...
-def quad_to_cubic_and_merge(
-    types: np.ndarray, coords: np.ndarray
+    types: np.ndarray, coords: np.ndarray, merge_curves: bool
 ) -> tuple[list[int], list[float]]: ...
 def tight_bbox(
     types: np.ndarray, coords: np.ndarray

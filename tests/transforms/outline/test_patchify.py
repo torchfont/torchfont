@@ -1,4 +1,3 @@
-import pytest
 import torch
 
 from torchfont.transforms import patchify
@@ -24,11 +23,3 @@ def test_patchify_pads_when_not_exact_multiple() -> None:
     assert out_types.shape == (2, 2)
     assert out_coords.shape == (2, 2, 6)
     assert out_types[1, 1].item() == 0
-
-
-def test_patchify_raises_for_invalid_patch_size() -> None:
-    types = torch.tensor([1], dtype=torch.long)
-    coords = torch.zeros(1, 6, dtype=torch.float32)
-
-    with pytest.raises(ValueError, match="patch_size must be >= 1"):
-        patchify(types, coords, patch_size=0)
