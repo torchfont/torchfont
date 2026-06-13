@@ -83,6 +83,29 @@ def test_glyph_dataset_variable_fonts() -> None:
     assert len(dataset) > 0
 
 
+@pytest.mark.parametrize("codepoint", [-1, 0x110000, 0xD800, 0xDFFF])
+def test_glyph_dataset_rejects_non_scalar_codepoints(codepoint: int) -> None:
+    with pytest.raises(ValueError, match="invalid Unicode scalar value"):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns=("lato/Lato-Regular.ttf",),
+            codepoints=[codepoint],
+        )
+
+
+@pytest.mark.parametrize("codepoint", [1.5, "A"])
+def test_glyph_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
+    with pytest.raises(
+        ValueError,
+        match="codepoints must be integer Unicode scalar values",
+    ):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns=("lato/Lato-Regular.ttf",),
+            codepoints=[codepoint],  # ty: ignore[invalid-argument-type]
+        )
+
+
 def test_glyph_dataset_all_fonts() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
