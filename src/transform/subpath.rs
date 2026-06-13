@@ -125,10 +125,7 @@ mod tests {
     #[test]
     fn reverse_subpath_triangle() {
         // A→B→C  reversed to  C→B→A
-        let s = open(
-            pt(0.0, 0.0),
-            vec![line(1.0, 0.0), line(0.5, 1.0)],
-        );
+        let s = open(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)]);
         let r = reverse_subpath(&s);
         assert_eq!(r.start(), pt(0.5, 1.0));
         assert_eq!(r.elements()[0], line(1.0, 0.0));

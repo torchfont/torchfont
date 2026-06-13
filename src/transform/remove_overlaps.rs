@@ -1,7 +1,7 @@
 use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
-use crate::geom::{Bounds, BoundsPen, Outline, PathElement, Point, Subpath};
 use super::subpath::reverse_subpath;
+use crate::geom::{Bounds, BoundsPen, Outline, PathElement, Point, Subpath};
 
 // TorchFont outlines are normalized to roughly em-sized coordinates. PathOps is
 // more reliable at conventional font-unit magnitudes, so simplify a scaled copy.
@@ -215,8 +215,8 @@ fn subpath_area(subpath: &Subpath) -> f64 {
                 let (c0x, c0y) = (control0.x as f64, control0.y as f64);
                 let (c1x, c1y) = (control1.x as f64, control1.y as f64);
                 let (ex, ey) = (end_offset.x as f64, end_offset.y as f64);
-                area -= (c0x * (-c1y - ey) + c1x * (c0y - 2.0 * ey) + ex * (c0y + 2.0 * c1y))
-                    * 0.15;
+                area -=
+                    (c0x * (-c1y - ey) + c1x * (c0y - 2.0 * ey) + ex * (c0y + 2.0 * c1y)) * 0.15;
                 area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
                 previous = end;
             }
