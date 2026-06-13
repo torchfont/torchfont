@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torchfont.io import ElementType
@@ -85,6 +86,21 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
     assert out_coords is coords
     assert out_types.device.type == "cpu"
     assert out_coords.device.type == "cpu"
+
+
+def test_quad_to_cubic_rejects_mismatched_coords() -> None:
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO.value,
+            ElementType.QUAD_TO.value,
+            ElementType.END.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.zeros(2, 6, dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="coords length"):
+        quad_to_cubic(types, coords)
 
 
 def test_quad_to_cubic_supports_extra_leading_dimensions() -> None:

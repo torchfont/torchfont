@@ -14,6 +14,7 @@ pub(crate) fn quad_to_cubic<'py>(
 ) -> PyResult<()> {
     let t = types.as_slice_mut()?;
     let c = coords.as_slice_mut()?;
+    ensure_flat_coords_len(t.len(), c.len())?;
     ensure_element_types(t)?;
     curves::quad_to_cubic::quad_to_cubic(t, c, seq_len);
     Ok(())
