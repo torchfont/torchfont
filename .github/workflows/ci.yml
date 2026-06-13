@@ -51,8 +51,9 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: "true"
-      - run: uvx ruff format --check
-      - run: uvx ruff check
+      - run: uv sync --locked --only-group lint --no-install-project
+      - run: uv run --no-sync ruff format --check
+      - run: uv run --no-sync ruff check
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo check --all-targets --all-features

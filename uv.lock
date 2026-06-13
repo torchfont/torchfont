@@ -1413,6 +1413,9 @@ dev = [
     { name = "ty" },
     { name = "types-tqdm" },
 ]
+lint = [
+    { name = "ruff" },
+]
 
 [package.metadata]
 requires-dist = [{ name = "torch", specifier = ">=2.3.0", index = "https://download.pytorch.org/whl/cpu" }]
@@ -1432,6 +1435,7 @@ dev = [
     { name = "ty", specifier = ">=0.0.12" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
+lint = [{ name = "ruff", specifier = ">=0.12.4" }]
 
 [[package]]
 name = "torchmetrics"
