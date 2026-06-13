@@ -95,10 +95,7 @@ def test_glyph_dataset_rejects_non_scalar_codepoints(codepoint: int) -> None:
 
 @pytest.mark.parametrize("codepoint", [1.5, "A"])
 def test_glyph_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
-    with pytest.raises(
-        ValueError,
-        match="codepoints must be integer Unicode scalar values",
-    ):
+    with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
         GlyphDataset(
             root="tests/fonts",
             patterns=("lato/Lato-Regular.ttf",),

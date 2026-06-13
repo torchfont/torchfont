@@ -404,11 +404,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             return None
         normalized: set[int] = set()
         for codepoint in codepoints:
-            try:
-                value = index(codepoint)
-            except TypeError as err:
-                msg = "codepoints must be integer Unicode scalar values"
-                raise ValueError(msg) from err
+            value = index(codepoint)
             if (
                 not 0 <= value <= _MAX_UNICODE
                 or _SURROGATE_START <= value <= _SURROGATE_END
