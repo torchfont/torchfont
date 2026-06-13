@@ -225,3 +225,19 @@ def test_variable_length_transforms_reject_mismatched_coords(
 
     with pytest.raises(ValueError, match="coords length"):
         transform(types, coords)
+
+
+@pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
+def test_variable_length_transforms_reject_invalid_element_types(
+    transform: Callable[
+        [torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]
+    ],
+) -> None:
+    types = torch.tensor(
+        [ElementType.MOVE_TO.value, 99, ElementType.LINE_TO.value],
+        dtype=torch.long,
+    )
+    coords = torch.zeros(3, 6, dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="invalid element type 99 at index 1"):
+        transform(types, coords)
