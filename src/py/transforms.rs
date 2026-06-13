@@ -14,6 +14,7 @@ pub(crate) fn quad_to_cubic<'py>(
 ) -> PyResult<()> {
     let t = types.as_slice_mut()?;
     let c = coords.as_slice_mut()?;
+    ensure_element_types(t)?;
     curves::quad_to_cubic::quad_to_cubic(t, c, seq_len);
     Ok(())
 }
@@ -26,6 +27,7 @@ pub(crate) fn quad_to_cubic_and_merge(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     Ok(curves::quad_to_cubic::quad_to_cubic_and_merge(t, c))
 }
 
@@ -37,6 +39,7 @@ pub(crate) fn cubic_to_quad(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     curves::cubic_to_quad::cubic_to_quad(&outline)
         .map(|outline| outline.encode())
@@ -55,6 +58,7 @@ pub(crate) fn merge_curves(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     Ok(curves::merge_curves::merge_curves(&outline).encode())
 }
@@ -67,6 +71,7 @@ pub(crate) fn normalize_subpath_start_points(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     Ok(transform::subpath::normalize_subpath_start_points(&outline).encode())
 }
@@ -81,6 +86,7 @@ pub(crate) fn randomize_subpath_start_points(
     let c = coords.as_slice()?;
     let r = random_values.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     if r.len() != t.len() {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "random_values length must equal types length",
@@ -106,6 +112,7 @@ pub(crate) fn reverse_closed_subpaths(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     Ok(transform::subpath::reverse_closed_subpaths(&outline).encode())
 }
@@ -118,6 +125,7 @@ pub(crate) fn remove_overlaps(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     Ok(skia::remove_overlaps::remove_overlaps(&outline).encode())
 }
@@ -130,6 +138,7 @@ pub(crate) fn tight_bbox(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     Ok(crate::geom::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
@@ -170,6 +179,7 @@ pub(crate) fn render_bitmap(
     let t = types.as_slice()?;
     let c = coords.as_slice()?;
     ensure_flat_coords_len(t.len(), c.len())?;
+    ensure_element_types(t)?;
     let outline = Outline::decode(t, c);
     let rendered = crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_rule)
         .map_err(|_| {
@@ -205,5 +215,20 @@ fn ensure_flat_coords_len(types_len: usize, coords_len: usize) -> PyResult<()> {
         Err(pyo3::exceptions::PyValueError::new_err(
             "coords length must equal types length times 6",
         ))
+    }
+}
+
+fn ensure_element_types(types: &[i64]) -> PyResult<()> {
+    if let Some((index, value)) = types
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !(0..=ElementType::End as i64).contains(value))
+    {
+        Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "invalid element type {value} at index {index}"
+        )))
+    } else {
+        Ok(())
     }
 }
