@@ -188,7 +188,7 @@ def affine(
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         angle: Counter-clockwise rotation in degrees.
         translate: Translation ``(tx, ty)`` in em units applied
-            after rotation and scaling.
+            after rotation and scaling. Values must be finite.
         scale: Uniform scale factor (must be positive and finite).
         shear: x-shear angle in degrees.
 

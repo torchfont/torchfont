@@ -222,7 +222,7 @@ centre, then applies `translate`. All active control points and endpoints are
 transformed; zero-coordinate element types (CLOSE, END, PAD) are not modified.
 
 - `angle`: counter-clockwise rotation in degrees (default: `0.0`)
-- `translate`: translation `(tx, ty)` in em units (default: `(0.0, 0.0)`)
+- `translate`: translation `(tx, ty)` in em units; values must be finite (default: `(0.0, 0.0)`)
 - `scale`: uniform scale factor, must be positive and finite (default: `1.0`)
 - `shear`: x-shear angle in degrees (default: `0.0`)
 
