@@ -224,7 +224,7 @@ transformed; zero-coordinate element types (CLOSE, END, PAD) are not modified.
 
 - `angle`: counter-clockwise rotation in degrees (default: `0.0`)
 - `translate`: translation `(tx, ty)` in UPM-normalised units (default: `(0.0, 0.0)`)
-- `scale`: uniform scale factor, must be positive (default: `1.0`)
+- `scale`: uniform scale factor, must be positive and finite (default: `1.0`)
 - `shear`: x-shear angle in degrees (default: `0.0`)
 
 ### I/O Shape
@@ -295,7 +295,8 @@ Applies a random affine transformation sampled uniformly from the given ranges.
 - `degrees`: rotation range in degrees; a single float `d` gives `[-d, d]`
 - `translate`: maximum absolute translation `(max_dx, max_dy)` in UPM-normalised
   units; each axis is sampled from `[-max_d, max_d]` (default: no translation)
-- `scale`: scale range `(min, max)`; both values must be positive (default: no scaling)
+- `scale`: scale range `(min, max)`; both values must be positive and finite
+  (default: no scaling)
 - `shear`: x-shear range in degrees; same format as `degrees` (default: `0.0`)
 - `generator`: optional `torch.Generator` for reproducibility
 

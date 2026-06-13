@@ -98,12 +98,14 @@ def test_affine_quad_pair1_stays_zero(
     assert out[quad_idx, 3].item() == pytest.approx(0.0)
 
 
-def test_affine_non_positive_scale_raises(
+@pytest.mark.parametrize("scale", [0.0, float("nan"), float("inf")])
+def test_affine_invalid_scale_raises(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
+    scale: float,
 ) -> None:
     types, coords = simple_outline
-    with pytest.raises(ValueError, match="scale must be positive"):
-        affine(types, coords, scale=0.0)
+    with pytest.raises(ValueError, match="scale must be positive and finite"):
+        affine(types, coords, scale=scale)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")

@@ -56,12 +56,17 @@ def test_random_affine_translation_within_bounds(
     assert dy <= 0.2 + 1e-6
 
 
+@pytest.mark.parametrize(
+    "scale",
+    [(-1.0, 1.0), (float("nan"), 1.0), (1.0, float("inf"))],
+)
 def test_random_affine_invalid_scale_raises(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
+    scale: tuple[float, float],
 ) -> None:
     types, coords = simple_outline
-    with pytest.raises(ValueError, match="positive"):
-        random_affine(types, coords, scale=(-1.0, 1.0))
+    with pytest.raises(ValueError, match="positive and finite"):
+        random_affine(types, coords, scale=scale)
 
 
 def test_random_affine_reversed_scale_range_raises(
