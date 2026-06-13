@@ -315,8 +315,8 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 各アクティブな outline 座標に独立したガウスノイズを加算します。
 
-- `std`: UPM 正規化単位での標準偏差。`0.005` は 1000-UPM フォントで
-  約 5 フォントユニットに相当します
+- `std`: UPM 正規化単位での有限な非負の標準偏差。`0.005` は
+  1000-UPM フォントで約 5 フォントユニットに相当します
 - 座標が 0 の element type（CLOSE、END、PAD）と未使用の座標列は変更しません
 - `generator`: 再現性のためのオプション `torch.Generator`
 
