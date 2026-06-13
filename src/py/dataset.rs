@@ -107,7 +107,7 @@ impl GlyphDatasetBackend {
             .map(|(name, path, face_idx, instance_idx)| {
                 Ok((
                     name,
-                    style_label_id(&self.root, Path::new(&path), face_idx, instance_idx)?,
+                    style_label_id(&self.root, &path, face_idx, instance_idx)?,
                 ))
             })
             .collect()
@@ -292,7 +292,7 @@ impl GlyphDatasetBackend {
 }
 
 impl GlyphDatasetBackend {
-    fn style_rows(&self) -> Vec<(String, String, u32, Option<usize>)> {
+    fn style_rows(&self) -> Vec<(String, PathBuf, u32, Option<usize>)> {
         let mut rows = Vec::new();
         for entry in self.entries.iter() {
             let path = entry.path().to_owned();
@@ -350,7 +350,7 @@ impl GlyphDatasetBackend {
         debug_assert!(
             cp_count > 0,
             "font '{}' has no indexed code points",
-            entry.path()
+            entry.path().display()
         );
 
         let inst_start = self.index.inst_offsets[font_idx];
@@ -359,7 +359,7 @@ impl GlyphDatasetBackend {
             inst_idx < entry.instance_count(),
             "instance index {} out of range for font '{}'",
             inst_idx,
-            entry.path()
+            entry.path().display()
         );
 
         let cp_offset = sample_idx % cp_count;
@@ -387,7 +387,9 @@ fn style_label_id(
     })?;
     let quoted_path = relative_path
         .components()
-        .map(|component| urlencoding::encode(&component.as_os_str().to_string_lossy()).into_owned())
+        .map(|component| {
+            urlencoding::encode_binary(component.as_os_str().as_encoded_bytes()).into_owned()
+        })
         .collect::<Vec<_>>()
         .join("/");
     let instance_value = instance_idx.map_or_else(|| "static".to_string(), |idx| idx.to_string());

@@ -16,7 +16,7 @@ pub(crate) fn canonicalize_root(root: &str) -> Result<PathBuf, Error> {
 pub(crate) fn discover_font_files(
     root: &Path,
     patterns: Option<&[String]>,
-) -> Result<Vec<String>, Error> {
+) -> Result<Vec<PathBuf>, Error> {
     let mut builder = WalkBuilder::new(root);
     builder.standard_filters(false);
     builder.filter_entry(|entry| !is_vcs_metadata_dir(entry));
@@ -33,7 +33,7 @@ pub(crate) fn discover_font_files(
         let path = entry.path();
 
         if entry.file_type().is_some_and(|ft| ft.is_file()) && has_font_extension(path) {
-            files.push(path.to_string_lossy().into_owned());
+            files.push(path.to_path_buf());
         }
     }
 
