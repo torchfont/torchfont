@@ -65,7 +65,7 @@ def test_quad_to_cubic_converts_quadratic_segments() -> None:
     assert torch.allclose(out_coords, expected_coords)
 
 
-def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
+def test_quad_to_cubic_returns_equal_tensors_when_no_quadratic_segments() -> None:
     types = torch.tensor(
         [ElementType.MOVE_TO.value, ElementType.LINE_TO.value, ElementType.END.value],
         dtype=torch.long,
@@ -81,8 +81,8 @@ def test_quad_to_cubic_returns_inputs_when_no_quadratic_segments() -> None:
 
     out_types, out_coords = quad_to_cubic(types, coords)
 
-    assert out_types is types
-    assert out_coords is coords
+    assert torch.equal(out_types, types)
+    assert torch.equal(out_coords, coords)
     assert out_types.device.type == "cpu"
     assert out_coords.device.type == "cpu"
 

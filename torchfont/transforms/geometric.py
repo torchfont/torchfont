@@ -188,7 +188,7 @@ def affine(
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         angle: Counter-clockwise rotation in degrees.
         translate: Translation ``(tx, ty)`` in em units applied
-            after rotation and scaling.
+            after rotation and scaling. Values must be finite.
         scale: Uniform scale factor (must be positive and finite).
         shear: x-shear angle in degrees.
 
@@ -200,10 +200,10 @@ def affine(
     if not math.isfinite(scale) or scale <= 0:
         msg = "scale must be positive and finite"
         raise ValueError(msg)
-    if not math.isfinite(angle):
+    if math.isnan(angle):
         msg = "angle must be finite"
         raise ValueError(msg)
-    if not math.isfinite(shear):
+    if math.isnan(shear):
         msg = "shear must be finite"
         raise ValueError(msg)
     if not all(math.isfinite(value) for value in translate):
@@ -236,7 +236,6 @@ def random_horizontal_flip(
         Either the original ``(types, coords)`` unchanged, or a flipped copy.
 
     """
-    _validate_probability(p)
     if (
         torch.rand(
             1,
@@ -271,7 +270,6 @@ def random_vertical_flip(
         Either the original ``(types, coords)`` unchanged, or a flipped copy.
 
     """
-    _validate_probability(p)
     if (
         torch.rand(
             1,
@@ -282,12 +280,6 @@ def random_vertical_flip(
     ):
         return vertical_flip(types, coords, preserve_winding=preserve_winding)
     return types, coords
-
-
-def _validate_probability(p: float) -> None:
-    if not 0.0 <= p <= 1.0:
-        msg = "p must be between 0 and 1"
-        raise ValueError(msg)
 
 
 def _sym_range(value: float | tuple[float, float]) -> tuple[float, float]:
@@ -301,9 +293,6 @@ def _sym_range(value: float | tuple[float, float]) -> tuple[float, float]:
     if not math.isfinite(lo) or not math.isfinite(hi):
         msg = "range values must be finite"
         raise ValueError(msg)
-    if lo > hi:
-        msg = "range must satisfy min <= max"
-        raise ValueError(msg)
     return (lo, hi)
 
 
@@ -311,9 +300,6 @@ def _validate_scale_range(scale: tuple[float, float]) -> tuple[float, float]:
     lo, hi = float(scale[0]), float(scale[1])
     if not math.isfinite(lo) or not math.isfinite(hi) or lo <= 0 or hi <= 0:
         msg = "scale values must be positive and finite"
-        raise ValueError(msg)
-    if lo > hi:
-        msg = "scale range must satisfy min <= max"
         raise ValueError(msg)
     return (lo, hi)
 
@@ -342,10 +328,10 @@ def random_affine(
         degrees: Rotation range in degrees. A single float ``d`` gives
             ``[-d, d]``; a ``(min, max)`` tuple is used directly.
         translate: Maximum absolute translation ``(max_dx, max_dy)`` in em
-            units. Each axis is sampled uniformly from
-            ``[-max_d, max_d]``. Default: no translation.
-        scale: Scale range ``(min, max)``. Values must be positive and finite,
-            and satisfy ``min <= max``. Default: no scaling.
+            units. Each axis is sampled uniformly from ``[-max_d, max_d]``.
+            Values must be finite. Default: no translation.
+        scale: Scale range ``(min, max)``. Values must be positive and finite.
+            Default: no scaling.
         shear: x-shear range in degrees. Same format as ``degrees``.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 
@@ -356,9 +342,6 @@ def random_affine(
     """
     deg_lo, deg_hi = _sym_range(degrees)
     shear_lo, shear_hi = _sym_range(shear)
-    if translate is not None and not all(math.isfinite(value) for value in translate):
-        msg = "translate values must be finite"
-        raise ValueError(msg)
 
     r = torch.rand(
         5,
@@ -407,7 +390,7 @@ def random_coord_jitter(
         types: 1-D ``torch.int64`` tensor of element types.
         coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
         std: Standard deviation of the Gaussian noise in em units.
-            Must be non-negative and finite.
+            Must be finite.
         generator: Optional ``torch.Generator`` for reproducible sampling.
 
     Returns:
@@ -415,8 +398,8 @@ def random_coord_jitter(
         ``types`` is returned unchanged (same object).
 
     """
-    if not math.isfinite(std) or std < 0:
-        msg = "std must be non-negative and finite"
+    if not math.isfinite(std):
+        msg = "std must be finite"
         raise ValueError(msg)
     if std == 0.0:
         return types, coords

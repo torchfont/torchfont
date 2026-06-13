@@ -44,9 +44,6 @@ from torchfont.metadata import (
 )
 
 _T = TypeVar("_T")
-_MAX_UNICODE = 0x10FFFF
-_SURROGATE_START = 0xD800
-_SURROGATE_END = 0xDFFF
 
 
 @dataclasses.dataclass(frozen=True)
@@ -215,9 +212,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
                 of Unicode code points used to restrict the dataset content.
                 Duplicate values are ignored and the effective filter is stored
                 as sorted unique integers on ``dataset.codepoints``.
-                Values must be Unicode scalar values (``0 <= cp <= 0x10FFFF``,
-                excluding surrogates). Values that do not appear in any font
-                charmap simply produce no samples.
+                Values that do not appear in any font charmap produce no samples.
             patterns (Sequence[str] | None): Optional gitignore-style patterns
                 describing which font paths to include. No implicit filtering
                 from hidden directories or ignore files (such as ``.gitignore``,
@@ -239,7 +234,6 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
 
         """
         self.root = Path(root).expanduser().resolve()
-        self._validate_root_dir(self.root)
         self.transform = transform
         self.patterns = (
             tuple(str(pattern) for pattern in patterns)
@@ -372,7 +366,6 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
 
         """
         self.__dict__.update(state)
-        self._validate_root_dir(self.root)
         backend = _torchfont.GlyphDatasetBackend(
             str(self.root),
             self.codepoints,
@@ -389,13 +382,6 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         self._backend = backend
 
     @staticmethod
-    def _validate_root_dir(root: Path) -> None:
-        """Raise ValueError if *root* exists but is not a directory."""
-        if root.exists() and not root.is_dir():
-            msg = f"root must be a directory: {root}"
-            raise ValueError(msg)
-
-    @staticmethod
     def _normalize_codepoints(
         codepoints: Sequence[SupportsIndex] | None,
     ) -> tuple[int, ...] | None:
@@ -404,14 +390,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             return None
         normalized: set[int] = set()
         for codepoint in codepoints:
-            value = index(codepoint)
-            if (
-                not 0 <= value <= _MAX_UNICODE
-                or _SURROGATE_START <= value <= _SURROGATE_END
-            ):
-                msg = f"invalid Unicode scalar value: {value}"
-                raise ValueError(msg)
-            normalized.add(value)
+            normalized.add(index(codepoint))
         return tuple(sorted(normalized))
 
     def _normalize_index(self, idx: SupportsIndex) -> int:
@@ -456,8 +435,6 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
 
         """
         arr = self._backend.targets()
-        if arr.size == 0:
-            return torch.empty(0, 2, dtype=torch.long)
         return torch.from_numpy(arr).view(-1, 2)
 
     @property

@@ -33,18 +33,16 @@ fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
 pub(crate) fn quad_to_cubic(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
+    merge_curves: bool,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(curves::quad_to_cubic::quad_to_cubic(&outline).encode())
-}
-
-#[pyfunction]
-pub(crate) fn quad_to_cubic_and_merge(
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(curves::quad_to_cubic::quad_to_cubic_and_merge(&outline).encode())
+    let result = curves::quad_to_cubic::quad_to_cubic(&outline);
+    let result = if merge_curves {
+        crate::curves::merge_curves::merge_curves(&result)
+    } else {
+        result
+    };
+    Ok(result.encode())
 }
 
 #[pyfunction]
@@ -179,7 +177,6 @@ pub(crate) fn render_bitmap(
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(quad_to_cubic, m)?)?;
-    m.add_function(wrap_pyfunction!(quad_to_cubic_and_merge, m)?)?;
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;

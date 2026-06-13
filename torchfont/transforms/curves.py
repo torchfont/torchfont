@@ -4,7 +4,6 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.io import ElementType
 
 
 def quad_to_cubic(
@@ -23,18 +22,8 @@ def quad_to_cubic(
     """
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
-    if merge_curves:
-        out_types, out_coords = _torchfont.quad_to_cubic_and_merge(
-            types.numpy(), coords.reshape(-1).numpy()
-        )
-        return (
-            torch.tensor(out_types, dtype=torch.long),
-            torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
-        )
-    if not torch.any(types == ElementType.QUAD_TO.value):
-        return types, coords
     out_types, out_coords = _torchfont.quad_to_cubic(
-        types.numpy(), coords.reshape(-1).numpy()
+        types.numpy(), coords.reshape(-1).numpy(), merge_curves
     )
     return (
         torch.tensor(out_types, dtype=torch.long),

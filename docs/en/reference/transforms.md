@@ -152,7 +152,6 @@ patch_types, patch_coords = patchify(types, coords, patch_size=32)
 Pads a 1-D glyph sequence with zeros to the nearest multiple of `patch_size`,
 then splits it into contiguous patches.
 
-- `patch_size` must be >= 1
 - padding is zero-filled and appended only when `seq_len % patch_size != 0`
 
 ### I/O Shape
@@ -223,7 +222,7 @@ centre, then applies `translate`. All active control points and endpoints are
 transformed; zero-coordinate element types (CLOSE, END, PAD) are not modified.
 
 - `angle`: counter-clockwise rotation in degrees (default: `0.0`)
-- `translate`: translation `(tx, ty)` in em units (default: `(0.0, 0.0)`)
+- `translate`: translation `(tx, ty)` in em units; values must be finite (default: `(0.0, 0.0)`)
 - `scale`: uniform scale factor, must be positive and finite (default: `1.0`)
 - `shear`: x-shear angle in degrees (default: `0.0`)
 
@@ -244,7 +243,7 @@ types, coords = random_horizontal_flip(types, coords, p=0.5)
 
 Randomly applies `horizontal_flip` with probability `p`.
 
-- `p`: flip probability in the inclusive range `[0.0, 1.0]` (default: `0.5`)
+- `p`: flip probability (default: `0.5`)
 - `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
 - `generator`: optional `torch.Generator` for reproducibility
 
@@ -265,7 +264,7 @@ types, coords = random_vertical_flip(types, coords, p=0.5)
 
 Randomly applies `vertical_flip` with probability `p`.
 
-- `p`: flip probability in the inclusive range `[0.0, 1.0]` (default: `0.5`)
+- `p`: flip probability (default: `0.5`)
 - `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
 - `generator`: optional `torch.Generator` for reproducibility
 
@@ -317,7 +316,7 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 Adds independent Gaussian noise to each active value in the outline coordinates.
 
-- `std`: non-negative, finite standard deviation in em units;
+- `std`: finite standard deviation in em units;
   `0.005` ≈ 5 font-units in a 1000-UPM font
 - only active `coords` columns are perturbed (zero-coordinate element types
   CLOSE, END, PAD and unused zero-padding columns are left unchanged)

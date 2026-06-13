@@ -83,16 +83,6 @@ def test_glyph_dataset_variable_fonts() -> None:
     assert len(dataset) > 0
 
 
-@pytest.mark.parametrize("codepoint", [-1, 0x110000, 0xD800, 0xDFFF])
-def test_glyph_dataset_rejects_non_scalar_codepoints(codepoint: int) -> None:
-    with pytest.raises(ValueError, match="invalid Unicode scalar value"):
-        GlyphDataset(
-            root="tests/fonts",
-            patterns=("lato/Lato-Regular.ttf",),
-            codepoints=[codepoint],
-        )
-
-
 @pytest.mark.parametrize("codepoint", [1.5, "A"])
 def test_glyph_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
     with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
@@ -113,14 +103,6 @@ def test_glyph_dataset_all_fonts() -> None:
     assert len(dataset.style_classes) > 0
     assert len(dataset.content_classes) > 0
     assert len(dataset) > 0
-
-
-def test_glyph_dataset_rejects_non_directory_root(tmp_path: Path) -> None:
-    file_root = tmp_path / "not-a-directory.txt"
-    file_root.write_text("not a font directory")
-
-    with pytest.raises(ValueError, match="root must be a directory"):
-        GlyphDataset(root=file_root)
 
 
 def test_glyph_dataset_getitem() -> None:

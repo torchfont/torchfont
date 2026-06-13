@@ -150,7 +150,6 @@ patch_types, patch_coords = patchify(types, coords, patch_size=32)
 1-D のグリフシーケンスを `patch_size` の倍数にゼロパディングし、
 連続したパッチに分割します。
 
-- `patch_size` は 1 以上が必要です
 - `seq_len % patch_size != 0` の場合のみ末尾にゼロが追加されます
 
 ### 入出力
@@ -221,7 +220,7 @@ tight bounding-box の中心を基準に一様スケール・x-shear・回転を
 座標が 0 の element type（CLOSE、END、PAD）は変更しません。
 
 - `angle`: 反時計回りの回転角度（単位: 度、デフォルト: `0.0`）
-- `translate`: em 単位での平行移動 `(tx, ty)`（デフォルト: `(0.0, 0.0)`）
+- `translate`: em 単位での平行移動 `(tx, ty)`（有限値が必須、デフォルト: `(0.0, 0.0)`）
 - `scale`: 一様スケール係数（正かつ有限の値が必須、デフォルト: `1.0`）
 - `shear`: x-shear 角度（単位: 度、デフォルト: `0.0`）
 
@@ -242,7 +241,7 @@ types, coords = random_horizontal_flip(types, coords, p=0.5)
 
 確率 `p` で `horizontal_flip` をランダムに適用します。
 
-- `p`: `[0.0, 1.0]` の範囲の反転確率（デフォルト: `0.5`）
+- `p`: 反転確率（デフォルト: `0.5`）
 - `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
 - `generator`: 再現性のためのオプション `torch.Generator`
 
@@ -263,7 +262,7 @@ types, coords = random_vertical_flip(types, coords, p=0.5)
 
 確率 `p` で `vertical_flip` をランダムに適用します。
 
-- `p`: `[0.0, 1.0]` の範囲の反転確率（デフォルト: `0.5`）
+- `p`: 反転確率（デフォルト: `0.5`）
 - `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
 - `generator`: 再現性のためのオプション `torch.Generator`
 
@@ -315,7 +314,7 @@ types, coords = random_coord_jitter(types, coords, std=0.005)
 
 各アクティブな outline 座標に独立したガウスノイズを加算します。
 
-- `std`: em 単位での有限な非負の標準偏差。`0.005` は
+- `std`: em 単位での有限な標準偏差。`0.005` は
   1000-UPM フォントで約 5 フォントユニットに相当します
 - 座標が 0 の element type（CLOSE、END、PAD）と未使用の座標列は変更しません
 - `generator`: 再現性のためのオプション `torch.Generator`

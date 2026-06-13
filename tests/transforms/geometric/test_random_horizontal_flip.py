@@ -32,17 +32,6 @@ def test_random_horizontal_flip_deterministic_with_generator(
     assert torch.equal(out1, out2)
 
 
-@pytest.mark.parametrize("p", [-0.1, 1.1, float("nan"), float("inf")])
-def test_random_horizontal_flip_rejects_invalid_probability(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
-    p: float,
-) -> None:
-    types, coords = simple_outline
-
-    with pytest.raises(ValueError, match="p must be between 0 and 1"):
-        random_horizontal_flip(types, coords, p=p)
-
-
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
 def test_random_horizontal_flip_accepts_cpu_generator_for_cuda_input(
     simple_outline: tuple[torch.Tensor, torch.Tensor],

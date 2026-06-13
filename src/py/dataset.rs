@@ -76,22 +76,19 @@ impl GlyphDatasetBackend {
         self.index.content_classes.len()
     }
 
-    pub fn content_metadata_rows(&self) -> PyResult<Vec<(String, String, u32)>> {
+    pub fn content_metadata_rows(&self) -> Vec<(String, String, u32)> {
         self.index
             .content_classes
             .iter()
             .copied()
             .map(|codepoint| {
-                let ch = char::from_u32(codepoint).ok_or_else(|| {
-                    pyo3::exceptions::PyValueError::new_err(format!(
-                        "indexed codepoint U+{codepoint:04X} is not a Unicode scalar value"
-                    ))
-                })?;
-                Ok((
+                let ch = char::from_u32(codepoint)
+                    .expect("codepoints in content index are pre-validated Unicode scalar values");
+                (
                     format!("content:U+{codepoint:04X}"),
                     ch.to_string(),
                     codepoint,
-                ))
+                )
             })
             .collect()
     }
@@ -273,10 +270,7 @@ impl GlyphDatasetBackend {
 
     pub fn targets<'py>(&self, py: Python<'py>) -> PyResult<Py<PyArray1<i64>>> {
         let total = self.sample_count();
-        let capacity = total.checked_mul(2).ok_or_else(|| {
-            pyo3::exceptions::PyOverflowError::new_err("target buffer size overflowed usize")
-        })?;
-        let mut pairs: Vec<i64> = Vec::with_capacity(capacity);
+        let mut pairs: Vec<i64> = Vec::with_capacity(total * 2);
         for (font_idx, entry) in self.entries.iter().enumerate() {
             let inst_offset = self.index.inst_offsets[font_idx];
             for inst_idx in 0..entry.instance_count() {

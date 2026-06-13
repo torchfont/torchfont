@@ -48,6 +48,4 @@ def render_bitmap(
     raw, width, height = _torchfont.render_bitmap(
         types.numpy(), coords.reshape(-1).numpy(), size, mode, fill_rule
     )
-    if width == 0 or height == 0:
-        return torch.empty((height, width), dtype=torch.uint8)
     return torch.from_numpy(raw).view(height, width)
