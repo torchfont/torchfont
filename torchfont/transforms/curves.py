@@ -46,7 +46,7 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Convert ``ElementType.CURVE_TO`` entries to ``ElementType.QUAD_TO`` sequences.
 
     Each cubic Bezier segment is replaced by the minimum number of quadratic
-    Bezier segments needed to approximate it within ~1e-3 normalised UPM units
+    Bezier segments needed to approximate it within ~1e-3 em units
     (roughly 1 font-unit in a 1000-UPM font), following the fonttools cu2qu
     approach. Consecutive quadratics share implicit on-curve points at the
     midpoints of adjacent off-curve control points (TrueType spline).
@@ -84,7 +84,7 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     collinear and the segments run in the same direction. Unlike the fonttools
     ``merge_curves`` helper this transform also handles line segments.
 
-    The comparison tolerance is ~1e-3 in normalised UPM coordinates (roughly
+    The comparison tolerance is ~1e-3 em units (roughly
     1 font-unit in a 1000-UPM font), matching the precision typically used by
     fonttools.
 

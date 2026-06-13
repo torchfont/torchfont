@@ -114,7 +114,8 @@ Which dimensions are used depends on the element type:
 - **`Close` / `End` / `Pad`**: all zeros
 
 ::: info
-Coordinates are normalized by the font `units_per_em`.
+Coordinates are in em units: font design units divided by the font's
+`unitsPerEm`.
 :::
 
 Quadratic curves are emitted as `QuadTo` without conversion to cubic. To keep tensor shape fixed, `QuadTo` uses `[cx0, cy0, 0, 0, x, y]`.

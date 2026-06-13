@@ -116,7 +116,8 @@ tensor([cx0, cy0, cx1, cy1, x, y])
 - **`Close` / `End` / `Pad`**: すべて 0
 
 ::: info
-Coordinates はフォントの `units_per_em` で正規化されています。
+Coordinates は em 単位です。フォントの design units を `unitsPerEm` で
+割った値として表されます。
 :::
 
 2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の Coordinates は `[cx0, cy0, 0, 0, x, y]` です。

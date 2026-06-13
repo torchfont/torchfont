@@ -4,7 +4,7 @@ pub(crate) mod quad_to_cubic;
 
 use crate::geom::Point;
 
-// Absolute tolerance for curve operations (normalized coords ≈ 1 font-unit in 1000 UPM).
+// Absolute tolerance in em units (≈ 1 font unit in a 1000-UPM font).
 pub(crate) const TOLERANCE: f32 = 1e-3;
 
 pub(crate) type Cubic = (Point, Point, Point, Point);
