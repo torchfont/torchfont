@@ -28,7 +28,13 @@ pub(crate) fn normalize_subpath_start_points(outline: &Outline) -> Outline {
 
 pub(crate) fn randomize_subpath_start_points(outline: &Outline, random_values: &[f32]) -> Outline {
     transform_start_points(outline, |subpath, subpath_idx| {
-        let node_count = subpath.elements().len() + 1;
+        let node_count = subpath.elements().len()
+            + usize::from(
+                subpath
+                    .elements()
+                    .last()
+                    .is_none_or(|element| element.end() != subpath.start()),
+            );
         let value = random_values[subpath_idx].clamp(0.0, 1.0 - f32::EPSILON);
         (value * node_count as f32) as usize
     })
@@ -200,6 +206,30 @@ mod tests {
         let outline = Outline::new(vec![subpath.clone()]);
         let result = normalize_subpath_start_points(&outline);
         assert_eq!(result.subpaths()[0], subpath);
+    }
+
+    // --- randomize_subpath_start_points ---
+
+    #[test]
+    fn randomize_counts_implicit_close_endpoint() {
+        let outline = Outline::new(vec![closed(
+            pt(0.0, 0.0),
+            vec![line(1.0, 0.0), line(1.0, 1.0)],
+        )]);
+        let result = randomize_subpath_start_points(&outline, &[0.9]);
+
+        assert_eq!(result.subpaths()[0].start(), pt(1.0, 1.0));
+    }
+
+    #[test]
+    fn randomize_excludes_duplicate_explicit_close_endpoint() {
+        let outline = Outline::new(vec![closed(
+            pt(0.0, 0.0),
+            vec![line(1.0, 0.0), line(1.0, 1.0), line(0.0, 0.0)],
+        )]);
+        let result = randomize_subpath_start_points(&outline, &[0.9]);
+
+        assert_eq!(result.subpaths()[0].start(), pt(1.0, 1.0));
     }
 
     // --- reverse_closed_subpaths ---
