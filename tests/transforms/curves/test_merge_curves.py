@@ -241,3 +241,52 @@ def test_variable_length_transforms_reject_invalid_element_types(
 
     with pytest.raises(ValueError, match="invalid element type 99 at index 1"):
         transform(types, coords)
+
+
+@pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
+def test_variable_length_transforms_strip_padding_after_end(
+    transform: Callable[
+        [torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]
+    ],
+) -> None:
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO.value,
+            ElementType.LINE_TO.value,
+            ElementType.END.value,
+            ElementType.PAD.value,
+            ElementType.PAD.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.zeros(5, 6, dtype=torch.float32)
+    coords[1, 4:6] = torch.tensor([1.0, 1.0])
+
+    out_types, out_coords = transform(types, coords)
+
+    assert out_types.tolist() == [
+        ElementType.MOVE_TO.value,
+        ElementType.LINE_TO.value,
+        ElementType.END.value,
+    ]
+    assert out_coords.shape == (3, 6)
+
+
+@pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
+def test_variable_length_transforms_reject_non_padding_after_end(
+    transform: Callable[
+        [torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]
+    ],
+) -> None:
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO.value,
+            ElementType.END.value,
+            ElementType.LINE_TO.value,
+        ],
+        dtype=torch.long,
+    )
+    coords = torch.zeros(3, 6, dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="only PAD elements may follow END"):
+        transform(types, coords)

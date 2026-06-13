@@ -5,6 +5,7 @@ use super::{Outline, PathElement, Point};
 pub(crate) enum DecodeError {
     CoordsLen,
     InvalidElementType { index: usize, value: i64 },
+    NonPaddingAfterEnd { index: usize, value: i64 },
 }
 
 impl<'a> TryFrom<(&'a [i64], &'a [f32])> for Outline {
@@ -13,7 +14,12 @@ impl<'a> TryFrom<(&'a [i64], &'a [f32])> for Outline {
         if coords.len() != types.len() * 6 {
             return Err(DecodeError::CoordsLen);
         }
-        if let Some((index, value)) = types
+
+        let outline_len = types
+            .iter()
+            .position(|&value| value == ElementType::End as i64)
+            .map_or(types.len(), |index| index + 1);
+        if let Some((index, value)) = types[..outline_len]
             .iter()
             .copied()
             .enumerate()
@@ -21,7 +27,22 @@ impl<'a> TryFrom<(&'a [i64], &'a [f32])> for Outline {
         {
             return Err(DecodeError::InvalidElementType { index, value });
         }
-        Ok(Self::decode(types, coords))
+        if let Some((offset, value)) = types[outline_len..]
+            .iter()
+            .copied()
+            .enumerate()
+            .find(|&(_, value)| value != 0)
+        {
+            return Err(DecodeError::NonPaddingAfterEnd {
+                index: outline_len + offset,
+                value,
+            });
+        }
+
+        Ok(Self::decode(
+            &types[..outline_len],
+            &coords[..outline_len * 6],
+        ))
     }
 }
 
@@ -152,4 +173,48 @@ fn push_endpoint(types: &mut Vec<i64>, coords: &mut Vec<f32>, ty: ElementType, p
 fn push(types: &mut Vec<i64>, coords: &mut Vec<f32>, ty: ElementType, values: [f32; 6]) {
     types.push(ty as i64);
     coords.extend_from_slice(&values);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_from_strips_padding_after_end() {
+        let types = [ElementType::MoveTo as i64, ElementType::End as i64, 0, 0];
+        let coords = [0.0; 24];
+
+        let outline = Outline::try_from((types.as_slice(), coords.as_slice())).unwrap();
+
+        assert_eq!(
+            outline.encode().0,
+            [ElementType::MoveTo as i64, ElementType::End as i64]
+        );
+    }
+
+    #[test]
+    fn try_from_rejects_padding_before_end() {
+        let types = [ElementType::MoveTo as i64, 0, ElementType::End as i64];
+        let coords = [0.0; 18];
+
+        assert!(matches!(
+            Outline::try_from((types.as_slice(), coords.as_slice())),
+            Err(DecodeError::InvalidElementType { index: 1, value: 0 })
+        ));
+    }
+
+    #[test]
+    fn try_from_rejects_non_padding_after_end() {
+        let types = [
+            ElementType::MoveTo as i64,
+            ElementType::End as i64,
+            ElementType::LineTo as i64,
+        ];
+        let coords = [0.0; 18];
+
+        assert!(matches!(
+            Outline::try_from((types.as_slice(), coords.as_slice())),
+            Err(DecodeError::NonPaddingAfterEnd { index: 2, value: 2 })
+        ));
+    }
 }
