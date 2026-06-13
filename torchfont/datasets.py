@@ -10,7 +10,9 @@ Notes:
     Unpickling (including ``DataLoader`` worker spawn) rebuilds the index from
     the files on disk and verifies it against the pickled structure
     fingerprint, raising ``RuntimeError`` instead of silently misaligning
-    labels when the files changed in between.
+    labels when paths, faces, code points, or variation instance counts changed
+    in between. Outline and metadata-only edits that preserve this structure
+    are intentionally read from the current files on disk.
 
 Examples:
     Iterate glyph samples from a directory of fonts::
@@ -356,6 +358,10 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         file order, paths, face indices, code points, and variation instance
         counts.
 
+        Outline and metadata-only edits are deliberately not fingerprinted:
+        files on disk remain the source of truth when the sample-to-label
+        structure is unchanged.
+
         Raises:
             RuntimeError: If the font files under ``root`` no longer produce
                 the same index structure as when the dataset was pickled,
@@ -371,10 +377,10 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         )
         if backend.fingerprint != self._fingerprint:
             msg = (
-                f"font files under {str(self.root)!r} no longer match the "
-                "dataset this object was pickled from; sample indices and "
-                "targets would be inconsistent. Recreate the dataset from "
-                "the current files."
+                f"font files under {str(self.root)!r} no longer have the same "
+                "dataset structure as when this object was pickled; sample "
+                "indices and targets would be inconsistent. Recreate the "
+                "dataset from the current files."
             )
             raise RuntimeError(msg)
         self._backend = backend
