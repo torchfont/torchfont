@@ -48,14 +48,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Install skia-safe native dependencies
-        run: sudo sh .github/scripts/install-linux-deps.sh host
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: "true"
-      - run: uv run ruff format --diff
-      - run: uv run ruff check
-      - run: uv run ty check
+      - run: uvx ruff format --check
+      - run: uvx ruff check
 
   rust-static-check:
     name: Rust static check
@@ -87,6 +84,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: "true"
+      - run: uv run --locked ty check
       - run: >-
           uv run
           --isolated
