@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import multiprocessing as mp
+import os
 import pickle
 import shutil
 import subprocess
@@ -471,6 +472,22 @@ def test_glyph_dataset_discovers_fonts_in_hidden_directories(
             "style:path=.fonts/Lato-Regular.ttf;face=0;instance=static"
         )
         for label in dataset.metadata.styles
+    )
+
+
+def test_glyph_dataset_supports_non_utf8_font_paths(tmp_path: Path) -> None:
+    if os.name == "nt":
+        pytest.skip("Windows paths are Unicode")
+
+    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
+    font_path = tmp_path / os.fsdecode(b"Lato-\xff.ttf")
+    shutil.copy(source, font_path)
+
+    dataset = GlyphDataset(root=tmp_path, codepoints=[0x41])
+
+    assert len(dataset) == 1
+    assert dataset.metadata.styles[0].label_id.startswith(
+        "style:path=Lato-%FF.ttf;face=0;instance=static"
     )
 
 

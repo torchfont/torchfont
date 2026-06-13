@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use memmap2::Mmap;
 use skrifa::{
@@ -15,13 +18,13 @@ use crate::{
 };
 
 pub(super) struct GlyphReader {
-    path: String,
+    path: PathBuf,
     face_index: u32,
     data: Arc<Mmap>,
 }
 
 impl GlyphReader {
-    pub(super) fn new(path: String, face_index: u32, data: Arc<Mmap>) -> Self {
+    pub(super) fn new(path: PathBuf, face_index: u32, data: Arc<Mmap>) -> Self {
         Self {
             path,
             face_index,
@@ -29,7 +32,7 @@ impl GlyphReader {
         }
     }
 
-    pub(super) fn path(&self) -> &str {
+    pub(super) fn path(&self) -> &Path {
         &self.path
     }
 
@@ -49,7 +52,7 @@ impl GlyphReader {
                 Error::Parse(format!(
                     "glyph id {} missing from '{}'",
                     glyph_id.to_u32(),
-                    self.path
+                    self.path.display()
                 ))
             })?;
 
@@ -122,7 +125,8 @@ impl GlyphReader {
         let face_index = self.face_index;
         let font = skrifa::FontRef::from_index(&self.data[..], face_index).map_err(|err| {
             Error::Parse(format!(
-                "failed to parse '{path}' (face {face_index}): {err}"
+                "failed to parse '{}' (face {face_index}): {err}",
+                path.display()
             ))
         })?;
         f(font)
@@ -139,7 +143,7 @@ impl GlyphReader {
                 .ok_or_else(|| {
                     Error::OutOfRange(format!(
                         "instance index {idx} out of range for '{}'",
-                        self.path
+                        self.path.display()
                     ))
                 })
                 .map(LocationRef::from)

@@ -1,5 +1,6 @@
 use crate::error::Error;
 use crate::font::FontEntry;
+use std::path::PathBuf;
 
 pub(crate) struct DatasetIndex {
     pub(crate) sample_offsets: Vec<usize>,
@@ -16,7 +17,7 @@ impl DatasetIndex {
 }
 
 pub(crate) fn load_entries_and_index(
-    files: Vec<String>,
+    files: Vec<PathBuf>,
     filter: Option<&[u32]>,
 ) -> Result<(Vec<FontEntry>, DatasetIndex), Error> {
     let mut entries = Vec::new();
@@ -58,7 +59,7 @@ pub(crate) fn structure_fingerprint(entries: &[FontEntry]) -> u64 {
     let mut hash = Fnv1a::new();
     hash.write_u64(entries.len() as u64);
     for entry in entries {
-        let path = entry.path().as_bytes();
+        let path = entry.path().as_os_str().as_encoded_bytes();
         hash.write_u64(path.len() as u64);
         hash.write(path);
         hash.write_u32(entry.face_index());

@@ -1,4 +1,4 @@
-use std::{fs, sync::Arc};
+use std::{fs, path::Path, sync::Arc};
 
 use memmap2::Mmap;
 use skrifa::raw::types::NameId;
@@ -30,10 +30,10 @@ pub(crate) struct FontEntry {
 }
 
 impl FontEntry {
-    pub(crate) fn load_faces(path: &str, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
+    pub(crate) fn load_faces(path: &Path, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
         let mapped = Arc::new(map_font(path)?);
         let parsed = FileRef::new(&mapped[..])
-            .map_err(|err| Error::Parse(format!("failed to parse '{path}': {err}")))?;
+            .map_err(|err| Error::Parse(format!("failed to parse '{}': {err}", path.display())))?;
 
         let entries = parsed
             .fonts()
@@ -41,7 +41,8 @@ impl FontEntry {
             .map(|(face_index, face)| {
                 let font = face.map_err(|err| {
                     Error::Parse(format!(
-                        "failed to parse '{path}' (face {face_index}): {err}"
+                        "failed to parse '{}' (face {face_index}): {err}",
+                        path.display()
                     ))
                 })?;
                 Self::from_face(path, face_index as u32, Arc::clone(&mapped), &font, filter)
@@ -50,7 +51,8 @@ impl FontEntry {
 
         if entries.is_empty() {
             return Err(Error::Parse(format!(
-                "font file '{path}' does not contain any fonts"
+                "font file '{}' does not contain any fonts",
+                path.display()
             )));
         }
         Ok(entries)
@@ -79,7 +81,7 @@ impl FontEntry {
         !self.locations.is_empty()
     }
 
-    pub(crate) fn path(&self) -> &str {
+    pub(crate) fn path(&self) -> &Path {
         self.reader.path()
     }
 
@@ -107,7 +109,7 @@ impl FontEntry {
     }
 
     fn from_face(
-        base_path: &str,
+        base_path: &Path,
         face_index: u32,
         data: Arc<Mmap>,
         font: &skrifa::FontRef<'_>,
@@ -143,7 +145,8 @@ impl FontEntry {
                     debug_assert_eq!(
                         axis_tags.len(),
                         inst.user_coords().count(),
-                        "font '{base_path}' (face {face_index}) reported mismatched axis metadata",
+                        "font '{}' (face {face_index}) reported mismatched axis metadata",
+                        base_path.display(),
                     );
                     axis_tags.iter().cloned().zip(inst.user_coords()).collect()
                 })
@@ -155,7 +158,7 @@ impl FontEntry {
                 codepoints,
                 glyph_ids,
             },
-            reader: GlyphReader::new(base_path.to_string(), face_index, data),
+            reader: GlyphReader::new(base_path.to_path_buf(), face_index, data),
             head,
             hhea,
             os2,
@@ -174,7 +177,7 @@ impl FontEntry {
             .map_err(|_| {
                 Error::OutOfRange(format!(
                     "codepoint U+{codepoint:04X} missing from '{}'",
-                    self.reader.path()
+                    self.reader.path().display()
                 ))
             })
     }
@@ -182,13 +185,14 @@ impl FontEntry {
 
 fn parse_font_tables(
     font: &skrifa::FontRef<'_>,
-    path: &str,
+    path: &Path,
     face_index: u32,
 ) -> Result<(Head, Hhea, Os2, Post, Maxp, Name), Error> {
     let table_err = |table: &'static str| {
         move |err: skrifa::raw::ReadError| {
             Error::Parse(format!(
-                "font '{path}' (face {face_index}) '{table}' table error: {err}"
+                "font '{}' (face {face_index}) '{table}' table error: {err}",
+                path.display()
             ))
         }
     };
@@ -326,10 +330,10 @@ fn parse_font_tables(
     Ok((head, hhea, os2, post, maxp, name))
 }
 
-fn map_font(path: &str) -> Result<Mmap, Error> {
-    let file =
-        fs::File::open(path).map_err(|err| Error::Io(format!("failed to open '{path}': {err}")))?;
+fn map_font(path: &Path) -> Result<Mmap, Error> {
+    let file = fs::File::open(path)
+        .map_err(|err| Error::Io(format!("failed to open '{}': {err}", path.display())))?;
     let mmap = unsafe { Mmap::map(&file) }
-        .map_err(|err| Error::Io(format!("failed to map '{path}': {err}")))?;
+        .map_err(|err| Error::Io(format!("failed to map '{}': {err}", path.display())))?;
     Ok(mmap)
 }
