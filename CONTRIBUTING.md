@@ -41,8 +41,8 @@ mise run test
 ```
 
 `mise run check` covers Rust formatting, clippy, cargo check, Ruff, and `ty`.
-`mise run test` builds the Rust extension with `maturin develop` before running
-pytest.
+`mise run test` runs both `rust-test` and `python-test`; the Python task builds
+the Rust extension with `maturin develop` before running pytest.
 
 ## Documentation
 

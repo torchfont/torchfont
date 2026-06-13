@@ -73,9 +73,16 @@ run = [
   "uv run maturin develop --release",
 ]
 
-[tasks.test]
+[tasks.rust-test]
+sources = ["Cargo.toml", "Cargo.lock", "src/**/*.rs"]
+run = "cargo test --all-targets --all-features"
+
+[tasks.python-test]
 depends = ["build"]
 run = "uv run pytest tests"
+
+[tasks.test]
+depends = ["rust-test", "python-test"]
 
 [tasks.test-google-fonts]
 depends = ["build", "data-sync"]
