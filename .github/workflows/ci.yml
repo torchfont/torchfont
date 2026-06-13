@@ -82,8 +82,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: "true"
-      - run: uv add "torch==${{ matrix.torch-version }}"
-      - run: uv run pytest tests
+      - run: >-
+          uv run
+          --isolated
+          --locked
+          --index https://download.pytorch.org/whl/cpu
+          --with "torch==${{ matrix.torch-version }}"
+          pytest tests
 
   linux:
     runs-on: ${{ matrix.platform.runner }}
