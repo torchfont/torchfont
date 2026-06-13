@@ -195,6 +195,15 @@ def affine(
     if not math.isfinite(scale) or scale <= 0:
         msg = "scale must be positive and finite"
         raise ValueError(msg)
+    if not math.isfinite(angle):
+        msg = "angle must be finite"
+        raise ValueError(msg)
+    if not math.isfinite(shear):
+        msg = "shear must be finite"
+        raise ValueError(msg)
+    if not all(math.isfinite(value) for value in translate):
+        msg = "translate values must be finite"
+        raise ValueError(msg)
     matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
     center = _bbox_center(types, coords)
     return types, _apply_matrix(types, coords, matrix, center, translate)
@@ -264,8 +273,15 @@ def _validate_probability(p: float) -> None:
 
 def _sym_range(value: float | tuple[float, float]) -> tuple[float, float]:
     if isinstance(value, (int, float)):
-        return (-abs(float(value)), abs(float(value)))
+        limit = float(value)
+        if not math.isfinite(limit):
+            msg = "range values must be finite"
+            raise ValueError(msg)
+        return (-abs(limit), abs(limit))
     lo, hi = float(value[0]), float(value[1])
+    if not math.isfinite(lo) or not math.isfinite(hi):
+        msg = "range values must be finite"
+        raise ValueError(msg)
     if lo > hi:
         msg = "range must satisfy min <= max"
         raise ValueError(msg)
@@ -321,6 +337,9 @@ def random_affine(
     """
     deg_lo, deg_hi = _sym_range(degrees)
     shear_lo, shear_hi = _sym_range(shear)
+    if translate is not None and not all(math.isfinite(value) for value in translate):
+        msg = "translate values must be finite"
+        raise ValueError(msg)
 
     r = torch.rand(5, generator=generator)
 

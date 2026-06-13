@@ -77,6 +77,45 @@ def test_random_affine_reversed_scale_range_raises(
         random_affine(types, coords, scale=(2.0, 1.0))
 
 
+@pytest.mark.parametrize(
+    "degrees",
+    [float("nan"), (0.0, float("inf"))],
+)
+def test_random_affine_rejects_non_finite_degrees(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    degrees: float | tuple[float, float],
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="range values must be finite"):
+        random_affine(types, coords, degrees=degrees)
+
+
+@pytest.mark.parametrize(
+    "shear",
+    [float("inf"), (float("nan"), 0.0)],
+)
+def test_random_affine_rejects_non_finite_shear(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    shear: float | tuple[float, float],
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="range values must be finite"):
+        random_affine(types, coords, shear=shear)
+
+
+@pytest.mark.parametrize(
+    "translate",
+    [(float("inf"), 0.0), (0.0, float("nan"))],
+)
+def test_random_affine_rejects_non_finite_translate(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    translate: tuple[float, float],
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="translate values must be finite"):
+        random_affine(types, coords, translate=translate)
+
+
 def test_random_affine_quad_pair1_stays_zero(
     quad_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:

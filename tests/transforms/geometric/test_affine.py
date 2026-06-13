@@ -108,6 +108,39 @@ def test_affine_invalid_scale_raises(
         affine(types, coords, scale=scale)
 
 
+@pytest.mark.parametrize("angle", [float("nan"), float("inf")])
+def test_affine_rejects_non_finite_angle(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    angle: float,
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="angle must be finite"):
+        affine(types, coords, angle=angle)
+
+
+@pytest.mark.parametrize("shear", [float("nan"), float("inf")])
+def test_affine_rejects_non_finite_shear(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    shear: float,
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="shear must be finite"):
+        affine(types, coords, shear=shear)
+
+
+@pytest.mark.parametrize(
+    "translate",
+    [(float("nan"), 0.0), (0.0, float("inf"))],
+)
+def test_affine_rejects_non_finite_translate(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    translate: tuple[float, float],
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="translate values must be finite"):
+        affine(types, coords, translate=translate)
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
 def test_affine_preserves_cuda_device(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
