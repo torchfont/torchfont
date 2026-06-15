@@ -7,7 +7,13 @@ reduce its size.
 """
 
 from torchfont._torchfont import (
-    LATIN_CORE,  # noqa: F401
-    LATIN_KERNEL,  # noqa: F401
-    get_glyphset_codepoints,  # noqa: F401
+    LATIN_CORE,
+    LATIN_KERNEL,
+    get_glyphset_codepoints,
 )
+
+__all__ = [
+    "LATIN_CORE",
+    "LATIN_KERNEL",
+    "get_glyphset_codepoints",
+]

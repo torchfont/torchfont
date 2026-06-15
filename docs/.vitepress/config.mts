@@ -64,6 +64,7 @@ export default defineConfig({
               text: 'リファレンス',
               items: [
                 { text: 'データセット', link: '/ja/reference/datasets' },
+                { text: 'グリフセット', link: '/ja/reference/glyphsets' },
                 { text: 'トランスフォーム', link: '/ja/reference/transforms' },
                 { text: 'IO ユーティリティ', link: '/ja/reference/io' },
               ],
@@ -108,6 +109,7 @@ export default defineConfig({
               text: 'Reference',
               items: [
                 { text: 'Datasets', link: '/en/reference/datasets' },
+                { text: 'Glyphsets', link: '/en/reference/glyphsets' },
                 { text: 'Transforms', link: '/en/reference/transforms' },
                 { text: 'IO Utilities', link: '/en/reference/io' },
               ],

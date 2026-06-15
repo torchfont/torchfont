@@ -17,7 +17,6 @@ fn get_glyphset_codepoints(glyphset_name: &str) -> PyResult<Vec<u32>> {
         })
 }
 
-#[pymodule]
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add(
         "LATIN_CORE",
