@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.glyphsets import LATIN_CORE
 from torchfont.transforms import patchify, quad_to_cubic, remove_overlaps, render_bitmap
 
 
@@ -29,6 +30,7 @@ def collate_fn(
 
 def main() -> None:
     dataset = GlyphDataset(
+        codepoints=LATIN_CORE,
         root="data/google/fonts",
         patterns=(
             "apache/*/*.ttf",

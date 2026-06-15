@@ -25,6 +25,7 @@ tiny-skia = { version = "0.12.0", default-features = false, features = [
 ] }
 urlencoding = "2.1.3"
 walkdir = "2.5.0"
+google-fonts-glyphsets = { git = "https://github.com/googlefonts/glyphsets" }
 
 [dependencies.pyo3]
 version = "0.28.3"
