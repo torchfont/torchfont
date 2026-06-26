@@ -4,3 +4,8 @@ data/adobe/source-han-code-jp/
 data/fortawesome/font-awesome/
 data/google/fonts/
 data/google/material_design_icons/
+
+# Keep shared repository tooling discoverable in default ripgrep file searches.
+!/.devcontainer/
+!/.github/
+!/.vscode/
