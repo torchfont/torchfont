@@ -1,0 +1,6 @@
+# Large optional data submodules. Keep them out of default repository searches;
+# search them explicitly with `rg -u` or a direct path when needed.
+data/adobe/source-han-code-jp/
+data/fortawesome/font-awesome/
+data/google/fonts/
+data/google/material_design_icons/
