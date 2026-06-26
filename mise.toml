@@ -69,10 +69,7 @@ sources = [
 ]
 outputs = ["target/maturin/lib_torchfont.so"]
 depends = ["check"]
-run = [
-  "rm -f target/maturin/lib_torchfont.so",
-  "uv run maturin develop --release",
-]
+run = ["uv run maturin develop --release"]
 
 [tasks.test]
 depends = ["build"]
