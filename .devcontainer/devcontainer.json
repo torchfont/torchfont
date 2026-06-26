@@ -32,7 +32,7 @@
 		"MISE_TRUSTED_CONFIG_PATHS": "/workspaces",
 		"UV_LINK_MODE": "copy"
 	},
-	"onCreateCommand": ".devcontainer/oncreate.sh",
+	"onCreateCommand": "sudo chown -R vscode:vscode /mise /home/vscode/.cache/uv .venv target node_modules data",
 	"postCreateCommand": "mise run setup",
 	"customizations": {
 		"vscode": {
