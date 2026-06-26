@@ -39,15 +39,15 @@ Repository = "https://github.com/torchfont/torchfont"
 Releases = "https://github.com/torchfont/torchfont/releases"
 
 [build-system]
-requires = ["maturin>=1.10,<2.0"]
+requires = ["maturin>=1.12.6,<2.0"]
 build-backend = "maturin"
 
 [dependency-groups]
 dev = [
     "fonttools>=4.63.0",
     "lightning>=2.6.0",
-    "maturin[patchelf]>=1.10.2; sys_platform == 'linux'",
-    "maturin>=1.10.2; sys_platform != 'linux'",
+    "maturin[patchelf]>=1.12.6; sys_platform == 'linux'",
+    "maturin>=1.12.6; sys_platform != 'linux'",
     "numpy>=2.2.6",
     "pytest>=8.4.2",
     "pytest-benchmark>=5.1.0",
