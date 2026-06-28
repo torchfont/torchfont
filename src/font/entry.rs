@@ -3,11 +3,12 @@ use std::{fs, path::Path, sync::Arc};
 use memmap2::Mmap;
 use skrifa::raw::types::NameId;
 use skrifa::raw::{FileRef, TableProvider};
-use skrifa::{GlyphId, MetadataProvider, instance::Location};
+use skrifa::{GlyphId, MetadataProvider};
 
 use super::glyph::Hmtx;
 use super::reader::GlyphReader;
 use super::table::{Head, Hhea, Maxp, Name, Os2, Post};
+use super::variation::{StyleSpace, VariationInstantiation};
 use crate::error::Error;
 use crate::geom::{Bounds, Outline};
 
@@ -25,12 +26,15 @@ pub(crate) struct FontEntry {
     pub(crate) post: Post,
     pub(crate) maxp: Maxp,
     pub(crate) name: Name,
-    locations: Vec<Location>,
-    style_axes: Vec<Vec<(String, f32)>>,
+    style_space: StyleSpace,
 }
 
 impl FontEntry {
-    pub(crate) fn load_faces(path: &Path, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
+    pub(crate) fn load_faces(
+        path: &Path,
+        filter: Option<&[u32]>,
+        variation_instantiation: &VariationInstantiation,
+    ) -> Result<Vec<Self>, Error> {
         let mapped = Arc::new(map_font(path)?);
         let parsed = FileRef::new(&mapped[..])
             .map_err(|err| Error::Parse(format!("failed to parse '{}': {err}", path.display())))?;
@@ -45,7 +49,14 @@ impl FontEntry {
                         path.display()
                     ))
                 })?;
-                Self::from_face(path, face_index as u32, Arc::clone(&mapped), &font, filter)
+                Self::from_face(
+                    path,
+                    face_index as u32,
+                    Arc::clone(&mapped),
+                    &font,
+                    filter,
+                    variation_instantiation,
+                )
             })
             .collect::<Result<Vec<_>, Error>>()?;
 
@@ -65,20 +76,20 @@ impl FontEntry {
     ) -> Result<(Outline, Hmtx, Bounds, String), Error> {
         let glyph_idx = self.lookup_glyph_index(codepoint)?;
         let glyph_id = self.index.glyph_ids[glyph_idx];
-        self.reader.draw_glyph(
-            glyph_id,
-            self.head.units_per_em,
-            &self.locations,
-            instance_index,
-        )
+        let user_location = match instance_index {
+            Some(index) => self.style_space.user_coords(index),
+            None => Vec::new(),
+        };
+        self.reader
+            .draw_glyph(glyph_id, self.head.units_per_em, &user_location)
     }
 
     pub(crate) fn instance_count(&self) -> usize {
-        self.style_axes.len()
+        self.style_space.len()
     }
 
     pub(crate) fn is_variable(&self) -> bool {
-        !self.locations.is_empty()
+        self.style_space.is_variable()
     }
 
     pub(crate) fn path(&self) -> &Path {
@@ -97,15 +108,8 @@ impl FontEntry {
         self.index.codepoints.len()
     }
 
-    pub(crate) fn named_instance_names(&self) -> Vec<Option<String>> {
-        if !self.is_variable() {
-            return vec![];
-        }
-        self.reader.named_instance_names()
-    }
-
-    pub(crate) fn style_axes(&self) -> &[Vec<(String, f32)>] {
-        &self.style_axes
+    pub(crate) fn style_axes_at(&self, instance_index: usize) -> Vec<(String, f32)> {
+        self.style_space.user_coords(instance_index)
     }
 
     fn from_face(
@@ -114,6 +118,7 @@ impl FontEntry {
         data: Arc<Mmap>,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
+        variation_instantiation: &VariationInstantiation,
     ) -> Result<Self, Error> {
         let (head, hhea, os2, post, maxp, name) = parse_font_tables(font, base_path, face_index)?;
 
@@ -129,29 +134,7 @@ impl FontEntry {
         mappings.sort_unstable_by_key(|entry| entry.0);
         let (codepoints, glyph_ids): (Vec<_>, Vec<_>) = mappings.into_iter().unzip();
 
-        let axis_tags: Vec<String> = font
-            .axes()
-            .iter()
-            .map(|axis| axis.tag().to_string())
-            .collect();
-        let named_instances = font.named_instances();
-        let locations: Vec<Location> = named_instances.iter().map(|inst| inst.location()).collect();
-        let style_axes = if locations.is_empty() {
-            vec![vec![]]
-        } else {
-            named_instances
-                .iter()
-                .map(|inst| {
-                    debug_assert_eq!(
-                        axis_tags.len(),
-                        inst.user_coords().count(),
-                        "font '{}' (face {face_index}) reported mismatched axis metadata",
-                        base_path.display(),
-                    );
-                    axis_tags.iter().cloned().zip(inst.user_coords()).collect()
-                })
-                .collect()
-        };
+        let style_space = variation_instantiation.instantiate(font, base_path, face_index)?;
 
         Ok(Self {
             index: GlyphIndex {
@@ -165,8 +148,7 @@ impl FontEntry {
             post,
             maxp,
             name,
-            locations,
-            style_axes,
+            style_space,
         })
     }
 

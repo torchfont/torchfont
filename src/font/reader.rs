@@ -6,7 +6,7 @@ use std::{
 use memmap2::Mmap;
 use skrifa::{
     GlyphId, MetadataProvider,
-    instance::{Location, LocationRef, Size},
+    instance::{LocationRef, Size},
     outline::DrawSettings,
     raw::TableProvider,
 };
@@ -44,8 +44,7 @@ impl GlyphReader {
         &self,
         glyph_id: GlyphId,
         units_per_em: u16,
-        locations: &[Location],
-        instance_index: Option<usize>,
+        user_location: &[(String, f32)],
     ) -> Result<(Outline, Hmtx, Bounds, String), Error> {
         self.with_font_ref(|font| {
             let glyph = font.outline_glyphs().get(glyph_id).ok_or_else(|| {
@@ -56,7 +55,12 @@ impl GlyphReader {
                 ))
             })?;
 
-            let location_ref = self.location_ref(locations, instance_index)?;
+            let location = font.axes().location(
+                user_location
+                    .iter()
+                    .map(|(tag, value)| (tag.as_str(), *value)),
+            );
+            let location_ref = LocationRef::from(&location);
 
             let outline = extract_glyph_outline(
                 &glyph,
@@ -102,21 +106,6 @@ impl GlyphReader {
         })
     }
 
-    pub(super) fn named_instance_names(&self) -> Vec<Option<String>> {
-        self.with_font_ref(|font| {
-            Ok(font
-                .named_instances()
-                .iter()
-                .map(|inst| {
-                    font.localized_strings(inst.subfamily_name_id())
-                        .english_or_first()
-                        .map(|s| s.to_string())
-                })
-                .collect())
-        })
-        .unwrap_or_default()
-    }
-
     fn with_font_ref<T>(
         &self,
         f: impl FnOnce(skrifa::FontRef<'_>) -> Result<T, Error>,
@@ -130,24 +119,6 @@ impl GlyphReader {
             ))
         })?;
         f(font)
-    }
-
-    fn location_ref<'a>(
-        &self,
-        locations: &'a [Location],
-        index: Option<usize>,
-    ) -> Result<LocationRef<'a>, Error> {
-        index.map_or(Ok(LocationRef::default()), |idx| {
-            locations
-                .get(idx)
-                .ok_or_else(|| {
-                    Error::OutOfRange(format!(
-                        "instance index {idx} out of range for '{}'",
-                        self.path.display()
-                    ))
-                })
-                .map(LocationRef::from)
-        })
     }
 }
 

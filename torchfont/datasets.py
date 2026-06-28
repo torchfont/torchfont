@@ -36,6 +36,7 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from torchfont import _torchfont
+from torchfont import variation as _variation
 from torchfont.io import COORD_DIM
 from torchfont.metadata import (
     DatasetMetadata,
@@ -182,6 +183,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
+        variation: _variation.VariationInstantiation | None = None,
         transform: None = None,
     ) -> None: ...
 
@@ -192,6 +194,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
+        variation: _variation.VariationInstantiation | None = None,
         transform: Callable[[GlyphSample], _T],
     ) -> None: ...
 
@@ -201,6 +204,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
+        variation: _variation.VariationInstantiation | None = None,
         transform: (Callable[[GlyphSample], _T] | None) = None,
     ) -> None:
         """Initialize the dataset by scanning font files and indexing samples.
@@ -219,6 +223,9 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
                 ``.ignore``, global gitignore, or git exclude rules) is applied;
                 all such behavior must be expressed via ``patterns``. VCS metadata
                 directories such as ``.git`` remain excluded.
+            variation (VariationInstantiation): Variable-font instantiation
+                policy. Static fonts are always indexed as one static style.
+                ``None`` is equivalent to ``NamedInstantiation()``.
             transform (Callable[[GlyphSample], _T] | None): Optional
                 transformation applied to each sample before the item is returned.
                 When provided, ``_T`` is inferred from the transform return type
@@ -241,11 +248,13 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             else None
         )
         self.codepoints = self._normalize_codepoints(codepoints)
+        self.variation = variation
 
         self._backend = _torchfont.GlyphDatasetBackend(
             str(self.root),
             self.codepoints,
             self.patterns,
+            self.variation,
         )
         self._fingerprint: int = self._backend.fingerprint
 
@@ -370,6 +379,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             str(self.root),
             self.codepoints,
             self.patterns,
+            self.variation,
         )
         if backend.fingerprint != self._fingerprint:
             msg = (
@@ -494,7 +504,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         """List of style variation instance names in the dataset.
 
         Returns class names sorted by their index. For variable fonts, names
-        come from the font's named instances. For static fonts, names are
+        include the selected variation location. For static fonts, names are
         derived from the font's family and subfamily names.
 
         Returns:
