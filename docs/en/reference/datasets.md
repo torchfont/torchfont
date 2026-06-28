@@ -25,6 +25,12 @@ Structured label metadata returned by `GlyphDataset.metadata`.
 
 ```python
 from torchfont.datasets import GlyphDataset
+from torchfont.variation import (
+    DefaultInstantiation,
+    GridInstantiation,
+    NamedInstantiation,
+    VariationInstantiation,
+)
 ```
 
 ### Constructor (`GlyphDataset`)
@@ -35,9 +41,12 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
+    variation: VariationInstantiation | None = None,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
+
+Variation instantiation classes are exported from `torchfont.variation`.
 
 `T` is the transform return type and therefore the dataset item type.
 
@@ -46,6 +55,7 @@ GlyphDataset(
 | `root`             | `Path \| str`                     | root directory for font discovery   |
 | `codepoints` | `Sequence[SupportsIndex] \| None` | restrict indexed Unicode codepoints |
 | `patterns`         | `Sequence[str] \| None`           | gitignore-style path filtering      |
+| `variation` | `VariationInstantiation \| None` | variable-font instantiation policy |
 | `transform`        | `Callable \| None`                | sample-first preprocessing (`GlyphSample -> T`) |
 
 ### Behavior
@@ -53,6 +63,19 @@ GlyphDataset(
 - supported extensions: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` is resolved to an absolute `Path` during initialization
 - `codepoints` are normalized to sorted unique integers before indexing
+- static fonts are always indexed as one static style; variable fonts use
+  `variation` in `fvar` user coordinate space
+- `variation=None` is equivalent to `NamedInstantiation()`;
+  `DefaultInstantiation()` uses the `fvar` default location;
+  `NamedInstantiation()` uses named instances when present and otherwise falls
+  back to the default location
+- `GridInstantiation(axes={"wght": 7, "wdth": 3})` samples each listed axis on
+  an evenly spaced grid (the given number of points, from axis minimum to
+  maximum) and takes the Cartesian product across those axes; axes that are not
+  listed are pinned to their `fvar` default. The instance count is the product
+  of the listed point counts and is therefore independent of the font's total
+  axis count. `axes` must list at least one axis, and every point count must be
+  greater than zero
 - no implicit ignore rules are applied (hidden directories, `.gitignore`,
   `.ignore`, global gitignore, and git exclude files are all ignored for
   discovery); use `patterns` for path selection
@@ -65,6 +88,7 @@ GlyphDataset(
 - `dataset.root`: resolved root `Path`
 - `dataset.patterns`: tuple of path-filter patterns, or `None`
 - `dataset.codepoints`: tuple of sorted unique codepoints, or `None`
+- `dataset.variation`: instantiation policy as passed, or `None`
 
 ### Return value
 
@@ -126,9 +150,8 @@ Mapping from character to content index.
 #### `style_classes -> list[str]`
 
 Style class names. Static fonts use family/subfamily names. Variable fonts use
-named instances when available, otherwise they fall back to family/subfamily
-(or family-only) names. If a named instance exists but its subfamily name is
-empty, the family name is used.
+the family name plus the selected variation location, such as
+`Roboto wght=400,wdth=100`.
 
 ### Example (`GlyphDataset`)
 

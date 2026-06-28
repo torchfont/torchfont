@@ -7,6 +7,7 @@ from tqdm import tqdm
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.glyphsets import LATIN_CORE
 from torchfont.transforms import patchify, quad_to_cubic, remove_overlaps, render_bitmap
+from torchfont.variation import GridInstantiation
 
 
 def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
@@ -37,6 +38,9 @@ def main() -> None:
             "ofl/*/*.ttf",
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
+        ),
+        variation=GridInstantiation(
+            axes={"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2},
         ),
         transform=transform,
     )

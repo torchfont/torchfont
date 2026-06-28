@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 
 import torchfont
 import torchfont.datasets as datasets_module
+import torchfont.variation as variation_module
 from torchfont import _torchfont
 from torchfont.datasets import (
     DatasetMetadata,
@@ -26,6 +27,7 @@ from torchfont.datasets import (
 )
 from torchfont.io import ElementType
 from torchfont.metadata import build_dataset_metadata
+from torchfont.variation import DefaultInstantiation, GridInstantiation
 
 
 def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
@@ -199,6 +201,9 @@ def test_datasets_public_api_is_glyphdataset_centered() -> None:
     assert datasets_module.DatasetMetadata is DatasetMetadata
     assert datasets_module.GlyphDataset is GlyphDataset
     assert datasets_module.GlyphSample is GlyphSample
+    assert not hasattr(datasets_module, "DefaultInstantiation")
+    assert not hasattr(datasets_module, "NamedInstantiation")
+    assert not hasattr(datasets_module, "GridInstantiation")
     assert not hasattr(datasets_module, "FontFolder")
     assert not hasattr(datasets_module, "FontRepo")
     assert not hasattr(datasets_module, "GoogleFonts")
@@ -214,6 +219,12 @@ def test_package_root_stays_thin() -> None:
 def test_native_dataset_backend_is_not_public_dataset_api() -> None:
     assert hasattr(_torchfont, "GlyphDatasetBackend")
     assert not hasattr(_torchfont, "GlyphDataset")
+
+
+def test_variation_module_reexports_native_instantiations() -> None:
+    assert variation_module.DefaultInstantiation is _torchfont.DefaultInstantiation
+    assert variation_module.NamedInstantiation is _torchfont.NamedInstantiation
+    assert variation_module.GridInstantiation is _torchfont.GridInstantiation
 
 
 def test_glyph_dataset_is_primary_local_api() -> None:
@@ -831,18 +842,91 @@ def test_variable_font_style_axes_are_exposed_in_metadata() -> None:
 
     labels_by_name = {label.name: label for label in dataset.metadata.styles}
 
-    assert labels_by_name["Roboto Thin"].axes == (
+    assert labels_by_name["Roboto wght=100,wdth=100"].axes == (
         StyleAxis(tag="wght", value=100.0),
         StyleAxis(tag="wdth", value=100.0),
     )
-    assert labels_by_name["Roboto Regular"].axes == (
+    assert labels_by_name["Roboto wght=400,wdth=100"].axes == (
         StyleAxis(tag="wght", value=400.0),
         StyleAxis(tag="wdth", value=100.0),
     )
-    assert labels_by_name["Roboto Condensed Regular"].axes == (
+    assert labels_by_name["Roboto wght=400,wdth=75"].axes == (
         StyleAxis(tag="wght", value=400.0),
         StyleAxis(tag="wdth", value=75.0),
     )
+
+
+def test_variable_font_default_instantiation_uses_one_default_style() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+        variation=DefaultInstantiation(),
+    )
+
+    assert len(dataset.style_classes) == 1
+    assert dataset.metadata.styles[0].axes == (
+        StyleAxis(tag="wght", value=400.0),
+        StyleAxis(tag="wdth", value=100.0),
+    )
+
+
+def test_grid_instantiation_uses_density_product() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=range(0x41, 0x44),
+        variation=GridInstantiation(
+            axes={"wght": 2, "wdth": 2},
+        ),
+    )
+
+    assert len(dataset.style_classes) == 4
+    assert len(dataset) == 12
+
+
+def test_unlisted_axes_are_pinned_to_default() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        variation=GridInstantiation(
+            axes={"wght": 3, "missing": 99},
+        ),
+    )
+
+    assert len(dataset.style_classes) == 3
+    assert {
+        axis.value
+        for label in dataset.metadata.styles
+        for axis in label.axes
+        if axis.tag == "wdth"
+    } == {100.0}
+
+
+def test_grid_instantiation_requires_at_least_one_axis() -> None:
+    with pytest.raises(ValueError, match="at least one axis"):
+        GridInstantiation(axes={})
+
+
+def test_grid_instantiation_requires_positive_axis_densities() -> None:
+    with pytest.raises(ValueError, match="greater than zero"):
+        GridInstantiation(axes={"wght": 0})
+
+
+def test_variation_survives_pickle() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        variation=GridInstantiation(axes={"wght": 2}),
+    )
+
+    restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
+
+    assert isinstance(restored.variation, GridInstantiation)
+    assert restored.variation.axes == {"wght": 2}
+    assert restored.style_classes == dataset.style_classes
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])

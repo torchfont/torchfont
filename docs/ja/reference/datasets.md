@@ -25,6 +25,12 @@ from torchfont.datasets import DatasetMetadata
 
 ```python
 from torchfont.datasets import GlyphDataset
+from torchfont.variation import (
+    DefaultInstantiation,
+    GridInstantiation,
+    NamedInstantiation,
+    VariationInstantiation,
+)
 ```
 
 ### コンストラクタ（`GlyphDataset`）
@@ -35,9 +41,12 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
+    variation: VariationInstantiation | None = None,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
+
+Variation Instantiation クラスは `torchfont.variation` からエクスポートされます。
 
 `T` は transform の返り値型であり、そのまま dataset item の型になります。
 
@@ -46,6 +55,7 @@ GlyphDataset(
 | `root`             | `Path \| str`                     | フォント探索の起点ディレクトリ     |
 | `codepoints` | `Sequence[SupportsIndex] \| None` | 対象 Unicode codepoint を制限      |
 | `patterns`         | `Sequence[str] \| None`           | gitignore 互換パターンでパスを絞る |
+| `variation` | `VariationInstantiation \| None` | バリアブルフォントのインスタンス化方針 |
 | `transform`        | `Callable \| None`                | sample-first 前処理（`GlyphSample -> T`） |
 
 ### 振る舞い
@@ -53,6 +63,18 @@ GlyphDataset(
 - 走査対象拡張子: `.ttf` / `.otf` / `.ttc` / `.otc`
 - `root` は初期化時に絶対 `Path` へ解決される
 - `codepoints` は index 化前に sort 済み・重複なしの整数列へ正規化される
+- 静的フォントは常に 1 つの静的なスタイルとして扱い、
+  バリアブルフォントは `variation` に従って `fvar` user
+  coordinate space でインスタンス化する
+- `variation=None` は `NamedInstantiation()` と同義。
+  `DefaultInstantiation()` は `fvar` default location、
+  `NamedInstantiation()` は名前付きインスタンスがあればそれらを使い、なければ
+  default location にフォールバックする
+- `GridInstantiation(axes={"wght": 7, "wdth": 3})` は、指定した各軸を等間隔の
+  グリッド（軸の最小値〜最大値を指定点数）でサンプリングし、それらの軸間で直積を
+  取る。指定しなかった軸は `fvar` default に固定される。インスタンス数は指定した
+  点数の積であり、フォントの総軸数には依存しない。`axes` は最低 1 軸を指定し、
+  すべての点数は 0 より大きい必要がある
 - `ignore` crate の standard filters（hidden directory / `.gitignore` / `.ignore` /
   グローバル gitignore / git exclude など）による暗黙の ignore ルールは使わず、
   パス選択は `patterns` に寄せる
@@ -65,6 +87,7 @@ GlyphDataset(
 - `dataset.root`: 解決済みの root `Path`
 - `dataset.patterns`: パスフィルタの tuple、または `None`
 - `dataset.codepoints`: sort 済み・重複なし codepoint の tuple、または `None`
+- `dataset.variation`: 渡されたインスタンス化方針、または `None`
 
 ### 戻り値
 
@@ -125,7 +148,7 @@ underline_thickness)` を保持します。`italic_angle` の単位は度、
 
 #### `style_classes -> list[str]`
 
-スタイル名の配列。静的フォントは family/subfamily 名を使います。可変フォントは named instance があればそれを使い、ない場合は family/subfamily（または family のみ）へフォールバックします。named instance があっても名前が空の場合は family 名のみを使います。
+スタイル名の配列。静的フォントは family/subfamily 名を使います。バリアブルフォントは family 名に `Roboto wght=400,wdth=100` のような選択された variation location を加えた名前を使います。
 
 ### 例（`GlyphDataset`）
 

@@ -1,12 +1,92 @@
 use numpy::{IntoPyArray as _, PyArray1};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyTuple};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::dataset::{
     DatasetIndex, FontEntry, canonicalize_root, discover_font_files, load_entries_and_index,
     structure_fingerprint,
 };
+use crate::font::VariationInstantiation;
+
+#[pyclass(module = "torchfont._torchfont")]
+pub(crate) struct DefaultInstantiation;
+
+#[pymethods]
+impl DefaultInstantiation {
+    #[new]
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> Bound<'py, PyTuple> {
+        PyTuple::empty(py)
+    }
+}
+
+#[pyclass(module = "torchfont._torchfont")]
+pub(crate) struct NamedInstantiation;
+
+#[pymethods]
+impl NamedInstantiation {
+    #[new]
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> Bound<'py, PyTuple> {
+        PyTuple::empty(py)
+    }
+}
+
+#[pyclass(module = "torchfont._torchfont")]
+pub(crate) struct GridInstantiation {
+    #[pyo3(get)]
+    pub axes: HashMap<String, u32>,
+}
+
+#[pymethods]
+impl GridInstantiation {
+    #[new]
+    pub fn new(axes: HashMap<String, u32>) -> PyResult<Self> {
+        if axes.is_empty() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "GridInstantiation requires at least one axis in axes; \
+                 use DefaultInstantiation to pin every axis to its default",
+            ));
+        }
+        if axes.values().any(|&count| count == 0) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "GridInstantiation axis densities must be greater than zero",
+            ));
+        }
+        Ok(Self { axes })
+    }
+
+    pub fn __getnewargs__(&self) -> (HashMap<String, u32>,) {
+        (self.axes.clone(),)
+    }
+}
+
+#[derive(FromPyObject)]
+pub(crate) enum PyVariationInstantiation<'py> {
+    Default(PyRef<'py, DefaultInstantiation>),
+    Named(PyRef<'py, NamedInstantiation>),
+    Grid(PyRef<'py, GridInstantiation>),
+}
+
+impl From<PyVariationInstantiation<'_>> for VariationInstantiation {
+    fn from(value: PyVariationInstantiation<'_>) -> Self {
+        match value {
+            PyVariationInstantiation::Default(_inst) => Self::Default,
+            PyVariationInstantiation::Named(_inst) => Self::Named,
+            PyVariationInstantiation::Grid(grid) => Self::Grid {
+                axes: grid.axes.clone(),
+            },
+        }
+    }
+}
 
 #[pyclass(get_all)]
 pub(crate) struct GlyphItem {
@@ -41,6 +121,7 @@ impl GlyphDatasetBackend {
         root: String,
         codepoints: Option<Vec<u32>>,
         patterns: Option<Vec<String>>,
+        variation_instantiation: Option<PyVariationInstantiation<'_>>,
     ) -> PyResult<Self> {
         let filter = codepoints.map(|mut values| {
             values.sort_unstable();
@@ -50,7 +131,12 @@ impl GlyphDatasetBackend {
 
         let root_path = canonicalize_root(&root)?;
         let files = discover_font_files(&root_path, patterns.as_deref())?;
-        let (entries, index) = load_entries_and_index(files, filter.as_deref())?;
+        let variation_instantiation = match variation_instantiation {
+            Some(value) => value.into(),
+            None => VariationInstantiation::Named,
+        };
+        let (entries, index) =
+            load_entries_and_index(files, filter.as_deref(), &variation_instantiation)?;
         let fingerprint = structure_fingerprint(&entries);
 
         Ok(Self {
@@ -101,10 +187,10 @@ impl GlyphDatasetBackend {
     pub fn style_metadata_rows(&self) -> PyResult<Vec<(String, String)>> {
         self.style_rows()
             .into_iter()
-            .map(|(name, path, face_idx, instance_idx)| {
+            .map(|(name, path, face_idx, instance_label)| {
                 Ok((
                     name,
-                    style_label_id(&self.root, &path, face_idx, instance_idx)?,
+                    style_label_id(&self.root, &path, face_idx, instance_label)?,
                 ))
             })
             .collect()
@@ -114,7 +200,9 @@ impl GlyphDatasetBackend {
     pub fn style_axes(&self) -> Vec<Vec<(String, f32)>> {
         self.entries
             .iter()
-            .flat_map(|e| e.style_axes().iter().cloned())
+            .flat_map(|entry| {
+                (0..entry.instance_count()).map(move |index| entry.style_axes_at(index))
+            })
             .collect()
     }
 
@@ -286,7 +374,7 @@ impl GlyphDatasetBackend {
 }
 
 impl GlyphDatasetBackend {
-    fn style_rows(&self) -> Vec<(String, PathBuf, u32, Option<usize>)> {
+    fn style_rows(&self) -> Vec<(String, PathBuf, u32, Option<String>)> {
         let mut rows = Vec::new();
         for entry in self.entries.iter() {
             let path = entry.path().to_owned();
@@ -297,14 +385,16 @@ impl GlyphDatasetBackend {
             } else {
                 &n.family_name
             };
-            let instance_names = entry.named_instance_names();
-            if !instance_names.is_empty() {
-                for (inst_idx, name_opt) in instance_names.iter().enumerate() {
-                    let display_name = match name_opt.as_deref().filter(|s| !s.is_empty()) {
-                        Some(name) => format!("{family} {name}"),
-                        None => family.clone(),
+            if entry.is_variable() {
+                for index in 0..entry.instance_count() {
+                    let axes = entry.style_axes_at(index);
+                    let location = axes_label(&axes);
+                    let display_name = if location.is_empty() {
+                        family.clone()
+                    } else {
+                        format!("{family} {location}")
                     };
-                    rows.push((display_name, path.clone(), face_idx, Some(inst_idx)));
+                    rows.push((display_name, path.clone(), face_idx, Some(location)));
                 }
             } else {
                 let sub = if !n.typographic_subfamily_name.is_empty() {
@@ -370,7 +460,7 @@ fn style_label_id(
     root: &Path,
     font_path: &Path,
     face_idx: u32,
-    instance_idx: Option<usize>,
+    instance_label: Option<String>,
 ) -> PyResult<String> {
     let relative_path = font_path.strip_prefix(root).map_err(|_| {
         pyo3::exceptions::PyValueError::new_err(format!(
@@ -386,8 +476,27 @@ fn style_label_id(
         })
         .collect::<Vec<_>>()
         .join("/");
-    let instance_value = instance_idx.map_or_else(|| "static".to_string(), |idx| idx.to_string());
+    let instance_value = instance_label.unwrap_or_else(|| "static".to_string());
     Ok(format!(
-        "style:path={quoted_path};face={face_idx};instance={instance_value}"
+        "style:path={quoted_path};face={face_idx};instance={}",
+        urlencoding::encode(&instance_value),
     ))
+}
+
+fn axes_label(axes: &[(String, f32)]) -> String {
+    axes.iter()
+        .map(|(tag, value)| format!("{tag}={}", format_axis_value(*value)))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn format_axis_value(value: f32) -> String {
+    let mut formatted = format!("{value:.6}");
+    while formatted.contains('.') && formatted.ends_with('0') {
+        formatted.pop();
+    }
+    if formatted.ends_with('.') {
+        formatted.pop();
+    }
+    formatted
 }

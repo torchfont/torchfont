@@ -54,12 +54,26 @@ class GlyphItem:
     codepoint: int
     glyph_name: str
 
+class DefaultInstantiation:
+    def __init__(self) -> None: ...
+
+class NamedInstantiation:
+    def __init__(self) -> None: ...
+
+class GridInstantiation:
+    axes: dict[str, int]
+
+    def __init__(self, axes: dict[str, int]) -> None: ...
+
 class GlyphDatasetBackend:
     def __init__(
         self,
         root: str,
         codepoints: Sequence[int] | None = ...,
         patterns: Sequence[str] | None = ...,
+        variation_instantiation: (
+            DefaultInstantiation | NamedInstantiation | GridInstantiation | None
+        ) = ...,
     ) -> None: ...
 
     sample_count: int

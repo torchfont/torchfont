@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::font::FontEntry;
+use crate::font::{FontEntry, VariationInstantiation};
 use std::path::PathBuf;
 
 pub(crate) struct DatasetIndex {
@@ -19,12 +19,13 @@ impl DatasetIndex {
 pub(crate) fn load_entries_and_index(
     files: Vec<PathBuf>,
     filter: Option<&[u32]>,
+    variation_instantiation: &VariationInstantiation,
 ) -> Result<(Vec<FontEntry>, DatasetIndex), Error> {
     let mut entries = Vec::new();
     let mut all_cps = Vec::new();
 
     for path in files {
-        for entry in FontEntry::load_faces(&path, filter)?
+        for entry in FontEntry::load_faces(&path, filter, variation_instantiation)?
             .into_iter()
             .filter(|e| e.codepoint_count() > 0)
         {
