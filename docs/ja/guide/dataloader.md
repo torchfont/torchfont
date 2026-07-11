@@ -8,16 +8,17 @@
 
 ## `transform` を定義する
 
-`GlyphSample` はグリフに関する情報をまとめて持っていますが、学習に必要なフィールドはタスクによって異なります。不要なフィールドを DataLoader に流すと転送コストが増えるため、`transform` で必要なテンソルだけを取り出します。
+`GlyphSample` はグリフ参照と target index を持ちます。どの tensor を読み込むかはタスクによって異なるため、`transform` で `load_glyph` を呼び、必要な値だけを返します。
 
-`GlyphDataset` には、PyTorch の Dataset と同様にアイテムごとに変換を適用する `transform` 引数があります。ここでは `GlyphSample` から `types` と `coords` を取り出す関数を定義し、Dataset に渡して動作を確認します。次のコードを実行してください。
+`GlyphDataset` には、PyTorch の Dataset と同様にアイテムごとに変換を適用する `transform` 引数があります。ここでは `sample.ref` から `types` と `coords` を読み込む関数を定義し、Dataset に渡して動作を確認します。次のコードを実行してください。
 
 ```python
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
 
 
 dataset = GlyphDataset(
@@ -53,10 +54,11 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
 
 
 def collate_fn(batch):
@@ -100,10 +102,12 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types[:512], sample.coords[:512]
+    types, coords = load_glyph(sample.ref)
+    return types[:512], coords[:512]
 
 
 def collate_fn(batch):

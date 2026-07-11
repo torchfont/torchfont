@@ -2,63 +2,7 @@ from collections.abc import Sequence
 
 import torch
 
-from torchfont.datasets import GlyphSample, NameRecord
 from torchfont.io import ElementType
-
-_ZERO_HEAD = torch.zeros(8, dtype=torch.float32)
-_ZERO_HHEA = torch.zeros(10, dtype=torch.float32)
-_ZERO_OS2 = torch.zeros(42, dtype=torch.float32)
-_ZERO_POST = torch.zeros(4, dtype=torch.float32)
-_ZERO_MAXP = torch.zeros(14, dtype=torch.float32)
-_ZERO_HMTX = torch.zeros(2, dtype=torch.float32)
-_ZERO_BOUNDS = torch.zeros(4, dtype=torch.float32)
-
-
-def make_sample(types: torch.Tensor, coords: torch.Tensor) -> GlyphSample:
-    return GlyphSample(
-        types=types,
-        coords=coords,
-        style_idx=0,
-        content_idx=0,
-        head=_ZERO_HEAD,
-        hhea=_ZERO_HHEA,
-        os2=_ZERO_OS2,
-        post=_ZERO_POST,
-        maxp=_ZERO_MAXP,
-        hmtx=_ZERO_HMTX,
-        bounds=_ZERO_BOUNDS,
-        name=NameRecord(
-            copyright_notice="",
-            family_name="",
-            subfamily_name="",
-            unique_id="",
-            full_name="",
-            version_string="",
-            postscript_name="",
-            trademark="",
-            manufacturer="",
-            designer="",
-            description="",
-            vendor_url="",
-            designer_url="",
-            license_description="",
-            license_url="",
-            reserved="",
-            typographic_family_name="",
-            typographic_subfamily_name="",
-            compatible_full_name="",
-            sample_text="",
-            postscript_cid_name="",
-            wws_family_name="",
-            wws_subfamily_name="",
-            light_background_palette="",
-            dark_background_palette="",
-            variations_postscript_name_prefix="",
-        ),
-        codepoint=0,
-        glyph_name="",
-    )
-
 
 _Point = tuple[float, float]
 _CubicSeg = tuple[_Point, _Point, _Point, _Point]

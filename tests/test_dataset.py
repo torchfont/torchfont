@@ -1,13 +1,10 @@
-from __future__ import annotations
-
-import dataclasses
 import multiprocessing as mp
 import os
 import pickle
 import shutil
 import subprocess
 from pathlib import Path
-from unittest.mock import PropertyMock, patch
+from typing import cast
 
 import pytest
 import torch
@@ -16,22 +13,40 @@ from torch.utils.data import DataLoader
 
 import torchfont
 import torchfont.datasets as datasets_module
+import torchfont.transforms as transforms_module
 import torchfont.variation as variation_module
 from torchfont import _torchfont
 from torchfont.datasets import (
-    DatasetMetadata,
+    FontRef,
     GlyphDataset,
+    GlyphRef,
     GlyphSample,
-    NameRecord,
-    StyleAxis,
+    VariableGlyphDataset,
+    VariableGlyphRef,
+    VariableGlyphSample,
 )
 from torchfont.io import ElementType
-from torchfont.metadata import build_dataset_metadata
-from torchfont.variation import DefaultInstantiation, GridInstantiation
+from torchfont.transforms import load_glyph
+from torchfont.variation import (
+    default_instance,
+    default_instance_count,
+    grid_instance_count,
+    grid_instances,
+    named_instance_count,
+    named_instances,
+    random_location,
+)
 
 
 def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
+
+
+def _variable_to_pair(
+    sample: VariableGlyphSample,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    location = random_location(sample.ref.font)
+    return load_glyph(sample.ref, location)
 
 
 def _collate_outline(
@@ -43,46 +58,264 @@ def _collate_outline(
 
 
 def _read_first_sample_from_pickled_dataset(
-    payload: bytes, queue: mp.Queue[tuple[int, int, int, tuple[int, int]]]
+    payload: bytes,
+    queue: mp.Queue[tuple[int, int, int, tuple[int, int]]],
 ) -> None:
-    dataset = pickle.loads(payload)  # noqa: S301
+    dataset = cast("GlyphDataset[GlyphSample]", pickle.loads(payload))  # noqa: S301
     sample = dataset[0]
+    types, coords = load_glyph(sample.ref)
+    coords_shape = (int(coords.shape[0]), int(coords.shape[1]))
     queue.put(
         (
-            sample.style_idx,
-            sample.content_idx,
-            sample.types.numel(),
-            tuple(sample.coords.shape),
-        )
-    )
-
-
-def test_glyph_dataset_static_fonts() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=(
-            "lato/Lato-Regular.ttf",
-            "ubuntu/Ubuntu-Regular.ttf",
-            "ptsans/PT_Sans-Web-Regular.ttf",
+            sample.font_idx,
+            sample.character_idx,
+            int(types.numel()),
+            coords_shape,
         ),
-        codepoints=range(0x80),
     )
 
-    assert len(dataset.style_classes) > 0
-    assert len(dataset.content_classes) > 0
-    assert len(dataset) > 0
 
-
-def test_glyph_dataset_variable_fonts() -> None:
+def test_glyph_dataset_static_fonts_returns_refs() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf", "notosansjp/NotoSansJP*.ttf"),
-        codepoints=range(0x80),
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
     )
 
-    assert len(dataset.style_classes) > 0
-    assert len(dataset.content_classes) > 0
-    assert len(dataset) > 0
+    assert repr(dataset) == (
+        f"GlyphDataset(root={str(dataset.root)!r}, samples=3, "
+        "font_classes=1, styles=1, character_classes=3)"
+    )
+    assert len(dataset.font_classes) == 1
+    assert dataset.character_classes == ["A", "B", "C"]
+    assert dataset.character_class_to_idx == {"A": 0, "B": 1, "C": 2}
+
+    sample = dataset[0]
+
+    assert isinstance(sample, GlyphSample)
+    assert isinstance(sample.ref, GlyphRef)
+    assert sample.ref.font == dataset.font_classes[0]
+    assert sample.ref.codepoint == ord("A")
+    assert sample.ref.location == {}
+    assert sample.font_idx == 0
+    assert sample.style_idx == 0
+    assert sample.character_idx == 0
+
+
+def test_load_glyph_returns_outline_tensors() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=[ord("o")],
+    )
+
+    types, coords = load_glyph(dataset[0].ref)
+
+    assert types.dtype == torch.long
+    assert types.ndim == 1
+    assert coords.dtype == torch.float32
+    assert coords.ndim == 2
+    assert coords.shape[1] == 6
+    assert (types == ElementType.QUAD_TO.value).any().item()
+    assert not (types == ElementType.CURVE_TO.value).any().item()
+
+
+def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
+    calls: list[GlyphSample] = []
+
+    def transform(sample: GlyphSample) -> tuple[torch.Tensor, int]:
+        calls.append(sample)
+        types, _coords = load_glyph(sample.ref)
+        return types[:2], sample.character_idx
+
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+        transform=transform,
+    )
+
+    types, character_idx = dataset[0]
+
+    assert len(calls) == 1
+    assert isinstance(calls[0], GlyphSample)
+    assert types.shape[0] == 2
+    assert character_idx == 0
+
+
+def test_glyph_dataset_variable_fonts_named_instances() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+    )
+
+    assert len(dataset) == len(dataset.style_classes)
+    assert "Roboto wght=100,wdth=100" in dataset.style_classes
+    assert "Roboto wght=400,wdth=75" in dataset.style_classes
+    assert not hasattr(dataset, "weight_targets")
+    assert not hasattr(dataset, "width_targets")
+    assert not hasattr(dataset, "slant_targets")
+    assert not hasattr(dataset, "italic_targets")
+    assert not hasattr(dataset, "optical_size_targets")
+    sample = dataset[0]
+    assert not hasattr(sample, "weight_targets")
+    assert not hasattr(sample, "width_targets")
+    assert not hasattr(sample, "slant_targets")
+    assert not hasattr(sample, "italic_targets")
+    assert not hasattr(sample, "optical_size_targets")
+
+
+def test_default_and_grid_instance_functions() -> None:
+    default_dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instances=default_instance,
+    )
+    grid_dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instances=grid_instances({"wght": 2, "wdth": 2}),
+    )
+
+    assert len(default_dataset) == 1
+    assert default_dataset[0].ref.location == {"wght": 400.0, "wdth": 100.0}
+    assert len(grid_dataset) == 4
+    assert [grid_dataset[i].ref.location for i in range(len(grid_dataset))] == [
+        {"wght": 100.0, "wdth": 75.0},
+        {"wght": 100.0, "wdth": 100.0},
+        {"wght": 900.0, "wdth": 75.0},
+        {"wght": 900.0, "wdth": 100.0},
+    ]
+
+
+def test_instance_fn_can_return_zero_locations() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=range(0x41, 0x44),
+        instances=lambda _font: [],
+    )
+
+    assert len(dataset) == 0
+    assert dataset.font_classes == []
+    assert dataset.style_classes == []
+    assert dataset.character_classes == []
+    assert dataset.style_targets.shape == (0,)
+    assert dataset.character_targets.shape == (0,)
+
+
+def test_variable_glyph_dataset_instance_count_refs_without_styles() -> None:
+    dataset = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41, 0x42],
+        instance_count=lambda _font: 2,
+    )
+
+    assert repr(dataset) == (
+        f"VariableGlyphDataset(root={str(dataset.root)!r}, samples=4, "
+        "font_classes=1, character_classes=2)"
+    )
+    assert len(dataset) == 4
+    assert dataset.font_targets.tolist() == [0, 0, 0, 0]
+    assert dataset.character_targets.tolist() == [0, 1, 0, 1]
+
+    sample = dataset[0]
+
+    assert isinstance(sample, VariableGlyphSample)
+    assert isinstance(sample.ref, VariableGlyphRef)
+    assert sample.ref.codepoint == 0x41
+    assert sample.font_idx == 0
+    assert sample.character_idx == 0
+
+    location = random_location(
+        sample.ref.font, generator=torch.Generator().manual_seed(5)
+    )
+    types, coords = load_glyph(sample.ref, location)
+    assert types.ndim == 1
+    assert coords.shape[1] == 6
+
+
+def test_variable_glyph_dataset_defaults_to_named_instance_count() -> None:
+    fixed = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41, 0x42],
+        instances=named_instances,
+    )
+    variable = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41, 0x42],
+    )
+
+    assert len(variable) == len(fixed)
+    assert variable.character_targets.tolist() == fixed.character_targets.tolist()
+    assert "instance_count" not in variable.__dict__
+
+
+def test_instance_count_fns_match_instance_fn_multiplicity() -> None:
+    named_fixed = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instances=named_instances,
+    )
+    named_variable = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_count=named_instance_count,
+    )
+    default_variable = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_count=default_instance_count,
+    )
+    grid_variable = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_count=grid_instance_count({"wght": 2, "wdth": 2}),
+    )
+
+    assert len(named_variable) == len(named_fixed)
+    assert len(default_variable) == 1
+    assert len(grid_variable) == 4
+
+
+def test_instance_count_fns_keep_static_fonts_at_one_slot() -> None:
+    for instance_count in [
+        default_instance_count,
+        named_instance_count,
+        grid_instance_count({"wght": 2}),
+    ]:
+        dataset = VariableGlyphDataset(
+            root="tests/fonts",
+            patterns=("lato/Lato-Regular.ttf",),
+            codepoints=[0x41],
+            instance_count=instance_count,
+        )
+        assert len(dataset) == 1
+
+
+def test_variable_glyph_dataset_transform_can_sample_location() -> None:
+    dataset = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_count=lambda _font: 1,
+        transform=_variable_to_pair,
+    )
+
+    types, coords = dataset[0]
+
+    assert types.ndim == 1
+    assert coords.shape[1] == 6
 
 
 @pytest.mark.parametrize("codepoint", [1.5, "A"])
@@ -95,397 +328,51 @@ def test_glyph_dataset_rejects_non_integer_codepoints(codepoint: object) -> None
         )
 
 
-def test_glyph_dataset_all_fonts() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("*.ttf",),
-        codepoints=range(0x80),
-    )
-
-    assert len(dataset.style_classes) > 0
-    assert len(dataset.content_classes) > 0
-    assert len(dataset) > 0
-
-
-def test_glyph_dataset_getitem() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-    )
-
-    assert len(dataset) > 0
-
-    sample = dataset[0]
-
-    assert isinstance(sample, GlyphSample)
-    assert sample.types.dtype == torch.long
-    assert sample.types.ndim == 1
-
-    assert sample.coords.dtype == torch.float32
-    assert sample.coords.ndim == 2
-    assert sample.coords.shape[1] == 6
-    assert isinstance(sample.style_idx, int)
-    assert isinstance(sample.content_idx, int)
-    assert 0 <= sample.style_idx < len(dataset.style_classes)
-    assert 0 <= sample.content_idx < len(dataset.content_classes)
-
-    assert isinstance(sample.hmtx, torch.Tensor)
-    assert sample.hmtx.dtype == torch.float32
-    assert sample.hmtx.shape == (2,)
-    assert not torch.isnan(sample.hmtx[0])  # advance_width should be present
-
-    assert isinstance(sample.head, torch.Tensor)
-    assert sample.head.dtype == torch.float32
-    assert sample.head.shape == (8,)
-
-    assert isinstance(sample.hhea, torch.Tensor)
-    assert sample.hhea.dtype == torch.float32
-    assert sample.hhea.shape == (10,)
-
-    assert isinstance(sample.os2, torch.Tensor)
-    assert sample.os2.dtype == torch.float32
-    assert sample.os2.shape == (42,)
-
-    assert isinstance(sample.post, torch.Tensor)
-    assert sample.post.dtype == torch.float32
-    assert sample.post.shape == (4,)
-
-    assert isinstance(sample.maxp, torch.Tensor)
-    assert sample.maxp.dtype == torch.float32
-    assert sample.maxp.shape == (14,)
-
-    assert isinstance(sample.bounds, torch.Tensor)
-    assert sample.bounds.dtype == torch.float32
-    assert sample.bounds.shape == (4,)
-
-    assert isinstance(sample.name, NameRecord)
-    for attr in (
-        "copyright_notice",
-        "family_name",
-        "subfamily_name",
-        "unique_id",
-        "full_name",
-        "version_string",
-        "postscript_name",
-        "trademark",
-        "manufacturer",
-        "designer",
-        "description",
-        "vendor_url",
-        "designer_url",
-        "license_description",
-        "license_url",
-        "reserved",
-        "typographic_family_name",
-        "typographic_subfamily_name",
-        "compatible_full_name",
-        "sample_text",
-        "postscript_cid_name",
-        "wws_family_name",
-        "wws_subfamily_name",
-        "light_background_palette",
-        "dark_background_palette",
-        "variations_postscript_name_prefix",
-    ):
-        assert isinstance(getattr(sample.name, attr), str)
-
-    assert isinstance(sample.codepoint, int)
-    assert sample.codepoint == ord(dataset.content_classes[sample.content_idx])
-
-    assert isinstance(sample.glyph_name, str)
-    assert len(sample.glyph_name) > 0
-
-
-def test_datasets_public_api_is_glyphdataset_centered() -> None:
-    assert datasets_module.DatasetMetadata is DatasetMetadata
-    assert datasets_module.GlyphDataset is GlyphDataset
-    assert datasets_module.GlyphSample is GlyphSample
-    assert not hasattr(datasets_module, "DefaultInstantiation")
-    assert not hasattr(datasets_module, "NamedInstantiation")
-    assert not hasattr(datasets_module, "GridInstantiation")
-    assert not hasattr(datasets_module, "FontFolder")
-    assert not hasattr(datasets_module, "FontRepo")
-    assert not hasattr(datasets_module, "GoogleFonts")
-
-
-def test_package_root_stays_thin() -> None:
-    assert torchfont.__all__ == []
-    assert not hasattr(torchfont, "GlyphDataset")
-    assert not hasattr(torchfont, "GlyphSample")
-    assert not hasattr(torchfont, "GlyphBatch")
-
-
-def test_native_dataset_backend_is_not_public_dataset_api() -> None:
-    assert hasattr(_torchfont, "GlyphDatasetBackend")
-    assert not hasattr(_torchfont, "GlyphDataset")
-
-
-def test_variation_module_reexports_native_instantiations() -> None:
-    assert variation_module.DefaultInstantiation is _torchfont.DefaultInstantiation
-    assert variation_module.NamedInstantiation is _torchfont.NamedInstantiation
-    assert variation_module.GridInstantiation is _torchfont.GridInstantiation
-
-
-def test_glyph_dataset_is_primary_local_api() -> None:
+def test_glyph_dataset_negative_indexing_and_bounds() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
     )
 
-    sample = dataset[0]
-
-    assert isinstance(dataset, GlyphDataset)
-    assert "_backend" in dataset.__dict__
-    assert "_dataset" not in dataset.__dict__
-    assert isinstance(sample, GlyphSample)
-    assert len(dataset) > 0
-    assert not hasattr(dataset, "locate")
-
-
-def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
-    calls: list[GlyphSample] = []
-
-    def transform(sample: GlyphSample) -> GlyphSample:
-        calls.append(sample)
-        return dataclasses.replace(
-            sample, types=sample.types[:2], coords=sample.coords[:2]
-        )
-
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-        transform=transform,
-    )
-    sample = dataset[0]
-
-    assert len(calls) == 1
-    assert isinstance(calls[0], GlyphSample)
-    assert sample.style_idx == calls[0].style_idx
-    assert sample.content_idx == calls[0].content_idx
-    assert sample.types.shape[0] == 2
-    assert sample.coords.shape[0] == 2
-
-
-def test_glyph_dataset_transform_can_change_return_type() -> None:
-    def transform(sample: GlyphSample) -> tuple[torch.Tensor, int]:
-        return sample.types[:2], sample.content_idx
-
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-        transform=transform,
-    )
-    typed_dataset: GlyphDataset[tuple[torch.Tensor, int]] = dataset
-    typed_item: tuple[torch.Tensor, int] = dataset[0]
-    typed_item_from_dataset: tuple[torch.Tensor, int] = typed_dataset[0]
-
-    types, content_idx = typed_item
-
-    assert types.shape[0] == 2
-    assert isinstance(content_idx, int)
-    assert torch.equal(types, typed_item_from_dataset[0])
-    assert content_idx == typed_item_from_dataset[1]
-
-
-def test_glyph_dataset_preserves_quadratic_curves() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=[ord("o")],
-    )
-
-    sample = dataset[0]
-
-    assert (sample.types == ElementType.QUAD_TO.value).any().item()
-    assert not (sample.types == ElementType.CURVE_TO.value).any().item()
-
-
-def test_glyph_dataset_negative_indexing() -> None:
-    """Test that negative indexing works correctly."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-    )
-
-    assert len(dataset) > 0
-
-    # Test that dataset[-1] returns the last element
-    sample_last = dataset[-1]
-    sample_explicit = dataset[len(dataset) - 1]
-
-    # Verify that negative indexing returns the same result as positive indexing
-    assert torch.equal(sample_last.types, sample_explicit.types)
-    assert torch.equal(sample_last.coords, sample_explicit.coords)
-    assert sample_last.style_idx == sample_explicit.style_idx
-    assert sample_last.content_idx == sample_explicit.content_idx
-
-    # Test dataset[-2] if dataset has at least 2 elements
-    if len(dataset) >= 2:
-        sample_sl = dataset[-2]
-        sample_exp2 = dataset[len(dataset) - 2]
-
-        assert torch.equal(sample_sl.types, sample_exp2.types)
-        assert torch.equal(sample_sl.coords, sample_exp2.coords)
-        assert sample_sl.style_idx == sample_exp2.style_idx
-        assert sample_sl.content_idx == sample_exp2.content_idx
-
-
-def test_glyph_dataset_index_out_of_bounds() -> None:
-    """Test that out of bounds indices raise IndexError."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-    )
-
-    assert len(dataset) > 0
-
-    # Test positive out of bounds
+    assert dataset[-1] == dataset[len(dataset) - 1]
     with pytest.raises(IndexError):
         dataset[len(dataset)]
-
-    with pytest.raises(IndexError):
-        dataset[len(dataset) + 100]
-
-    # Test negative out of bounds
     with pytest.raises(IndexError):
         dataset[-len(dataset) - 1]
 
-    with pytest.raises(IndexError):
-        dataset[-len(dataset) - 100]
 
-
-def test_glyph_dataset_cjk_support() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("notosansjp/NotoSansJP*.ttf",),
-        codepoints=[ord(c) for c in "あいうえお"],
-    )
-
-    assert len(dataset) > 0
-    sample = dataset[0]
-    assert isinstance(sample, GlyphSample)
-    assert sample.types.dtype == torch.long
-    assert sample.types.ndim == 1
-    assert sample.types.numel() > 0
-    assert sample.coords.dtype == torch.float32
-    assert sample.coords.ndim == 2
-    assert sample.coords.shape[1] == 6
-    assert isinstance(sample.style_idx, int)
-    assert isinstance(sample.content_idx, int)
-    assert 0 <= sample.style_idx < len(dataset.style_classes)
-    assert 0 <= sample.content_idx < len(dataset.content_classes)
-
-
-def test_glyph_dataset_skips_styles_without_samples_after_filtering() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf", "notosansjp/NotoSansJP*.ttf"),
-        codepoints=[ord(c) for c in "あいう"],
-    )
-
-    assert len(dataset) > 0
-    assert len(dataset.style_classes) == len(set(dataset.targets[:, 0].tolist()))
-    assert sorted(set(dataset.targets[:, 0].tolist())) == list(
-        range(len(dataset.style_classes))
-    )
-    assert all("Lato" not in name for name in dataset.style_classes)
-
-
-def test_glyph_dataset_codepoints() -> None:
-    dataset_upper = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-    )
-
-    dataset_lower = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x61, 0x7B),
-    )
-
-    assert len(dataset_upper) > 0
-    assert len(dataset_lower) > 0
-
-    assert len(dataset_upper.content_classes) <= 26
-    assert len(dataset_lower.content_classes) <= 26
-
-
-def test_glyph_dataset_normalizes_codepoints_on_instance() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=[ord("C"), ord("A"), ord("B"), ord("A")],
-    )
-
-    assert dataset.codepoints == (ord("A"), ord("B"), ord("C"))
-    assert dataset.content_classes == ["A", "B", "C"]
-
-    restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
-    assert restored.codepoints == dataset.codepoints
-
-
-def test_glyph_dataset_pattern_filter() -> None:
-    dataset_all = GlyphDataset(
-        root="tests/fonts",
-        patterns=("*.ttf",),
-        codepoints=range(0x80),
-    )
-
-    dataset_roboto = GlyphDataset(
-        root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf", "notosansjp/NotoSans*.ttf"),
-        codepoints=range(0x80),
-    )
-
-    dataset_lato = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x80),
-    )
-
-    assert len(dataset_all) > 0
-    assert len(dataset_roboto) > 0
-    assert len(dataset_lato) > 0
-    assert len(dataset_all.style_classes) >= len(dataset_roboto.style_classes)
-    assert len(dataset_all.style_classes) >= len(dataset_lato.style_classes)
-
-
-def test_glyph_dataset_empty_result() -> None:
-    dataset = GlyphDataset(
+def test_pattern_filter_empty_result_and_outline_less_fonts() -> None:
+    empty = GlyphDataset(
         root="tests/fonts",
         patterns=("nonexistent*.ttf",),
         codepoints=range(0x80),
     )
-    assert len(dataset) == 0
-    assert len(dataset.style_classes) == 0
-    assert len(dataset.content_classes) == 0
+    no_outlines = GlyphDataset(
+        root="tests/fonts",
+        patterns=("nocolortest/NoOutlines-Regular.ttf",),
+        codepoints=range(0x80),
+    )
+
+    assert len(empty) == 0
+    assert empty.style_targets.shape == (0,)
+    assert empty.character_targets.shape == (0,)
+    assert len(no_outlines) == 0
+    with pytest.raises(IndexError):
+        no_outlines[0]
 
 
-def test_glyph_dataset_discovers_fonts_in_hidden_directories(
-    tmp_path: Path,
-) -> None:
+def test_glyph_dataset_discovers_fonts_in_hidden_directories(tmp_path: Path) -> None:
     source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
     hidden_dir = tmp_path / ".fonts"
     hidden_dir.mkdir()
-    hidden_font = hidden_dir / "Lato-Regular.ttf"
-    shutil.copy(source, hidden_font)
+    shutil.copy(source, hidden_dir / "Lato-Regular.ttf")
 
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
+    dataset = GlyphDataset(root=tmp_path, codepoints=[0x41])
+    sample = dataset[0]
 
-    assert len(dataset) > 0
-    assert any(
-        label.label_id.startswith(
-            "style:path=.fonts/Lato-Regular.ttf;face=0;instance=static"
-        )
-        for label in dataset.metadata.styles
-    )
+    assert len(dataset) == 1
+    assert Path(sample.ref.font.path).name == "Lato-Regular.ttf"
 
 
 def test_glyph_dataset_supports_non_utf8_font_paths(tmp_path: Path) -> None:
@@ -497,11 +384,13 @@ def test_glyph_dataset_supports_non_utf8_font_paths(tmp_path: Path) -> None:
     shutil.copy(source, font_path)
 
     dataset = GlyphDataset(root=tmp_path, codepoints=[0x41])
+    sample = dataset[0]
+    types, coords = load_glyph(sample.ref)
 
     assert len(dataset) == 1
-    assert dataset.metadata.styles[0].label_id.startswith(
-        "style:path=Lato-%FF.ttf;face=0;instance=static"
-    )
+    assert "\udcff" in sample.ref.font.path
+    assert types.numel() > 0
+    assert coords.shape[1] == 6
 
 
 def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
@@ -509,7 +398,6 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
     git_executable = shutil.which("git")
     if git_executable is None:
         pytest.skip("git not installed")
-    assert git_executable is not None
     subprocess.run(  # noqa: S603
         [git_executable, "init", "-q"],
         cwd=tmp_path,
@@ -519,428 +407,245 @@ def test_glyph_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> N
     shutil.copy(source, font_path)
     (tmp_path / ".gitignore").write_text("*.ttf\n", encoding="utf-8")
 
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
-
-    assert len(dataset) > 0
-    assert any(
-        label.label_id.startswith("style:path=Lato-Regular.ttf;face=0;instance=static")
-        for label in dataset.metadata.styles
-    )
-
-
-def test_glyph_dataset_skips_vcs_metadata_directories(tmp_path: Path) -> None:
-    source = Path("tests/fonts/lato/Lato-Regular.ttf").resolve()
-    vcs_dir = tmp_path / ".git"
-    vcs_dir.mkdir()
-    shutil.copy(source, vcs_dir / "Lato-Regular.ttf")
-
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x80))
-
-    assert len(dataset) == 0
-    assert dataset.style_classes == []
-    assert dataset.content_classes == []
-
-
-def test_content_classes() -> None:
-    """Test content_classes returns Unicode character strings."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),  # A, B, C
-    )
-
-    assert len(dataset.content_classes) == 3
-    assert dataset.content_classes == ["A", "B", "C"]
-    assert all(isinstance(c, str) and len(c) == 1 for c in dataset.content_classes)
-
-
-def test_content_classes_do_not_materialize_metadata() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
-        metadata.side_effect = AssertionError(
-            "content_classes should not materialize metadata",
-        )
-        assert dataset.content_classes == ["A", "B", "C"]
-
-
-def test_content_class_to_idx() -> None:
-    """Test content_class_to_idx maps characters to indices."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    assert dataset.content_class_to_idx["A"] == 0
-    assert dataset.content_class_to_idx["B"] == 1
-    assert dataset.content_class_to_idx["C"] == 2
-
-    # Round-trip test
-    for idx, char in enumerate(dataset.content_classes):
-        assert dataset.content_class_to_idx[char] == idx
-
-
-def test_content_class_to_idx_does_not_route_through_python_projections() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    with (
-        patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata,
-        patch.object(
-            GlyphDataset,
-            "content_classes",
-            new_callable=PropertyMock,
-        ) as content_classes,
-    ):
-        metadata.side_effect = AssertionError(
-            "content_class_to_idx should not materialize metadata",
-        )
-        content_classes.side_effect = AssertionError(
-            "content_class_to_idx should not route through content_classes",
-        )
-        assert dataset.content_class_to_idx == {"A": 0, "B": 1, "C": 2}
-
-
-def test_style_classes() -> None:
-    """Test style_classes returns descriptive names."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/*.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    assert len(dataset.style_classes) > 0
-    assert all(isinstance(s, str) for s in dataset.style_classes)
-
-
-def test_style_classes_do_not_materialize_metadata() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/*.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    with patch.object(GlyphDataset, "metadata", new_callable=PropertyMock) as metadata:
-        metadata.side_effect = AssertionError(
-            "style_classes should not materialize metadata",
-        )
-        assert dataset.style_classes
-
-
-def test_style_label_metadata_is_index_addressable() -> None:
-    """Test metadata APIs are compatible with sample style/content indices."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    sample = dataset[0]
-    metadata = dataset.metadata
-    style_label = metadata.styles[sample.style_idx]
-    content_label = metadata.contents[sample.content_idx]
-
-    assert style_label.idx == sample.style_idx
-    assert style_label.label_id.startswith("style:path=")
-    assert "instance=static" in style_label.label_id
-    assert style_label.axes == ()
-    assert metadata.style_id_to_idx[style_label.label_id] == sample.style_idx
-    assert sample.style_idx in metadata.style_name_to_idxs[style_label.name]
-
-    assert content_label.idx == sample.content_idx
-    assert metadata.content_id_to_idx[content_label.label_id] == sample.content_idx
-    assert dataset.content_class_to_idx[content_label.char] == sample.content_idx
-
-
-def test_dataset_metadata_consolidates_label_views() -> None:
-    """DatasetMetadata is the canonical source of label metadata."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    metadata = dataset.metadata
+    dataset = GlyphDataset(root=tmp_path, codepoints=[0x41])
     sample = dataset[0]
 
-    assert isinstance(metadata, DatasetMetadata)
-    assert metadata.styles[sample.style_idx].idx == sample.style_idx
-    assert metadata.contents[sample.content_idx].idx == sample.content_idx
-    assert (
-        metadata.style_id_to_idx[metadata.styles[sample.style_idx].label_id]
-        == sample.style_idx
-    )
-    assert (
-        metadata.content_id_to_idx[metadata.contents[sample.content_idx].label_id]
-        == sample.content_idx
-    )
+    assert len(dataset) == 1
+    assert Path(sample.ref.font.path).name == "Lato-Regular.ttf"
 
 
-def test_dataset_does_not_expose_redundant_metadata_projections() -> None:
+def test_targets_match_samples() -> None:
     dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    assert not hasattr(dataset, "style_labels")
-    assert not hasattr(dataset, "style_label_to_idx")
-    assert not hasattr(dataset, "style_name_to_idxs")
-    assert not hasattr(dataset, "content_labels")
-    assert not hasattr(dataset, "content_label_to_idx")
-
-
-def test_dataset_metadata_does_not_add_python_cache_state() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    assert "_metadata" not in dataset.__dict__
-
-    first = dataset.metadata
-    second = dataset.metadata
-
-    assert "_metadata" not in dataset.__dict__
-    assert first == second
-    assert first is not second
-
-
-def test_dataset_metadata_does_not_route_through_python_projections() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    with (
-        patch.object(
-            GlyphDataset,
-            "style_classes",
-            new_callable=PropertyMock,
-        ) as style_classes,
-        patch.object(
-            GlyphDataset,
-            "content_classes",
-            new_callable=PropertyMock,
-        ) as content_classes,
-    ):
-        style_classes.side_effect = AssertionError(
-            "metadata should not materialize style_classes",
-        )
-        content_classes.side_effect = AssertionError(
-            "metadata should not materialize content_classes",
-        )
-        metadata = dataset.metadata
-
-    assert metadata.styles
-    assert metadata.contents
-
-
-def test_style_label_metadata_handles_duplicate_names() -> None:
-    """Test duplicate style names are preserved in collision-safe metadata."""
-    metadata = build_dataset_metadata(
-        style_rows=[
-            ("Shared", "style:path=lato/Lato-Regular.ttf;face=0;instance=static", ()),
-            (
-                "Unique",
-                "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=0",
-                (
-                    StyleAxis(tag="wdth", value=100.0),
-                    StyleAxis(tag="wght", value=100.0),
-                ),
-            ),
-            (
-                "Shared",
-                "style:path=roboto/Roboto%5Bwdth%2Cwght%5D.ttf;face=0;instance=1",
-                (
-                    StyleAxis(tag="wdth", value=100.0),
-                    StyleAxis(tag="wght", value=200.0),
-                ),
-            ),
-        ],
-        content_rows=[
-            ("content:U+0041", "A", 0x41),
-            ("content:U+0042", "B", 0x42),
-            ("content:U+0043", "C", 0x43),
-        ],
-    )
-
-    assert len({label.label_id for label in metadata.styles}) == 3
-    assert metadata.style_name_to_idxs["Shared"] == (0, 2)
-    assert metadata.style_name_to_idxs["Unique"] == (1,)
-    assert metadata.styles[2].axes == (
-        StyleAxis(tag="wdth", value=100.0),
-        StyleAxis(tag="wght", value=200.0),
-    )
-
-
-def test_build_dataset_metadata_uses_precomputed_style_label_ids() -> None:
-    metadata = build_dataset_metadata(
-        style_rows=[
-            (
-                "Lato Regular",
-                "style:path=lato/Lato-Regular.ttf;face=0;instance=static",
-                (),
-            ),
-        ],
-        content_rows=[
-            ("content:U+0041", "A", 0x41),
-        ],
-    )
-
-    assert metadata.styles[0].label_id == (
-        "style:path=lato/Lato-Regular.ttf;face=0;instance=static"
-    )
-
-
-def test_build_dataset_metadata_uses_precomputed_content_rows() -> None:
-    metadata = build_dataset_metadata(
-        style_rows=[],
-        content_rows=[
-            ("content:U+0041", "A", 0x41),
-        ],
-    )
-
-    assert metadata.contents[0].label_id == "content:U+0041"
-    assert metadata.contents[0].char == "A"
-    assert metadata.contents[0].codepoint == 0x41
-
-
-def test_style_label_ids_are_stable_across_codepoint_filters() -> None:
-    dataset_a = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=range(0x41, 0x44),
-    )
-    dataset_b = GlyphDataset(
-        root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x46),
+        instances=grid_instances({"wght": 2}),
     )
 
-    assert [label.label_id for label in dataset_a.metadata.styles] == [
-        label.label_id for label in dataset_b.metadata.styles
+    assert dataset.style_targets.shape == (len(dataset),)
+    assert dataset.style_targets.dtype == torch.long
+    assert dataset.character_targets.shape == (len(dataset),)
+    assert dataset.character_targets.dtype == torch.long
+    assert dataset.font_targets.shape == (len(dataset),)
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        assert dataset.style_targets[i].item() == sample.style_idx
+        assert dataset.character_targets[i].item() == sample.character_idx
+        assert dataset.font_targets[i].item() == sample.font_idx
+
+
+def test_datasets_public_api_is_ref_centered() -> None:
+    assert datasets_module.FontRef is FontRef
+    assert datasets_module.GlyphDataset is GlyphDataset
+    assert datasets_module.GlyphSample is GlyphSample
+    assert datasets_module.VariableGlyphDataset is VariableGlyphDataset
+    assert not hasattr(datasets_module, "load_glyph")
+    assert not hasattr(datasets_module, "DefaultInstantiation")
+    assert not hasattr(datasets_module, "GridInstantiation")
+
+
+def test_transforms_module_exports_load_glyph() -> None:
+    assert transforms_module.load_glyph is load_glyph
+
+
+def test_package_root_stays_thin() -> None:
+    assert torchfont.__all__ == []
+    assert not hasattr(torchfont, "GlyphDataset")
+    assert not hasattr(torchfont, "GlyphSample")
+
+
+def test_native_dataset_helpers_are_not_public_dataset_api() -> None:
+    assert hasattr(_torchfont, "FixedGlyphIndex")
+    assert hasattr(_torchfont, "VariableGlyphIndex")
+    assert hasattr(_torchfont, "load_glyph")
+    assert not hasattr(_torchfont, "FontIndexBackend")
+    assert not hasattr(_torchfont, "FontInfo")
+    assert not hasattr(_torchfont, "FixedGlyphLocation")
+    assert not hasattr(_torchfont, "GlyphOutlineItem")
+    assert not hasattr(_torchfont, "GlyphDataset")
+    assert not hasattr(_torchfont, "GlyphDatasetBackend")
+    assert not hasattr(_torchfont, "DefaultInstantiation")
+    assert not hasattr(_torchfont, "GridInstantiation")
+    assert not hasattr(_torchfont, "VariableGlyphLocation")
+    assert not hasattr(_torchfont, "canonicalize_locations_for_font")
+    assert not hasattr(_torchfont, "glyph_font_targets")
+    assert not hasattr(_torchfont, "variable_glyph_font_targets")
+
+
+def test_variation_module_exports_instance_functions() -> None:
+    assert variation_module.default_instance is default_instance
+    assert variation_module.default_instance_count is default_instance_count
+    assert variation_module.named_instances is named_instances
+    assert variation_module.named_instance_count is named_instance_count
+    assert variation_module.grid_instances is grid_instances
+    assert variation_module.grid_instance_count is grid_instance_count
+    assert variation_module.random_location is random_location
+    assert not hasattr(variation_module, "InstancePolicy")
+    assert not hasattr(variation_module, "RepeatPolicy")
+    assert not hasattr(variation_module, "default_repeats")
+    assert not hasattr(variation_module, "grid_repeats")
+    assert not hasattr(variation_module, "named_repeats")
+    assert not hasattr(variation_module, "random_instances")
+    assert not hasattr(variation_module, "random_instance_count")
+    assert not hasattr(variation_module, "DefaultInstantiation")
+
+
+def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
+    dataset = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_count=lambda _font: 1,
+    )
+    ref = dataset[0].ref
+
+    with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
+        load_glyph(ref, {"xxxx": 1.0})
+    with pytest.raises(ValueError, match="outside"):
+        load_glyph(ref, {"wght": 10_000.0})
+    with pytest.raises(ValueError, match="finite"):
+        load_glyph(ref, {"wght": float("nan")})
+
+
+def test_missing_instance_location_axes_use_defaults() -> None:
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instances=lambda _font: [{"wght": 400.0}],
+    )
+
+    assert len(dataset) == 1
+    assert dataset[0].ref.location == {"wght": 400.0, "wdth": 100.0}
+
+
+def test_instance_fn_rejects_duplicate_normalized_locations() -> None:
+    with pytest.raises(ValueError, match="duplicate variation locations"):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns=("roboto/Roboto*.ttf",),
+            codepoints=[0x41],
+            instances=lambda _font: [{"wght": 400.0}, {"wght": 400.0}],
+        )
+
+
+def test_instance_fn_rejects_unknown_axis() -> None:
+    with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns=("roboto/Roboto*.ttf",),
+            codepoints=[0x41],
+            instances=lambda _font: [{"xxxx": 1.0}],
+        )
+
+
+@pytest.mark.parametrize("axes", [{}, {"wght": 0}, {"wght": -1}])
+def test_grid_functions_reject_invalid_axis_counts(axes: dict[str, int]) -> None:
+    with pytest.raises(ValueError, match="grid_instances"):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns=("roboto/Roboto*.ttf",),
+            codepoints=[0x41],
+            instances=grid_instances(axes),
+        )
+    with pytest.raises(ValueError, match="grid_instances"):
+        VariableGlyphDataset(
+            root="tests/fonts",
+            patterns=("roboto/Roboto*.ttf",),
+            codepoints=[0x41],
+            instance_count=grid_instance_count(axes),
+        )
+
+
+@pytest.mark.parametrize("axes", [{}, {"wght": 0}, {"wght": -1}])
+def test_native_grid_locations_reject_invalid_axis_counts(
+    axes: dict[str, int],
+) -> None:
+    with pytest.raises(ValueError, match="grid_instances"):
+        _torchfont.grid_locations_for_font(
+            "tests/fonts/roboto/Roboto[wdth,wght].ttf",
+            0,
+            axes,
+        )
+
+
+def test_grid_functions_ignore_unknown_axes_and_pin_unlisted_axes_to_default() -> None:
+    fixed = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instances=grid_instances({"wght": 2, "xxxx": 99}),
+    )
+    variable = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_count=grid_instance_count({"wght": 2, "xxxx": 99}),
+    )
+
+    assert len(fixed) == 2
+    assert len(variable) == 2
+    assert [fixed[i].ref.location for i in range(len(fixed))] == [
+        {"wght": 100.0, "wdth": 100.0},
+        {"wght": 900.0, "wdth": 100.0},
     ]
 
 
-def test_variable_font_style_axes_are_exposed_in_metadata() -> None:
-    dataset = GlyphDataset(
+def test_grid_functions_use_default_when_no_requested_axes_exist() -> None:
+    fixed = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x44),
+        codepoints=[0x41],
+        instances=grid_instances({"xxxx": 2}),
     )
-
-    labels_by_name = {label.name: label for label in dataset.metadata.styles}
-
-    assert labels_by_name["Roboto wght=100,wdth=100"].axes == (
-        StyleAxis(tag="wght", value=100.0),
-        StyleAxis(tag="wdth", value=100.0),
-    )
-    assert labels_by_name["Roboto wght=400,wdth=100"].axes == (
-        StyleAxis(tag="wght", value=400.0),
-        StyleAxis(tag="wdth", value=100.0),
-    )
-    assert labels_by_name["Roboto wght=400,wdth=75"].axes == (
-        StyleAxis(tag="wght", value=400.0),
-        StyleAxis(tag="wdth", value=75.0),
-    )
-
-
-def test_variable_font_default_instantiation_uses_one_default_style() -> None:
-    dataset = GlyphDataset(
+    variable = VariableGlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x44),
-        variation=DefaultInstantiation(),
+        codepoints=[0x41],
+        instance_count=grid_instance_count({"xxxx": 2}),
     )
 
-    assert len(dataset.style_classes) == 1
-    assert dataset.metadata.styles[0].axes == (
-        StyleAxis(tag="wght", value=400.0),
-        StyleAxis(tag="wdth", value=100.0),
-    )
+    assert len(fixed) == 1
+    assert len(variable) == 1
+    assert fixed[0].ref.location == {"wght": 400.0, "wdth": 100.0}
 
 
-def test_grid_instantiation_uses_density_product() -> None:
+def test_grid_instances_keeps_static_fonts_at_default() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x44),
-        variation=GridInstantiation(
-            axes={"wght": 2, "wdth": 2},
-        ),
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=[0x41],
+        instances=grid_instances({"wght": 2}),
     )
 
-    assert len(dataset.style_classes) == 4
-    assert len(dataset) == 12
+    assert len(dataset) == 1
+    assert dataset[0].ref.location == {}
 
 
-def test_unlisted_axes_are_pinned_to_default() -> None:
+def test_variation_survives_pickle_without_instance_fn() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        variation=GridInstantiation(
-            axes={"wght": 3, "missing": 99},
-        ),
-    )
-
-    assert len(dataset.style_classes) == 3
-    assert {
-        axis.value
-        for label in dataset.metadata.styles
-        for axis in label.axes
-        if axis.tag == "wdth"
-    } == {100.0}
-
-
-def test_grid_instantiation_requires_at_least_one_axis() -> None:
-    with pytest.raises(ValueError, match="at least one axis"):
-        GridInstantiation(axes={})
-
-
-def test_grid_instantiation_requires_positive_axis_densities() -> None:
-    with pytest.raises(ValueError, match="greater than zero"):
-        GridInstantiation(axes={"wght": 0})
-
-
-def test_variation_survives_pickle() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
-        codepoints=[0x41],
-        variation=GridInstantiation(axes={"wght": 2}),
+        instances=grid_instances({"wght": 2}),
     )
 
     restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
 
-    assert isinstance(restored.variation, GridInstantiation)
-    assert restored.variation.axes == {"wght": 2}
-    assert restored.style_classes == dataset.style_classes
+    assert [restored[i].ref.location for i in range(len(restored))] == [
+        dataset[i].ref.location for i in range(len(dataset))
+    ]
+    assert "instances" not in restored.__dict__
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])
-def test_glyph_dataset_dataloader_multiworker(
-    start_method: str | None,
-) -> None:
+def test_glyph_dataset_dataloader_multiworker(start_method: str | None) -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x5B),
         transform=_to_pair,
     )
-
-    assert len(dataset) > 0
 
     loader = DataLoader(
         dataset,
@@ -960,181 +665,18 @@ def test_glyph_dataset_dataloader_multiworker(
     assert coords_t.shape[2] == 6
 
 
-def test_targets_shape_and_dtype() -> None:
-    """Test that targets has shape (N, 2) and dtype long."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x5B),
-    )
-
-    assert dataset.targets.shape == (len(dataset), 2)
-    assert dataset.targets.dtype == torch.long
-
-
-def test_targets_matches_getitem() -> None:
-    """Test that targets[i] matches the labels from __getitem__."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),  # A, B, C - small set
-    )
-
-    for i in range(len(dataset)):
-        sample = dataset[i]
-        assert dataset.targets[i, 0].item() == sample.style_idx
-        assert dataset.targets[i, 1].item() == sample.content_idx
-
-
-def test_targets_empty_dataset() -> None:
-    """Test that targets has shape (0, 2) for an empty dataset."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("nonexistent*.ttf",),
-        codepoints=range(0x80),
-    )
-
-    assert dataset.targets.shape == (0, 2)
-    assert dataset.targets.dtype == torch.long
-
-
-def test_targets_variable_fonts() -> None:
-    """Test that targets is correct for variable fonts with multiple instances."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    assert len(dataset.style_classes) > 1
-    assert dataset.targets.shape == (len(dataset), 2)
-    assert dataset.targets.dtype == torch.long
-
-    for i in range(len(dataset)):
-        sample = dataset[i]
-        assert dataset.targets[i, 0].item() == sample.style_idx
-        assert dataset.targets[i, 1].item() == sample.content_idx
-
-
-def test_glyph_dataset_repr() -> None:
-    """Test that GlyphDataset has a useful __repr__."""
+def test_target_vectors_survive_pickle() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
     )
 
-    expected = (
-        f"GlyphDataset("
-        f"root={str(dataset.root)!r}, "
-        f"samples={len(dataset)}, "
-        f"styles={len(dataset.style_classes)}, "
-        f"content_classes={len(dataset.content_classes)})"
-    )
-    assert repr(dataset) == expected
-
-
-def test_glyph_dataset_repr_uses_native_count_getters() -> None:
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-    style_count = len(dataset.style_classes)
-    content_count = len(dataset.content_classes)
-
-    expected = (
-        f"GlyphDataset("
-        f"root={str(dataset.root)!r}, "
-        f"samples={len(dataset)}, "
-        f"styles={style_count}, "
-        f"content_classes={content_count})"
-    )
-
-    with (
-        patch.object(
-            GlyphDataset, "style_classes", new_callable=PropertyMock
-        ) as styles,
-        patch.object(
-            GlyphDataset,
-            "content_classes",
-            new_callable=PropertyMock,
-        ) as contents,
-    ):
-        styles.side_effect = AssertionError("repr should not materialize style_classes")
-        contents.side_effect = AssertionError(
-            "repr should not materialize content_classes"
-        )
-
-        assert repr(dataset) == expected
-
-
-def test_targets_survives_pickle() -> None:
-    """Test that targets is correctly restored after pickle round-trip."""
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("lato/Lato-Regular.ttf",),
-        codepoints=range(0x41, 0x44),
-    )
-
-    original_targets = dataset.targets.clone()
     restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
 
-    assert torch.equal(restored.targets, original_targets)
-
-
-def test_unpickle_raises_when_font_removed(tmp_path: Path) -> None:
-    """Unpickling must fail when the dataset structure changed."""
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", tmp_path)
-    shutil.copy("tests/fonts/ubuntu/Ubuntu-Regular.ttf", tmp_path)
-
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x41, 0x44))
-    payload = pickle.dumps(dataset)
-
-    (tmp_path / "Ubuntu-Regular.ttf").unlink()
-
-    with pytest.raises(RuntimeError, match="same dataset structure"):
-        pickle.loads(payload)  # noqa: S301
-
-
-def test_unpickle_raises_when_font_added(tmp_path: Path) -> None:
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", tmp_path)
-
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x41, 0x44))
-    payload = pickle.dumps(dataset)
-
-    shutil.copy("tests/fonts/ubuntu/Ubuntu-Regular.ttf", tmp_path)
-
-    with pytest.raises(RuntimeError, match="same dataset structure"):
-        pickle.loads(payload)  # noqa: S301
-
-
-def test_unpickle_succeeds_when_fonts_unchanged(tmp_path: Path) -> None:
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", tmp_path)
-
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x41, 0x44))
-    restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
-
-    assert len(restored) == len(dataset)
-    assert torch.equal(restored.targets, dataset.targets)
-
-
-def test_unpickle_uses_changed_font_when_structure_is_unchanged(
-    tmp_path: Path,
-) -> None:
-    font_path = tmp_path / "font.ttf"
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", font_path)
-
-    dataset = GlyphDataset(root=tmp_path, codepoints=range(0x41, 0x44))
-    original_targets = dataset.targets.clone()
-    payload = pickle.dumps(dataset)
-    del dataset
-
-    shutil.copy("tests/fonts/ubuntu/Ubuntu-Regular.ttf", font_path)
-    restored = pickle.loads(payload)  # noqa: S301
-
-    assert restored.style_classes == ["Ubuntu Regular"]
-    assert torch.equal(restored.targets, original_targets)
+    assert torch.equal(restored.style_targets, dataset.style_targets)
+    assert torch.equal(restored.character_targets, dataset.character_targets)
+    assert torch.equal(restored.font_targets, dataset.font_targets)
 
 
 def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
@@ -1155,35 +697,8 @@ def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
     proc.join(timeout=30)
 
     assert proc.exitcode == 0
-    style_idx, content_idx, types_len, coords_shape = queue.get(timeout=5)
-    assert style_idx >= 0
-    assert content_idx >= 0
+    font_idx, character_idx, types_len, coords_shape = queue.get(timeout=5)
+    assert font_idx == 0
+    assert character_idx == 0
     assert types_len > 0
     assert coords_shape[1] == 6
-
-
-def test_glyph_dataset_filters_outline_less_glyphs() -> None:
-    """Regression test for #61: outline-less glyphs must be excluded from the index.
-
-    A font whose charmap maps codepoints to glyph IDs that have no outline data
-    (e.g. color/bitmap-only fonts) previously caused len(dataset) > 0 while every
-    dataset[i] raised ValueError. After the fix, such glyphs are filtered out at
-    construction time so that len(dataset) == the number of items that can actually
-    be retrieved via __getitem__.
-
-    nocolortest/NoOutlines-Regular.ttf has all required metadata tables but no
-    glyf/CFF table, so skrifa's outline_glyphs().get() returns None for every
-    glyph and the dataset must be empty.
-    """
-    dataset = GlyphDataset(
-        root="tests/fonts",
-        patterns=("nocolortest/NoOutlines-Regular.ttf",),
-        codepoints=range(0x80),
-    )
-
-    # All charmap'd glyphs have no outline data, so the dataset must be empty.
-    assert len(dataset) == 0
-
-    # Accessing an empty dataset must fail with IndexError rather than ValueError.
-    with pytest.raises(IndexError):
-        dataset[0]

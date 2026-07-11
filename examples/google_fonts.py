@@ -6,13 +6,20 @@ from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.glyphsets import LATIN_CORE
-from torchfont.transforms import patchify, quad_to_cubic, remove_overlaps, render_bitmap
-from torchfont.variation import GridInstantiation
+from torchfont.transforms import (
+    load_glyph,
+    patchify,
+    quad_to_cubic,
+    remove_overlaps,
+    render_bitmap,
+)
+from torchfont.variation import grid_instances
 
 
 def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
-    types = sample.types[:512]
-    coords = sample.coords[:512]
+    types, coords = load_glyph(sample.ref)
+    types = types[:512]
+    coords = coords[:512]
     types, coords = remove_overlaps(types, coords)
     types, coords = quad_to_cubic(types, coords, merge_curves=True)
     bitmap = render_bitmap(types, coords)
@@ -39,9 +46,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        variation=GridInstantiation(
-            axes={"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2},
-        ),
+        instances=grid_instances({"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2}),
         transform=transform,
     )
 
@@ -55,7 +60,7 @@ def main() -> None:
     )
 
     print(f"{len(dataset)=}")
-    print(f"{len(dataset.content_classes)=}")
+    print(f"{len(dataset.character_classes)=}")
     print(f"{len(dataset.style_classes)=}")
 
     for batch in tqdm(dataloader, desc="Iterating over datasets"):

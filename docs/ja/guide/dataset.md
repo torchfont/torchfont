@@ -12,16 +12,16 @@ dataset = GlyphDataset(root="data/google/fonts")
 
 print(f"{len(dataset)=}")
 print(f"{len(dataset.style_classes)=}")
-print(f"{len(dataset.content_classes)=}")
+print(f"{len(dataset.character_classes)=}")
 ```
 
 実行すると次のような出力が得られます。
-`style_classes` はフォントスタイルの種類数、`content_classes` はデータセットに含まれるユニークなコードポイントの数です。
+`style_classes` はフォントスタイルの種類数、`character_classes` はデータセットに含まれるユニークなコードポイントの数です。
 
 ```
 len(dataset)=13745683
 len(dataset.style_classes)=9113
-len(dataset.content_classes)=1112000
+len(dataset.character_classes)=1112000
 ```
 
 ## `patterns` で絞り込む
@@ -55,12 +55,12 @@ dataset = GlyphDataset(
   品質を著しく低下させるため、除外することが望ましいです。
 
 このコードを実行すると次のような出力が得られます。patterns を指定しない場合と比べて、
-スタイル数とコンテンツクラス数（コードポイント数）が絞られていることが確認できます。
+スタイル数と文字クラス数（コードポイント数）が絞られていることが確認できます。
 
 ```
 len(dataset)=12460609
 len(dataset.style_classes)=8951
-len(dataset.content_classes)=114254
+len(dataset.character_classes)=114254
 ```
 
 ### コードポイントを絞る
@@ -87,7 +87,7 @@ dataset = GlyphDataset(
 ```
 len(dataset)=220939
 len(dataset.style_classes)=8498
-len(dataset.content_classes)=26
+len(dataset.character_classes)=26
 ```
 
 Unicode の基本多言語面（BMP、U+0000–U+FFFF）に絞るには、次のように指定してください。
@@ -110,5 +110,5 @@ dataset = GlyphDataset(
 ```
 len(dataset)=12027967
 len(dataset.style_classes)=8951
-len(dataset.content_classes)=60004
+len(dataset.character_classes)=60004
 ```

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.io import ElementType
-from torchfont.transforms import remove_overlaps, render_bitmap
+from torchfont.transforms import load_glyph, remove_overlaps, render_bitmap
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,8 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    simplified_types, simplified_coords = remove_overlaps(sample.types, sample.coords)
+    types, coords = load_glyph(sample.ref)
+    simplified_types, simplified_coords = remove_overlaps(types, coords)
 
     # Prepend outer rect before glyph contours; End token truncates if appended.
     prepended_types = torch.cat([_OUTER_RECT_TYPES, simplified_types])
@@ -76,8 +77,8 @@ def _transform(sample: GlyphSample) -> Tensor:
     ccw_coords = torch.cat([_OUTER_RECT_COORDS_CCW, simplified_coords])
 
     original = render_bitmap(
-        sample.types,
-        sample.coords,
+        types,
+        coords,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
@@ -119,9 +120,9 @@ def _transform(sample: GlyphSample) -> Tensor:
         logger.warning(
             "remove_overlaps failure [%s]: %s U+%04X %s",
             ",".join(reasons),
-            sample.name.family_name,
-            sample.codepoint,
-            sample.glyph_name,
+            sample.ref.font.path,
+            sample.ref.codepoint,
+            sample.ref.location,
         )
     return failed
 

@@ -9,22 +9,22 @@ construction, shuffling, and parallel loading.
 
 ## Define a `transform`
 
-`GlyphSample` bundles all available information about a glyph, but which fields
-you need depends on the task. Passing unused fields through the DataLoader adds
-unnecessary transfer overhead, so use `transform` to keep only the tensors you
-need.
+`GlyphSample` carries a glyph reference and target indices. Which tensors you
+load depends on the task, so use `transform` to call `load_glyph` and keep only
+the values you need.
 
 Like PyTorch datasets, `GlyphDataset` has a `transform` argument that applies a
-transformation to each item. Define a function that extracts `types` and `coords`
-from `GlyphSample`, pass it to the dataset, and verify the output. Run the
+transformation to each item. Define a function that loads `types` and `coords`
+from `sample.ref`, pass it to the dataset, and verify the output. Run the
 following code:
 
 ```python
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
 
 
 dataset = GlyphDataset(
@@ -63,10 +63,11 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
 
 
 def collate_fn(batch):
@@ -115,10 +116,12 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types[:512], sample.coords[:512]
+    types, coords = load_glyph(sample.ref)
+    return types[:512], coords[:512]
 
 
 def collate_fn(batch):

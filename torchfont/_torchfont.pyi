@@ -1,4 +1,5 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Literal, TypeAlias
 
 import numpy as np
@@ -38,54 +39,69 @@ def tight_bbox(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[float, float, float, float] | None: ...
 
-class GlyphItem:
-    types: np.ndarray
-    coords: np.ndarray
-    style_idx: int
-    content_idx: int
-    head: np.ndarray
-    hhea: np.ndarray
-    os2: np.ndarray
-    post: np.ndarray
-    maxp: np.ndarray
-    hmtx: np.ndarray
-    bounds: np.ndarray
-    name: dict[str, str]
-    codepoint: int
-    glyph_name: str
-
-class DefaultInstantiation:
-    def __init__(self) -> None: ...
-
-class NamedInstantiation:
-    def __init__(self) -> None: ...
-
-class GridInstantiation:
-    axes: dict[str, int]
-
-    def __init__(self, axes: dict[str, int]) -> None: ...
-
-class GlyphDatasetBackend:
-    def __init__(
-        self,
-        root: str,
-        codepoints: Sequence[int] | None = ...,
-        patterns: Sequence[str] | None = ...,
-        variation_instantiation: (
-            DefaultInstantiation | NamedInstantiation | GridInstantiation | None
-        ) = ...,
-    ) -> None: ...
-
+class FixedGlyphIndex:
     sample_count: int
-    style_class_count: int
-    content_class_count: int
-    fingerprint: int
+    style_count: int
+    @classmethod
+    def from_root(
+        cls,
+        root: str,
+        codepoints: Sequence[int] | None,
+        patterns: Sequence[str] | None,
+        instances: Callable[..., Sequence[Mapping[str, float]]],
+    ) -> FixedGlyphIndex: ...
+    def font_refs(self) -> list[tuple[Path, int]]: ...
+    def style_classes(self) -> list[str]: ...
+    def character_codepoints(self) -> list[int]: ...
+    def locate(
+        self,
+        idx: int,
+    ) -> tuple[Path, int, int, int, list[tuple[str, float]], int, int]: ...
+    def font_targets(self) -> np.ndarray: ...
+    def style_targets(self) -> np.ndarray: ...
+    def character_targets(self) -> np.ndarray: ...
 
-    def content_metadata_rows(self) -> list[tuple[str, str, int]]: ...
-    def style_metadata_rows(self) -> list[tuple[str, str]]: ...
-    style_axes: list[list[tuple[str, float]]]
-    def item(self, idx: int) -> GlyphItem: ...
-    def targets(self) -> np.ndarray: ...
+class VariableGlyphIndex:
+    sample_count: int
+    @classmethod
+    def from_root(
+        cls,
+        root: str,
+        codepoints: Sequence[int] | None,
+        patterns: Sequence[str] | None,
+        instance_count: Callable[..., int],
+    ) -> VariableGlyphIndex: ...
+    def font_refs(self) -> list[tuple[Path, int]]: ...
+    def character_codepoints(self) -> list[int]: ...
+    def locate(self, idx: int) -> tuple[Path, int, int, int, int]: ...
+    def font_targets(self) -> np.ndarray: ...
+    def character_targets(self) -> np.ndarray: ...
+
+def load_glyph(
+    path: str,
+    ttc_index: int,
+    codepoint: int,
+    location: dict[str, float] | None = ...,
+) -> tuple[np.ndarray, np.ndarray]: ...
+def variation_axes(
+    path: str,
+    ttc_index: int,
+) -> list[tuple[str, float, float, float]]: ...
+def default_location_for_font(path: str, ttc_index: int) -> list[tuple[str, float]]: ...
+def named_instance_locations_for_font(
+    path: str,
+    ttc_index: int,
+) -> list[list[tuple[str, float]]]: ...
+def grid_locations_for_font(
+    path: str,
+    ttc_index: int,
+    axes: dict[str, int],
+) -> list[list[tuple[str, float]]]: ...
+def grid_location_count_for_font(
+    path: str,
+    ttc_index: int,
+    axes: dict[str, int],
+) -> int: ...
 
 LATIN_CORE: list[int]
 LATIN_KERNEL: list[int]

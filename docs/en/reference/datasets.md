@@ -2,38 +2,57 @@
 
 <!-- markdownlint-disable MD013 -->
 
-`GlyphDataset` is the primary public dataset API in `torchfont.datasets`.
+`torchfont.datasets` exposes reference-first PyTorch datasets. Dataset items are
+small, pickle-friendly dataclasses; outline loading happens explicitly in a
+transform with `load_glyph` (see [Transform Utilities](./transforms.md)).
 
-## GlyphSample
+Dataset indices and targets are built from font files at construction time,
+while glyph outlines are loaded lazily from the current files on disk. Modifying
+font files during a dataset object's lifetime, including across pickle/unpickle
+boundaries, is unsupported and may produce inconsistent samples or labels.
 
-```python
-from torchfont.datasets import GlyphSample
-```
-
-Default return type for `GlyphDataset.__getitem__`, and the input sample type
-for dataset transforms and `torchfont.transforms`.
-
-## DatasetMetadata
+## Reference Types
 
 ```python
-from torchfont.datasets import DatasetMetadata
+from torchfont.datasets import (
+    FontRef,
+    GlyphRef,
+    GlyphSample,
+    VariableGlyphRef,
+    VariableGlyphSample,
+)
 ```
 
-Structured label metadata returned by `GlyphDataset.metadata`.
+| Type | Fields |
+| ---- | ------ |
+| `FontRef` | `path: str`, `ttc_index: int` |
+| `GlyphRef` | `font: FontRef`, `codepoint: int`, `location: Mapping[str, float]` |
+| `VariableGlyphRef` | `font: FontRef`, `codepoint: int` |
+| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int` |
+| `VariableGlyphSample` | `ref: VariableGlyphRef`, `font_idx: int`, `character_idx: int` |
+
+`ttc_index` follows the name used internally by read-fonts/skrifa for the
+font's index inside a TrueType Collection. For a single-font file it is `0`.
 
 ## GlyphDataset
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.variation import (
-    DefaultInstantiation,
-    GridInstantiation,
-    NamedInstantiation,
-    VariationInstantiation,
+from torchfont.variation import named_instances
+
+dataset = GlyphDataset(
+    root="~/fonts",
+    codepoints=range(0x41, 0x5B),
+    patterns=("**/*.ttf",),
+    instances=named_instances,
 )
 ```
 
-### Constructor (`GlyphDataset`)
+`GlyphDataset` indexes fixed variation locations. The instance function runs only
+at construction time and is not stored in pickle state. Without `transform`,
+`dataset[i]` returns a `GlyphSample`.
+
+Constructor:
 
 ```python
 GlyphDataset(
@@ -41,135 +60,86 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    variation: VariationInstantiation | None = None,
+    instances: InstanceFn = torchfont.variation.named_instances,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
 
-Variation instantiation classes are exported from `torchfont.variation`.
+Targets:
 
-`T` is the transform return type and therefore the dataset item type.
+- `font_targets -> LongTensor (N,)`
+- `style_targets -> LongTensor (N,)`
+- `character_targets -> LongTensor (N,)`
 
-| Parameter          | Type                              | Description                         |
-| ------------------ | --------------------------------- | ----------------------------------- |
-| `root`             | `Path \| str`                     | root directory for font discovery   |
-| `codepoints` | `Sequence[SupportsIndex] \| None` | restrict indexed Unicode codepoints |
-| `patterns`         | `Sequence[str] \| None`           | gitignore-style path filtering      |
-| `variation` | `VariationInstantiation \| None` | variable-font instantiation policy |
-| `transform`        | `Callable \| None`                | sample-first preprocessing (`GlyphSample -> T`) |
+Class vocabularies:
 
-### Behavior
+- `font_classes -> list[FontRef]`
+- `style_classes -> list[str]`
+- `character_classes -> list[str]`
+- `character_class_to_idx -> dict[str, int]`
 
-- supported extensions: `.ttf` / `.otf` / `.ttc` / `.otc`
-- `root` is resolved to an absolute `Path` during initialization
-- `codepoints` are normalized to sorted unique integers before indexing
-- static fonts are always indexed as one static style; variable fonts use
-  `variation` in `fvar` user coordinate space
-- `variation=None` is equivalent to `NamedInstantiation()`;
-  `DefaultInstantiation()` uses the `fvar` default location;
-  `NamedInstantiation()` uses named instances when present and otherwise falls
-  back to the default location
-- `GridInstantiation(axes={"wght": 7, "wdth": 3})` samples each listed axis on
-  an evenly spaced grid (the given number of points, from axis minimum to
-  maximum) and takes the Cartesian product across those axes; axes that are not
-  listed are pinned to their `fvar` default. The instance count is the product
-  of the listed point counts and is therefore independent of the font's total
-  axis count. `axes` must list at least one axis, and every point count must be
-  greater than zero
-- no implicit ignore rules are applied (hidden directories, `.gitignore`,
-  `.ignore`, global gitignore, and git exclude files are all ignored for
-  discovery); use `patterns` for path selection
-- VCS metadata directories such as `.git`, `.hg`, and `.svn` stay excluded
-- `__getitem__` supports negative indices (`dataset[-1]`)
-- out-of-range index raises `IndexError`
-
-### Stored configuration
-
-- `dataset.root`: resolved root `Path`
-- `dataset.patterns`: tuple of path-filter patterns, or `None`
-- `dataset.codepoints`: tuple of sorted unique codepoints, or `None`
-- `dataset.variation`: instantiation policy as passed, or `None`
-
-### Return value
+## VariableGlyphDataset
 
 ```python
-sample = dataset[idx]
-```
+from torchfont.datasets import VariableGlyphDataset
+from torchfont.variation import named_instance_count
 
-| Field                | Type                | Shape          |
-| -------------------- | ------------------- | -------------- |
-| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
-| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
-| `sample.style_idx`   | `int`               | scalar         |
-| `sample.content_idx` | `int`               | scalar         |
-| `sample.head`        | `torch.FloatTensor` | `(8,)`         |
-| `sample.hhea`        | `torch.FloatTensor` | `(10,)`        |
-| `sample.os2`         | `torch.FloatTensor` | `(42,)`        |
-| `sample.post`        | `torch.FloatTensor` | `(4,)`         |
-| `sample.maxp`        | `torch.FloatTensor` | `(14,)`        |
-| `sample.hmtx`        | `torch.FloatTensor` | `(2,)`         |
-| `sample.bounds`      | `torch.FloatTensor` | `(4,)`         |
-| `sample.name`        | `NameRecord`        | —              |
-| `sample.codepoint`   | `int`               | —              |
-| `sample.glyph_name`  | `str`               | —              |
-
-`sample.post` stores `(italic_angle, is_fixed_pitch, underline_position,
-underline_thickness)`. The italic angle is in degrees, `is_fixed_pitch` is
-`0.0` or `1.0`, and the two underline metrics are in em units.
-
-Without `transform`, `sample` is a `GlyphSample`. With `transform`, the
-dataset item type is inferred from the transform return type.
-
-### Properties
-
-#### `targets -> torch.LongTensor`
-
-Label matrix for all samples (`shape=(N, 2)`).
-
-- `targets[:, 0]`: style index
-- `targets[:, 1]`: content index
-
-#### `content_classes -> list[str]`
-
-Content class names (single-character Unicode strings).
-
-#### `metadata -> DatasetMetadata`
-
-Structured label metadata object.
-
-- `metadata.styles`: tuple of `StyleLabel`
-- `metadata.contents`: tuple of `ContentLabel`
-- `metadata.style_id_to_idx`: mapping from style `label_id` to style index
-- `metadata.style_name_to_idxs`: mapping from style display name to all indices
-- `metadata.content_id_to_idx`: mapping from content `label_id` to content index
-
-#### `content_class_to_idx -> dict[str, int]`
-
-Mapping from character to content index.
-
-#### `style_classes -> list[str]`
-
-Style class names. Static fonts use family/subfamily names. Variable fonts use
-the family name plus the selected variation location, such as
-`Roboto wght=400,wdth=100`.
-
-### Example (`GlyphDataset`)
-
-```python
-dataset = GlyphDataset(
+dataset = VariableGlyphDataset(
     root="~/fonts",
-    codepoints=range(0x41, 0x5B),  # A-Z
-    patterns=("**/*.ttf", "!*Bold*"),
+    codepoints=range(0x41, 0x5B),
+    instance_count=named_instance_count,
 )
 ```
 
-## Choosing `root`
+`VariableGlyphDataset` does not put a location in the index. Use it for training
+augmentation where the transform samples a fresh location for each access.
+`instance_count` is an instance-count function: it gives each font a discrete multiplicity
+without fixing concrete locations. Static fonts are included as normal fonts.
 
-- a normal local font directory
-- a repository checkout you cloned yourself with Git or another tool
-- a cached copy of an external corpus managed outside TorchFont
+Constructor:
 
-TorchFont treats all of those as ordinary directories. If files on disk change,
-recreate the dataset instance so the native indexing state stays in sync. If
-files change while a dataset instance is still in use, results are undefined
-and may include incorrect samples or runtime errors.
+```python
+VariableGlyphDataset(
+    root: Path | str,
+    *,
+    instance_count: InstanceCountFn = torchfont.variation.named_instance_count,
+    codepoints: Sequence[SupportsIndex] | None = None,
+    patterns: Sequence[str] | None = None,
+    transform: Callable[[VariableGlyphSample], T] | None = None,
+)
+```
+
+Targets:
+
+- `font_targets -> LongTensor (N,)`
+- `character_targets -> LongTensor (N,)`
+
+## Variation Functions
+
+```python
+from torchfont.variation import (
+    default_instance,
+    default_instance_count,
+    grid_instances,
+    grid_instance_count,
+    named_instances,
+    named_instance_count,
+    random_location,
+)
+```
+
+Built-ins:
+
+- `named_instances(font)`: fvar named instances, deduplicated; falls back to default
+- `default_instance(font)`: one default location
+- `grid_instances({"wght": 7, "wdth": 3})`: evenly spaced fixed grid; axes absent from a font are ignored, unlisted axes use their defaults, and static fonts use one default instance
+- `random_location(font, generator=None)`: one location for transform-time sampling
+- `named_instance_count(font)`: instance count matching `named_instances`
+- `default_instance_count(font)`: one instance slot
+- `grid_instance_count({"wght": 7, "wdth": 3})`: instance count matching `grid_instances`
+
+Randomness uses the optional `torch.Generator`; datasets do not have a
+dataset-level seed.
+
+Custom instance functions may return zero locations. Unknown axes and duplicate
+locations after normalization raise `ValueError` during dataset construction.

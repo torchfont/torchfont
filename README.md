@@ -21,8 +21,9 @@ TorchFont is an **unofficial** library based on PyTorch for deep learning with v
 It is not affiliated with or endorsed by the PyTorch project.
 
 TorchFont is local-first: point `GlyphDataset` at a font directory or a
-repository checkout that already exists on disk, and TorchFont turns glyph
-outlines into `GlyphSample` objects for PyTorch pipelines.
+repository checkout that already exists on disk, and TorchFont turns font files
+into lightweight glyph references. Load outlines explicitly with `load_glyph`
+inside your transform when tensors are needed.
 
 ## Installation
 
@@ -47,10 +48,11 @@ from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample):
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
 
 
 def collate_fn(batch):
@@ -76,7 +78,7 @@ print(coords_t.shape)  # (8, L, 6)
 ## What TorchFont Focuses On
 
 - local font directories and repository checkouts as the input boundary
-- Rust-backed outline decoding into `GlyphSample` with outline tensors, metrics, and glyph name
+- Rust-backed indexing plus explicit outline loading through lightweight glyph references
 - transform utilities such as `quad_to_cubic` for adapting glyph samples
 - PyTorch `DataLoader` integration through ordinary user-defined `collate_fn` functions
 

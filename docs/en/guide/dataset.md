@@ -11,16 +11,16 @@ dataset = GlyphDataset(root="data/google/fonts")
 
 print(f"{len(dataset)=}")
 print(f"{len(dataset.style_classes)=}")
-print(f"{len(dataset.content_classes)=}")
+print(f"{len(dataset.character_classes)=}")
 ```
 
 The output will look like this. `style_classes` is the number of distinct font
-styles, and `content_classes` is the number of unique codepoints in the dataset.
+styles, and `character_classes` is the number of unique codepoints in the dataset.
 
 ```
 len(dataset)=13745683
 len(dataset.style_classes)=9113
-len(dataset.content_classes)=1112000
+len(dataset.character_classes)=1112000
 ```
 
 ## Filtering with `patterns`
@@ -55,12 +55,12 @@ The reasoning behind each pattern:
   degrades data quality, so it is advisable to exclude it.
 
 Running this code produces the following output. Compared to loading without
-patterns, both the style count and content classes (codepoints) are reduced:
+patterns, both the style count and character classes (codepoints) are reduced:
 
 ```
 len(dataset)=12460609
 len(dataset.style_classes)=8951
-len(dataset.content_classes)=114254
+len(dataset.character_classes)=114254
 ```
 
 ### Filtering by codepoint
@@ -87,7 +87,7 @@ The output will look like this:
 ```
 len(dataset)=220939
 len(dataset.style_classes)=8498
-len(dataset.content_classes)=26
+len(dataset.character_classes)=26
 ```
 
 To restrict to the Basic Multilingual Plane (BMP, U+0000–U+FFFF):
@@ -110,5 +110,5 @@ The output will look like this:
 ```
 len(dataset)=12027967
 len(dataset.style_classes)=8951
-len(dataset.content_classes)=60004
+len(dataset.character_classes)=60004
 ```
