@@ -5,142 +5,159 @@ use skrifa::MetadataProvider;
 use crate::error::Error;
 
 #[derive(Clone)]
-pub(crate) enum VariationInstantiation {
-    Default,
-    Named,
-    Grid { axes: HashMap<String, u32> },
+pub(crate) struct AxisInfo {
+    pub(crate) tag: String,
+    pub(crate) min: f32,
+    pub(crate) default: f32,
+    pub(crate) max: f32,
 }
 
-/// Lazily enumerable set of variable-font instances.
-///
-/// Rather than materializing every instance up front, this keeps only the
-/// per-axis candidate values (for Cartesian policies such as `Default`/`Grid`)
-/// or the explicit named-instance coordinate list, and derives the i-th
-/// instance on demand. This keeps memory proportional to the axis description
-/// instead of the combinatorial instance count.
-pub(crate) struct StyleSpace {
-    axis_tags: Vec<String>,
-    kind: StyleSpaceKind,
+pub(crate) fn axis_info(font: &skrifa::FontRef<'_>) -> Vec<AxisInfo> {
+    font.axes()
+        .iter()
+        .map(|axis| AxisInfo {
+            tag: axis.tag().to_string(),
+            min: axis.min_value(),
+            default: axis.default_value(),
+            max: axis.max_value(),
+        })
+        .collect()
 }
 
-enum StyleSpaceKind {
-    /// Cartesian product of per-axis candidate values.
-    Cartesian { axis_points: Vec<Vec<f32>> },
-    /// Explicit list of full user-coordinate tuples (named instances).
-    Explicit { instances: Vec<Vec<f32>> },
+pub(crate) fn default_location(font: &skrifa::FontRef<'_>) -> Vec<(String, f32)> {
+    axis_info(font)
+        .into_iter()
+        .map(|axis| (axis.tag, axis.default))
+        .collect()
 }
 
-impl StyleSpace {
-    fn static_single() -> Self {
-        Self {
-            axis_tags: Vec::new(),
-            kind: StyleSpaceKind::Cartesian {
-                axis_points: Vec::new(),
-            },
+pub(crate) fn named_locations(
+    font: &skrifa::FontRef<'_>,
+    path: &Path,
+    ttc_index: u32,
+) -> Result<Vec<Vec<(String, f32)>>, Error> {
+    let axes = axis_info(font);
+    let axis_tags: Vec<String> = axes.iter().map(|axis| axis.tag.clone()).collect();
+    let Some(coords) = named_instance_coords(font, &axis_tags, path, ttc_index)? else {
+        return Ok(Vec::new());
+    };
+    Ok(coords
+        .into_iter()
+        .map(|values| axis_tags.iter().cloned().zip(values).collect())
+        .collect())
+}
+
+pub(crate) fn grid_locations(
+    font: &skrifa::FontRef<'_>,
+    axes: &HashMap<String, i64>,
+) -> Result<Vec<Vec<(String, f32)>>, Error> {
+    validate_grid_axes(axes)?;
+
+    let axis_info = axis_info(font);
+    if axis_info.is_empty() {
+        return Ok(vec![Vec::new()]);
+    }
+
+    let axis_tags: Vec<String> = axis_info.iter().map(|axis| axis.tag.clone()).collect();
+    let axis_points: Vec<Vec<f32>> = axis_info
+        .iter()
+        .map(|axis| axis_grid_points(axis, axis_sample_count(axis, axes)))
+        .collect();
+    let total = axis_points.iter().map(Vec::len).product();
+    let mut locations = Vec::with_capacity(total);
+    for index in 0..total {
+        let mut radix: usize = total;
+        let mut remainder = index;
+        let mut coords = Vec::with_capacity(axis_tags.len());
+        for (tag, points) in axis_tags.iter().zip(&axis_points) {
+            radix /= points.len();
+            let digit = remainder / radix;
+            remainder %= radix;
+            coords.push((tag.clone(), points[digit]));
         }
+        locations.push(coords);
     }
-
-    pub(crate) fn is_variable(&self) -> bool {
-        !self.axis_tags.is_empty()
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        match &self.kind {
-            StyleSpaceKind::Cartesian { axis_points } => axis_points.iter().map(Vec::len).product(),
-            StyleSpaceKind::Explicit { instances } => instances.len(),
-        }
-    }
-
-    /// User-space axis coordinates of the `index`-th instance.
-    ///
-    /// For the Cartesian kind the instance index is decomposed mixed-radix
-    /// across the axes (first axis most significant), matching the order in
-    /// which a fully materialized grid would have been enumerated.
-    pub(crate) fn user_coords(&self, index: usize) -> Vec<(String, f32)> {
-        match &self.kind {
-            StyleSpaceKind::Cartesian { axis_points } => {
-                let mut radix: usize = axis_points.iter().map(Vec::len).product();
-                let mut remainder = index;
-                let mut coords = Vec::with_capacity(self.axis_tags.len());
-                for (tag, points) in self.axis_tags.iter().zip(axis_points) {
-                    radix /= points.len();
-                    let digit = remainder / radix;
-                    remainder %= radix;
-                    coords.push((tag.clone(), points[digit]));
-                }
-                coords
-            }
-            StyleSpaceKind::Explicit { instances } => self
-                .axis_tags
-                .iter()
-                .cloned()
-                .zip(instances[index].iter().copied())
-                .collect(),
-        }
-    }
+    Ok(locations)
 }
 
-impl VariationInstantiation {
-    pub(crate) fn instantiate(
-        &self,
-        font: &skrifa::FontRef<'_>,
-        path: &Path,
-        face_index: u32,
-    ) -> Result<StyleSpace, Error> {
-        let axis_info: Vec<AxisInfo> = font
-            .axes()
-            .iter()
-            .map(|axis| AxisInfo {
-                tag: axis.tag().to_string(),
-                min: axis.min_value(),
-                default: axis.default_value(),
-                max: axis.max_value(),
+pub(crate) fn grid_location_count(
+    font: &skrifa::FontRef<'_>,
+    axes: &HashMap<String, i64>,
+) -> Result<usize, Error> {
+    validate_grid_axes(axes)?;
+    axis_info(font)
+        .iter()
+        .map(|axis| usize::try_from(axis_sample_count(axis, axes)).expect("count is positive"))
+        .try_fold(1usize, |total, count| {
+            total.checked_mul(count).ok_or_else(|| {
+                Error::Parse("grid_instances location count overflowed usize".to_string())
             })
-            .collect();
+        })
+}
 
-        if axis_info.is_empty() {
-            return Ok(StyleSpace::static_single());
-        }
+pub(crate) fn canonicalize_location(
+    font: &skrifa::FontRef<'_>,
+    path: &Path,
+    ttc_index: u32,
+    location: Option<&HashMap<String, f32>>,
+) -> Result<Vec<(String, f32)>, Error> {
+    let axis_info = axis_info(font);
+    let Some(location) = location else {
+        return Ok(axis_info
+            .into_iter()
+            .map(|axis| (axis.tag, axis.default))
+            .collect());
+    };
 
-        let axis_tags: Vec<String> = axis_info.iter().map(|axis| axis.tag.clone()).collect();
-        let kind = match self {
-            Self::Default => StyleSpaceKind::Cartesian {
-                axis_points: default_points(&axis_info),
-            },
-            Self::Named => match named_instance_coords(font, &axis_tags, path, face_index)? {
-                Some(instances) => StyleSpaceKind::Explicit { instances },
-                None => StyleSpaceKind::Cartesian {
-                    axis_points: default_points(&axis_info),
-                },
-            },
-            Self::Grid { axes } => StyleSpaceKind::Cartesian {
-                axis_points: axis_info
-                    .iter()
-                    .map(|axis| axis_grid_points(axis, axis_sample_count(axis, axes)))
-                    .collect(),
-            },
+    for (tag, value) in location {
+        let Some(axis) = axis_info.iter().find(|axis| axis.tag == *tag) else {
+            return Err(Error::Parse(format!(
+                "font '{}' (ttc_index {ttc_index}) has no variation axis '{tag}'",
+                path.display(),
+            )));
         };
-
-        Ok(StyleSpace { axis_tags, kind })
+        if !value.is_finite() {
+            return Err(Error::Parse(format!(
+                "variation axis '{tag}' value must be finite"
+            )));
+        }
+        if *value < axis.min || *value > axis.max {
+            return Err(Error::Parse(format!(
+                "variation axis '{tag}' value {value} is outside [{}, {}]",
+                axis.min, axis.max,
+            )));
+        }
     }
+
+    Ok(axis_info
+        .into_iter()
+        .map(|axis| {
+            let value = location.get(&axis.tag).copied().unwrap_or(axis.default);
+            (axis.tag, value)
+        })
+        .collect())
 }
 
-struct AxisInfo {
-    tag: String,
-    min: f32,
-    default: f32,
-    max: f32,
-}
-
-fn default_points(axes: &[AxisInfo]) -> Vec<Vec<f32>> {
-    axes.iter().map(|axis| vec![axis.default]).collect()
+fn validate_grid_axes(axes: &HashMap<String, i64>) -> Result<(), Error> {
+    if axes.is_empty() {
+        return Err(Error::Parse(
+            "grid_instances requires at least one axis; use default_instance for defaults"
+                .to_string(),
+        ));
+    }
+    if let Some((tag, count)) = axes.iter().find(|&(_, &count)| count <= 0) {
+        return Err(Error::Parse(format!(
+            "grid_instances axis density for '{tag}' must be greater than zero, got {count}"
+        )));
+    }
+    Ok(())
 }
 
 fn named_instance_coords(
     font: &skrifa::FontRef<'_>,
     axis_tags: &[String],
     path: &Path,
-    face_index: u32,
+    ttc_index: u32,
 ) -> Result<Option<Vec<Vec<f32>>>, Error> {
     let named_instances = font.named_instances();
     if named_instances.is_empty() {
@@ -152,7 +169,7 @@ fn named_instance_coords(
             let coords: Vec<f32> = inst.user_coords().collect();
             if coords.len() != axis_tags.len() {
                 return Err(Error::Parse(format!(
-                    "font '{}' (face {face_index}) reported mismatched axis metadata",
+                    "font '{}' (ttc_index {ttc_index}) reported mismatched axis metadata",
                     path.display(),
                 )));
             }
@@ -174,11 +191,11 @@ fn dedup_coords(coords: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
 
 /// Number of grid points for an axis: the explicitly requested count, or `1`
 /// (pinned to the axis default) for axes the caller did not list.
-fn axis_sample_count(axis: &AxisInfo, axes: &HashMap<String, u32>) -> u32 {
+fn axis_sample_count(axis: &AxisInfo, axes: &HashMap<String, i64>) -> i64 {
     axes.get(&axis.tag).copied().unwrap_or(1)
 }
 
-fn axis_grid_points(axis: &AxisInfo, count: u32) -> Vec<f32> {
+fn axis_grid_points(axis: &AxisInfo, count: i64) -> Vec<f32> {
     match count {
         1 => vec![axis.default],
         n => (0..n)

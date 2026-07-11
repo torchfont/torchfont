@@ -3,10 +3,11 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.transforms import load_glyph
 
 
 def transform(sample: GlyphSample) -> tuple[Tensor, Tensor]:
-    return sample.types, sample.coords
+    return load_glyph(sample.ref)
 
 
 def collate_fn(
@@ -34,7 +35,7 @@ def main() -> None:
     )
 
     print(f"{len(dataset)=}")
-    print(f"{len(dataset.content_classes)=}")
+    print(f"{len(dataset.character_classes)=}")
     print(f"{len(dataset.style_classes)=}")
 
     for batch in dataloader:

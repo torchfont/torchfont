@@ -2,38 +2,57 @@
 
 <!-- markdownlint-disable MD013 -->
 
-`torchfont.datasets` では、`GlyphDataset` が中心となる公開 Dataset API です。
+`torchfont.datasets` は参照優先の PyTorch Dataset API を提供します。Dataset item
+は軽量で pickle しやすい dataclass で、outline の読み込みは transform 内で
+`load_glyph`([Transform Utilities](./transforms.md) 参照)を明示的に呼びます。
 
-## GlyphSample
+Dataset の index と target は構築時点のフォントファイルから作られますが、glyph
+outline は現在のディスク上のファイルから遅延読み込みされます。Dataset object の
+lifetime 中にフォントファイルを変更すること、pickle/unpickle 境界をまたいで変更する
+ことは unsupported で、sample と label の不整合を起こす可能性があります。
 
-```python
-from torchfont.datasets import GlyphSample
-```
-
-`transform` なしの `GlyphDataset.__getitem__` の返り値であり、dataset
-transform や `torchfont.transforms` へ渡す入力 sample 型です。
-
-## DatasetMetadata
+## 参照型
 
 ```python
-from torchfont.datasets import DatasetMetadata
+from torchfont.datasets import (
+    FontRef,
+    GlyphRef,
+    GlyphSample,
+    VariableGlyphRef,
+    VariableGlyphSample,
+)
 ```
 
-`GlyphDataset.metadata` が返す構造化 label metadata 型です。
+| 型 | フィールド |
+| -- | ---------- |
+| `FontRef` | `path: str`, `ttc_index: int` |
+| `GlyphRef` | `font: FontRef`, `codepoint: int`, `location: Mapping[str, float]` |
+| `VariableGlyphRef` | `font: FontRef`, `codepoint: int` |
+| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int` |
+| `VariableGlyphSample` | `ref: VariableGlyphRef`, `font_idx: int`, `character_idx: int` |
+
+`ttc_index` は read-fonts/skrifa が TrueType Collection 内のフォント位置に
+使っている名前に合わせています。単一フォントのファイルでは `0` です。
 
 ## GlyphDataset
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.variation import (
-    DefaultInstantiation,
-    GridInstantiation,
-    NamedInstantiation,
-    VariationInstantiation,
+from torchfont.variation import named_instances
+
+dataset = GlyphDataset(
+    root="~/fonts",
+    codepoints=range(0x41, 0x5B),
+    patterns=("**/*.ttf",),
+    instances=named_instances,
 )
 ```
 
-### コンストラクタ（`GlyphDataset`）
+`GlyphDataset` は固定済み variation location を index に含めます。instance function
+は構築時だけ実行され、pickle state には保存されません。`transform` なしでは
+`dataset[i]` は `GlyphSample` を返します。
+
+コンストラクタ:
 
 ```python
 GlyphDataset(
@@ -41,133 +60,85 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    variation: VariationInstantiation | None = None,
+    instances: InstanceFn = torchfont.variation.named_instances,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
 
-Variation Instantiation クラスは `torchfont.variation` からエクスポートされます。
+targets:
 
-`T` は transform の返り値型であり、そのまま dataset item の型になります。
+- `font_targets -> LongTensor (N,)`
+- `style_targets -> LongTensor (N,)`
+- `character_targets -> LongTensor (N,)`
 
-| 引数               | 型                                | 説明                               |
-| ------------------ | --------------------------------- | ---------------------------------- |
-| `root`             | `Path \| str`                     | フォント探索の起点ディレクトリ     |
-| `codepoints` | `Sequence[SupportsIndex] \| None` | 対象 Unicode codepoint を制限      |
-| `patterns`         | `Sequence[str] \| None`           | gitignore 互換パターンでパスを絞る |
-| `variation` | `VariationInstantiation \| None` | バリアブルフォントのインスタンス化方針 |
-| `transform`        | `Callable \| None`                | sample-first 前処理（`GlyphSample -> T`） |
+class 語彙:
 
-### 振る舞い
+- `font_classes -> list[FontRef]`
+- `style_classes -> list[str]`
+- `character_classes -> list[str]`
+- `character_class_to_idx -> dict[str, int]`
 
-- 走査対象拡張子: `.ttf` / `.otf` / `.ttc` / `.otc`
-- `root` は初期化時に絶対 `Path` へ解決される
-- `codepoints` は index 化前に sort 済み・重複なしの整数列へ正規化される
-- 静的フォントは常に 1 つの静的なスタイルとして扱い、
-  バリアブルフォントは `variation` に従って `fvar` user
-  coordinate space でインスタンス化する
-- `variation=None` は `NamedInstantiation()` と同義。
-  `DefaultInstantiation()` は `fvar` default location、
-  `NamedInstantiation()` は名前付きインスタンスがあればそれらを使い、なければ
-  default location にフォールバックする
-- `GridInstantiation(axes={"wght": 7, "wdth": 3})` は、指定した各軸を等間隔の
-  グリッド（軸の最小値〜最大値を指定点数）でサンプリングし、それらの軸間で直積を
-  取る。指定しなかった軸は `fvar` default に固定される。インスタンス数は指定した
-  点数の積であり、フォントの総軸数には依存しない。`axes` は最低 1 軸を指定し、
-  すべての点数は 0 より大きい必要がある
-- `ignore` crate の standard filters（hidden directory / `.gitignore` / `.ignore` /
-  グローバル gitignore / git exclude など）による暗黙の ignore ルールは使わず、
-  パス選択は `patterns` に寄せる
-- ただし `.git` / `.hg` / `.svn` などの VCS metadata directory は明示的に除外する
-- `__getitem__` は負インデックス対応（`dataset[-1]` など）
-- 範囲外インデックスは `IndexError`
-
-### 保持される設定値
-
-- `dataset.root`: 解決済みの root `Path`
-- `dataset.patterns`: パスフィルタの tuple、または `None`
-- `dataset.codepoints`: sort 済み・重複なし codepoint の tuple、または `None`
-- `dataset.variation`: 渡されたインスタンス化方針、または `None`
-
-### 戻り値
+## VariableGlyphDataset
 
 ```python
-sample = dataset[idx]
-```
+from torchfont.datasets import VariableGlyphDataset
+from torchfont.variation import named_instance_count
 
-| 要素                 | 型                  | 形状           |
-| -------------------- | ------------------- | -------------- |
-| `sample.types`       | `torch.LongTensor`  | `(seq_len,)`   |
-| `sample.coords`      | `torch.FloatTensor` | `(seq_len, 6)` |
-| `sample.style_idx`   | `int`               | スカラー       |
-| `sample.content_idx` | `int`               | スカラー       |
-| `sample.head`        | `torch.FloatTensor` | `(8,)`         |
-| `sample.hhea`        | `torch.FloatTensor` | `(10,)`        |
-| `sample.os2`         | `torch.FloatTensor` | `(42,)`        |
-| `sample.post`        | `torch.FloatTensor` | `(4,)`         |
-| `sample.maxp`        | `torch.FloatTensor` | `(14,)`        |
-| `sample.hmtx`        | `torch.FloatTensor` | `(2,)`         |
-| `sample.bounds`      | `torch.FloatTensor` | `(4,)`         |
-| `sample.name`        | `NameRecord`        | —              |
-| `sample.codepoint`   | `int`               | —              |
-| `sample.glyph_name`  | `str`               | —              |
-
-`sample.post` は `(italic_angle, is_fixed_pitch, underline_position,
-underline_thickness)` を保持します。`italic_angle` の単位は度、
-`is_fixed_pitch` は `0.0` または `1.0`、下線の2値は em 単位です。
-
-`transform` なしでは `sample` 自体の型は `GlyphSample` です。`transform`
-ありでは、dataset item の型は transform の返り値型から推論されます。
-
-### プロパティ
-
-#### `targets -> torch.LongTensor`
-
-全サンプルのラベル行列（`shape=(N, 2)`）
-
-- `targets[:, 0]`: style index
-- `targets[:, 1]`: content index
-
-#### `content_classes -> list[str]`
-
-コンテンツクラス名（1 文字 Unicode 文字列）の配列。
-
-#### `metadata -> DatasetMetadata`
-
-ラベル metadata をまとめた構造化オブジェクト。
-
-- `metadata.styles`: `StyleLabel` の tuple
-- `metadata.contents`: `ContentLabel` の tuple
-- `metadata.style_id_to_idx`: style `label_id` から style index へのマップ
-- `metadata.style_name_to_idxs`: style 表示名から全 index へのマップ
-- `metadata.content_id_to_idx`: content `label_id` から content index へのマップ
-
-#### `content_class_to_idx -> dict[str, int]`
-
-文字から content index へのマップ。
-
-#### `style_classes -> list[str]`
-
-スタイル名の配列。静的フォントは family/subfamily 名を使います。バリアブルフォントは family 名に `Roboto wght=400,wdth=100` のような選択された variation location を加えた名前を使います。
-
-### 例（`GlyphDataset`）
-
-```python
-dataset = GlyphDataset(
+dataset = VariableGlyphDataset(
     root="~/fonts",
-    codepoints=range(0x41, 0x5B),  # A-Z
-    patterns=("**/*.ttf", "!*Bold*"),
+    codepoints=range(0x41, 0x5B),
+    instance_count=named_instance_count,
 )
 ```
 
-## `root` の考え方
+`VariableGlyphDataset` は location を index に含めません。各アクセスで transform が
+新しい location をサンプルする training augmentation に向いています。`instance_count`
+は各フォントの離散的な多重度だけを決める instance-count function です。静的フォントも通常の
+フォントとして含まれます。
 
-- 普通のローカルフォントディレクトリ
-- Git などで自分で clone した repository checkout
-- TorchFont の外側で同期を管理する外部コーパス
+コンストラクタ:
 
-TorchFont から見れば、どれも通常のローカルディレクトリです。ディスク上の
-ファイルが更新されたら、ネイティブな indexing state がディスクの内容と
-ずれないように Dataset インスタンスも作り直してください。Dataset の利用中
-にファイルが変わった場合の結果は未定義で、不正な sample や runtime error
-につながることがあります。
+```python
+VariableGlyphDataset(
+    root: Path | str,
+    *,
+    instance_count: InstanceCountFn = torchfont.variation.named_instance_count,
+    codepoints: Sequence[SupportsIndex] | None = None,
+    patterns: Sequence[str] | None = None,
+    transform: Callable[[VariableGlyphSample], T] | None = None,
+)
+```
+
+targets:
+
+- `font_targets -> LongTensor (N,)`
+- `character_targets -> LongTensor (N,)`
+
+## Variation Functions
+
+```python
+from torchfont.variation import (
+    default_instance,
+    default_instance_count,
+    grid_instances,
+    grid_instance_count,
+    named_instances,
+    named_instance_count,
+    random_location,
+)
+```
+
+組み込み関数:
+
+- `named_instances(font)`: fvar named instance を dedupe して返す。なければ default
+- `default_instance(font)`: default location 1 つ
+- `grid_instances({"wght": 7, "wdth": 3})`: 等間隔の固定 grid。フォントに存在しない軸は無視し、指定されなかった軸は default を使い、静的フォントは default 1 枠
+- `random_location(font, generator=None)`: transform 時 sampling 用の location 1 つ
+- `named_instance_count(font)`: `named_instances` と同じ多重度
+- `default_instance_count(font)`: instance slot 1 つ
+- `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` と同じ多重度
+
+ランダム性は任意の `torch.Generator` で管理します。dataset-level seed はありません。
+
+カスタム instance function は 0 個の location を返せます。未知の軸や、正規化後に
+重複する location は Dataset 構築時に `ValueError` になります。

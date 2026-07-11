@@ -1,62 +1,44 @@
-use std::{fs, path::Path, sync::Arc};
+use std::{fs, path::Path, path::PathBuf};
 
 use memmap2::Mmap;
+use skrifa::MetadataProvider;
+use skrifa::raw::FileRef;
 use skrifa::raw::types::NameId;
-use skrifa::raw::{FileRef, TableProvider};
-use skrifa::{GlyphId, MetadataProvider};
 
-use super::glyph::Hmtx;
-use super::reader::GlyphReader;
-use super::table::{Head, Hhea, Maxp, Name, Os2, Post};
-use super::variation::{StyleSpace, VariationInstantiation};
 use crate::error::Error;
-use crate::geom::{Bounds, Outline};
 
-pub(super) struct GlyphIndex {
-    codepoints: Vec<u32>,
-    glyph_ids: Vec<GlyphId>,
+/// Font-level strings used for dataset style display names.
+pub(crate) struct Name {
+    pub(crate) family_name: String,
+    pub(crate) subfamily_name: String,
+    pub(crate) typographic_family_name: String,
+    pub(crate) typographic_subfamily_name: String,
 }
 
 pub(crate) struct FontEntry {
-    index: GlyphIndex,
-    reader: GlyphReader,
-    pub(crate) head: Head,
-    pub(crate) hhea: Hhea,
-    pub(crate) os2: Os2,
-    pub(crate) post: Post,
-    pub(crate) maxp: Maxp,
+    path: PathBuf,
+    ttc_index: u32,
+    codepoints: Vec<u32>,
     pub(crate) name: Name,
-    style_space: StyleSpace,
 }
 
 impl FontEntry {
-    pub(crate) fn load_faces(
-        path: &Path,
-        filter: Option<&[u32]>,
-        variation_instantiation: &VariationInstantiation,
-    ) -> Result<Vec<Self>, Error> {
-        let mapped = Arc::new(map_font(path)?);
+    pub(crate) fn load_fonts(path: &Path, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
+        let mapped = map_font(path)?;
         let parsed = FileRef::new(&mapped[..])
             .map_err(|err| Error::Parse(format!("failed to parse '{}': {err}", path.display())))?;
 
         let entries = parsed
             .fonts()
             .enumerate()
-            .map(|(face_index, face)| {
-                let font = face.map_err(|err| {
+            .map(|(ttc_index, font_result)| {
+                let font = font_result.map_err(|err| {
                     Error::Parse(format!(
-                        "failed to parse '{}' (face {face_index}): {err}",
+                        "failed to parse '{}' (ttc_index {ttc_index}): {err}",
                         path.display()
                     ))
                 })?;
-                Self::from_face(
-                    path,
-                    face_index as u32,
-                    Arc::clone(&mapped),
-                    &font,
-                    filter,
-                    variation_instantiation,
-                )
+                Self::from_font(path, ttc_index as u32, &font, filter)
             })
             .collect::<Result<Vec<_>, Error>>()?;
 
@@ -69,58 +51,45 @@ impl FontEntry {
         Ok(entries)
     }
 
-    pub(crate) fn glyph_complete(
-        &self,
-        codepoint: u32,
-        instance_index: Option<usize>,
-    ) -> Result<(Outline, Hmtx, Bounds, String), Error> {
-        let glyph_idx = self.lookup_glyph_index(codepoint)?;
-        let glyph_id = self.index.glyph_ids[glyph_idx];
-        let user_location = match instance_index {
-            Some(index) => self.style_space.user_coords(index),
-            None => Vec::new(),
-        };
-        self.reader
-            .draw_glyph(glyph_id, self.head.units_per_em, &user_location)
-    }
-
-    pub(crate) fn instance_count(&self) -> usize {
-        self.style_space.len()
-    }
-
-    pub(crate) fn is_variable(&self) -> bool {
-        self.style_space.is_variable()
-    }
-
     pub(crate) fn path(&self) -> &Path {
-        self.reader.path()
+        &self.path
     }
 
-    pub(crate) fn face_index(&self) -> u32 {
-        self.reader.face_index()
+    pub(crate) fn ttc_index(&self) -> u32 {
+        self.ttc_index
     }
 
     pub(crate) fn codepoints(&self) -> &[u32] {
-        &self.index.codepoints
+        &self.codepoints
     }
 
     pub(crate) fn codepoint_count(&self) -> usize {
-        self.index.codepoints.len()
+        self.codepoints.len()
     }
 
-    pub(crate) fn style_axes_at(&self, instance_index: usize) -> Vec<(String, f32)> {
-        self.style_space.user_coords(instance_index)
+    pub(crate) fn family_name(&self) -> &str {
+        if self.name.typographic_family_name.is_empty() {
+            &self.name.family_name
+        } else {
+            &self.name.typographic_family_name
+        }
     }
 
-    fn from_face(
+    pub(crate) fn subfamily_name(&self) -> &str {
+        if self.name.typographic_subfamily_name.is_empty() {
+            &self.name.subfamily_name
+        } else {
+            &self.name.typographic_subfamily_name
+        }
+    }
+
+    fn from_font(
         base_path: &Path,
-        face_index: u32,
-        data: Arc<Mmap>,
+        ttc_index: u32,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
-        variation_instantiation: &VariationInstantiation,
     ) -> Result<Self, Error> {
-        let (head, hhea, os2, post, maxp, name) = parse_font_tables(font, base_path, face_index)?;
+        let name = parse_name_table(font);
 
         let outline_glyphs = font.outline_glyphs();
         let mut mappings: Vec<_> = font
@@ -132,190 +101,52 @@ impl FontEntry {
             .filter(|(_, glyph_id)| outline_glyphs.get(*glyph_id).is_some())
             .collect();
         mappings.sort_unstable_by_key(|entry| entry.0);
-        let (codepoints, glyph_ids): (Vec<_>, Vec<_>) = mappings.into_iter().unzip();
-
-        let style_space = variation_instantiation.instantiate(font, base_path, face_index)?;
+        let codepoints: Vec<_> = mappings
+            .into_iter()
+            .map(|(codepoint, _glyph_id)| codepoint)
+            .collect();
 
         Ok(Self {
-            index: GlyphIndex {
-                codepoints,
-                glyph_ids,
-            },
-            reader: GlyphReader::new(base_path.to_path_buf(), face_index, data),
-            head,
-            hhea,
-            os2,
-            post,
-            maxp,
+            path: base_path.to_path_buf(),
+            ttc_index,
+            codepoints,
             name,
-            style_space,
         })
-    }
-
-    fn lookup_glyph_index(&self, codepoint: u32) -> Result<usize, Error> {
-        self.index
-            .codepoints
-            .binary_search(&codepoint)
-            .map_err(|_| {
-                Error::OutOfRange(format!(
-                    "codepoint U+{codepoint:04X} missing from '{}'",
-                    self.reader.path().display()
-                ))
-            })
     }
 }
 
-fn parse_font_tables(
-    font: &skrifa::FontRef<'_>,
-    path: &Path,
-    face_index: u32,
-) -> Result<(Head, Hhea, Os2, Post, Maxp, Name), Error> {
-    let table_err = |table: &'static str| {
-        move |err: skrifa::raw::ReadError| {
-            Error::Parse(format!(
-                "font '{}' (face {face_index}) '{table}' table error: {err}",
-                path.display()
-            ))
-        }
-    };
-
-    let raw_head = font.head().map_err(table_err("head"))?;
-    let raw_hhea = font.hhea().map_err(table_err("hhea"))?;
-    let raw_os2 = font.os2().map_err(table_err("OS/2"))?;
-    let raw_post = font.post().map_err(table_err("post"))?;
-    let raw_maxp = font.maxp().map_err(table_err("maxp"))?;
-
-    let inv = (raw_head.units_per_em() as f32).recip();
-    let norm = |v: i16| v as f32 * inv;
-    let norm_u = |v: u16| v as f32 * inv;
-    let opt_norm = |v: Option<i16>| v.map(|x| x as f32 * inv);
-
-    let head = Head {
-        units_per_em: raw_head.units_per_em(),
-        flags: raw_head.flags().bits(),
-        x_min: norm(raw_head.x_min()),
-        y_min: norm(raw_head.y_min()),
-        x_max: norm(raw_head.x_max()),
-        y_max: norm(raw_head.y_max()),
-        mac_style: raw_head.mac_style().bits(),
-        lowest_rec_ppem: raw_head.lowest_rec_ppem(),
-    };
-
-    let hhea = Hhea {
-        ascender: norm(raw_hhea.ascender().into()),
-        descender: norm(raw_hhea.descender().into()),
-        line_gap: norm(raw_hhea.line_gap().into()),
-        advance_width_max: norm_u(raw_hhea.advance_width_max().into()),
-        min_left_side_bearing: norm(raw_hhea.min_left_side_bearing().into()),
-        min_right_side_bearing: norm(raw_hhea.min_right_side_bearing().into()),
-        x_max_extent: norm(raw_hhea.x_max_extent().into()),
-        caret_slope_rise: raw_hhea.caret_slope_rise(),
-        caret_slope_run: raw_hhea.caret_slope_run(),
-        caret_offset: norm(raw_hhea.caret_offset()),
-    };
-
-    let mut panose = [0u8; 10];
-    panose.copy_from_slice(raw_os2.panose_10());
-
-    let os2 = Os2 {
-        weight_class: raw_os2.us_weight_class(),
-        width_class: raw_os2.us_width_class(),
-        fs_type: raw_os2.fs_type(),
-        fs_selection: raw_os2.fs_selection().bits(),
-        typo_ascender: norm(raw_os2.s_typo_ascender()),
-        typo_descender: norm(raw_os2.s_typo_descender()),
-        typo_line_gap: norm(raw_os2.s_typo_line_gap()),
-        win_ascent: norm_u(raw_os2.us_win_ascent()),
-        win_descent: norm_u(raw_os2.us_win_descent()),
-        avg_char_width: norm(raw_os2.x_avg_char_width()),
-        y_subscript_x_size: norm(raw_os2.y_subscript_x_size()),
-        y_subscript_y_size: norm(raw_os2.y_subscript_y_size()),
-        y_subscript_x_offset: norm(raw_os2.y_subscript_x_offset()),
-        y_subscript_y_offset: norm(raw_os2.y_subscript_y_offset()),
-        y_superscript_x_size: norm(raw_os2.y_superscript_x_size()),
-        y_superscript_y_size: norm(raw_os2.y_superscript_y_size()),
-        y_superscript_x_offset: norm(raw_os2.y_superscript_x_offset()),
-        y_superscript_y_offset: norm(raw_os2.y_superscript_y_offset()),
-        y_strikeout_size: norm(raw_os2.y_strikeout_size()),
-        y_strikeout_position: norm(raw_os2.y_strikeout_position()),
-        s_family_class: raw_os2.s_family_class(),
-        panose,
-        vend_id: raw_os2.ach_vend_id().into_bytes(),
-        us_first_char_index: raw_os2.us_first_char_index(),
-        us_last_char_index: raw_os2.us_last_char_index(),
-        x_height: opt_norm(raw_os2.sx_height()),
-        cap_height: opt_norm(raw_os2.s_cap_height()),
-        us_default_char: raw_os2.us_default_char(),
-        us_break_char: raw_os2.us_break_char(),
-        us_max_context: raw_os2.us_max_context(),
-    };
-
-    let post = Post {
-        italic_angle: raw_post.italic_angle().to_f64() as f32,
-        is_fixed_pitch: raw_post.is_fixed_pitch() != 0,
-        underline_position: norm(raw_post.underline_position().into()),
-        underline_thickness: norm(raw_post.underline_thickness().into()),
-    };
-
-    let maxp = Maxp {
-        num_glyphs: raw_maxp.num_glyphs(),
-        max_points: raw_maxp.max_points(),
-        max_contours: raw_maxp.max_contours(),
-        max_composite_points: raw_maxp.max_composite_points(),
-        max_composite_contours: raw_maxp.max_composite_contours(),
-        max_zones: raw_maxp.max_zones(),
-        max_twilight_points: raw_maxp.max_twilight_points(),
-        max_storage: raw_maxp.max_storage(),
-        max_function_defs: raw_maxp.max_function_defs(),
-        max_instruction_defs: raw_maxp.max_instruction_defs(),
-        max_stack_elements: raw_maxp.max_stack_elements(),
-        max_size_of_instructions: raw_maxp.max_size_of_instructions(),
-        max_component_elements: raw_maxp.max_component_elements(),
-        max_component_depth: raw_maxp.max_component_depth(),
-    };
-
+fn parse_name_table(font: &skrifa::FontRef<'_>) -> Name {
     let one = |id: NameId| -> String {
         font.localized_strings(id)
             .english_or_first()
             .map(|s| s.to_string())
             .unwrap_or_default()
     };
-    let name = Name {
-        copyright_notice: one(NameId::COPYRIGHT_NOTICE),
+    Name {
         family_name: one(NameId::FAMILY_NAME),
         subfamily_name: one(NameId::SUBFAMILY_NAME),
-        unique_id: one(NameId::UNIQUE_ID),
-        full_name: one(NameId::FULL_NAME),
-        version_string: one(NameId::VERSION_STRING),
-        postscript_name: one(NameId::POSTSCRIPT_NAME),
-        trademark: one(NameId::TRADEMARK),
-        manufacturer: one(NameId::MANUFACTURER),
-        designer: one(NameId::DESIGNER),
-        description: one(NameId::DESCRIPTION),
-        vendor_url: one(NameId::VENDOR_URL),
-        designer_url: one(NameId::DESIGNER_URL),
-        license_description: one(NameId::LICENSE_DESCRIPTION),
-        license_url: one(NameId::LICENSE_URL),
-        reserved: one(NameId::new(15)),
         typographic_family_name: one(NameId::TYPOGRAPHIC_FAMILY_NAME),
         typographic_subfamily_name: one(NameId::TYPOGRAPHIC_SUBFAMILY_NAME),
-        compatible_full_name: one(NameId::COMPATIBLE_FULL_NAME),
-        sample_text: one(NameId::SAMPLE_TEXT),
-        postscript_cid_name: one(NameId::POSTSCRIPT_CID_NAME),
-        wws_family_name: one(NameId::WWS_FAMILY_NAME),
-        wws_subfamily_name: one(NameId::WWS_SUBFAMILY_NAME),
-        light_background_palette: one(NameId::LIGHT_BACKGROUND_PALETTE),
-        dark_background_palette: one(NameId::DARK_BACKGROUND_PALETTE),
-        variations_postscript_name_prefix: one(NameId::VARIATIONS_POSTSCRIPT_NAME_PREFIX),
-    };
-
-    Ok((head, hhea, os2, post, maxp, name))
+    }
 }
 
-fn map_font(path: &Path) -> Result<Mmap, Error> {
+pub(crate) fn map_font(path: &Path) -> Result<Mmap, Error> {
     let file = fs::File::open(path)
         .map_err(|err| Error::Io(format!("failed to open '{}': {err}", path.display())))?;
     let mmap = unsafe { Mmap::map(&file) }
         .map_err(|err| Error::Io(format!("failed to map '{}': {err}", path.display())))?;
     Ok(mmap)
+}
+
+pub(crate) fn parse_font_ref<'a>(
+    data: &'a [u8],
+    path: &Path,
+    ttc_index: u32,
+) -> Result<skrifa::FontRef<'a>, Error> {
+    skrifa::FontRef::from_index(data, ttc_index).map_err(|err| {
+        Error::Parse(format!(
+            "failed to parse '{}' (ttc_index {ttc_index}): {err}",
+            path.display()
+        ))
+    })
 }

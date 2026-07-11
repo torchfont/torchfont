@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import merge_curves, render_bitmap
+from torchfont.transforms import load_glyph, merge_curves, render_bitmap
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,12 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    merged_types, merged_coords = merge_curves(sample.types, sample.coords)
+    types, coords = load_glyph(sample.ref)
+    merged_types, merged_coords = merge_curves(types, coords)
 
     original = render_bitmap(
-        sample.types,
-        sample.coords,
+        types,
+        coords,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
@@ -44,9 +45,9 @@ def _transform(sample: GlyphSample) -> Tensor:
     if failed:
         logger.warning(
             "merge_curves bitmap mismatch: %s U+%04X %s",
-            sample.name.family_name,
-            sample.codepoint,
-            sample.glyph_name,
+            sample.ref.font.path,
+            sample.ref.codepoint,
+            sample.ref.location,
         )
     return failed
 

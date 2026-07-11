@@ -12,27 +12,29 @@ def main() -> None:
     )
 
     print(f"{len(dataset)=}")
-    print(f"{dataset.targets.shape=}")
+    print(f"{dataset.style_targets.shape=}")
+    print(f"{dataset.character_targets.shape=}")
 
-    t = dataset.targets
+    style_targets = dataset.style_targets
+    character_targets = dataset.character_targets
 
     # Subset by style
-    style_idx = t[0, 0].item()
-    style_indices = torch.where(t[:, 0] == style_idx)[0].tolist()
+    style_idx = style_targets[0].item()
+    style_indices = torch.where(style_targets == style_idx)[0].tolist()
     style_sub = Subset(dataset, style_indices)
     print(f"style={style_idx}: {len(style_sub)} samples")
 
-    # Subset by content
-    content_idx = t[0, 1].item()
-    content_indices = torch.where(t[:, 1] == content_idx)[0].tolist()
-    content_sub = Subset(dataset, content_indices)
-    print(f"content={content_idx}: {len(content_sub)} samples")
+    # Subset by character
+    character_idx = character_targets[0].item()
+    character_indices = torch.where(character_targets == character_idx)[0].tolist()
+    character_sub = Subset(dataset, character_indices)
+    print(f"character={character_idx}: {len(character_sub)} samples")
 
-    # Subset by style & content
-    mask = (t[:, 0] == style_idx) & (t[:, 1] == content_idx)
+    # Subset by style & character
+    mask = (style_targets == style_idx) & (character_targets == character_idx)
     combined_indices = torch.where(mask)[0].tolist()
     combined_sub = Subset(dataset, combined_indices)
-    print(f"style={style_idx} & content={content_idx}: {len(combined_sub)} samples")
+    print(f"style={style_idx} & character={character_idx}: {len(combined_sub)} samples")
 
 
 if __name__ == "__main__":

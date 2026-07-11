@@ -6,6 +6,7 @@ Access a sample from the dataset created in the previous chapter. Run the follow
 
 ```python
 from torchfont.datasets import GlyphDataset
+from torchfont.transforms import load_glyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -19,14 +20,18 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
+types, coords = load_glyph(sample.ref)
 
-print(sample.types)        # element type sequence
-print(sample.coords)       # coordinates sequence
-print(sample.style_idx)    # style class ID
-print(sample.content_idx)  # content class ID
+print(sample.ref)            # glyph reference
+print(types)                 # element type sequence
+print(coords)                # coordinates sequence
+print(sample.style_idx)      # style class ID
+print(sample.character_idx)  # character class ID
 ```
 
-The return value is a `GlyphSample` dataclass. Access its fields by name.
+The return value is a `GlyphSample` dataclass. It stores a deterministic glyph
+reference and dataset-local target indices. Use `load_glyph(sample.ref)` when
+you need outline tensors.
 
 ## Outline model
 
@@ -36,7 +41,8 @@ A glyph outline is represented as a sequence of path elements.
 - **Subpath**: a sequence of path elements representing one continuous curve that makes up a glyph
 - **Outline**: a sequence of path elements representing the contour of one glyph
 
-`sample.types` is a `(seq_len,)` `LongTensor` of element types as integers. `sample.coords` is a `(seq_len, 6)` `FloatTensor` of coordinates as floats.
+`types` is a `(seq_len,)` `LongTensor` of element types as integers. `coords`
+is a `(seq_len, 6)` `FloatTensor` of coordinates as floats.
 
 ## Element type
 
@@ -44,6 +50,7 @@ Element types are defined in `ElementType`. Run the following code to see the ma
 
 ```python
 from torchfont.datasets import GlyphDataset
+from torchfont.transforms import load_glyph
 from torchfont.io import ElementType
 
 dataset = GlyphDataset(
@@ -58,9 +65,10 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
+types, coords = load_glyph(sample.ref)
 
-print(sample.types)
-print(ElementType(sample.types[0].item()).name)
+print(types)
+print(ElementType(types[0].item()).name)
 ```
 
 You will see output like:
@@ -81,6 +89,7 @@ Each path element uses a 6D coordinates vector. Run the following code to inspec
 
 ```python
 from torchfont.datasets import GlyphDataset
+from torchfont.transforms import load_glyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -94,9 +103,10 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
+types, coords = load_glyph(sample.ref)
 
-print(sample.coords.shape)
-print(sample.coords[0])
+print(coords.shape)
+print(coords[0])
 ```
 
 You will see output like:
@@ -120,7 +130,7 @@ Coordinates are in em units: font design units divided by the font's
 
 Quadratic curves are emitted as `QuadTo` without conversion to cubic. To keep tensor shape fixed, `QuadTo` uses `[cx0, cy0, 0, 0, x, y]`.
 
-## Style and content labels
+## Style and character labels
 
 ### `style_idx`
 
@@ -151,9 +161,10 @@ You will see output like:
 Aclonica Regular
 ```
 
-### `content_idx`
+### `character_idx`
 
-`content_idx` is the content class ID. `content_classes` returns the corresponding character. Run the following code to check the value:
+`character_idx` is the character class ID. `character_classes` returns the
+corresponding character. Run the following code to check the value:
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -171,7 +182,7 @@ dataset = GlyphDataset(
 
 sample = dataset[0]
 
-print(dataset.content_classes[sample.content_idx])
+print(dataset.character_classes[sample.character_idx])
 ```
 
 You will see output like:

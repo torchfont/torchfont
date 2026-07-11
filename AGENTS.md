@@ -25,3 +25,6 @@
 - **Making `skia-safe` an optional Cargo feature**: PyPI wheels are compiled
   binaries — Cargo features cannot be selected via `pip install`. Truly optional
   Skia would require a separate distribution package, which is not planned.
+- **Sharing parsed font state across instance functions, indexing, and loading**:
+  keep these boundaries simple and pickle-friendly. Re-parsing is acceptable;
+  measured savings were only about 70–85 ms, or 0.34% for full indexing.

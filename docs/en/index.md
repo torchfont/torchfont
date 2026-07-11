@@ -30,13 +30,13 @@ features:
   - icon: 🚀
     title: Rust backend
     details:
-      "A skrifa + PyO3 backend converts glyph outlines into element type + coordinates
-      tensors efficiently."
+      "A skrifa + PyO3 backend indexes fonts and loads glyph outlines into element
+      type + coordinate tensors on demand."
   - icon: 🧱
-    title: Sample-first data model
+    title: Reference-first data model
     details:
-      "`GlyphSample` represents one glyph with outline, structured font metadata, and name, so
-      batching policy can stay in your training code."
+      "`GlyphSample` carries a deterministic glyph reference and target indices,
+      so loading and batching logic can stay in your transform code."
   - icon: 🧩
     title: Flexible preprocessing
     details:

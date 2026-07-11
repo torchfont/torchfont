@@ -3,6 +3,33 @@
 `torchfont.transforms` provides small utility functions for adapting glyph
 tensors. Keep dataset item shaping in your own preprocessing code.
 
+## load_glyph
+
+```python
+from torchfont.transforms import load_glyph
+
+types, coords = load_glyph(sample.ref)
+```
+
+`load_glyph` is the bridge from a dataset glyph reference to the `(types,
+coords)` pair the rest of this module operates on — typically the first call
+inside a `GlyphDataset`/`VariableGlyphDataset` `transform`. It returns
+`(types, coords)`, where `types` is a 1-D `LongTensor` and `coords` is a 2-D
+`FloatTensor` of shape `(N, 6)`.
+
+For `VariableGlyphRef`, pass a location explicitly:
+
+```python
+from torchfont.variation import random_location
+
+sample = variable_dataset[0]
+location = random_location(sample.ref.font)
+types, coords = load_glyph(sample.ref, location)
+```
+
+For explicit locations, unknown axes, out-of-range values, and NaN/inf values
+raise `ValueError`. Missing axes use the font default.
+
 ## quad_to_cubic
 
 ```python

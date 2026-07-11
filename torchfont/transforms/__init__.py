@@ -1,7 +1,11 @@
 """Glyph outline transform utilities.
 
-All functions accept ``(types, coords)`` and return a transformed
-``(types, coords)`` pair without modifying the inputs.
+Most functions accept ``(types, coords)`` and return a transformed
+``(types, coords)`` pair without modifying the inputs. ``load_glyph`` is the
+one bridge function: it takes a dataset glyph reference and returns the
+``(types, coords)`` pair the rest of this module operates on, so it is
+typically the first call inside a ``GlyphDataset``/``VariableGlyphDataset``
+``transform``.
 """
 
 from torchfont.transforms.bitmap import BitmapMode, render_bitmap
@@ -19,6 +23,7 @@ from torchfont.transforms.geometric import (
     random_vertical_flip,
     vertical_flip,
 )
+from torchfont.transforms.load import load_glyph
 from torchfont.transforms.outline import patchify, remove_overlaps
 from torchfont.transforms.subpath import (
     normalize_subpath_start_points,
@@ -30,6 +35,7 @@ __all__ = [
     "affine",
     "cubic_to_quad",
     "horizontal_flip",
+    "load_glyph",
     "merge_curves",
     "normalize_subpath_start_points",
     "patchify",
