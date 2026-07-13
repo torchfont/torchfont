@@ -30,6 +30,7 @@
 	],
 	"containerEnv": {
 		"MISE_TRUSTED_CONFIG_PATHS": "/workspaces",
+		"MISE_UV_VERSION": "latest",
 		"UV_LINK_MODE": "copy"
 	},
 	"onCreateCommand": "sudo chown -R vscode:vscode /mise /home/vscode/.cache/uv .venv target node_modules data",
