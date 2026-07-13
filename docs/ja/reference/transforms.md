@@ -20,7 +20,7 @@ types, coords = load_glyph(sample.ref)
 `VariableGlyphRef` では location を明示的に渡します。
 
 ```python
-from torchfont.variation import random_location
+from torchfont.instance_fn import random_location
 
 sample = variable_dataset[0]
 location = random_location(sample.ref.font)

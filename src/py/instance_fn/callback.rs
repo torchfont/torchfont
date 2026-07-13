@@ -1,17 +1,16 @@
-use std::collections::HashMap;
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
-pub(crate) struct CallableBridge<'py> {
+pub(crate) struct InstanceFunctionsBridge<'py> {
     font_ref_class: Bound<'py, PyAny>,
     py_float: Bound<'py, PyAny>,
     py_fspath: Bound<'py, PyAny>,
     py_index: Bound<'py, PyAny>,
 }
 
-impl<'py> CallableBridge<'py> {
+impl<'py> InstanceFunctionsBridge<'py> {
     pub(crate) fn new(py: Python<'py>) -> PyResult<Self> {
         Ok(Self {
             font_ref_class: PyModule::import(py, "torchfont.datasets")?.getattr("FontRef")?,
@@ -21,12 +20,12 @@ impl<'py> CallableBridge<'py> {
         })
     }
 
-    pub(crate) fn call_instances(
+    pub(crate) fn call_instance_locations(
         &self,
         callable: &Bound<'py, PyAny>,
         path: &Path,
         ttc_index: u32,
-    ) -> PyResult<Vec<HashMap<String, f32>>> {
+    ) -> PyResult<Vec<BTreeMap<String, f32>>> {
         let font_ref = self.font_ref(path, ttc_index)?;
         let raw_locations = callable.call1((font_ref,))?;
         let mut locations = Vec::new();
@@ -61,8 +60,8 @@ impl<'py> CallableBridge<'py> {
     fn location_mapping(
         &self,
         location: Borrowed<'_, 'py, PyAny>,
-    ) -> PyResult<HashMap<String, f32>> {
-        let mut out = HashMap::new();
+    ) -> PyResult<BTreeMap<String, f32>> {
+        let mut out = BTreeMap::new();
         for item in location.call_method0("items")?.try_iter()? {
             let item = item?;
             let tag = item.get_item(0)?.str()?.to_string_lossy().into_owned();

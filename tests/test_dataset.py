@@ -15,8 +15,8 @@ from torch.utils.data import DataLoader
 
 import torchfont
 import torchfont.datasets as datasets_module
+import torchfont.instance_fn as instance_fn_module
 import torchfont.transforms as transforms_module
-import torchfont.variation as variation_module
 from torchfont import _torchfont
 from torchfont.datasets import (
     FontRef,
@@ -27,9 +27,7 @@ from torchfont.datasets import (
     VariableGlyphRef,
     VariableGlyphSample,
 )
-from torchfont.io import ElementType
-from torchfont.transforms import load_glyph
-from torchfont.variation import (
+from torchfont.instance_fn import (
     default_instance,
     default_instance_count,
     grid_instance_count,
@@ -38,6 +36,8 @@ from torchfont.variation import (
     named_instances,
     random_location,
 )
+from torchfont.io import ElementType
+from torchfont.transforms import load_glyph
 
 
 def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
@@ -122,6 +122,13 @@ def test_load_glyph_returns_outline_tensors() -> None:
     assert not (types == ElementType.CURVE_TO.value).any().item()
 
 
+def test_dataset_reports_corrupt_font_parse_error(tmp_path: Path) -> None:
+    (tmp_path / "broken.ttf").write_bytes(b"not a font")
+
+    with pytest.raises(ValueError, match="failed to parse"):
+        GlyphDataset(root=tmp_path)
+
+
 def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
     calls: list[GlyphSample] = []
 
@@ -173,13 +180,13 @@ def test_default_and_grid_instance_functions() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=default_instance,
+        instance_fn=default_instance,
     )
     grid_dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=grid_instances({"wght": 2, "wdth": 2}),
+        instance_fn=grid_instances({"wght": 2, "wdth": 2}),
     )
 
     assert len(default_dataset) == 1
@@ -193,12 +200,12 @@ def test_default_and_grid_instance_functions() -> None:
     ]
 
 
-def test_instance_fn_can_return_zero_locations() -> None:
+def test_instance_locations_fn_can_return_zero_locations() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
-        instances=lambda _font: [],
+        instance_fn=lambda _font: [],
     )
 
     assert len(dataset) == 0
@@ -214,7 +221,7 @@ def test_variable_glyph_dataset_instance_count_refs_without_styles() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41, 0x42],
-        instance_count=lambda _font: 2,
+        instance_fn=lambda _font: 2,
     )
 
     assert repr(dataset) == (
@@ -246,7 +253,7 @@ def test_variable_glyph_dataset_defaults_to_named_instance_count() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41, 0x42],
-        instances=named_instances,
+        instance_fn=named_instances,
     )
     variable = VariableGlyphDataset(
         root="tests/fonts",
@@ -256,33 +263,33 @@ def test_variable_glyph_dataset_defaults_to_named_instance_count() -> None:
 
     assert len(variable) == len(fixed)
     assert variable.character_targets.tolist() == fixed.character_targets.tolist()
-    assert "instance_count" not in variable.__dict__
+    assert "instance_fn" not in variable.__dict__
 
 
-def test_instance_count_fns_match_instance_fn_multiplicity() -> None:
+def test_instance_count_fns_match_instance_locations_fn_multiplicity() -> None:
     named_fixed = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=named_instances,
+        instance_fn=named_instances,
     )
     named_variable = VariableGlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=named_instance_count,
+        instance_fn=named_instance_count,
     )
     default_variable = VariableGlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=default_instance_count,
+        instance_fn=default_instance_count,
     )
     grid_variable = VariableGlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=grid_instance_count({"wght": 2, "wdth": 2}),
+        instance_fn=grid_instance_count({"wght": 2, "wdth": 2}),
     )
 
     assert len(named_variable) == len(named_fixed)
@@ -300,7 +307,7 @@ def test_instance_count_fns_keep_static_fonts_at_one_slot() -> None:
             root="tests/fonts",
             patterns=("lato/Lato-Regular.ttf",),
             codepoints=[0x41],
-            instance_count=instance_count,
+            instance_fn=instance_count,
         )
         assert len(dataset) == 1
 
@@ -310,7 +317,7 @@ def test_variable_glyph_dataset_transform_can_sample_location() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=lambda _font: 1,
+        instance_fn=lambda _font: 1,
         transform=_variable_to_pair,
     )
 
@@ -421,7 +428,7 @@ def test_targets_match_samples() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=range(0x41, 0x44),
-        instances=grid_instances({"wght": 2}),
+        instance_fn=grid_instances({"wght": 2}),
     )
 
     assert dataset.style_targets.shape == (len(dataset),)
@@ -474,22 +481,22 @@ def test_native_dataset_helpers_are_not_public_dataset_api() -> None:
     assert not hasattr(_torchfont, "variable_glyph_font_targets")
 
 
-def test_variation_module_exports_instance_functions() -> None:
-    assert variation_module.default_instance is default_instance
-    assert variation_module.default_instance_count is default_instance_count
-    assert variation_module.named_instances is named_instances
-    assert variation_module.named_instance_count is named_instance_count
-    assert variation_module.grid_instances is grid_instances
-    assert variation_module.grid_instance_count is grid_instance_count
-    assert variation_module.random_location is random_location
-    assert not hasattr(variation_module, "InstancePolicy")
-    assert not hasattr(variation_module, "RepeatPolicy")
-    assert not hasattr(variation_module, "default_repeats")
-    assert not hasattr(variation_module, "grid_repeats")
-    assert not hasattr(variation_module, "named_repeats")
-    assert not hasattr(variation_module, "random_instances")
-    assert not hasattr(variation_module, "random_instance_count")
-    assert not hasattr(variation_module, "DefaultInstantiation")
+def test_instance_fn_module_exports_instance_functions() -> None:
+    assert instance_fn_module.default_instance is default_instance
+    assert instance_fn_module.default_instance_count is default_instance_count
+    assert instance_fn_module.named_instances is named_instances
+    assert instance_fn_module.named_instance_count is named_instance_count
+    assert instance_fn_module.grid_instances is grid_instances
+    assert instance_fn_module.grid_instance_count is grid_instance_count
+    assert instance_fn_module.random_location is random_location
+    assert not hasattr(instance_fn_module, "InstancePolicy")
+    assert not hasattr(instance_fn_module, "RepeatPolicy")
+    assert not hasattr(instance_fn_module, "default_repeats")
+    assert not hasattr(instance_fn_module, "grid_repeats")
+    assert not hasattr(instance_fn_module, "named_repeats")
+    assert not hasattr(instance_fn_module, "random_instances")
+    assert not hasattr(instance_fn_module, "random_instance_count")
+    assert not hasattr(instance_fn_module, "DefaultInstantiation")
 
 
 def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
@@ -497,7 +504,7 @@ def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=lambda _font: 1,
+        instance_fn=lambda _font: 1,
     )
     ref = dataset[0].ref
 
@@ -514,30 +521,30 @@ def test_missing_instance_location_axes_use_defaults() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=lambda _font: [{"wght": 400.0}],
+        instance_fn=lambda _font: [{"wght": 400.0}],
     )
 
     assert len(dataset) == 1
     assert dataset[0].ref.location == {"wght": 400.0, "wdth": 100.0}
 
 
-def test_instance_fn_rejects_duplicate_normalized_locations() -> None:
+def test_instance_locations_fn_rejects_duplicate_normalized_locations() -> None:
     with pytest.raises(ValueError, match="duplicate variation locations"):
         GlyphDataset(
             root="tests/fonts",
             patterns=("roboto/Roboto*.ttf",),
             codepoints=[0x41],
-            instances=lambda _font: [{"wght": 400.0}, {"wght": 400.0}],
+            instance_fn=lambda _font: [{"wght": 400.0}, {"wght": 400.0}],
         )
 
 
-def test_instance_fn_rejects_unknown_axis() -> None:
+def test_instance_locations_fn_rejects_unknown_axis() -> None:
     with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
         GlyphDataset(
             root="tests/fonts",
             patterns=("roboto/Roboto*.ttf",),
             codepoints=[0x41],
-            instances=lambda _font: [{"xxxx": 1.0}],
+            instance_fn=lambda _font: [{"xxxx": 1.0}],
         )
 
 
@@ -548,14 +555,14 @@ def test_grid_functions_reject_invalid_axis_counts(axes: dict[str, int]) -> None
             root="tests/fonts",
             patterns=("roboto/Roboto*.ttf",),
             codepoints=[0x41],
-            instances=grid_instances(axes),
+            instance_fn=grid_instances(axes),
         )
     with pytest.raises(ValueError, match="grid_instances"):
         VariableGlyphDataset(
             root="tests/fonts",
             patterns=("roboto/Roboto*.ttf",),
             codepoints=[0x41],
-            instance_count=grid_instance_count(axes),
+            instance_fn=grid_instance_count(axes),
         )
 
 
@@ -576,13 +583,13 @@ def test_grid_functions_ignore_unknown_axes_and_pin_unlisted_axes_to_default() -
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=grid_instances({"wght": 2, "xxxx": 99}),
+        instance_fn=grid_instances({"wght": 2, "xxxx": 99}),
     )
     variable = VariableGlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=grid_instance_count({"wght": 2, "xxxx": 99}),
+        instance_fn=grid_instance_count({"wght": 2, "xxxx": 99}),
     )
 
     assert len(fixed) == 2
@@ -598,13 +605,13 @@ def test_grid_functions_use_default_when_no_requested_axes_exist() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=grid_instances({"xxxx": 2}),
+        instance_fn=grid_instances({"xxxx": 2}),
     )
     variable = VariableGlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_count=grid_instance_count({"xxxx": 2}),
+        instance_fn=grid_instance_count({"xxxx": 2}),
     )
 
     assert len(fixed) == 1
@@ -617,19 +624,19 @@ def test_grid_instances_keeps_static_fonts_at_default() -> None:
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=[0x41],
-        instances=grid_instances({"wght": 2}),
+        instance_fn=grid_instances({"wght": 2}),
     )
 
     assert len(dataset) == 1
     assert dataset[0].ref.location == {}
 
 
-def test_variation_survives_pickle_without_instance_fn() -> None:
+def test_variation_survives_pickle_without_instance_locations_fn() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instances=grid_instances({"wght": 2}),
+        instance_fn=grid_instances({"wght": 2}),
     )
 
     restored = pickle.loads(pickle.dumps(dataset))  # noqa: S301
@@ -637,7 +644,7 @@ def test_variation_survives_pickle_without_instance_fn() -> None:
     assert [restored[i].ref.location for i in range(len(restored))] == [
         dataset[i].ref.location for i in range(len(dataset))
     ]
-    assert "instances" not in restored.__dict__
+    assert "instance_fn" not in restored.__dict__
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])

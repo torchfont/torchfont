@@ -1,4 +1,4 @@
-use crate::geom::{Outline, PathElement, Subpath};
+use crate::outline::{Outline, PathElement, Subpath};
 
 pub(crate) fn quad_to_cubic(outline: &Outline) -> Outline {
     let subpaths = outline

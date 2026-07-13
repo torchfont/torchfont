@@ -1,23 +1,15 @@
-pub(crate) mod callable;
 pub(crate) mod dataset;
+mod error;
 pub(crate) mod glyphsets;
-pub(crate) mod targets;
-pub(crate) mod transforms;
+pub(crate) mod instance_fn;
+pub(crate) mod transform;
 
-use pyo3::{Bound, PyResult, types::PyModule, types::PyModuleMethods, wrap_pyfunction};
+use pyo3::{Bound, PyResult, types::PyModule};
 
 pub(crate) fn register_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(dataset::load_glyph, m)?)?;
-    m.add_function(wrap_pyfunction!(dataset::variation_axes, m)?)?;
-    m.add_function(wrap_pyfunction!(dataset::default_location_for_font, m)?)?;
-    m.add_function(wrap_pyfunction!(
-        dataset::named_instance_locations_for_font,
-        m
-    )?)?;
-    m.add_function(wrap_pyfunction!(dataset::grid_locations_for_font, m)?)?;
-    m.add_function(wrap_pyfunction!(dataset::grid_location_count_for_font, m)?)?;
+    dataset::register(m)?;
+    instance_fn::register(m)?;
     glyphsets::register(m)?;
-    targets::register(m)?;
-    transforms::register(m)?;
+    transform::register(m)?;
     Ok(())
 }

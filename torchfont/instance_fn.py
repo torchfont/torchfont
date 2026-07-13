@@ -1,4 +1,4 @@
-"""Variation location functions for glyph datasets."""
+"""Instance-location and instance-count functions for glyph datasets."""
 
 from collections.abc import Callable, Mapping, Sequence
 from operator import index
@@ -11,7 +11,7 @@ from torchfont import _torchfont
 if TYPE_CHECKING:
     from torchfont.datasets import FontRef
 
-InstanceFn: TypeAlias = Callable[["FontRef"], Sequence[Mapping[str, float]]]
+InstanceLocationsFn: TypeAlias = Callable[["FontRef"], Sequence[Mapping[str, float]]]
 InstanceCountFn: TypeAlias = Callable[["FontRef"], int]
 
 
@@ -30,7 +30,7 @@ def named_instances(font: "FontRef") -> list[dict[str, float]]:
     return [_location_dict(location) for location in locations]
 
 
-def grid_instances(axes: Mapping[str, int]) -> InstanceFn:
+def grid_instances(axes: Mapping[str, int]) -> InstanceLocationsFn:
     """Build an instance function that samples selected axes on an even grid."""
     counts = {str(tag): index(count) for tag, count in axes.items()}
 
@@ -97,7 +97,7 @@ def _location_dict(pairs: Sequence[tuple[str, float]]) -> dict[str, float]:
 
 __all__ = [
     "InstanceCountFn",
-    "InstanceFn",
+    "InstanceLocationsFn",
     "default_instance",
     "default_instance_count",
     "grid_instance_count",

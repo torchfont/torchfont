@@ -1,7 +1,7 @@
 use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
 use super::subpath::reverse_subpath;
-use crate::geom::{Bounds, BoundsPen, Outline, PathElement, Point, Subpath};
+use crate::outline::{Bounds, BoundsPen, Outline, PathElement, Point, Subpath};
 
 // TorchFont outlines are normalized to roughly em-sized coordinates. PathOps is
 // more reliable at conventional font-unit magnitudes, so simplify a scaled copy.

@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.glyphsets import LATIN_CORE
+from torchfont.instance_fn import grid_instances
 from torchfont.transforms import (
     load_glyph,
     patchify,
@@ -13,7 +14,6 @@ from torchfont.transforms import (
     remove_overlaps,
     render_bitmap,
 )
-from torchfont.variation import grid_instances
 
 
 def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
@@ -46,7 +46,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        instances=grid_instances({"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2}),
+        instance_fn=grid_instances({"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2}),
         transform=transform,
     )
 

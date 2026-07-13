@@ -1,10 +1,7 @@
-mod entry;
+mod data;
 mod extract;
-mod variation;
+mod location;
 
-pub(crate) use entry::{FontEntry, map_font, parse_font_ref};
+pub(crate) use data::{map_font, parse_font_ref};
 pub(crate) use extract::extract_glyph_outline;
-pub(crate) use variation::{
-    axis_info, canonicalize_location, default_location, grid_location_count, grid_locations,
-    named_locations,
-};
+pub(crate) use location::{AxisInfo, Location, axis_info, canonicalize_location, default_location};

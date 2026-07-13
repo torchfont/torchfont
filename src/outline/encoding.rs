@@ -1,4 +1,4 @@
-use super::outline::SubpathBuilder;
+use super::path::SubpathBuilder;
 use super::{Outline, PathElement, Point};
 
 #[derive(Debug)]

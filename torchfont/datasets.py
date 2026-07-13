@@ -20,7 +20,7 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from torchfont import _torchfont
-from torchfont import variation as _variation
+from torchfont import instance_fn as _instance_fn
 
 _T = TypeVar("_T")
 _V = TypeVar("_V")
@@ -28,7 +28,7 @@ _V = TypeVar("_V")
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from torchfont.variation import InstanceCountFn, InstanceFn
+    from torchfont.instance_fn import InstanceCountFn, InstanceLocationsFn
 
 
 @dataclasses.dataclass(frozen=True)
@@ -90,7 +90,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
-        instances: InstanceFn = _variation.named_instances,
+        instance_fn: InstanceLocationsFn = _instance_fn.named_instances,
         transform: None = None,
     ) -> None: ...
 
@@ -101,7 +101,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
-        instances: InstanceFn = _variation.named_instances,
+        instance_fn: InstanceLocationsFn = _instance_fn.named_instances,
         transform: Callable[[GlyphSample], _T],
     ) -> None: ...
 
@@ -111,7 +111,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
-        instances: InstanceFn = _variation.named_instances,
+        instance_fn: InstanceLocationsFn = _instance_fn.named_instances,
         transform: Callable[[GlyphSample], _T] | None = None,
     ) -> None:
         """Scan ``root`` and build fixed-location glyph sample metadata."""
@@ -124,7 +124,7 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             str(self.root),
             self.codepoints,
             self.patterns,
-            instances,
+            instance_fn,
         )
 
     def __repr__(self) -> str:
@@ -228,7 +228,7 @@ class VariableGlyphDataset(Dataset[_V], Generic[_V]):
         self: VariableGlyphDataset[VariableGlyphSample],
         root: Path | str,
         *,
-        instance_count: InstanceCountFn = _variation.named_instance_count,
+        instance_fn: InstanceCountFn = _instance_fn.named_instance_count,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
         transform: None = None,
@@ -239,7 +239,7 @@ class VariableGlyphDataset(Dataset[_V], Generic[_V]):
         self: VariableGlyphDataset[_V],
         root: Path | str,
         *,
-        instance_count: InstanceCountFn = _variation.named_instance_count,
+        instance_fn: InstanceCountFn = _instance_fn.named_instance_count,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
         transform: Callable[[VariableGlyphSample], _V],
@@ -249,7 +249,7 @@ class VariableGlyphDataset(Dataset[_V], Generic[_V]):
         self,
         root: Path | str,
         *,
-        instance_count: InstanceCountFn = _variation.named_instance_count,
+        instance_fn: InstanceCountFn = _instance_fn.named_instance_count,
         codepoints: Sequence[SupportsIndex] | None = None,
         patterns: Sequence[str] | None = None,
         transform: Callable[[VariableGlyphSample], _V] | None = None,
@@ -264,7 +264,7 @@ class VariableGlyphDataset(Dataset[_V], Generic[_V]):
             str(self.root),
             self.codepoints,
             self.patterns,
-            instance_count,
+            instance_fn,
         )
 
     def __repr__(self) -> str:
