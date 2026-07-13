@@ -1,5 +1,5 @@
-use crate::curves::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
-use crate::geom::{Outline, PathElement, Point, Subpath};
+use crate::outline::{Outline, PathElement, Point, Subpath};
+use crate::transform::curves::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
 
 type Quad = (Point, Point, Point);
 

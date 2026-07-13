@@ -1,4 +1,4 @@
-use crate::geom::{Outline, PathElement, Point, Subpath};
+use crate::outline::{Outline, PathElement, Point, Subpath};
 
 pub(crate) fn reverse_subpath(subpath: &Subpath) -> Subpath {
     let Some(last) = subpath.elements().last() else {
@@ -101,7 +101,7 @@ fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geom::PathElement;
+    use crate::outline::PathElement;
 
     fn pt(x: f32, y: f32) -> Point {
         Point::new(x, y)

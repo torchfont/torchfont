@@ -38,13 +38,13 @@ font's index inside a TrueType Collection. For a single-font file it is `0`.
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.variation import named_instances
+from torchfont.instance_fn import named_instances
 
 dataset = GlyphDataset(
     root="~/fonts",
     codepoints=range(0x41, 0x5B),
     patterns=("**/*.ttf",),
-    instances=named_instances,
+    instance_fn=named_instances,
 )
 ```
 
@@ -60,7 +60,7 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    instances: InstanceFn = torchfont.variation.named_instances,
+    instance_fn: InstanceLocationsFn = torchfont.instance_fn.named_instances,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
@@ -82,18 +82,18 @@ Class vocabularies:
 
 ```python
 from torchfont.datasets import VariableGlyphDataset
-from torchfont.variation import named_instance_count
+from torchfont.instance_fn import named_instance_count
 
 dataset = VariableGlyphDataset(
     root="~/fonts",
     codepoints=range(0x41, 0x5B),
-    instance_count=named_instance_count,
+    instance_fn=named_instance_count,
 )
 ```
 
 `VariableGlyphDataset` does not put a location in the index. Use it for training
 augmentation where the transform samples a fresh location for each access.
-`instance_count` is an instance-count function: it gives each font a discrete multiplicity
+`instance_fn` is an instance-count function: it gives each font a discrete multiplicity
 without fixing concrete locations. Static fonts are included as normal fonts.
 
 Constructor:
@@ -102,7 +102,7 @@ Constructor:
 VariableGlyphDataset(
     root: Path | str,
     *,
-    instance_count: InstanceCountFn = torchfont.variation.named_instance_count,
+    instance_fn: InstanceCountFn = torchfont.instance_fn.named_instance_count,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
     transform: Callable[[VariableGlyphSample], T] | None = None,
@@ -114,10 +114,10 @@ Targets:
 - `font_targets -> LongTensor (N,)`
 - `character_targets -> LongTensor (N,)`
 
-## Variation Functions
+## Instance Functions
 
 ```python
-from torchfont.variation import (
+from torchfont.instance_fn import (
     default_instance,
     default_instance_count,
     grid_instances,

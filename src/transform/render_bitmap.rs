@@ -1,6 +1,6 @@
 use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
 
-use crate::geom::{Bounds, BoundsPen, Outline, PathElement};
+use crate::outline::{Bounds, BoundsPen, Outline, PathElement};
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;

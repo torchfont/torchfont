@@ -1,8 +1,8 @@
-mod curves;
 mod dataset;
 mod error;
 mod font;
-mod geom;
+mod instance_fn;
+mod outline;
 mod py;
 mod transform;
 

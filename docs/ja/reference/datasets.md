@@ -38,13 +38,13 @@ from torchfont.datasets import (
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.variation import named_instances
+from torchfont.instance_fn import named_instances
 
 dataset = GlyphDataset(
     root="~/fonts",
     codepoints=range(0x41, 0x5B),
     patterns=("**/*.ttf",),
-    instances=named_instances,
+    instance_fn=named_instances,
 )
 ```
 
@@ -60,7 +60,7 @@ GlyphDataset(
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
-    instances: InstanceFn = torchfont.variation.named_instances,
+    instance_fn: InstanceLocationsFn = torchfont.instance_fn.named_instances,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
@@ -82,17 +82,17 @@ class 語彙:
 
 ```python
 from torchfont.datasets import VariableGlyphDataset
-from torchfont.variation import named_instance_count
+from torchfont.instance_fn import named_instance_count
 
 dataset = VariableGlyphDataset(
     root="~/fonts",
     codepoints=range(0x41, 0x5B),
-    instance_count=named_instance_count,
+    instance_fn=named_instance_count,
 )
 ```
 
 `VariableGlyphDataset` は location を index に含めません。各アクセスで transform が
-新しい location をサンプルする training augmentation に向いています。`instance_count`
+新しい location をサンプルする training augmentation に向いています。`instance_fn`
 は各フォントの離散的な多重度だけを決める instance-count function です。静的フォントも通常の
 フォントとして含まれます。
 
@@ -102,7 +102,7 @@ dataset = VariableGlyphDataset(
 VariableGlyphDataset(
     root: Path | str,
     *,
-    instance_count: InstanceCountFn = torchfont.variation.named_instance_count,
+    instance_fn: InstanceCountFn = torchfont.instance_fn.named_instance_count,
     codepoints: Sequence[SupportsIndex] | None = None,
     patterns: Sequence[str] | None = None,
     transform: Callable[[VariableGlyphSample], T] | None = None,
@@ -114,10 +114,10 @@ targets:
 - `font_targets -> LongTensor (N,)`
 - `character_targets -> LongTensor (N,)`
 
-## Variation Functions
+## Instance Functions
 
 ```python
-from torchfont.variation import (
+from torchfont.instance_fn import (
     default_instance,
     default_instance_count,
     grid_instances,

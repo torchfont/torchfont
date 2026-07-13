@@ -20,7 +20,7 @@ inside a `GlyphDataset`/`VariableGlyphDataset` `transform`. It returns
 For `VariableGlyphRef`, pass a location explicitly:
 
 ```python
-from torchfont.variation import random_location
+from torchfont.instance_fn import random_location
 
 sample = variable_dataset[0]
 location = random_location(sample.ref.font)

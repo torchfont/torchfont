@@ -2,9 +2,11 @@ use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 use tiny_skia::FillRule;
 
-use crate::geom::{DecodeError, Outline};
+use crate::outline::{DecodeError, Outline};
 use crate::transform::render_bitmap::RenderMode;
-use crate::{curves, transform::subpath};
+use crate::transform::{curves, subpath};
+
+mod load;
 
 fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
     Outline::try_from((types, coords)).map_err(|e| match e {
@@ -38,7 +40,7 @@ pub(crate) fn quad_to_cubic(
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     let result = curves::quad_to_cubic::quad_to_cubic(&outline);
     let result = if merge_curves {
-        crate::curves::merge_curves::merge_curves(&result)
+        crate::transform::curves::merge_curves::merge_curves(&result)
     } else {
         result
     };
@@ -84,7 +86,7 @@ pub(crate) fn randomize_subpath_start_points(
     coords: PyReadonlyArray1<'_, f32>,
     random_values: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<(Vec<i64>, Vec<f32>)> {
-    use crate::geom::ElementType;
+    use crate::outline::ElementType;
     let t = types.as_slice()?;
     let r = random_values.as_slice()?;
     let outline = decode(t, coords.as_slice()?)?;
@@ -125,7 +127,7 @@ pub(crate) fn tight_bbox(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<Option<(f32, f32, f32, f32)>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(crate::geom::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
+    Ok(crate::outline::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
 
 #[pyfunction]
@@ -176,6 +178,7 @@ pub(crate) fn render_bitmap(
 }
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(load::load_glyph, m)?)?;
     m.add_function(wrap_pyfunction!(quad_to_cubic, m)?)?;
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
