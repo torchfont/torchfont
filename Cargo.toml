@@ -11,9 +11,9 @@ name = "_torchfont"
 crate-type = ["cdylib"]
 
 [dependencies]
-ignore = "0.4.26"
-memmap2 = "0.9.10"
-numpy = "0.28.0"
+ignore = "0.4.28"
+memmap2 = "0.9.11"
+numpy = "0.29.0"
 shellexpand = "3.1.2"
 # Intentionally non-optional: PyPI wheels are compiled binaries and Cargo
 # features cannot be selected via pip install.
@@ -28,5 +28,5 @@ walkdir = "2.5.0"
 google-fonts-glyphsets = { git = "https://github.com/googlefonts/glyphsets" }
 
 [dependencies.pyo3]
-version = "0.28.3"
+version = "0.29.0"
 features = ["abi3-py310"]
