@@ -32,7 +32,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["torch>=2.3.0"]
+dependencies = ["numpy>=1.21.3", "torch>=2.3.0"]
 
 [project.urls]
 Repository = "https://github.com/torchfont/torchfont"
@@ -48,7 +48,6 @@ dev = [
     "lightning>=2.6.0",
     "maturin[patchelf]>=1.12.6; sys_platform == 'linux'",
     "maturin>=1.12.6; sys_platform != 'linux'",
-    "numpy>=2.2.6",
     "pytest>=8.4.2",
     "pytest-benchmark>=5.1.0",
     "ruff>=0.12.4",

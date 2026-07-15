@@ -103,8 +103,8 @@ def _preserve_closed_subpath_winding(
         coords.cpu().contiguous().reshape(-1).numpy(),
     )
     return (
-        torch.tensor(out_types, dtype=torch.long, device=types.device),
-        torch.tensor(out_coords, dtype=torch.float32, device=coords.device).view(-1, 6),
+        torch.from_numpy(out_types).to(device=types.device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords.device),
     )
 
 

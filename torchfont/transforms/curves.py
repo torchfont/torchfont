@@ -26,8 +26,8 @@ def quad_to_cubic(
         types.numpy(), coords.reshape(-1).numpy(), merge_curves
     )
     return (
-        torch.tensor(out_types, dtype=torch.long),
-        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+        torch.from_numpy(out_types),
+        torch.from_numpy(out_coords).view(-1, 6),
     )
 
 
@@ -59,8 +59,8 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         types.numpy(), coords.reshape(-1).numpy()
     )
     return (
-        torch.tensor(out_types, dtype=torch.long),
-        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+        torch.from_numpy(out_types),
+        torch.from_numpy(out_coords).view(-1, 6),
     )
 
 
@@ -92,6 +92,6 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         types.numpy(), coords.reshape(-1).numpy()
     )
     return (
-        torch.tensor(out_types, dtype=torch.long),
-        torch.tensor(out_coords, dtype=torch.float32).view(-1, 6),
+        torch.from_numpy(out_types),
+        torch.from_numpy(out_coords).view(-1, 6),
     )
