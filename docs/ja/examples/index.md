@@ -18,6 +18,7 @@
 |用途|スクリプト (`examples/`)|要点|
 |---|---|---|
 |Pipeline|`local_fonts.py`|`GlyphDataset` + ローカルな `collate_fn` のオフライン例|
+|Variable glyph|`variable_glyphs.py`|アクセスごとに variation axis の location を一様ランダムサンプリング|
 |Corpus checkout|`google_fonts.py`|Google Fonts checkout + Transform + DataLoader|
 |Corpus checkout|`font_awesome.py`|Font Awesome の checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons の checkout|
@@ -27,5 +28,6 @@
 
 1. `local_fonts.py`
 2. `google_fonts.py`
+3. `variable_glyphs.py`
 4. 必要なリポジトリ向けの `font_awesome.py` / `material_design_icons.py` /
    `source_han_code_jp.py`

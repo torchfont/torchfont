@@ -12,6 +12,9 @@ def main() -> None:
     )
 
     print(f"{len(dataset)=}")
+    print(f"{len(dataset.font_classes)=}")
+    print(f"{len(dataset.style_classes)=}")
+    print(f"{len(dataset.character_classes)=}")
     print(f"{dataset.style_targets.shape=}")
     print(f"{dataset.character_targets.shape=}")
 
