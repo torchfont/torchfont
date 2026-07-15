@@ -20,10 +20,7 @@ pub(crate) fn canonicalize_locations(
         .collect::<Result<Vec<_>, _>>()?;
     let mut seen = HashSet::new();
     for location in &locations {
-        let key: Vec<_> = location
-            .iter()
-            .map(|(tag, value)| (tag.clone(), value.to_bits()))
-            .collect();
+        let key = location_key(location);
         if !seen.insert(key) {
             return Err(Error::Parse(format!(
                 "InstanceLocationsFn returned duplicate variation locations for '{}' \
@@ -33,4 +30,31 @@ pub(crate) fn canonicalize_locations(
         }
     }
     Ok(locations)
+}
+
+fn location_key(location: &Location) -> Vec<(String, u32)> {
+    location
+        .iter()
+        .map(|(tag, value)| {
+            let bits = if *value == 0.0 {
+                0.0_f32.to_bits()
+            } else {
+                value.to_bits()
+            };
+            (tag.clone(), bits)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::location_key;
+
+    #[test]
+    fn location_key_treats_signed_zero_as_equal() {
+        let positive = vec![("ital".to_string(), 0.0)];
+        let negative = vec![("ital".to_string(), -0.0)];
+
+        assert_eq!(location_key(&positive), location_key(&negative));
+    }
 }
