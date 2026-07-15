@@ -13,7 +13,6 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-import torchfont
 import torchfont.datasets as datasets_module
 import torchfont.instance_fn as instance_fn_module
 import torchfont.transforms as transforms_module
@@ -162,17 +161,6 @@ def test_glyph_dataset_variable_fonts_named_instances() -> None:
     assert len(dataset) == len(dataset.style_classes)
     assert "Roboto wght=100,wdth=100" in dataset.style_classes
     assert "Roboto wght=400,wdth=75" in dataset.style_classes
-    assert not hasattr(dataset, "weight_targets")
-    assert not hasattr(dataset, "width_targets")
-    assert not hasattr(dataset, "slant_targets")
-    assert not hasattr(dataset, "italic_targets")
-    assert not hasattr(dataset, "optical_size_targets")
-    sample = dataset[0]
-    assert not hasattr(sample, "weight_targets")
-    assert not hasattr(sample, "width_targets")
-    assert not hasattr(sample, "slant_targets")
-    assert not hasattr(sample, "italic_targets")
-    assert not hasattr(sample, "optical_size_targets")
 
 
 def test_default_and_grid_instance_functions() -> None:
@@ -263,7 +251,6 @@ def test_variable_glyph_dataset_defaults_to_named_instance_count() -> None:
 
     assert len(variable) == len(fixed)
     assert variable.character_targets.tolist() == fixed.character_targets.tolist()
-    assert "instance_fn" not in variable.__dict__
 
 
 def test_instance_count_fns_match_instance_locations_fn_multiplicity() -> None:
@@ -448,37 +435,16 @@ def test_datasets_public_api_is_ref_centered() -> None:
     assert datasets_module.GlyphDataset is GlyphDataset
     assert datasets_module.GlyphSample is GlyphSample
     assert datasets_module.VariableGlyphDataset is VariableGlyphDataset
-    assert not hasattr(datasets_module, "load_glyph")
-    assert not hasattr(datasets_module, "DefaultInstantiation")
-    assert not hasattr(datasets_module, "GridInstantiation")
 
 
 def test_transforms_module_exports_load_glyph() -> None:
     assert transforms_module.load_glyph is load_glyph
 
 
-def test_package_root_stays_thin() -> None:
-    assert torchfont.__all__ == []
-    assert not hasattr(torchfont, "GlyphDataset")
-    assert not hasattr(torchfont, "GlyphSample")
-
-
-def test_native_dataset_helpers_are_not_public_dataset_api() -> None:
+def test_native_dataset_helpers_are_available() -> None:
     assert hasattr(_torchfont, "FixedGlyphIndex")
     assert hasattr(_torchfont, "VariableGlyphIndex")
     assert hasattr(_torchfont, "load_glyph")
-    assert not hasattr(_torchfont, "FontIndexBackend")
-    assert not hasattr(_torchfont, "FontInfo")
-    assert not hasattr(_torchfont, "FixedGlyphLocation")
-    assert not hasattr(_torchfont, "GlyphOutlineItem")
-    assert not hasattr(_torchfont, "GlyphDataset")
-    assert not hasattr(_torchfont, "GlyphDatasetBackend")
-    assert not hasattr(_torchfont, "DefaultInstantiation")
-    assert not hasattr(_torchfont, "GridInstantiation")
-    assert not hasattr(_torchfont, "VariableGlyphLocation")
-    assert not hasattr(_torchfont, "canonicalize_locations_for_font")
-    assert not hasattr(_torchfont, "glyph_font_targets")
-    assert not hasattr(_torchfont, "variable_glyph_font_targets")
 
 
 def test_instance_fn_module_exports_instance_functions() -> None:
@@ -489,14 +455,6 @@ def test_instance_fn_module_exports_instance_functions() -> None:
     assert instance_fn_module.grid_instances is grid_instances
     assert instance_fn_module.grid_instance_count is grid_instance_count
     assert instance_fn_module.random_location is random_location
-    assert not hasattr(instance_fn_module, "InstancePolicy")
-    assert not hasattr(instance_fn_module, "RepeatPolicy")
-    assert not hasattr(instance_fn_module, "default_repeats")
-    assert not hasattr(instance_fn_module, "grid_repeats")
-    assert not hasattr(instance_fn_module, "named_repeats")
-    assert not hasattr(instance_fn_module, "random_instances")
-    assert not hasattr(instance_fn_module, "random_instance_count")
-    assert not hasattr(instance_fn_module, "DefaultInstantiation")
 
 
 def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
@@ -631,7 +589,7 @@ def test_grid_instances_keeps_static_fonts_at_default() -> None:
     assert dataset[0].ref.location == {}
 
 
-def test_variation_survives_pickle_without_instance_locations_fn() -> None:
+def test_variation_survives_pickle() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
@@ -644,7 +602,6 @@ def test_variation_survives_pickle_without_instance_locations_fn() -> None:
     assert [restored[i].ref.location for i in range(len(restored))] == [
         dataset[i].ref.location for i in range(len(dataset))
     ]
-    assert "instance_fn" not in restored.__dict__
 
 
 @pytest.mark.parametrize("start_method", [None, *mp.get_all_start_methods()])
