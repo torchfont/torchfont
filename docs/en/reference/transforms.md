@@ -1,7 +1,7 @@
 # Transform Utilities
 
 `torchfont.transforms` provides small utility functions for adapting glyph
-tensors. Keep dataset item shaping in your own preprocessing code.
+samples and tensors. Keep dataset item shaping in your own preprocessing code.
 
 ## load_glyph
 
@@ -20,7 +20,7 @@ inside a `GlyphDataset`/`VariableGlyphDataset` `transform`. It returns
 For `VariableGlyphRef`, pass a location explicitly:
 
 ```python
-from torchfont.instance_fn import random_location
+from torchfont.transforms import random_location
 
 sample = variable_dataset[0]
 location = random_location(sample.ref.font)
@@ -29,6 +29,18 @@ types, coords = load_glyph(sample.ref, location)
 
 For explicit locations, unknown axes, out-of-range values, and NaN/inf values
 raise `ValueError`. Missing axes use the font default.
+
+## random_location
+
+```python
+from torchfont.transforms import random_location
+
+location = random_location(sample.ref.font, generator=None)
+```
+
+Samples each variation axis independently and uniformly over its user-space
+minimum and maximum. Static fonts return an empty dictionary. Randomness uses
+the optional `torch.Generator`.
 
 ## quad_to_cubic
 

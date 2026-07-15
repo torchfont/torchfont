@@ -9,18 +9,8 @@ use pyo3::{
     wrap_pyfunction,
 };
 
-use crate::font::{axis_info, default_location, map_font, parse_font_ref};
+use crate::font::{default_location, map_font, parse_font_ref};
 use crate::instance_fn::{grid_location_count, grid_locations, named_locations};
-
-#[pyfunction]
-fn variation_axes(path: PathBuf, ttc_index: u32) -> PyResult<Vec<(String, f32, f32, f32)>> {
-    with_font_ref(&path, ttc_index, |font| {
-        Ok(axis_info(&font)
-            .into_iter()
-            .map(|axis| (axis.tag, axis.min, axis.default, axis.max))
-            .collect())
-    })
-}
 
 #[pyfunction]
 fn default_location_for_font(path: PathBuf, ttc_index: u32) -> PyResult<Vec<(String, f32)>> {
@@ -70,7 +60,6 @@ fn with_font_ref<T>(
 }
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(variation_axes, m)?)?;
     m.add_function(wrap_pyfunction!(default_location_for_font, m)?)?;
     m.add_function(wrap_pyfunction!(named_instance_locations_for_font, m)?)?;
     m.add_function(wrap_pyfunction!(grid_locations_for_font, m)?)?;

@@ -179,6 +179,7 @@ pub(crate) fn render_bitmap(
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load::load_glyph, m)?)?;
+    m.add_function(wrap_pyfunction!(load::variation_axes, m)?)?;
     m.add_function(wrap_pyfunction!(quad_to_cubic, m)?)?;
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;

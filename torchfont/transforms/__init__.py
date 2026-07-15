@@ -1,4 +1,4 @@
-"""Glyph outline transform utilities.
+"""Glyph sample and outline transform utilities.
 
 Most functions accept ``(types, coords)`` and return a transformed
 ``(types, coords)`` pair without modifying the inputs. ``load_glyph`` is the
@@ -23,7 +23,7 @@ from torchfont.transforms.geometric import (
     random_vertical_flip,
     vertical_flip,
 )
-from torchfont.transforms.load import load_glyph
+from torchfont.transforms.load import load_glyph, random_location
 from torchfont.transforms.outline import patchify, remove_overlaps
 from torchfont.transforms.subpath import (
     normalize_subpath_start_points,
@@ -43,6 +43,7 @@ __all__ = [
     "random_affine",
     "random_coord_jitter",
     "random_horizontal_flip",
+    "random_location",
     "random_vertical_flip",
     "randomize_subpath_start_points",
     "remove_overlaps",

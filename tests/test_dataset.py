@@ -33,10 +33,9 @@ from torchfont.instance_fn import (
     grid_instances,
     named_instance_count,
     named_instances,
-    random_location,
 )
 from torchfont.io import ElementType
-from torchfont.transforms import load_glyph
+from torchfont.transforms import load_glyph, random_location
 
 
 def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
@@ -437,8 +436,9 @@ def test_datasets_public_api_is_ref_centered() -> None:
     assert datasets_module.VariableGlyphDataset is VariableGlyphDataset
 
 
-def test_transforms_module_exports_load_glyph() -> None:
+def test_transforms_module_exports_dataset_transforms() -> None:
     assert transforms_module.load_glyph is load_glyph
+    assert transforms_module.random_location is random_location
 
 
 def test_native_dataset_helpers_are_available() -> None:
@@ -454,7 +454,6 @@ def test_instance_fn_module_exports_instance_functions() -> None:
     assert instance_fn_module.named_instance_count is named_instance_count
     assert instance_fn_module.grid_instances is grid_instances
     assert instance_fn_module.grid_instance_count is grid_instance_count
-    assert instance_fn_module.random_location is random_location
 
 
 def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:

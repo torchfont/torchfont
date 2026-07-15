@@ -4,8 +4,6 @@ from collections.abc import Callable, Mapping, Sequence
 from operator import index
 from typing import TYPE_CHECKING, TypeAlias
 
-import torch
-
 from torchfont import _torchfont
 
 if TYPE_CHECKING:
@@ -47,24 +45,6 @@ def grid_instances(axes: Mapping[str, int]) -> InstanceLocationsFn:
     return instances
 
 
-def random_location(
-    font: "FontRef",
-    *,
-    generator: torch.Generator | None = None,
-) -> dict[str, float]:
-    """Sample one random user-space location inside the font's variation axes."""
-    location: dict[str, float] = {}
-    for tag, min_value, _default_value, max_value in _torchfont.variation_axes(
-        font.path,
-        font.ttc_index,
-    ):
-        t = torch.rand((), generator=generator).item()
-        location[str(tag)] = (
-            float(min_value) + (float(max_value) - float(min_value)) * t
-        )
-    return location
-
-
 def default_instance_count(_font: "FontRef") -> int:
     """Return one instance slot for a font."""
     return 1
@@ -104,5 +84,4 @@ __all__ = [
     "grid_instances",
     "named_instance_count",
     "named_instances",
-    "random_location",
 ]
