@@ -313,6 +313,19 @@ def test_variable_glyph_dataset_transform_can_sample_location() -> None:
     assert coords.shape[1] == 6
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_random_location_accepts_cuda_generator() -> None:
+    font = FontRef(
+        path="tests/fonts/roboto/Roboto[wdth,wght].ttf",
+        ttc_index=0,
+    )
+    generator = torch.Generator(device="cuda").manual_seed(5)
+
+    location = random_location(font, generator=generator)
+
+    assert location.keys() == {"wght", "wdth"}
+
+
 @pytest.mark.parametrize("codepoint", [1.5, "A"])
 def test_glyph_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
     with pytest.raises(TypeError, match="cannot be interpreted as an integer"):

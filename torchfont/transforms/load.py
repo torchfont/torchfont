@@ -29,7 +29,11 @@ def random_location(
         font.path,
         font.ttc_index,
     ):
-        t = torch.rand((), generator=generator).item()
+        t = torch.rand(
+            (),
+            device=generator.device if generator is not None else None,
+            generator=generator,
+        ).item()
         location[str(tag)] = (
             float(min_value) + (float(max_value) - float(min_value)) * t
         )

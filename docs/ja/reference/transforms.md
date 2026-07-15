@@ -39,7 +39,8 @@ location = random_location(sample.ref.font, generator=None)
 ```
 
 各 variation axis を user-space の最小値と最大値の間で独立に一様サンプリングします。
-静的フォントでは空の辞書を返します。ランダム性は任意の `torch.Generator` で管理します。
+静的フォントでは空の辞書を返します。ランダム性は任意の `torch.Generator` で管理し、
+CUDA generator も利用できます。
 
 ## quad_to_cubic
 
