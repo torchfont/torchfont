@@ -17,6 +17,10 @@ inside a `GlyphDataset`/`VariableGlyphDataset` `transform`. It returns
 `(types, coords)`, where `types` is a 1-D `LongTensor` and `coords` is a 2-D
 `FloatTensor` of shape `(N, 6)`.
 
+Outline-to-outline transforms preserve their input devices. Native outline
+operations run in Rust on CPU and move their results back to the corresponding
+input devices before returning.
+
 For `VariableGlyphRef`, pass a location explicitly:
 
 ```python

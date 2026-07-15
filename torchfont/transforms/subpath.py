@@ -17,14 +17,16 @@ def normalize_subpath_start_points(
     returned unchanged. When rotation crosses the old closing edge, that implicit
     edge is materialised as ``LINE_TO`` so the represented geometry is preserved.
     """
+    types_device = types.device
+    coords_device = coords.device
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
     out_types, out_coords = _torchfont.normalize_subpath_start_points(
         types.numpy(), coords.reshape(-1).numpy()
     )
     return (
-        torch.from_numpy(out_types),
-        torch.from_numpy(out_coords).view(-1, 6),
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )
 
 
@@ -40,6 +42,8 @@ def randomize_subpath_start_points(
     element types are returned unchanged. Pass a ``torch.Generator`` to make the
     independent per-subpath choices reproducible.
     """
+    types_device = types.device
+    coords_device = coords.device
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
     random_values = torch.rand(
@@ -53,6 +57,6 @@ def randomize_subpath_start_points(
         random_values.numpy(),
     )
     return (
-        torch.from_numpy(out_types),
-        torch.from_numpy(out_coords).view(-1, 6),
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )

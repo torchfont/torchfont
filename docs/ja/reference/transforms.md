@@ -17,6 +17,9 @@ types, coords = load_glyph(sample.ref)
 `(types, coords)` を返し、`types` は 1-D `LongTensor`、`coords` は shape
 `(N, 6)` の 2-D `FloatTensor` です。
 
+outline から outline への transform は入力 device を維持します。native outline
+演算は CPU 上の Rust で実行し、結果を対応する入力 device に戻してから返します。
+
 `VariableGlyphRef` では location を明示的に渡します。
 
 ```python
