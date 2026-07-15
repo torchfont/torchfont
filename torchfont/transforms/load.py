@@ -15,6 +15,26 @@ if TYPE_CHECKING:
 
     from torch import Tensor
 
+    from torchfont.datasets import FontRef
+
+
+def random_location(
+    font: FontRef,
+    *,
+    generator: torch.Generator | None = None,
+) -> dict[str, float]:
+    """Sample one random user-space location inside the font's variation axes."""
+    location: dict[str, float] = {}
+    for tag, min_value, _default_value, max_value in _torchfont.variation_axes(
+        font.path,
+        font.ttc_index,
+    ):
+        t = torch.rand((), generator=generator).item()
+        location[str(tag)] = (
+            float(min_value) + (float(max_value) - float(min_value)) * t
+        )
+    return location
+
 
 @overload
 def load_glyph(ref: GlyphRef) -> tuple[Tensor, Tensor]: ...

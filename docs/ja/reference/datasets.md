@@ -124,7 +124,6 @@ from torchfont.instance_fn import (
     grid_instance_count,
     named_instances,
     named_instance_count,
-    random_location,
 )
 ```
 
@@ -133,12 +132,12 @@ from torchfont.instance_fn import (
 - `named_instances(font)`: fvar named instance を dedupe して返す。なければ default
 - `default_instance(font)`: default location 1 つ
 - `grid_instances({"wght": 7, "wdth": 3})`: 等間隔の固定 grid。フォントに存在しない軸は無視し、指定されなかった軸は default を使い、静的フォントは default 1 枠
-- `random_location(font, generator=None)`: transform 時 sampling 用の location 1 つ
 - `named_instance_count(font)`: `named_instances` と同じ多重度
 - `default_instance_count(font)`: instance slot 1 つ
 - `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` と同じ多重度
 
-ランダム性は任意の `torch.Generator` で管理します。dataset-level seed はありません。
+transform 時の variation sampling には [Transform Utilities](./transforms.md) の
+`random_location` を使います。dataset-level seed はありません。
 
 カスタム instance function は 0 個の location を返せます。未知の軸や、正規化後に
 重複する location は Dataset 構築時に `ValueError` になります。

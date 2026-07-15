@@ -1,6 +1,6 @@
 # トランスフォーム Utility
 
-`torchfont.transforms` は glyph tensor を調整するための小さな utility 関数を提供します。
+`torchfont.transforms` は glyph sample と tensor を調整するための小さな utility 関数を提供します。
 dataset item の整形は利用側の前処理コードで行います。
 
 ## load_glyph
@@ -20,7 +20,7 @@ types, coords = load_glyph(sample.ref)
 `VariableGlyphRef` では location を明示的に渡します。
 
 ```python
-from torchfont.instance_fn import random_location
+from torchfont.transforms import random_location
 
 sample = variable_dataset[0]
 location = random_location(sample.ref.font)
@@ -29,6 +29,17 @@ types, coords = load_glyph(sample.ref, location)
 
 明示的な location では、未知の軸、範囲外の値、NaN/inf は `ValueError` になります。
 指定されなかった軸はフォントの default を使います。
+
+## random_location
+
+```python
+from torchfont.transforms import random_location
+
+location = random_location(sample.ref.font, generator=None)
+```
+
+各 variation axis を user-space の最小値と最大値の間で独立に一様サンプリングします。
+静的フォントでは空の辞書を返します。ランダム性は任意の `torch.Generator` で管理します。
 
 ## quad_to_cubic
 

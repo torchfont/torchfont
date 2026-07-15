@@ -124,7 +124,6 @@ from torchfont.instance_fn import (
     grid_instance_count,
     named_instances,
     named_instance_count,
-    random_location,
 )
 ```
 
@@ -133,13 +132,12 @@ Built-ins:
 - `named_instances(font)`: fvar named instances, deduplicated; falls back to default
 - `default_instance(font)`: one default location
 - `grid_instances({"wght": 7, "wdth": 3})`: evenly spaced fixed grid; axes absent from a font are ignored, unlisted axes use their defaults, and static fonts use one default instance
-- `random_location(font, generator=None)`: one location for transform-time sampling
 - `named_instance_count(font)`: instance count matching `named_instances`
 - `default_instance_count(font)`: one instance slot
 - `grid_instance_count({"wght": 7, "wdth": 3})`: instance count matching `grid_instances`
 
-Randomness uses the optional `torch.Generator`; datasets do not have a
-dataset-level seed.
+For transform-time variation sampling, see `random_location` in
+[Transform Utilities](./transforms.md). Datasets do not have a dataset-level seed.
 
 Custom instance functions may return zero locations. Unknown axes and duplicate
 locations after normalization raise `ValueError` during dataset construction.
