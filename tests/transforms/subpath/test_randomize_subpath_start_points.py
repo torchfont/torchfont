@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from torchfont.transforms import randomize_subpath_start_points
@@ -44,3 +45,20 @@ def test_randomize_subpath_start_points_leaves_open_subpaths_unchanged(
 
     assert torch.equal(out_types, types)
     assert torch.equal(out_coords, coords)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_randomize_subpath_start_points_accepts_cpu_generator_for_cuda_input(
+    square: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = (tensor.cuda() for tensor in square)
+    generator = torch.Generator().manual_seed(5)
+
+    out_types, out_coords = randomize_subpath_start_points(
+        types,
+        coords,
+        generator=generator,
+    )
+
+    assert out_types.device.type == "cuda"
+    assert out_coords.device.type == "cuda"

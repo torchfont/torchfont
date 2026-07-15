@@ -20,14 +20,16 @@ def quad_to_cubic(
     in the same Rust call after conversion. The output length may differ from
     the input in this mode.
     """
+    types_device = types.device
+    coords_device = coords.device
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
     out_types, out_coords = _torchfont.quad_to_cubic(
         types.numpy(), coords.reshape(-1).numpy(), merge_curves
     )
     return (
-        torch.from_numpy(out_types),
-        torch.from_numpy(out_coords).view(-1, 6),
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )
 
 
@@ -53,14 +55,16 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         Non-cubic path elements are passed through unchanged.
 
     """
+    types_device = types.device
+    coords_device = coords.device
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
     out_types, out_coords = _torchfont.cubic_to_quad(
         types.numpy(), coords.reshape(-1).numpy()
     )
     return (
-        torch.from_numpy(out_types),
-        torch.from_numpy(out_coords).view(-1, 6),
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )
 
 
@@ -86,12 +90,14 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         adjacent segments collapsed.
 
     """
+    types_device = types.device
+    coords_device = coords.device
     types = types.cpu().contiguous()
     coords = coords.cpu().contiguous()
     out_types, out_coords = _torchfont.merge_curves(
         types.numpy(), coords.reshape(-1).numpy()
     )
     return (
-        torch.from_numpy(out_types),
-        torch.from_numpy(out_coords).view(-1, 6),
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )

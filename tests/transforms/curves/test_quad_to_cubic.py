@@ -120,3 +120,15 @@ def test_quad_to_cubic_merge_curves_runs_even_without_quadratics() -> None:
     out_types, _out_coords = quad_to_cubic(types, coords, merge_curves=True)
 
     assert out_types.tolist().count(ElementType.LINE_TO.value) == 1
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_quad_to_cubic_preserves_cuda_device(
+    quad_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = (tensor.cuda() for tensor in quad_outline)
+
+    out_types, out_coords = quad_to_cubic(types, coords)
+
+    assert out_types.device.type == "cuda"
+    assert out_coords.device.type == "cuda"
