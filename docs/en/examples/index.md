@@ -17,6 +17,7 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 |Use case|Script (`examples/`)|Summary|
 |---|---|---|
 |Pipeline|`local_fonts.py`|Offline local-font pipeline with `GlyphDataset` + local `collate_fn`|
+|Variable glyphs|`variable_glyphs.py`|Uniformly sample variation-axis locations on every access|
 |Corpus checkout|`google_fonts.py`|Google Fonts checkout + transforms + DataLoader|
 |Corpus checkout|`font_awesome.py`|Font Awesome checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons checkout|
@@ -26,5 +27,6 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 
 1. `local_fonts.py`
 2. `google_fonts.py`
+3. `variable_glyphs.py`
 4. `font_awesome.py` / `material_design_icons.py` / `source_han_code_jp.py` as
    needed
