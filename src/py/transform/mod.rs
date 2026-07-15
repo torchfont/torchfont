@@ -8,6 +8,8 @@ use crate::transform::{curves, subpath};
 
 mod load;
 
+type OutlineArrays<'py> = (Bound<'py, PyArray1<i64>>, Bound<'py, PyArray1<f32>>);
+
 fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
     Outline::try_from((types, coords)).map_err(|e| match e {
         DecodeError::CoordsLen => {
@@ -31,12 +33,18 @@ fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
     })
 }
 
+fn encode<'py>(py: Python<'py>, outline: &Outline) -> OutlineArrays<'py> {
+    let (types, coords) = outline.encode();
+    (types.into_pyarray(py), coords.into_pyarray(py))
+}
+
 #[pyfunction]
-pub(crate) fn quad_to_cubic(
+pub(crate) fn quad_to_cubic<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
     merge_curves: bool,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     let result = curves::quad_to_cubic::quad_to_cubic(&outline);
     let result = if merge_curves {
@@ -44,17 +52,18 @@ pub(crate) fn quad_to_cubic(
     } else {
         result
     };
-    Ok(result.encode())
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
-pub(crate) fn cubic_to_quad(
+pub(crate) fn cubic_to_quad<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     curves::cubic_to_quad::cubic_to_quad(&outline)
-        .map(|outline| outline.encode())
+        .map(|outline| encode(py, &outline))
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
                 "cubic_to_quad could not approximate a curve within MAX_N segments",
@@ -63,29 +72,35 @@ pub(crate) fn cubic_to_quad(
 }
 
 #[pyfunction]
-pub(crate) fn merge_curves(
+pub(crate) fn merge_curves<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(curves::merge_curves::merge_curves(&outline).encode())
+    Ok(encode(py, &curves::merge_curves::merge_curves(&outline)))
 }
 
 #[pyfunction]
-pub(crate) fn normalize_subpath_start_points(
+pub(crate) fn normalize_subpath_start_points<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(subpath::normalize_subpath_start_points(&outline).encode())
+    Ok(encode(
+        py,
+        &subpath::normalize_subpath_start_points(&outline),
+    ))
 }
 
 #[pyfunction]
-pub(crate) fn randomize_subpath_start_points(
+pub(crate) fn randomize_subpath_start_points<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
     random_values: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     use crate::outline::ElementType;
     let t = types.as_slice()?;
     let r = random_values.as_slice()?;
@@ -100,25 +115,33 @@ pub(crate) fn randomize_subpath_start_points(
         .zip(r)
         .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
         .collect();
-    Ok(subpath::randomize_subpath_start_points(&outline, &subpath_random_values).encode())
+    Ok(encode(
+        py,
+        &subpath::randomize_subpath_start_points(&outline, &subpath_random_values),
+    ))
 }
 
 #[pyfunction]
-pub(crate) fn reverse_closed_subpaths(
+pub(crate) fn reverse_closed_subpaths<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(subpath::reverse_closed_subpaths(&outline).encode())
+    Ok(encode(py, &subpath::reverse_closed_subpaths(&outline)))
 }
 
 #[pyfunction]
-pub(crate) fn remove_overlaps(
+pub(crate) fn remove_overlaps<'py>(
+    py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<(Vec<i64>, Vec<f32>)> {
+) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(crate::transform::remove_overlaps::remove_overlaps(&outline).encode())
+    Ok(encode(
+        py,
+        &crate::transform::remove_overlaps::remove_overlaps(&outline),
+    ))
 }
 
 #[pyfunction]

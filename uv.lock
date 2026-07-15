@@ -1477,6 +1477,9 @@ wheels = [
 name = "torchfont"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.13.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
 ]
@@ -1487,9 +1490,6 @@ dev = [
     { name = "lightning" },
     { name = "maturin" },
     { name = "maturin", extra = ["patchelf"], marker = "sys_platform == 'linux'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "ruff" },
@@ -1500,7 +1500,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "torch", specifier = ">=2.3.0", index = "https://download.pytorch.org/whl/cpu" }]
+requires-dist = [
+    { name = "numpy", specifier = ">=1.21.3" },
+    { name = "torch", specifier = ">=2.3.0", index = "https://download.pytorch.org/whl/cpu" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1508,7 +1511,6 @@ dev = [
     { name = "lightning", specifier = ">=2.6.0" },
     { name = "maturin", marker = "sys_platform != 'linux'", specifier = ">=1.12.6" },
     { name = "maturin", extras = ["patchelf"], marker = "sys_platform == 'linux'", specifier = ">=1.12.6" },
-    { name = "numpy", specifier = ">=2.2.6" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-benchmark", specifier = ">=5.1.0" },
     { name = "ruff", specifier = ">=0.12.4" },
