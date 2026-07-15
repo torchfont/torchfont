@@ -127,6 +127,23 @@ def test_dataset_reports_corrupt_font_parse_error(tmp_path: Path) -> None:
         GlyphDataset(root=tmp_path)
 
 
+def test_dataset_reports_missing_root_as_file_not_found(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="failed to resolve font root"):
+        GlyphDataset(root=tmp_path / "missing")
+
+
+def test_load_glyph_reports_missing_font_as_file_not_found(tmp_path: Path) -> None:
+    ref = GlyphRef(FontRef(str(tmp_path / "missing.ttf"), 0), ord("A"), {})
+
+    with pytest.raises(FileNotFoundError, match="failed to open"):
+        load_glyph(ref)
+
+
+def test_dataset_reports_invalid_pattern_as_value_error() -> None:
+    with pytest.raises(ValueError, match="invalid pattern"):
+        GlyphDataset(root="tests/fonts", patterns=("[",))
+
+
 def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
     calls: list[GlyphSample] = []
 
