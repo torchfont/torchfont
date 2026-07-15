@@ -40,7 +40,7 @@ location = random_location(sample.ref.font, generator=None)
 
 Samples each variation axis independently and uniformly over its user-space
 minimum and maximum. Static fonts return an empty dictionary. Randomness uses
-the optional `torch.Generator`.
+the optional `torch.Generator`, including a CUDA generator when provided.
 
 ## quad_to_cubic
 
