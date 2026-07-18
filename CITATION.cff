@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "TorchFont"
+abstract: "A Machine Learning Library for Vector Fonts"
+authors:
+  - family-names: "Fujioka"
+    given-names: "Takumu"
+    email: "fjktkm@gmail.com"
+    orcid: "https://orcid.org/0009-0005-0691-414X"
+version: 0.11.0
+date-released: 2026-07-18
+license: MIT
+repository-code: "https://github.com/torchfont/torchfont"
+url: "https://torchfont.readthedocs.io/"
+keywords:
+  - pytorch
+  - fonts
+  - vector-graphics
+  - machine-learning
+  - datasets
