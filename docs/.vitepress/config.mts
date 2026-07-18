@@ -35,51 +35,6 @@ export default defineConfig({
   },
 
   locales: {
-    ja: {
-      label: '日本語',
-      lang: 'ja-JP',
-      description: 'フォントのための機械学習ライブラリ',
-      themeConfig: {
-        nav: [
-          { text: 'ガイド', link: '/ja/guide/what-is-torchfont' },
-          { text: 'リファレンス', link: '/ja/reference/datasets' },
-          { text: 'サンプル', link: '/ja/examples/' },
-        ],
-        sidebar: {
-          '/ja/guide/': [
-            {
-              text: 'ガイド',
-              items: [
-                { text: 'TorchFont とは', link: '/ja/guide/what-is-torchfont' },
-                { text: 'クイックスタート', link: '/ja/guide/getting-started' },
-                { text: 'Google Fonts のセットアップ', link: '/ja/guide/google-fonts' },
-                { text: 'GlyphDataset の構築', link: '/ja/guide/dataset' },
-                { text: 'グリフデータ形式', link: '/ja/guide/glyph-data-format' },
-                { text: 'DataLoader によるバッチ処理', link: '/ja/guide/dataloader' },
-              ],
-            },
-          ],
-          '/ja/reference/': [
-            {
-              text: 'リファレンス',
-              items: [
-                { text: 'データセット', link: '/ja/reference/datasets' },
-                { text: 'グリフセット', link: '/ja/reference/glyphsets' },
-                { text: 'トランスフォーム', link: '/ja/reference/transforms' },
-                { text: 'IO ユーティリティ', link: '/ja/reference/io' },
-              ],
-            },
-          ],
-          '/ja/examples/': [
-            {
-              text: 'サンプル',
-              items: [{ text: 'サンプル集', link: '/ja/examples/' }],
-            },
-          ],
-        },
-      },
-    },
-
     en: {
       label: 'English',
       lang: 'en-US',
@@ -119,6 +74,51 @@ export default defineConfig({
             {
               text: 'Examples',
               items: [{ text: 'Example Gallery', link: '/en/examples/' }],
+            },
+          ],
+        },
+      },
+    },
+
+    ja: {
+      label: '日本語',
+      lang: 'ja-JP',
+      description: 'フォントのための機械学習ライブラリ',
+      themeConfig: {
+        nav: [
+          { text: 'ガイド', link: '/ja/guide/what-is-torchfont' },
+          { text: 'リファレンス', link: '/ja/reference/datasets' },
+          { text: 'サンプル', link: '/ja/examples/' },
+        ],
+        sidebar: {
+          '/ja/guide/': [
+            {
+              text: 'ガイド',
+              items: [
+                { text: 'TorchFont とは', link: '/ja/guide/what-is-torchfont' },
+                { text: 'クイックスタート', link: '/ja/guide/getting-started' },
+                { text: 'Google Fonts のセットアップ', link: '/ja/guide/google-fonts' },
+                { text: 'GlyphDataset の構築', link: '/ja/guide/dataset' },
+                { text: 'グリフデータ形式', link: '/ja/guide/glyph-data-format' },
+                { text: 'DataLoader によるバッチ処理', link: '/ja/guide/dataloader' },
+              ],
+            },
+          ],
+          '/ja/reference/': [
+            {
+              text: 'リファレンス',
+              items: [
+                { text: 'データセット', link: '/ja/reference/datasets' },
+                { text: 'グリフセット', link: '/ja/reference/glyphsets' },
+                { text: 'トランスフォーム', link: '/ja/reference/transforms' },
+                { text: 'IO ユーティリティ', link: '/ja/reference/io' },
+              ],
+            },
+          ],
+          '/ja/examples/': [
+            {
+              text: 'サンプル',
+              items: [{ text: 'サンプル集', link: '/ja/examples/' }],
             },
           ],
         },
