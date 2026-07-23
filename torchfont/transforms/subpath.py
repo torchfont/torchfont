@@ -60,3 +60,34 @@ def randomize_subpath_start_points(
         torch.from_numpy(out_types).to(device=types_device),
         torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )
+
+
+def randomize_subpath_order(
+    types: Tensor,
+    coords: Tensor,
+    *,
+    generator: torch.Generator | None = None,
+) -> tuple[Tensor, Tensor]:
+    """Randomly permute whole subpaths without changing their geometry.
+
+    This operates on an already extracted monochrome outline. Each subpath's
+    start point, elements, winding, and open/closed state are preserved.
+    """
+    types_device = types.device
+    coords_device = coords.device
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
+    random_values = torch.rand(
+        types.size(0),
+        device=generator.device if generator is not None else types.device,
+        generator=generator,
+    ).cpu()
+    out_types, out_coords = _torchfont.randomize_subpath_order(
+        types.numpy(),
+        coords.reshape(-1).numpy(),
+        random_values.numpy(),
+    )
+    return (
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
+    )

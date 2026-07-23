@@ -40,6 +40,24 @@ pub(crate) fn randomize_subpath_start_points(outline: &Outline, random_values: &
     })
 }
 
+pub(crate) fn randomize_subpath_order(outline: &Outline, random_values: &[f32]) -> Outline {
+    let mut keyed_subpaths: Vec<_> = outline
+        .subpaths()
+        .iter()
+        .cloned()
+        .zip(random_values.iter().copied())
+        .enumerate()
+        .collect();
+    keyed_subpaths
+        .sort_by(|(a_idx, (_, a)), (b_idx, (_, b))| a.total_cmp(b).then_with(|| a_idx.cmp(b_idx)));
+    Outline::new(
+        keyed_subpaths
+            .into_iter()
+            .map(|(_, (subpath, _))| subpath)
+            .collect(),
+    )
+}
+
 pub(crate) fn reverse_closed_subpaths(outline: &Outline) -> Outline {
     let subpaths = outline
         .subpaths()
@@ -233,6 +251,28 @@ mod tests {
     }
 
     // --- reverse_closed_subpaths ---
+
+    #[test]
+    fn randomize_subpath_order_uses_random_keys() {
+        let first = closed(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(10.0, 0.0), vec![line(11.0, 0.0)]);
+        let outline = Outline::new(vec![first.clone(), second.clone()]);
+
+        let result = randomize_subpath_order(&outline, &[0.9, 0.1]);
+
+        assert_eq!(result.subpaths(), &[second, first]);
+    }
+
+    #[test]
+    fn randomize_subpath_order_preserves_tie_order() {
+        let first = open(pt(0.0, 0.0), vec![]);
+        let second = open(pt(10.0, 0.0), vec![]);
+        let outline = Outline::new(vec![first.clone(), second.clone()]);
+
+        let result = randomize_subpath_order(&outline, &[0.5, 0.5]);
+
+        assert_eq!(result.subpaths(), &[first, second]);
+    }
 
     #[test]
     fn reverse_closed_subpaths_skips_open() {
