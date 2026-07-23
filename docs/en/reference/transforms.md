@@ -182,6 +182,23 @@ Chooses a uniformly random start endpoint for each subpath.
 - input: `types=(N,)`, `coords=(N, 6)`
 - output: `types=(M,)`, `coords=(M, 6)`
 
+## randomize_subpath_order
+
+```python
+from torchfont.transforms import randomize_subpath_order
+
+types, coords = randomize_subpath_order(types, coords, generator=None)
+```
+
+Randomly permutes complete subpaths while preserving every subpath's geometry,
+start point, winding, and open/closed state. This helps prevent sequence models
+from learning an arbitrary contour order.
+
+For an extracted monochrome outline, contour order does not determine holes:
+the winding/fill rule does. This transform intentionally does not operate on
+source-font point indices, TrueType instructions, variation deltas, composite
+components, or color-glyph layers, whose ordering can carry other semantics.
+
 ## patchify
 
 ```python

@@ -27,6 +27,7 @@ from torchfont.transforms.load import load_glyph, random_location
 from torchfont.transforms.outline import patchify, remove_overlaps
 from torchfont.transforms.subpath import (
     normalize_subpath_start_points,
+    randomize_subpath_order,
     randomize_subpath_start_points,
 )
 
@@ -45,6 +46,7 @@ __all__ = [
     "random_horizontal_flip",
     "random_location",
     "random_vertical_flip",
+    "randomize_subpath_order",
     "randomize_subpath_start_points",
     "remove_overlaps",
     "render_bitmap",

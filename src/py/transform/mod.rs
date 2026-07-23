@@ -122,6 +122,33 @@ pub(crate) fn randomize_subpath_start_points<'py>(
 }
 
 #[pyfunction]
+pub(crate) fn randomize_subpath_order<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    random_values: PyReadonlyArray1<'_, f32>,
+) -> PyResult<OutlineArrays<'py>> {
+    use crate::outline::ElementType;
+    let t = types.as_slice()?;
+    let r = random_values.as_slice()?;
+    let outline = decode(t, coords.as_slice()?)?;
+    if r.len() < t.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "random_values length must be at least types length",
+        ));
+    }
+    let subpath_random_values: Vec<f32> = t
+        .iter()
+        .zip(r)
+        .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
+        .collect();
+    Ok(encode(
+        py,
+        &subpath::randomize_subpath_order(&outline, &subpath_random_values),
+    ))
+}
+
+#[pyfunction]
 pub(crate) fn reverse_closed_subpaths<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
@@ -208,6 +235,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;
+    m.add_function(wrap_pyfunction!(randomize_subpath_order, m)?)?;
     m.add_function(wrap_pyfunction!(randomize_subpath_start_points, m)?)?;
     m.add_function(wrap_pyfunction!(reverse_closed_subpaths, m)?)?;
     m.add_function(wrap_pyfunction!(tight_bbox, m)?)?;

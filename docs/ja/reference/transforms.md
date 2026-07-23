@@ -179,6 +179,22 @@ types, coords = randomize_subpath_start_points(types, coords)
 - 入力: `types=(N,)`, `coords=(N, 6)`
 - 出力: `types=(M,)`, `coords=(M, 6)`
 
+## randomize_subpath_order
+
+```python
+from torchfont.transforms import randomize_subpath_order
+
+types, coords = randomize_subpath_order(types, coords, generator=None)
+```
+
+各 subpath の形状、開始点、winding、open/closed 状態を保持したまま、subpath 全体の
+順序をランダムに入れ替えます。sequence model が任意の contour 順序に依存するのを
+防ぐために利用できます。
+
+抽出済みの単色 outline では、hole は contour の順序ではなく winding/fill rule で
+決まります。この transform は、別の意味を持ち得る元 font の point index、TrueType
+instruction、variation delta、composite component、color glyph layer の順序には作用しません。
+
 ## patchify
 
 ```python
