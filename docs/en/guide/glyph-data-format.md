@@ -22,10 +22,10 @@ dataset = GlyphDataset(
 sample = dataset[0]
 types, coords = load_glyph(sample.ref)
 
-print(sample.ref)            # glyph reference
-print(types)                 # element type sequence
-print(coords)                # coordinates sequence
-print(sample.style_idx)      # style class ID
+print(sample.ref)  # glyph reference
+print(types)  # element type sequence
+print(coords)  # coordinates sequence
+print(sample.style_idx)  # style class ID
 print(sample.character_idx)  # character class ID
 ```
 
