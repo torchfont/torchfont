@@ -24,10 +24,10 @@ dataset = GlyphDataset(
 sample = dataset[0]
 types, coords = load_glyph(sample.ref)
 
-print(sample.ref)            # グリフ参照
-print(types)                 # Element Type の系列
-print(coords)                # Coordinates の系列
-print(sample.style_idx)      # 書体スタイルのクラス ID
+print(sample.ref)  # グリフ参照
+print(types)  # Element Type の系列
+print(coords)  # Coordinates の系列
+print(sample.style_idx)  # 書体スタイルのクラス ID
 print(sample.character_idx)  # 文字のクラス ID
 ```
 

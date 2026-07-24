@@ -268,7 +268,9 @@ from torchfont.transforms import affine
 ```
 
 ```python
-types, coords = affine(types, coords, angle=15.0, translate=(0.05, 0.0), scale=0.9, shear=5.0)
+types, coords = affine(
+    types, coords, angle=15.0, translate=(0.05, 0.0), scale=0.9, shear=5.0
+)
 ```
 
 グリフアウトラインに決定論的なアフィン変換を適用します。
@@ -337,7 +339,8 @@ from torchfont.transforms import random_affine
 
 ```python
 types, coords = random_affine(
-    types, coords,
+    types,
+    coords,
     degrees=15.0,
     translate=(0.05, 0.05),
     scale=(0.9, 1.1),

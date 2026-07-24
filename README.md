@@ -71,7 +71,7 @@ dataset = GlyphDataset(
 loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
 types_t, coords_t = next(iter(loader))
 
-print(types_t.shape)   # (8, L)
+print(types_t.shape)  # (8, L)
 print(coords_t.shape)  # (8, L, 6)
 ```
 
