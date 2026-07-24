@@ -1498,6 +1498,9 @@ dev = [
     { name = "ty" },
     { name = "types-tqdm" },
 ]
+lint = [
+    { name = "ruff" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1519,6 +1522,7 @@ dev = [
     { name = "ty", specifier = ">=0.0.63" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
 ]
+lint = [{ name = "ruff", specifier = ">=0.16.0" }]
 
 [[package]]
 name = "torchmetrics"
