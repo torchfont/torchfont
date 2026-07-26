@@ -6,10 +6,11 @@
 は軽量で pickle しやすい dataclass で、outline の読み込みは transform 内で
 `load_glyph`([Transform Utilities](./transforms.md) 参照)を明示的に呼びます。
 
-Dataset の index と target は構築時点のフォントファイルから作られますが、glyph
-outline は現在のディスク上のファイルから遅延読み込みされます。Dataset object の
-lifetime 中にフォントファイルを変更すること、pickle/unpickle 境界をまたいで変更する
-ことは unsupported で、sample と label の不整合を起こす可能性があります。
+Dataset の index と class target は構築時点のフォントファイルから作られます。
+glyph outline と登録済み軸の値は現在のディスク上のファイルから遅延読み込みされます。
+Dataset object の lifetime 中にフォントファイルを変更すること、pickle/unpickle
+境界をまたいで変更することは unsupported で、sample と label の不整合を起こす
+可能性があります。
 
 ## 参照型
 
@@ -28,7 +29,7 @@ from torchfont.datasets import (
 | `FontRef` | `path: str`, `ttc_index: int` |
 | `GlyphRef` | `font: FontRef`, `codepoint: int`, `location: Mapping[str, float]` |
 | `VariableGlyphRef` | `font: FontRef`, `codepoint: int` |
-| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int` |
+| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int`, `weight: float \| None`, `width: float \| None`, `italic: float \| None`, `slant: float \| None`, `optical_size: float \| None` |
 | `VariableGlyphSample` | `ref: VariableGlyphRef`, `font_idx: int`, `character_idx: int` |
 
 `ttc_index` は read-fonts/skrifa が TrueType Collection 内のフォント位置に
@@ -70,6 +71,31 @@ targets:
 - `font_targets -> LongTensor (N,)`
 - `style_targets -> LongTensor (N,)`
 - `character_targets -> LongTensor (N,)`
+- `weight_targets -> FloatTensor (N,)`
+- `width_targets -> FloatTensor (N,)`
+- `italic_targets -> FloatTensor (N,)`
+- `slant_targets -> FloatTensor (N,)`
+- `optical_size_targets -> FloatTensor (N,)`
+
+これらの target は OpenType の登録済み user scale を使うため、weight は CSS weight
+と比較可能、width は百分率、italic は
+`0`（Roman）から `1`（fully italic）、slant は度、optical size は point です。
+`italic_targets` の中間 variation 座標を含め、5つの target はすべて浮動小数点数です。
+各軸についてまず index 済み variation location を使い、`fvar` に存在しない軸だけを
+対応する OS/2、`head`、`post` field から変換します。fallback は `wght` に OS/2
+`usWeightClass`、`wdth` に
+OS/2 `usWidthClass`、`ital` に OS/2 `fsSelection.ITALIC`（OS/2 がない場合は
+`head.macStyle.ITALIC`）、`slnt` に `post.italicAngle` を使います。
+`head.macStyle.BOLD` は weight class ではないため、恣意的な `wght` 値には変換しません。
+フォントから導出できない値は `NaN` になるため、loss から除外する場合は
+`torch.isfinite` をそのまま利用できます。
+同じ値は各 sample の `sample.weight`、`sample.width`、`sample.italic`、
+`sample.slant`、`sample.optical_size` からも取得できるため、transform 内で利用できます。
+sample で取得できない値は `None`（target Tensor では `NaN`）です。
+これらの target property にアクセスした時点でフォントファイルを parse します。
+展開済みtarget vectorはDataset構築時には作られず、cacheもされません。
+OS/2 の optical-size range は恣意的な中点に変換しません。`opsz` は index 済み
+variation location が実際の座標を持つ場合だけ値を持ちます。
 
 class 語彙:
 

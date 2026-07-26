@@ -1,10 +1,10 @@
 """Utilities for turning local font folders into indexed glyph datasets.
 
-Dataset indices and targets are built from font files at construction time,
-while glyph outlines are loaded lazily from the current files on disk.
-Modifying font files during a dataset object's lifetime, including across
-pickle/unpickle boundaries, is unsupported and may produce inconsistent
-samples or labels.
+Dataset indices and class targets are built from font files at construction
+time. Glyph outlines and registered-axis values are loaded lazily from the
+current files on disk. Modifying font files during a dataset object's lifetime,
+including across pickle/unpickle boundaries, is unsupported and may produce
+inconsistent samples or labels.
 """
 
 from __future__ import annotations
@@ -64,6 +64,11 @@ class GlyphSample:
     font_idx: int
     style_idx: int
     character_idx: int
+    weight: float | None
+    width: float | None
+    italic: float | None
+    slant: float | None
+    optical_size: float | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -78,9 +83,10 @@ class VariableGlyphSample:
 class GlyphDataset(Dataset[_T], Generic[_T]):
     """Dataset that yields fixed-location glyph references.
 
-    The index and targets are fixed at construction time, but glyph outlines
-    are loaded lazily from the current files on disk. Do not modify indexed
-    font files while a dataset object is in use.
+    The index and class targets are fixed at construction time, while glyph
+    outlines and registered-axis values are loaded lazily from the current
+    files on disk. Do not modify indexed font files while a dataset object is
+    in use.
     """
 
     @overload
@@ -161,6 +167,11 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             location,
             style_idx,
             character_idx,
+            weight,
+            width,
+            italic,
+            slant,
+            optical_size,
         ) = self._index.locate(_normalize_index(idx, len(self)))
         sample = GlyphSample(
             ref=GlyphRef(
@@ -174,6 +185,11 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
             font_idx=font_idx,
             style_idx=style_idx,
             character_idx=character_idx,
+            weight=weight,
+            width=width,
+            italic=italic,
+            slant=slant,
+            optical_size=optical_size,
         )
         if self.transform is not None:
             return self.transform(sample)
@@ -213,6 +229,31 @@ class GlyphDataset(Dataset[_T], Generic[_T]):
     def character_targets(self) -> Tensor:
         """LongTensor of character target indices for each sample."""
         return torch.from_numpy(self._index.character_targets())
+
+    @property
+    def weight_targets(self) -> Tensor:
+        """FloatTensor of OpenType weight values; unavailable values are NaN."""
+        return torch.from_numpy(self._index.weight_targets())
+
+    @property
+    def width_targets(self) -> Tensor:
+        """FloatTensor of OpenType width percentages; unavailable values are NaN."""
+        return torch.from_numpy(self._index.width_targets())
+
+    @property
+    def italic_targets(self) -> Tensor:
+        """FloatTensor of OpenType italic values; unavailable values are NaN."""
+        return torch.from_numpy(self._index.italic_targets())
+
+    @property
+    def slant_targets(self) -> Tensor:
+        """FloatTensor of OpenType slant angles; unavailable values are NaN."""
+        return torch.from_numpy(self._index.slant_targets())
+
+    @property
+    def optical_size_targets(self) -> Tensor:
+        """FloatTensor of optical sizes in points; unavailable values are NaN."""
+        return torch.from_numpy(self._index.optical_size_targets())
 
 
 class VariableGlyphDataset(Dataset[_V], Generic[_V]):

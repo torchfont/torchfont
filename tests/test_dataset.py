@@ -6,10 +6,11 @@ import pickle
 import shutil
 import subprocess
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 import torch
+from fontTools.ttLib import TTFont
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
@@ -452,11 +453,86 @@ def test_targets_match_samples() -> None:
     assert dataset.character_targets.shape == (len(dataset),)
     assert dataset.character_targets.dtype == torch.long
     assert dataset.font_targets.shape == (len(dataset),)
+    axis_targets = (
+        dataset.weight_targets,
+        dataset.width_targets,
+        dataset.italic_targets,
+        dataset.slant_targets,
+        dataset.optical_size_targets,
+    )
     for i in range(len(dataset)):
         sample = dataset[i]
         assert dataset.style_targets[i].item() == sample.style_idx
         assert dataset.character_targets[i].item() == sample.character_idx
         assert dataset.font_targets[i].item() == sample.font_idx
+        for targets, value in zip(
+            axis_targets,
+            (
+                sample.weight,
+                sample.width,
+                sample.italic,
+                sample.slant,
+                sample.optical_size,
+            ),
+            strict=True,
+        ):
+            expected = float("nan") if value is None else value
+            assert torch.allclose(
+                targets[i],
+                torch.tensor(expected),
+                equal_nan=True,
+            )
+
+
+def test_axis_targets_follow_locations_and_include_static_fonts() -> None:
+    variable = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_fn=grid_instances({"wght": 2, "wdth": 2}),
+    )
+    static = GlyphDataset(
+        root="tests/fonts",
+        patterns=("lato/Lato-Regular.ttf",),
+        codepoints=[0x41],
+    )
+
+    for targets in (
+        variable.weight_targets,
+        variable.width_targets,
+        variable.italic_targets,
+        variable.slant_targets,
+        variable.optical_size_targets,
+    ):
+        assert targets.shape == (4,)
+        assert targets.dtype == torch.float32
+    assert torch.equal(
+        variable.weight_targets,
+        torch.tensor([100.0, 100.0, 900.0, 900.0]),
+    )
+    assert torch.equal(
+        variable.width_targets,
+        torch.tensor([75.0, 100.0, 75.0, 100.0]),
+    )
+    assert static.weight_targets.tolist() == [400.0]
+    assert static.width_targets.tolist() == [100.0]
+    assert static.italic_targets.tolist() == [0.0]
+    assert static.slant_targets.tolist() == [0.0]
+    assert torch.isnan(static.optical_size_targets[0])
+
+
+def test_head_bold_is_not_invented_as_a_weight_class(tmp_path: Path) -> None:
+    font = TTFont("tests/fonts/lato/Lato-Regular.ttf")
+    cast("Any", font["head"]).macStyle |= 0b11
+    del font["OS/2"]
+    font.save(tmp_path / "Lato-No-OS2.ttf")
+
+    dataset = GlyphDataset(root=tmp_path, codepoints=[0x41])
+
+    # head.macStyle records only a binary bold flag; it does not distinguish
+    # 600, 700, 800, 900, or any other weight class.
+    assert torch.isnan(dataset.weight_targets[0])
+    assert dataset.italic_targets[0].item() == 1.0
 
 
 def test_datasets_public_api_is_ref_centered() -> None:
@@ -672,6 +748,15 @@ def test_target_vectors_survive_pickle() -> None:
     assert torch.equal(restored.style_targets, dataset.style_targets)
     assert torch.equal(restored.character_targets, dataset.character_targets)
     assert torch.equal(restored.font_targets, dataset.font_targets)
+    for restored_targets, targets in (
+        (restored.weight_targets, dataset.weight_targets),
+        (restored.width_targets, dataset.width_targets),
+        (restored.italic_targets, dataset.italic_targets),
+        (restored.slant_targets, dataset.slant_targets),
+        (restored.optical_size_targets, dataset.optical_size_targets),
+    ):
+        assert torch.allclose(restored_targets, targets, equal_nan=True)
+    assert restored[0] == dataset[0]
 
 
 def test_glyph_dataset_getitem_survives_spawn_pickle_roundtrip() -> None:
