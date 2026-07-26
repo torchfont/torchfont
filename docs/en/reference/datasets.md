@@ -6,10 +6,11 @@
 small, pickle-friendly dataclasses; outline loading happens explicitly in a
 transform with `load_glyph` (see [Transform Utilities](./transforms.md)).
 
-Dataset indices and targets are built from font files at construction time,
-while glyph outlines are loaded lazily from the current files on disk. Modifying
-font files during a dataset object's lifetime, including across pickle/unpickle
-boundaries, is unsupported and may produce inconsistent samples or labels.
+Dataset indices and class targets are built from font files at construction
+time. Glyph outlines and registered-axis values are loaded lazily from the
+current files on disk. Modifying font files during a dataset object's lifetime,
+including across pickle/unpickle boundaries, is unsupported and may produce
+inconsistent samples or labels.
 
 ## Reference Types
 
@@ -28,7 +29,7 @@ from torchfont.datasets import (
 | `FontRef` | `path: str`, `ttc_index: int` |
 | `GlyphRef` | `font: FontRef`, `codepoint: int`, `location: Mapping[str, float]` |
 | `VariableGlyphRef` | `font: FontRef`, `codepoint: int` |
-| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int` |
+| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int`, `weight: float \| None`, `width: float \| None`, `italic: float \| None`, `slant: float \| None`, `optical_size: float \| None` |
 | `VariableGlyphSample` | `ref: VariableGlyphRef`, `font_idx: int`, `character_idx: int` |
 
 `ttc_index` follows the name used internally by read-fonts/skrifa for the
@@ -70,6 +71,33 @@ Targets:
 - `font_targets -> LongTensor (N,)`
 - `style_targets -> LongTensor (N,)`
 - `character_targets -> LongTensor (N,)`
+- `weight_targets -> FloatTensor (N,)`
+- `width_targets -> FloatTensor (N,)`
+- `italic_targets -> FloatTensor (N,)`
+- `slant_targets -> FloatTensor (N,)`
+- `optical_size_targets -> FloatTensor (N,)`
+
+These targets use the registered OpenType user scales: weight is comparable
+with CSS weight, width is a percentage, italic ranges from `0` (Roman) to `1`
+(fully italic), slant is in degrees, and optical size is in points. All five
+targets are floating point, including `italic_targets`, whose intermediate
+variation coordinates are preserved. Each axis uses the indexed variation
+location first. For axes absent from `fvar`, the fallbacks are
+OS/2 `usWeightClass` for `wght`, OS/2 `usWidthClass` for `wdth`, OS/2
+`fsSelection.ITALIC` (or `head.macStyle.ITALIC` when OS/2 is unavailable) for
+`ital`, and `post.italicAngle` for `slnt`. `head.macStyle.BOLD` is not a weight
+class and is therefore not converted to an arbitrary `wght` value. A value that
+cannot be derived from the font is `NaN`; use `torch.isfinite` directly if a
+loss needs to ignore unavailable targets.
+The same values are available as `sample.weight`, `sample.width`,
+`sample.italic`, `sample.slant`, and `sample.optical_size`, which is convenient
+inside a transform. Unavailable sample values use `None` (target Tensors use
+`NaN`).
+The font files are parsed when one of these target properties is accessed; the
+expanded target vectors are neither built at dataset construction nor cached.
+OS/2 optical-size ranges are not collapsed to an arbitrary midpoint: `opsz`
+is present only when the indexed variation location provides an actual
+coordinate.
 
 Class vocabularies:
 

@@ -1,6 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use crate::font::Location;
+use crate::error::Error;
+use crate::font::{
+    Location, RegisteredAxisValues, default_location, map_font, parse_font_ref,
+    registered_axis_values,
+};
 
 use super::IndexOverflow;
 use super::classes::{character_index, style_name};
@@ -138,6 +142,40 @@ impl FixedIndex {
             |font| font.locations.len(),
             |codepoint| self.character_index(codepoint),
         )
+    }
+
+    pub(crate) fn weight_targets(&self) -> Result<Vec<f32>, Error> {
+        self.axis_targets(|values| values.weight)
+    }
+
+    pub(crate) fn width_targets(&self) -> Result<Vec<f32>, Error> {
+        self.axis_targets(|values| values.width)
+    }
+
+    pub(crate) fn italic_targets(&self) -> Result<Vec<f32>, Error> {
+        self.axis_targets(|values| values.italic)
+    }
+
+    pub(crate) fn slant_targets(&self) -> Result<Vec<f32>, Error> {
+        self.axis_targets(|values| values.slant)
+    }
+
+    pub(crate) fn optical_size_targets(&self) -> Result<Vec<f32>, Error> {
+        self.axis_targets(|values| values.optical_size)
+    }
+
+    fn axis_targets(&self, value: impl Fn(RegisteredAxisValues) -> f32) -> Result<Vec<f32>, Error> {
+        let mut out = Vec::with_capacity(self.sample_count);
+        for font in &self.fonts {
+            let data = map_font(&font.path)?;
+            let font_ref = parse_font_ref(&data, &font.path, font.ttc_index)?;
+            let defaults = registered_axis_values(&font_ref, &default_location(&font_ref));
+            for location in &font.locations {
+                let values = defaults.apply_location(location);
+                out.extend(std::iter::repeat_n(value(values), font.codepoints.len()));
+            }
+        }
+        Ok(out)
     }
 
     fn character_index(&self, codepoint: u32) -> usize {

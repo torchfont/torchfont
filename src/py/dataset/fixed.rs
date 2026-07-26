@@ -8,12 +8,25 @@ use pyo3::{
 };
 
 use crate::dataset::{FixedFontEntry, FixedIndex};
-use crate::font::Location;
+use crate::font::{Location, map_font, parse_font_ref, registered_axis_values};
 
 use super::{build, index_error, overflow_error};
 
 type FixedFontArg = (PathBuf, u32, Vec<u32>, Vec<Location>, String, String);
-type FixedLocationArg = (PathBuf, u32, usize, u32, Location, usize, usize);
+type FixedLocationArg = (
+    PathBuf,
+    u32,
+    usize,
+    u32,
+    Location,
+    usize,
+    usize,
+    Option<f32>,
+    Option<f32>,
+    Option<f32>,
+    Option<f32>,
+    Option<f32>,
+);
 
 #[pyclass(frozen, module = "torchfont._torchfont")]
 pub(super) struct FixedGlyphIndex {
@@ -76,6 +89,9 @@ impl FixedGlyphIndex {
             .inner
             .locate(idx)
             .ok_or_else(|| index_error(idx, self.inner.sample_count()))?;
+        let data = map_font(sample.path)?;
+        let font_ref = parse_font_ref(&data, sample.path, sample.ttc_index)?;
+        let values = registered_axis_values(&font_ref, sample.location);
         Ok((
             sample.path.to_path_buf(),
             sample.ttc_index,
@@ -84,6 +100,11 @@ impl FixedGlyphIndex {
             sample.location.clone(),
             sample.style_idx,
             sample.character_idx,
+            finite_or_none(values.weight),
+            finite_or_none(values.width),
+            finite_or_none(values.italic),
+            finite_or_none(values.slant),
+            finite_or_none(values.optical_size),
         ))
     }
 
@@ -97,6 +118,26 @@ impl FixedGlyphIndex {
 
     fn character_targets(&self, py: Python<'_>) -> Py<PyArray1<i64>> {
         self.inner.character_targets().into_pyarray(py).unbind()
+    }
+
+    fn weight_targets(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f32>>> {
+        Ok(self.inner.weight_targets()?.into_pyarray(py).unbind())
+    }
+
+    fn width_targets(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f32>>> {
+        Ok(self.inner.width_targets()?.into_pyarray(py).unbind())
+    }
+
+    fn italic_targets(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f32>>> {
+        Ok(self.inner.italic_targets()?.into_pyarray(py).unbind())
+    }
+
+    fn slant_targets(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f32>>> {
+        Ok(self.inner.slant_targets()?.into_pyarray(py).unbind())
+    }
+
+    fn optical_size_targets(&self, py: Python<'_>) -> PyResult<Py<PyArray1<f32>>> {
+        Ok(self.inner.optical_size_targets()?.into_pyarray(py).unbind())
     }
 
     fn __getnewargs__(&self) -> (Vec<FixedFontArg>,) {
@@ -124,6 +165,10 @@ impl FixedGlyphIndex {
             inner: FixedIndex::new(fonts).map_err(overflow_error)?,
         })
     }
+}
+
+fn finite_or_none(value: f32) -> Option<f32> {
+    value.is_finite().then_some(value)
 }
 
 fn fixed_entry(args: FixedFontArg) -> FixedFontEntry {
