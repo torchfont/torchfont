@@ -1,4 +1,4 @@
-"""Bezier curve format conversion and segment merging."""
+"""Bezier curve format conversion and segment transformation functions."""
 
 import torch
 from torch import Tensor
@@ -96,6 +96,45 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     coords = coords.cpu().contiguous()
     out_types, out_coords = _torchfont.merge_curves(
         types.numpy(), coords.reshape(-1).numpy()
+    )
+    return (
+        torch.from_numpy(out_types).to(device=types_device),
+        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
+    )
+
+
+def random_split_segments(
+    types: Tensor,
+    coords: Tensor,
+    *,
+    split_probability: float = 0.2,
+    split_range: tuple[float, float] = (0.2, 0.8),
+    generator: torch.Generator | None = None,
+) -> tuple[Tensor, Tensor]:
+    """Randomly split line or Bezier segments without changing their shape.
+
+    Each ``LINE_TO``, ``QUAD_TO``, and ``CURVE_TO`` segment is independently
+    selected with ``split_probability``. Its split parameter is independently
+    sampled from ``split_range``. It is valid for no segment to be selected.
+    ``MOVE_TO``, ``CLOSE``, ``END``, and ``PAD`` elements are left unchanged.
+    Pass a ``torch.Generator`` to make selection and split positions reproducible.
+    """
+    types_device = types.device
+    coords_device = coords.device
+    types = types.cpu().contiguous()
+    coords = coords.cpu().contiguous()
+    random_values = torch.rand(
+        (2, types.size(0)),
+        device=generator.device if generator is not None else types.device,
+        generator=generator,
+    ).cpu()
+    out_types, out_coords = _torchfont.random_split_segments(
+        types.numpy(),
+        coords.reshape(-1).numpy(),
+        random_values[0].numpy(),
+        random_values[1].numpy(),
+        split_probability,
+        split_range,
     )
     return (
         torch.from_numpy(out_types).to(device=types_device),

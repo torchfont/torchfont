@@ -13,6 +13,14 @@ def cubic_to_quad(
 def merge_curves(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]: ...
+def random_split_segments(
+    types: np.ndarray,
+    coords: np.ndarray,
+    selection_values: np.ndarray,
+    position_values: np.ndarray,
+    split_probability: float,
+    split_range: tuple[float, float],
+) -> tuple[np.ndarray, np.ndarray]: ...
 def render_bitmap(
     types: np.ndarray,
     coords: np.ndarray,
