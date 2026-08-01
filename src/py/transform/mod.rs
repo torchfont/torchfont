@@ -82,6 +82,61 @@ pub(crate) fn merge_curves<'py>(
 }
 
 #[pyfunction]
+pub(crate) fn random_split_segments<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    selection_values: PyReadonlyArray1<'_, f32>,
+    position_values: PyReadonlyArray1<'_, f32>,
+    split_probability: f32,
+    split_range: (f32, f32),
+) -> PyResult<OutlineArrays<'py>> {
+    use crate::outline::ElementType;
+    if !(0.0..=1.0).contains(&split_probability) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "split_probability must be between 0 and 1",
+        ));
+    }
+    if !(0.0 < split_range.0 && split_range.0 <= split_range.1 && split_range.1 < 1.0) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "split_range must satisfy 0 < min <= max < 1",
+        ));
+    }
+    let types = types.as_slice()?;
+    let outline = decode(types, coords.as_slice()?)?;
+    let selection_values = selection_values.as_slice()?;
+    let position_values = position_values.as_slice()?;
+    if selection_values.len() < types.len() || position_values.len() < types.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "selection_values and position_values lengths must be at least types length",
+        ));
+    }
+    let mut segment_selection_values = Vec::new();
+    let mut segment_position_values = Vec::new();
+    for ((&element_type, &selection), &position) in
+        types.iter().zip(selection_values).zip(position_values)
+    {
+        if element_type == ElementType::LineTo as i64
+            || element_type == ElementType::QuadTo as i64
+            || element_type == ElementType::CurveTo as i64
+        {
+            segment_selection_values.push(selection);
+            segment_position_values.push(position);
+        }
+    }
+    Ok(encode(
+        py,
+        &curves::split_segments::random_split_segments(
+            &outline,
+            &segment_selection_values,
+            &segment_position_values,
+            split_probability,
+            split_range,
+        ),
+    ))
+}
+
+#[pyfunction]
 pub(crate) fn normalize_subpath_start_points<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
@@ -254,6 +309,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(quad_to_cubic, m)?)?;
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
+    m.add_function(wrap_pyfunction!(random_split_segments, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(random_remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;

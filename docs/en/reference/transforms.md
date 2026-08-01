@@ -118,6 +118,39 @@ Collapses adjacent segments when they can be reconstructed as one parent shape.
 - input: `types=(N,)`, `coords=(N, 6)`
 - output: `types=(M,)`, `coords=(M, 6)`
 
+## random_split_segments
+
+```python
+from torchfont.transforms import random_split_segments
+
+types, coords = random_split_segments(
+    types,
+    coords,
+    split_probability=0.2,
+    split_range=(0.2, 0.8),
+    generator=None,
+)
+```
+
+Randomly subdivides drawing segments without changing their shape.
+
+- each `LINE_TO`, `QUAD_TO`, and `CURVE_TO` segment is independently selected
+  with `split_probability` (default: `0.2`)
+- `split_probability` must be between `0.0` and `1.0`
+- selected segments are split at an independently sampled parameter in
+  `split_range` (default: `(0.2, 0.8)`)
+- `split_range` must satisfy `0 < min <= max < 1`; equal bounds select a fixed
+  split parameter
+- selecting no segments is a valid no-op result
+- `MOVE_TO`, `CLOSE`, `END`, and `PAD` elements are unchanged
+- subpath boundaries and open/closed state are preserved
+- pass a `torch.Generator` for reproducible selection and split positions
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`, where `N <= M <= 2N`
+
 
 ## remove_overlaps
 

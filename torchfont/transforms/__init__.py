@@ -13,6 +13,7 @@ from torchfont.transforms.curves import (
     cubic_to_quad,
     merge_curves,
     quad_to_cubic,
+    random_split_segments,
 )
 from torchfont.transforms.geometric import (
     affine,
@@ -50,6 +51,7 @@ __all__ = [
     "random_horizontal_flip",
     "random_location",
     "random_remove_overlaps",
+    "random_split_segments",
     "random_vertical_flip",
     "randomize_subpath_order",
     "randomize_subpath_start_points",

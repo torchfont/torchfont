@@ -115,6 +115,39 @@ types, coords = merge_curves(types, coords)
 - 入力: `types=(N,)`, `coords=(N, 6)`
 - 出力: `types=(M,)`, `coords=(M, 6)`
 
+## random_split_segments
+
+```python
+from torchfont.transforms import random_split_segments
+
+types, coords = random_split_segments(
+    types,
+    coords,
+    split_probability=0.2,
+    split_range=(0.2, 0.8),
+    generator=None,
+)
+```
+
+形状を変えず、描画 segment をランダムに細分化します。
+
+- 各 `LINE_TO`、`QUAD_TO`、`CURVE_TO` segment を独立に
+  `split_probability`（デフォルト: `0.2`）で選択します
+- `split_probability` は `0.0` 以上 `1.0` 以下で指定します
+- 選択した segment は独立に `split_range`（デフォルト: `(0.2, 0.8)`）から
+  sample したパラメータ位置で分割します
+- `split_range` は `0 < min <= max < 1` を満たす必要があります。同じ値を指定すると
+  分割位置が固定されます
+- 1 本も選択されない no-op の結果もあります
+- `MOVE_TO`、`CLOSE`、`END`、`PAD` element は変更しません
+- subpath の境界と open/closed 状態を維持します
+- `torch.Generator` を渡すと選択と分割位置を再現できます
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(M,)`, `coords=(M, 6)`。`N <= M <= 2N`
+
 
 ## remove_overlaps
 
