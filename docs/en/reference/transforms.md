@@ -255,26 +255,6 @@ the winding/fill rule does. This transform intentionally does not operate on
 source-font point indices, TrueType instructions, variation deltas, composite
 components, or color-glyph layers, whose ordering can carry other semantics.
 
-## patchify
-
-```python
-from torchfont.transforms import patchify
-```
-
-```python
-patch_types, patch_coords = patchify(types, coords, patch_size=32)
-```
-
-Pads a 1-D glyph sequence with zeros to the nearest multiple of `patch_size`,
-then splits it into contiguous patches.
-
-- padding is zero-filled and appended only when `seq_len % patch_size != 0`
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, 6)`
-
 ## horizontal_flip
 
 ```python
@@ -465,7 +445,7 @@ coordinates are mapped to the output bitmap.
   cropped to the tight glyph bounding box
 - `mode="bbox_square"` scales the tight glyph bounding box uniformly and centres
   it (default)
-- rendering uses the clipped / pre-patchified outline for faithful shape
+- rendering uses the clipped outline directly for faithful shape
 
 ### I/O Shape
 

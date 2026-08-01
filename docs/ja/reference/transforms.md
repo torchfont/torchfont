@@ -251,26 +251,6 @@ types, coords = randomize_subpath_order(types, coords, generator=None)
 決まります。この transform は、別の意味を持ち得る元 font の point index、TrueType
 instruction、variation delta、composite component、color glyph layer の順序には作用しません。
 
-## patchify
-
-```python
-from torchfont.transforms import patchify
-```
-
-```python
-patch_types, patch_coords = patchify(types, coords, patch_size=32)
-```
-
-1-D のグリフシーケンスを `patch_size` の倍数にゼロパディングし、
-連続したパッチに分割します。
-
-- `seq_len % patch_size != 0` の場合のみ末尾にゼロが追加されます
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(num_patches, patch_size)`, `coords=(num_patches, patch_size, 6)`
-
 ## horizontal_flip
 
 ```python
@@ -458,7 +438,7 @@ bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
 - `mode="fixed"` は em 単位の固定範囲 `[-0.25, 1.25] x [-0.25, 1.25]` に配置
 - `mode="bbox"` は fixed と同じ座標スケールを保ち、tight bbox に合わせた可変サイズのビットマップを返します
 - `mode="bbox_square"` は tight bbox を縦横比を保って正方形内に中央配置（デフォルト）
-- patchify 前のクリップ済みアウトラインを渡すと元の形状を正確に再現できます
+- クリップ済みアウトラインを直接渡すと元の形状を正確に再現できます
 
 ### 入出力
 

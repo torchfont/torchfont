@@ -9,7 +9,6 @@ from torchfont.glyphsets import LATIN_CORE
 from torchfont.instance_fn import grid_instances
 from torchfont.transforms import (
     load_glyph,
-    patchify,
     quad_to_cubic,
     remove_overlaps,
     render_bitmap,
@@ -23,8 +22,7 @@ def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
     types, coords = remove_overlaps(types, coords)
     types, coords = quad_to_cubic(types, coords, merge_curves=True)
     bitmap = render_bitmap(types, coords)
-    patch_types, patch_coords = patchify(types, coords, patch_size=32)
-    return patch_types, patch_coords, bitmap
+    return types, coords, bitmap
 
 
 def collate_fn(
