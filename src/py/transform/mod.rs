@@ -172,6 +172,27 @@ pub(crate) fn remove_overlaps<'py>(
 }
 
 #[pyfunction]
+pub(crate) fn random_remove_overlaps<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    random_values: PyReadonlyArray1<'_, f32>,
+) -> PyResult<OutlineArrays<'py>> {
+    let types = types.as_slice()?;
+    let outline = decode(types, coords.as_slice()?)?;
+    let random_values = random_values.as_slice()?;
+    if random_values.len() < types.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "random_values length must be at least types length",
+        ));
+    }
+    Ok(encode(
+        py,
+        &crate::transform::remove_overlaps::random_remove_overlaps(&outline, random_values),
+    ))
+}
+
+#[pyfunction]
 pub(crate) fn tight_bbox(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
@@ -234,6 +255,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
+    m.add_function(wrap_pyfunction!(random_remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;
     m.add_function(wrap_pyfunction!(randomize_subpath_order, m)?)?;
     m.add_function(wrap_pyfunction!(randomize_subpath_start_points, m)?)?;
