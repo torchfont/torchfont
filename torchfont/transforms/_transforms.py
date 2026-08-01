@@ -19,7 +19,6 @@ from torchfont.transforms._transform import (
     Bitmap,
     GlyphData,
     Outline,
-    OutlinePatches,
     Transform,
 )
 
@@ -367,18 +366,6 @@ class RandomizeSubpathOrder(_RandomValuesTransform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         return _functional.reorder_subpaths(inpt, params["values"])
-
-
-class Patchify(Transform):
-    """Split outlines into fixed-length patches."""
-
-    def __init__(self, patch_size: int) -> None:
-        super().__init__()
-        self.patch_size = patch_size
-
-    def transform(self, inpt: Outline, params: dict[str, Any]) -> OutlinePatches:
-        del params
-        return _functional.patchify(inpt, self.patch_size)
 
 
 class RenderBitmap(Transform):

@@ -18,8 +18,6 @@ from torchfont.transforms import (
     HorizontalFlip,
     LoadGlyph,
     Outline,
-    OutlinePatches,
-    Patchify,
     QuadToCubic,
     RandomApply,
     RandomLocation,
@@ -224,16 +222,11 @@ def test_glyph_metadata_is_not_reprocessed_as_pytree_data() -> None:
 
 def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     sample = _glyph_sample()
-    patch_output = Compose([LoadGlyph(), Patchify(16)])(sample)
     bitmap_output = Compose([LoadGlyph(), RenderBitmap(32)])(sample)
 
-    assert isinstance(patch_output, GlyphData)
-    assert isinstance(patch_output.data, OutlinePatches)
-    assert patch_output.data.types.shape[1] == 16
     assert isinstance(bitmap_output, GlyphData)
     assert isinstance(bitmap_output.data, Bitmap)
     assert bitmap_output.data.shape == (32, 32)
-    assert patch_output.sample is sample
     assert bitmap_output.sample is sample
 
 

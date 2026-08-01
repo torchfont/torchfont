@@ -7,7 +7,7 @@ composition.
 ## Data types
 
 ```python
-from torchfont.transforms import Bitmap, GlyphData, Outline, OutlinePatches, TFTensor
+from torchfont.transforms import Bitmap, GlyphData, Outline, TFTensor
 ```
 
 `Outline(types, coords)` keeps the two coupled tensors together. `TFTensor` is
@@ -17,7 +17,7 @@ a `TFTensor` return a plain tensor so semantic dispatch does not leak into model
 code; copying and device/dtype conversion preserve the subclass. `GlyphData[T]`
 keeps a transformed payload, the original dataset sample, and the concrete
 variation location together. Since its payload is generic, a pipeline can change
-it from `Outline` to `OutlinePatches` or a bitmap without losing metadata.
+it from `Outline` to a bitmap without losing metadata.
 
 ## Loading and composition
 
@@ -76,14 +76,14 @@ behavior inside an already-applied transform.
 | Loading | `LoadGlyph`, `RandomLocation` |
 | Containers | `Compose`, `RandomApply` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps`, `Patchify` |
+| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
 | Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
 | Output | `RenderBitmap` |
 
-`Patchify` changes each `Outline` leaf into `OutlinePatches`. `RenderBitmap`
-changes it into a `Bitmap` containing a `uint8` tensor. When these leaves are inside `GlyphData`, the
-sample and location remain alongside the converted payload.
+`RenderBitmap` changes each `Outline` leaf into a `Bitmap` containing a `uint8`
+tensor. When these leaves are inside `GlyphData`, the sample and location remain
+alongside the converted payload.
 
 ## Functional kernels
 

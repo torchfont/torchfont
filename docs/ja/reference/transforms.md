@@ -7,7 +7,7 @@ TorchFont の transform は torchvision v2 と同様に、意味を持つデー�
 ## データ型
 
 ```python
-from torchfont.transforms import Bitmap, GlyphData, Outline, OutlinePatches, TFTensor
+from torchfont.transforms import Bitmap, GlyphData, Outline, TFTensor
 ```
 
 `Outline(types, coords)` は不可分な二つの tensor を一つにまとめます。
@@ -17,7 +17,7 @@ plain tensor に戻るため、意味型の dispatch が model 内部まで伝�
 device・dtype 変換では subclass を維持します。
 `GlyphData[T]` は変換中の payload、元の dataset sample、実際に使用した variation
 location を保持します。payload は generic なので、メタデータを失わずに
-`Outline` から `OutlinePatches` や bitmap へ変換できます。
+`Outline` から bitmap へ変換できます。
 
 ## 読み込みと合成
 
@@ -76,14 +76,14 @@ custom transform のために `check_inputs()` を利用できます。`Compose`
 | 読み込み | `LoadGlyph`, `RandomLocation` |
 | コンテナ | `Compose`, `RandomApply` |
 | curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| outline | `RemoveOverlaps`, `RandomRemoveOverlaps`, `Patchify` |
+| outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
 | 出力 | `RenderBitmap` |
 
-`Patchify` は各 `Outline` を `OutlinePatches` に変えます。`RenderBitmap` は
-`uint8` tensor を持つ `Bitmap` に変えます。これらが `GlyphData` 内にある場合も、sample と
-location は変換後の payload とともに維持されます。
+`RenderBitmap` は各 `Outline` を `uint8` tensor を持つ `Bitmap` に変えます。
+これらが `GlyphData` 内にある場合も、sample と location は変換後の payload とともに
+維持されます。
 
 ## Functional kernel
 

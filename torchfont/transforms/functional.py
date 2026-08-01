@@ -16,7 +16,7 @@ from torchfont.transforms import curves as _curves
 from torchfont.transforms import geometric as _geometric
 from torchfont.transforms import outline as _outline
 from torchfont.transforms import subpath as _subpath
-from torchfont.transforms._transform import Bitmap, Outline, OutlinePatches
+from torchfont.transforms._transform import Bitmap, Outline
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -273,12 +273,6 @@ def reorder_subpaths(inpt: Outline, keys: Tensor) -> Outline:
 
 
 @_dispatchable(Outline)
-def patchify(inpt: Outline, patch_size: int) -> OutlinePatches:
-    """Split an outline into fixed-length patches."""
-    return OutlinePatches(*_outline.patchify(inpt.types, inpt.coords, patch_size))
-
-
-@_dispatchable(Outline)
 def render_bitmap(
     inpt: Outline,
     size: int = 64,
@@ -297,7 +291,6 @@ __all__ = [
     "load_glyph",
     "merge_curves",
     "normalize_subpath_start_points",
-    "patchify",
     "quad_to_cubic",
     "register_kernel",
     "remove_overlap_groups",

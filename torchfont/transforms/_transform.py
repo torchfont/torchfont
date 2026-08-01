@@ -28,14 +28,6 @@ class Outline:
     coords: Tensor
 
 
-@dataclass(frozen=True)
-class OutlinePatches:
-    """An outline split into fixed-length patches."""
-
-    types: Tensor
-    coords: Tensor
-
-
 _PRESERVE_TF_TENSOR_OPS = {
     Tensor.clone,
     Tensor.detach,

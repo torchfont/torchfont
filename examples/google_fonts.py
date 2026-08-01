@@ -14,7 +14,6 @@ from torchfont.transforms import (
     GlyphData,
     LoadGlyph,
     Outline,
-    Patchify,
     QuadToCubic,
     RemoveOverlaps,
     RenderBitmap,
@@ -28,14 +27,12 @@ class PrepareGlyph:
         self.outline = Compose(
             [LoadGlyph(), RemoveOverlaps(), QuadToCubic(merge_curves=True)]
         )
-        self.patchify = Patchify(32)
         self.render = RenderBitmap()
 
     def __call__(self, sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
         data = cast("GlyphData[Outline]", self.outline(sample))
-        patches = self.patchify(data).data
         bitmap = self.render(data).data
-        return patches.types[:16], patches.coords[:16], bitmap
+        return data.data.types, data.data.coords, bitmap
 
 
 transform = PrepareGlyph()
