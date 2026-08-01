@@ -11,6 +11,115 @@ pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
     simplify(outline).unwrap_or_else(|| outline.clone())
 }
 
+pub(crate) fn random_remove_overlaps(outline: &Outline, random_values: &[f32]) -> Outline {
+    let subpaths = outline.subpaths();
+    let bounds: Vec<_> = subpaths.iter().map(bounds_from_subpath).collect();
+    let mut parent: Vec<_> = (0..subpaths.len()).collect();
+
+    for left in 0..subpaths.len() {
+        if !subpaths[left].is_closed() {
+            continue;
+        }
+        for right in left + 1..subpaths.len() {
+            if subpaths[right].is_closed()
+                && bounds[left]
+                    .zip(bounds[right])
+                    .is_some_and(|(a, b)| bounds_overlap(a, b))
+            {
+                union(&mut parent, left, right);
+            }
+        }
+    }
+    for index in 0..parent.len() {
+        parent[index] = find(&mut parent, index);
+    }
+
+    let groups: Vec<Vec<_>> = (0..subpaths.len())
+        .filter(|&root| parent[root] == root)
+        .map(|root| {
+            (0..subpaths.len())
+                .filter(|&index| parent[index] == root)
+                .collect()
+        })
+        .filter(|group: &Vec<_>| group.len() > 1)
+        .collect();
+
+    if groups.is_empty() {
+        return outline.clone();
+    }
+
+    let values = &random_values[..groups.len()];
+    let mut selected: Vec<_> = groups
+        .iter()
+        .enumerate()
+        .filter_map(|(index, _)| (values[index] < 0.5).then_some(index))
+        .collect();
+    if selected.is_empty() {
+        let index = values
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| a.total_cmp(b))
+            .map_or(0, |(index, _)| index);
+        selected.push(index);
+    }
+
+    let mut result = Vec::new();
+    for index in 0..subpaths.len() {
+        let Some((group_index, group)) = groups
+            .iter()
+            .enumerate()
+            .find(|(_, group)| group.contains(&index))
+        else {
+            result.push(subpaths[index].clone());
+            continue;
+        };
+        if group[0] != index {
+            continue;
+        }
+        let component: Vec<_> = group.iter().map(|&other| subpaths[other].clone()).collect();
+        if selected.contains(&group_index) {
+            let component = Outline::new(component);
+            let simplified = simplify(&component).unwrap_or(component);
+            result.extend(simplified.subpaths().iter().cloned());
+        } else {
+            result.extend(component);
+        }
+    }
+    Outline::new(result)
+}
+
+fn bounds_from_subpath(subpath: &Subpath) -> Option<Bounds> {
+    let mut pen = BoundsPen::default();
+    pen.move_to(subpath.start());
+    for element in subpath.elements() {
+        pen.path_element(*element);
+    }
+    if subpath.is_closed() {
+        pen.close();
+    }
+    pen.finish()
+}
+
+fn bounds_overlap(a: Bounds, b: Bounds) -> bool {
+    a.x_min < b.x_max && b.x_min < a.x_max && a.y_min < b.y_max && b.y_min < a.y_max
+}
+
+fn find(parent: &mut [usize], index: usize) -> usize {
+    if parent[index] != index {
+        parent[index] = find(parent, parent[index]);
+    }
+    parent[index]
+}
+
+fn union(parent: &mut [usize], left: usize, right: usize) {
+    let left = find(parent, left);
+    let right = find(parent, right);
+    if left != right {
+        parent[right] = left.min(right);
+        parent[left] = left.min(right);
+    }
+}
+
 fn simplify(outline: &Outline) -> Option<Outline> {
     let (path, _) = build_skia_path(outline.subpaths(), false, PathFillType::Winding)?;
     let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;

@@ -35,6 +35,9 @@ def reverse_closed_subpaths(
 def remove_overlaps(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]: ...
+def random_remove_overlaps(
+    types: np.ndarray, coords: np.ndarray, random_values: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]: ...
 def quad_to_cubic(
     types: np.ndarray, coords: np.ndarray, merge_curves: bool
 ) -> tuple[np.ndarray, np.ndarray]: ...

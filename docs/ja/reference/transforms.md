@@ -137,6 +137,29 @@ Skia PathOps を使い、winding に基づく hole を保ったまま重なっ�
 - 入力: `types=(N,)`, `coords=(N, 6)`
 - 出力: `types=(M,)`, `coords=(M, 6)`
 
+## random_remove_overlaps
+
+```python
+from torchfont.transforms import random_remove_overlaps
+
+types, coords = random_remove_overlaps(types, coords, generator=None)
+```
+
+データ拡張のため、重なりのある subpath をランダムな 1 個以上のグループとして統合します。
+
+- closed subpath の tight bounding box の交差を overlap の近似として使います
+- bbox で連結した subpath を独立した overlap グループにします
+- 各グループを独立に確率 0.5 で選択します
+- 選択された各グループを 1 回の Skia PathOps 呼び出しで統合します
+- overlap グループがある場合は少なくとも 1 グループを選択します
+- PathOps が選択グループを簡約できない場合はそのグループを変更しません
+- `torch.Generator` を渡すと選択を再現できます
+
+### 入出力
+
+- 入力: `types=(N,)`, `coords=(N, 6)`
+- 出力: `types=(M,)`, `coords=(M, 6)`
+
 ## normalize_subpath_start_points
 
 ```python

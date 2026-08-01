@@ -140,6 +140,29 @@ Merges overlapping glyph subpaths with Skia PathOps while preserving winding-bas
 - input: `types=(N,)`, `coords=(N, 6)`
 - output: `types=(M,)`, `coords=(M, 6)`
 
+## random_remove_overlaps
+
+```python
+from torchfont.transforms import random_remove_overlaps
+
+types, coords = random_remove_overlaps(types, coords, generator=None)
+```
+
+Randomly merges one or more groups of overlapping subpaths for augmentation.
+
+- tight bounding-box intersections approximate which closed subpaths overlap
+- bbox-connected subpaths form independent overlap groups
+- each group is selected independently with probability 0.5
+- each selected group is merged with one Skia PathOps call
+- at least one group is selected when overlap groups exist
+- leaves a selected group unchanged if PathOps cannot simplify it
+- pass a `torch.Generator` for reproducible selection
+
+### I/O Shape
+
+- input: `types=(N,)`, `coords=(N, 6)`
+- output: `types=(M,)`, `coords=(M, 6)`
+
 ## normalize_subpath_start_points
 
 ```python
