@@ -25,11 +25,7 @@ from torchfont.transforms.geometric import (
     vertical_flip,
 )
 from torchfont.transforms.load import load_glyph, random_location
-from torchfont.transforms.outline import (
-    patchify,
-    random_remove_overlaps,
-    remove_overlaps,
-)
+from torchfont.transforms.outline import random_remove_overlaps, remove_overlaps
 from torchfont.transforms.subpath import (
     normalize_subpath_start_points,
     randomize_subpath_order,
@@ -44,7 +40,6 @@ __all__ = [
     "load_glyph",
     "merge_curves",
     "normalize_subpath_start_points",
-    "patchify",
     "quad_to_cubic",
     "random_affine",
     "random_coord_jitter",
