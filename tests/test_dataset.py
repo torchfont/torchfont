@@ -36,18 +36,31 @@ from torchfont.instance_fn import (
     named_instances,
 )
 from torchfont.io import ElementType
-from torchfont.transforms import load_glyph, random_location
+from torchfont.transforms import RandomLocation
+from torchfont.transforms import functional as _functional
+
+
+def _load_pair(
+    ref: GlyphRef | VariableGlyphRef,
+    location: dict[str, float] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    outline = (
+        _functional.load_glyph(ref)
+        if isinstance(ref, GlyphRef)
+        else _functional.load_glyph(ref, location)
+    )
+    return outline.types, outline.coords
 
 
 def _to_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
-    return load_glyph(sample.ref)
+    return _load_pair(sample.ref)
 
 
 def _variable_to_pair(
     sample: VariableGlyphSample,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    location = random_location(sample.ref.font)
-    return load_glyph(sample.ref, location)
+    data = RandomLocation()(sample)
+    return data.data.types, data.data.coords
 
 
 def _collate_outline(
@@ -64,7 +77,7 @@ def _read_first_sample_from_pickled_dataset(
 ) -> None:
     dataset = cast("GlyphDataset[GlyphSample]", pickle.loads(payload))  # noqa: S301
     sample = dataset[0]
-    types, coords = load_glyph(sample.ref)
+    types, coords = _load_pair(sample.ref)
     coords_shape = (int(coords.shape[0]), int(coords.shape[1]))
     queue.put(
         (
@@ -110,7 +123,7 @@ def test_load_glyph_returns_outline_tensors() -> None:
         codepoints=[ord("o")],
     )
 
-    types, coords = load_glyph(dataset[0].ref)
+    types, coords = _load_pair(dataset[0].ref)
 
     assert types.dtype == torch.long
     assert types.ndim == 1
@@ -137,7 +150,7 @@ def test_load_glyph_reports_missing_font_as_file_not_found(tmp_path: Path) -> No
     ref = GlyphRef(FontRef(str(tmp_path / "missing.ttf"), 0), ord("A"), {})
 
     with pytest.raises(FileNotFoundError, match="failed to open"):
-        load_glyph(ref)
+        _load_pair(ref)
 
 
 def test_dataset_reports_invalid_pattern_as_value_error() -> None:
@@ -150,7 +163,7 @@ def test_glyph_dataset_transform_uses_sample_first_contract() -> None:
 
     def transform(sample: GlyphSample) -> tuple[torch.Tensor, int]:
         calls.append(sample)
-        types, _coords = load_glyph(sample.ref)
+        types, _coords = _load_pair(sample.ref)
         return types[:2], sample.character_idx
 
     dataset = GlyphDataset(
@@ -245,10 +258,9 @@ def test_variable_glyph_dataset_instance_count_refs_without_styles() -> None:
     assert sample.font_idx == 0
     assert sample.character_idx == 0
 
-    location = random_location(
-        sample.ref.font, generator=torch.Generator().manual_seed(5)
-    )
-    types, coords = load_glyph(sample.ref, location)
+    torch.manual_seed(5)
+    data = RandomLocation()(sample)
+    types, coords = data.data.types, data.data.coords
     assert types.ndim == 1
     assert coords.shape[1] == 6
 
@@ -331,19 +343,6 @@ def test_variable_glyph_dataset_transform_can_sample_location() -> None:
     assert coords.shape[1] == 6
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_random_location_accepts_cuda_generator() -> None:
-    font = FontRef(
-        path="tests/fonts/roboto/Roboto[wdth,wght].ttf",
-        ttc_index=0,
-    )
-    generator = torch.Generator(device="cuda").manual_seed(5)
-
-    location = random_location(font, generator=generator)
-
-    assert location.keys() == {"wght", "wdth"}
-
-
 @pytest.mark.parametrize("codepoint", [1.5, "A"])
 def test_glyph_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
     with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
@@ -411,7 +410,7 @@ def test_glyph_dataset_supports_non_utf8_font_paths(tmp_path: Path) -> None:
 
     dataset = GlyphDataset(root=tmp_path, codepoints=[0x41])
     sample = dataset[0]
-    types, coords = load_glyph(sample.ref)
+    types, coords = _load_pair(sample.ref)
 
     assert len(dataset) == 1
     assert "\udcff" in sample.ref.font.path
@@ -542,9 +541,9 @@ def test_datasets_public_api_is_ref_centered() -> None:
     assert datasets_module.VariableGlyphDataset is VariableGlyphDataset
 
 
-def test_transforms_module_exports_dataset_transforms() -> None:
-    assert transforms_module.load_glyph is load_glyph
-    assert transforms_module.random_location is random_location
+def test_transforms_module_exports_class_based_dataset_transforms() -> None:
+    assert transforms_module.LoadGlyph.__name__ == "LoadGlyph"
+    assert transforms_module.RandomLocation.__name__ == "RandomLocation"
 
 
 def test_native_dataset_helpers_are_available() -> None:
@@ -572,11 +571,11 @@ def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
     ref = dataset[0].ref
 
     with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
-        load_glyph(ref, {"xxxx": 1.0})
+        _load_pair(ref, {"xxxx": 1.0})
     with pytest.raises(ValueError, match="outside"):
-        load_glyph(ref, {"wght": 10_000.0})
+        _load_pair(ref, {"wght": 10_000.0})
     with pytest.raises(ValueError, match="finite"):
-        load_glyph(ref, {"wght": float("nan")})
+        _load_pair(ref, {"wght": float("nan")})
 
 
 def test_missing_instance_location_axes_use_defaults() -> None:

@@ -6,7 +6,7 @@ Access a sample from the dataset created in the previous chapter. Run the follow
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -20,7 +20,8 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = F.load_glyph(sample.ref)
+types, coords = outline.types, outline.coords
 
 print(sample.ref)  # glyph reference
 print(types)  # element type sequence
@@ -30,7 +31,7 @@ print(sample.character_idx)  # character class ID
 ```
 
 The return value is a `GlyphSample` dataclass. It stores a deterministic glyph
-reference and dataset-local target indices. Use `load_glyph(sample.ref)` when
+reference and dataset-local target indices. Use `F.load_glyph(sample.ref)` when
 you need outline tensors.
 
 ## Outline model
@@ -50,7 +51,7 @@ Element types are defined in `ElementType`. Run the following code to see the ma
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 from torchfont.io import ElementType
 
 dataset = GlyphDataset(
@@ -65,7 +66,8 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = F.load_glyph(sample.ref)
+types, coords = outline.types, outline.coords
 
 print(types)
 print(ElementType(types[0].item()).name)
@@ -89,7 +91,7 @@ Each path element uses a 6D coordinates vector. Run the following code to inspec
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -103,7 +105,8 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = F.load_glyph(sample.ref)
+types, coords = outline.types, outline.coords
 
 print(coords.shape)
 print(coords[0])

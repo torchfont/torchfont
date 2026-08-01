@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchfont.io import ElementType
-from torchfont.transforms import render_bitmap
+from torchfont.transforms.bitmap import render_bitmap
 
 from ._helpers import _occupied_size
 

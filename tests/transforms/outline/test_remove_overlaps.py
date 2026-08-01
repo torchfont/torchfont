@@ -1,7 +1,7 @@
 import torch
 
 from torchfont.io import ElementType
-from torchfont.transforms import remove_overlaps
+from torchfont.transforms.outline import remove_overlaps
 
 
 def test_remove_overlaps_merges_overlapping_subpaths() -> None:

@@ -2,20 +2,15 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
-
-
-def transform(sample: GlyphSample) -> tuple[Tensor, Tensor]:
-    types, coords = load_glyph(sample.ref)
-    return types[:512], coords[:512]
+from torchfont.datasets import GlyphDataset
+from torchfont.transforms import GlyphData, LoadGlyph, Outline
 
 
 def collate_fn(
-    batch: list[tuple[Tensor, Tensor]],
+    batch: list[GlyphData[Outline]],
 ) -> tuple[Tensor, Tensor]:
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    types = pad_sequence([data.data.types[:512] for data in batch], batch_first=True)
+    coords = pad_sequence([data.data.coords[:512] for data in batch], batch_first=True)
     return types, coords
 
 
@@ -24,7 +19,7 @@ def main() -> None:
         root="tests/fonts",
         patterns=("*.ttf",),
         codepoints=range(0x20, 0x7F),
-        transform=transform,
+        transform=LoadGlyph(),
     )
 
     dataloader = DataLoader(

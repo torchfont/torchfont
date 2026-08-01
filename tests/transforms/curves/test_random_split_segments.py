@@ -4,7 +4,7 @@ import torch
 
 from torchfont import _torchfont
 from torchfont.io import ElementType
-from torchfont.transforms import random_split_segments
+from torchfont.transforms import Outline, RandomSplitSegments
 
 
 def _mixed_segments() -> tuple[torch.Tensor, torch.Tensor]:
@@ -93,22 +93,23 @@ def test_random_split_segments_can_leave_every_segment_unchanged() -> None:
 def test_random_split_segments_probability_boundaries() -> None:
     types, coords = _mixed_segments()
 
-    unchanged = random_split_segments(types, coords, split_probability=0.0)
-    split = random_split_segments(types, coords, split_probability=1.0)
+    outline = Outline(types, coords)
+    unchanged = RandomSplitSegments(split_probability=0.0)(outline)
+    split = RandomSplitSegments(split_probability=1.0)(outline)
 
-    assert torch.equal(unchanged[0], types)
-    assert torch.equal(unchanged[1], coords)
-    assert split[0].numel() == types.numel() + 3
+    assert torch.equal(unchanged.types, types)
+    assert torch.equal(unchanged.coords, coords)
+    assert split.types.numel() == types.numel() + 3
 
 
 @pytest.mark.parametrize("split_probability", [-0.1, 1.1, float("nan")])
 def test_random_split_segments_rejects_invalid_probability(
     split_probability: float,
 ) -> None:
-    types, coords = _mixed_segments()
+    _types, _coords = _mixed_segments()
 
     with pytest.raises(ValueError, match="split_probability must be between 0 and 1"):
-        random_split_segments(types, coords, split_probability=split_probability)
+        RandomSplitSegments(split_probability=split_probability)
 
 
 @pytest.mark.parametrize(
@@ -118,36 +119,33 @@ def test_random_split_segments_rejects_invalid_probability(
 def test_random_split_segments_rejects_invalid_range(
     split_range: tuple[float, float],
 ) -> None:
-    types, coords = _mixed_segments()
+    _types, _coords = _mixed_segments()
 
     with pytest.raises(ValueError, match="split_range must satisfy"):
-        random_split_segments(types, coords, split_range=split_range)
+        RandomSplitSegments(split_range=split_range)
 
 
 def test_random_split_segments_accepts_fixed_split_parameter() -> None:
     types, coords = _mixed_segments()
 
-    out_types, out_coords = random_split_segments(
-        types,
-        coords,
+    output = RandomSplitSegments(
         split_probability=1.0,
         split_range=(0.5, 0.5),
-    )
+    )(Outline(types, coords))
 
-    assert out_types.numel() == types.numel() + 3
-    assert out_coords[1, 4].item() == pytest.approx(1.0)
+    assert output.types.numel() == types.numel() + 3
+    assert output.coords[1, 4].item() == pytest.approx(1.0)
 
 
 def test_random_split_segments_is_reproducible() -> None:
-    outline = _mixed_segments()
-    first = torch.Generator().manual_seed(0)
-    second = torch.Generator().manual_seed(0)
+    outline = Outline(*_mixed_segments())
+    torch.manual_seed(0)
+    output1 = RandomSplitSegments()(outline)
+    torch.manual_seed(0)
+    output2 = RandomSplitSegments()(outline)
 
-    output1 = random_split_segments(*outline, generator=first)
-    output2 = random_split_segments(*outline, generator=second)
-
-    assert torch.equal(output1[0], output2[0])
-    assert torch.equal(output1[1], output2[1])
+    assert torch.equal(output1.types, output2.types)
+    assert torch.equal(output1.coords, output2.coords)
 
 
 def test_random_split_segments_native_rejects_too_few_selection_values() -> None:

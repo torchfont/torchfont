@@ -20,11 +20,12 @@ following code:
 
 ```python
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 
 def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
+    outline = F.load_glyph(sample.ref)
+    return outline.types, outline.coords
 
 
 dataset = GlyphDataset(
@@ -63,11 +64,12 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 
 def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
+    outline = F.load_glyph(sample.ref)
+    return outline.types, outline.coords
 
 
 def collate_fn(batch):
@@ -116,11 +118,12 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 
 def transform(sample: GlyphSample):
-    types, coords = load_glyph(sample.ref)
+    outline = F.load_glyph(sample.ref)
+    types, coords = outline.types, outline.coords
     return types[:512], coords[:512]
 
 

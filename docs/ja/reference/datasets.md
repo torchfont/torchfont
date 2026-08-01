@@ -4,7 +4,7 @@
 
 `torchfont.datasets` は参照優先の PyTorch Dataset API を提供します。Dataset item
 は軽量で pickle しやすい dataclass で、outline の読み込みは transform 内で
-`load_glyph`([Transform Utilities](./transforms.md) 参照)を明示的に呼びます。
+`functional.load_glyph`([Transform Utilities](./transforms.md) 参照)を明示的に呼びます。
 
 Dataset の index と class target は構築時点のフォントファイルから作られます。
 glyph outline と登録済み軸の値は現在のディスク上のファイルから遅延読み込みされます。
@@ -163,7 +163,7 @@ from torchfont.instance_fn import (
 - `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` と同じ多重度
 
 transform 時の variation sampling には [Transform Utilities](./transforms.md) の
-`random_location` を使います。dataset-level seed はありません。
+`RandomLocation` を使います。dataset-level seed はありません。
 
 カスタム instance function は 0 個の location を返せます。未知の軸や、正規化後に
 重複する location は Dataset 構築時に `ValueError` になります。
