@@ -6,7 +6,9 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph, merge_curves, render_bitmap
+from torchfont.transforms import functional as _functional
+from torchfont.transforms.bitmap import render_bitmap
+from torchfont.transforms.curves import merge_curves
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,8 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    types, coords = load_glyph(sample.ref)
+    outline = _functional.load_glyph(sample.ref)
+    types, coords = outline.types, outline.coords
     merged_types, merged_coords = merge_curves(types, coords)
 
     original = render_bitmap(

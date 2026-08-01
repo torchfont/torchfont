@@ -1,6 +1,6 @@
 import torch
 
-from torchfont.transforms import patchify
+from torchfont.transforms.outline import patchify
 
 
 def test_patchify_reshapes_exact_multiple() -> None:

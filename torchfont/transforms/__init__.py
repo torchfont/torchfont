@@ -1,61 +1,67 @@
-"""Glyph sample and outline transform utilities.
+"""Composable transforms for semantic font data."""
 
-Most functions accept ``(types, coords)`` and return a transformed
-``(types, coords)`` pair without modifying the inputs. ``load_glyph`` is the
-one bridge function: it takes a dataset glyph reference and returns the
-``(types, coords)`` pair the rest of this module operates on, so it is
-typically the first call inside a ``GlyphDataset``/``VariableGlyphDataset``
-``transform``.
-"""
-
-from torchfont.transforms.bitmap import BitmapMode, render_bitmap
-from torchfont.transforms.curves import (
-    cubic_to_quad,
-    merge_curves,
-    quad_to_cubic,
-    random_split_segments,
+from torchfont.transforms import functional
+from torchfont.transforms._transform import (
+    Bitmap,
+    Compose,
+    GlyphData,
+    Outline,
+    OutlinePatches,
+    RandomApply,
+    TFTensor,
+    Transform,
 )
-from torchfont.transforms.geometric import (
-    affine,
-    horizontal_flip,
-    random_affine,
-    random_coord_jitter,
-    random_horizontal_flip,
-    random_vertical_flip,
-    vertical_flip,
-)
-from torchfont.transforms.load import load_glyph, random_location
-from torchfont.transforms.outline import (
-    patchify,
-    random_remove_overlaps,
-    remove_overlaps,
-)
-from torchfont.transforms.subpath import (
-    normalize_subpath_start_points,
-    randomize_subpath_order,
-    randomize_subpath_start_points,
+from torchfont.transforms._transforms import (
+    Affine,
+    CubicToQuad,
+    HorizontalFlip,
+    LoadGlyph,
+    MergeCurves,
+    NormalizeSubpathStartPoints,
+    Patchify,
+    QuadToCubic,
+    RandomAffine,
+    RandomCoordJitter,
+    RandomHorizontalFlip,
+    RandomizeSubpathOrder,
+    RandomizeSubpathStartPoints,
+    RandomLocation,
+    RandomRemoveOverlaps,
+    RandomSplitSegments,
+    RandomVerticalFlip,
+    RemoveOverlaps,
+    RenderBitmap,
+    VerticalFlip,
 )
 
 __all__ = [
-    "BitmapMode",
-    "affine",
-    "cubic_to_quad",
-    "horizontal_flip",
-    "load_glyph",
-    "merge_curves",
-    "normalize_subpath_start_points",
-    "patchify",
-    "quad_to_cubic",
-    "random_affine",
-    "random_coord_jitter",
-    "random_horizontal_flip",
-    "random_location",
-    "random_remove_overlaps",
-    "random_split_segments",
-    "random_vertical_flip",
-    "randomize_subpath_order",
-    "randomize_subpath_start_points",
-    "remove_overlaps",
-    "render_bitmap",
-    "vertical_flip",
+    "Affine",
+    "Bitmap",
+    "Compose",
+    "CubicToQuad",
+    "GlyphData",
+    "HorizontalFlip",
+    "LoadGlyph",
+    "MergeCurves",
+    "NormalizeSubpathStartPoints",
+    "Outline",
+    "OutlinePatches",
+    "Patchify",
+    "QuadToCubic",
+    "RandomAffine",
+    "RandomApply",
+    "RandomCoordJitter",
+    "RandomHorizontalFlip",
+    "RandomLocation",
+    "RandomRemoveOverlaps",
+    "RandomSplitSegments",
+    "RandomVerticalFlip",
+    "RandomizeSubpathOrder",
+    "RandomizeSubpathStartPoints",
+    "RemoveOverlaps",
+    "RenderBitmap",
+    "TFTensor",
+    "Transform",
+    "VerticalFlip",
+    "functional",
 ]

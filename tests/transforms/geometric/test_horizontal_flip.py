@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchfont.io import ElementType
-from torchfont.transforms import horizontal_flip
+from torchfont.transforms.geometric import horizontal_flip
 
 
 def _signed_area(types: torch.Tensor, coords: torch.Tensor) -> float:

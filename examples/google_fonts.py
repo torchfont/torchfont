@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
@@ -8,23 +10,35 @@ from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.glyphsets import LATIN_CORE
 from torchfont.instance_fn import grid_instances
 from torchfont.transforms import (
-    load_glyph,
-    patchify,
-    quad_to_cubic,
-    remove_overlaps,
-    render_bitmap,
+    Compose,
+    GlyphData,
+    LoadGlyph,
+    Outline,
+    Patchify,
+    QuadToCubic,
+    RemoveOverlaps,
+    RenderBitmap,
 )
 
 
-def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
-    types, coords = load_glyph(sample.ref)
-    types = types[:512]
-    coords = coords[:512]
-    types, coords = remove_overlaps(types, coords)
-    types, coords = quad_to_cubic(types, coords, merge_curves=True)
-    bitmap = render_bitmap(types, coords)
-    patch_types, patch_coords = patchify(types, coords, patch_size=32)
-    return patch_types, patch_coords, bitmap
+class PrepareGlyph:
+    """Build two model inputs from one shared outline pipeline."""
+
+    def __init__(self) -> None:
+        self.outline = Compose(
+            [LoadGlyph(), RemoveOverlaps(), QuadToCubic(merge_curves=True)]
+        )
+        self.patchify = Patchify(32)
+        self.render = RenderBitmap()
+
+    def __call__(self, sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
+        data = cast("GlyphData[Outline]", self.outline(sample))
+        patches = self.patchify(data).data
+        bitmap = self.render(data).data
+        return patches.types[:16], patches.coords[:16], bitmap
+
+
+transform = PrepareGlyph()
 
 
 def collate_fn(

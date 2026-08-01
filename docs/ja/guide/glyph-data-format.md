@@ -8,7 +8,7 @@
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -22,7 +22,8 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = F.load_glyph(sample.ref)
+types, coords = outline.types, outline.coords
 
 print(sample.ref)  # グリフ参照
 print(types)  # Element Type の系列
@@ -33,7 +34,7 @@ print(sample.character_idx)  # 文字のクラス ID
 
 返り値は `GlyphSample` という Dataclass です。決定的なグリフ参照と
 dataset-local な target index を保持します。outline tensor が必要なときは
-`load_glyph(sample.ref)` を呼びます。
+`F.load_glyph(sample.ref)` を呼びます。
 
 ## Outline モデル
 
@@ -52,7 +53,7 @@ Element Type は `ElementType` で定義されています。次のコードで�
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 from torchfont.io import ElementType
 
 dataset = GlyphDataset(
@@ -67,7 +68,8 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = F.load_glyph(sample.ref)
+types, coords = outline.types, outline.coords
 
 print(types)
 print(ElementType(types[0].item()).name)
@@ -91,7 +93,7 @@ MOVE_TO
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import functional as F
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -105,7 +107,8 @@ dataset = GlyphDataset(
 )
 
 sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = F.load_glyph(sample.ref)
+types, coords = outline.types, outline.coords
 
 print(coords.shape)
 print(coords[0])

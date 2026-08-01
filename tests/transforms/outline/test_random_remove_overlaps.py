@@ -4,7 +4,7 @@ import torch
 
 from torchfont import _torchfont
 from torchfont.io import ElementType
-from torchfont.transforms import random_remove_overlaps
+from torchfont.transforms import Outline, RandomRemoveOverlaps
 
 
 def _rectangles(
@@ -43,9 +43,9 @@ def _four_squares() -> tuple[torch.Tensor, torch.Tensor]:
 
 def test_random_remove_overlaps_can_merge_multiple_groups() -> None:
     types, coords = _four_squares()
-    generator = torch.Generator().manual_seed(3)
-
-    out_types, out_coords = random_remove_overlaps(types, coords, generator=generator)
+    torch.manual_seed(3)
+    output = RandomRemoveOverlaps()(Outline(types, coords))
+    out_types, out_coords = output.types, output.coords
 
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 2
     assert out_types.tolist().count(ElementType.CLOSE.value) == 2
@@ -55,9 +55,8 @@ def test_random_remove_overlaps_can_merge_multiple_groups() -> None:
 
 def test_random_remove_overlaps_can_select_only_one_group() -> None:
     types, coords = _four_squares()
-    generator = torch.Generator().manual_seed(0)
-
-    out_types, _ = random_remove_overlaps(types, coords, generator=generator)
+    torch.manual_seed(0)
+    out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 3
 
@@ -65,9 +64,8 @@ def test_random_remove_overlaps_can_select_only_one_group() -> None:
 def test_random_remove_overlaps_selects_at_least_one_group() -> None:
     types, coords = _four_squares()
     # The first two values for this seed are both above the selection threshold.
-    generator = torch.Generator().manual_seed(4)
-
-    out_types, _ = random_remove_overlaps(types, coords, generator=generator)
+    torch.manual_seed(4)
+    out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 3
 
@@ -76,7 +74,7 @@ def test_random_remove_overlaps_uses_connected_components() -> None:
     # The first and third rectangles do not intersect, but both intersect the second.
     types, coords = _rectangles([(0.0, 2.0), (1.0, 3.0), (2.5, 4.5)])
 
-    out_types, _ = random_remove_overlaps(types, coords)
+    out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 1
 
@@ -86,22 +84,21 @@ def test_random_remove_overlaps_excludes_open_subpaths() -> None:
         [(0.0, 2.0), (1.0, 3.0), (1.25, 1.75)], closed=[True, True, False]
     )
 
-    out_types, _ = random_remove_overlaps(types, coords)
+    out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 2
     assert out_types.tolist().count(ElementType.CLOSE.value) == 1
 
 
 def test_random_remove_overlaps_is_reproducible() -> None:
-    outline = _four_squares()
-    first = torch.Generator().manual_seed(0)
-    second = torch.Generator().manual_seed(0)
+    outline = Outline(*_four_squares())
+    torch.manual_seed(0)
+    output1 = RandomRemoveOverlaps()(outline)
+    torch.manual_seed(0)
+    output2 = RandomRemoveOverlaps()(outline)
 
-    output1 = random_remove_overlaps(*outline, generator=first)
-    output2 = random_remove_overlaps(*outline, generator=second)
-
-    assert torch.equal(output1[0], output2[0])
-    assert torch.equal(output1[1], output2[1])
+    assert torch.equal(output1.types, output2.types)
+    assert torch.equal(output1.coords, output2.coords)
 
 
 def test_random_remove_overlaps_leaves_non_candidates_unchanged() -> None:
@@ -109,10 +106,10 @@ def test_random_remove_overlaps_leaves_non_candidates_unchanged() -> None:
     separated_types = torch.cat([types[:5], types[10:15], types[-1:]])
     separated_coords = torch.cat([coords[:5], coords[10:15], coords[-1:]])
 
-    output = random_remove_overlaps(separated_types, separated_coords)
+    output = RandomRemoveOverlaps()(Outline(separated_types, separated_coords))
 
-    assert torch.equal(output[0], separated_types)
-    assert torch.equal(output[1], separated_coords)
+    assert torch.equal(output.types, separated_types)
+    assert torch.equal(output.coords, separated_coords)
 
 
 def test_random_remove_overlaps_native_rejects_too_few_random_values() -> None:

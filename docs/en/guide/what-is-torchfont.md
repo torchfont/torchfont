@@ -24,7 +24,7 @@ Fonts for minority languages in particular offer very limited choices, and that 
 - **Fast on-the-fly processing**:
   the Rust backend reads font files directly at training time, fast enough to require no preprocessing step.
   Font files remain the single source of truth.
-- **Freely composable transforms**:
-  rather than a class-based compose pattern like torchvision's `transforms.Compose`,
-  TorchFont provides utility functions that you wire together yourself,
-  giving you full control over how font data is prepared for your model.
+- **Composable transforms**:
+  functional transforms can be wired directly, while an `Outline`-aware class API
+  provides torchvision v2-style `Transform`, `Compose`, and `RandomApply` building
+  blocks for reusable data pipelines.

@@ -4,7 +4,7 @@
 
 `torchfont.datasets` exposes reference-first PyTorch datasets. Dataset items are
 small, pickle-friendly dataclasses; outline loading happens explicitly in a
-transform with `load_glyph` (see [Transform Utilities](./transforms.md)).
+transform with `functional.load_glyph` (see [Transform Utilities](./transforms.md)).
 
 Dataset indices and class targets are built from font files at construction
 time. Glyph outlines and registered-axis values are loaded lazily from the
@@ -164,7 +164,7 @@ Built-ins:
 - `default_instance_count(font)`: one instance slot
 - `grid_instance_count({"wght": 7, "wdth": 3})`: instance count matching `grid_instances`
 
-For transform-time variation sampling, see `random_location` in
+For transform-time variation sampling, see `RandomLocation` in
 [Transform Utilities](./transforms.md). Datasets do not have a dataset-level seed.
 
 Custom instance functions may return zero locations. Unknown axes and duplicate

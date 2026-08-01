@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchfont.io import ElementType
-from torchfont.transforms import cubic_to_quad, merge_curves
+from torchfont.transforms.curves import cubic_to_quad, merge_curves
 
 from ._helpers import (
     _CUBIC_CURVES,

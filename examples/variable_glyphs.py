@@ -2,25 +2,19 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import VariableGlyphDataset, VariableGlyphSample
+from torchfont.datasets import VariableGlyphDataset
 from torchfont.instance_fn import grid_instance_count
-from torchfont.transforms import load_glyph, random_location
+from torchfont.transforms import GlyphData, Outline, RandomLocation
 
-
-def transform(
-    sample: VariableGlyphSample,
-) -> tuple[Tensor, Tensor, dict[str, float]]:
-    location = random_location(sample.ref.font)
-    types, coords = load_glyph(sample.ref, location)
-    return types[:512], coords[:512], location
+transform = RandomLocation()
 
 
 def collate_fn(
-    batch: list[tuple[Tensor, Tensor, dict[str, float]]],
+    batch: list[GlyphData[Outline]],
 ) -> tuple[Tensor, Tensor, list[dict[str, float]]]:
-    types = pad_sequence([types for types, _, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords, _ in batch], batch_first=True)
-    locations = [location for _, _, location in batch]
+    types = pad_sequence([data.data.types[:512] for data in batch], batch_first=True)
+    coords = pad_sequence([data.data.coords[:512] for data in batch], batch_first=True)
+    locations = [dict(data.location) for data in batch]
     return types, coords, locations
 
 

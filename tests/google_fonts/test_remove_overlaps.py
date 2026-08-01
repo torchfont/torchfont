@@ -8,7 +8,9 @@ from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset, GlyphSample
 from torchfont.io import ElementType
-from torchfont.transforms import load_glyph, remove_overlaps, render_bitmap
+from torchfont.transforms import functional as _functional
+from torchfont.transforms.bitmap import render_bitmap
+from torchfont.transforms.outline import remove_overlaps
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,8 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    types, coords = load_glyph(sample.ref)
+    outline = _functional.load_glyph(sample.ref)
+    types, coords = outline.types, outline.coords
     simplified_types, simplified_coords = remove_overlaps(types, coords)
 
     # Prepend outer rect before glyph contours; End token truncates if appended.
