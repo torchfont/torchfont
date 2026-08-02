@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -18,7 +18,7 @@ class RemoveOverlaps(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast("Outline", self._call_kernel(_functional.remove_overlaps, inpt))
+        return _functional.remove_overlaps(inpt)
 
 
 class RandomRemoveOverlaps(Transform):
@@ -29,12 +29,7 @@ class RandomRemoveOverlaps(Transform):
         return {"values": torch.rand(length)}
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
-        return cast(
-            "Outline",
-            self._call_kernel(
-                _functional.remove_overlap_groups, inpt, params["values"]
-            ),
-        )
+        return _functional.remove_overlap_groups(inpt, params["values"])
 
 
 __all__ = ["RandomRemoveOverlaps", "RemoveOverlaps"]

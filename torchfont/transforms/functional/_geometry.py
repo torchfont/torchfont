@@ -24,7 +24,6 @@ from torch import Tensor
 
 from torchfont import _torchfont
 from torchfont.structures import ElementType, Outline
-from torchfont.transforms.functional._utils import _dispatchable
 
 
 def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
@@ -211,7 +210,6 @@ def _affine(
     return types, _apply_matrix(types, coords, matrix, center, translate)
 
 
-@_dispatchable(Outline)
 def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     """Flip an outline horizontally around its tight bounding-box centre."""
     return Outline(
@@ -219,7 +217,6 @@ def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     )
 
 
-@_dispatchable(Outline)
 def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     """Flip an outline vertically around its tight bounding-box centre."""
     return Outline(
@@ -227,7 +224,6 @@ def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     )
 
 
-@_dispatchable(Outline)
 def affine(
     inpt: Outline,
     *,
@@ -249,7 +245,6 @@ def affine(
     )
 
 
-@_dispatchable(Outline)
 def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
     """Add caller-provided noise to active coordinate pairs."""
     types, coords = inpt.types, inpt.coords

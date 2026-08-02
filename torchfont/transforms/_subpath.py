@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
@@ -20,21 +20,18 @@ class NormalizeSubpathStartPoints(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast(
-            "Outline",
-            self._call_kernel(_functional.normalize_subpath_start_points, inpt),
-        )
+        return _functional.normalize_subpath_start_points(inpt)
 
 
 class _RandomSubpathTransform(Transform):
-    function: ClassVar[Callable[..., object]]
+    function: ClassVar[Callable[..., Outline]]
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
         length = max((inpt.types.size(0) for inpt in flat_inputs), default=0)
         return {"values": torch.rand(length)}
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
-        return cast("Outline", self._call_kernel(self.function, inpt, params["values"]))
+        return self.function(inpt, params["values"])
 
 
 class RandomizeSubpathStartPoints(_RandomSubpathTransform):

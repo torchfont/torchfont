@@ -8,7 +8,6 @@ from torch import Tensor
 from torchfont import _torchfont
 from torchfont.structures import Outline
 from torchfont.tf_tensors import Bitmap
-from torchfont.transforms.functional._utils import _dispatchable
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 FillRule = Literal["winding", "even_odd"]
@@ -54,7 +53,6 @@ def _render_bitmap(
     return torch.from_numpy(raw).view(height, width)
 
 
-@_dispatchable(Outline)
 def render_bitmap(
     inpt: Outline,
     size: int = 64,

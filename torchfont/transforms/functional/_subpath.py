@@ -5,7 +5,7 @@ from torch import Tensor
 
 from torchfont import _torchfont
 from torchfont.structures import Outline
-from torchfont.transforms.functional._utils import _dispatchable, _native_outline
+from torchfont.transforms.functional._utils import _native_outline
 
 
 def _normalize_subpath_start_points(
@@ -32,13 +32,11 @@ def _normalize_subpath_start_points(
     )
 
 
-@_dispatchable(Outline)
 def normalize_subpath_start_points(inpt: Outline) -> Outline:
     """Choose a deterministic start point for each closed subpath."""
     return Outline(*_normalize_subpath_start_points(inpt.types, inpt.coords))
 
 
-@_dispatchable(Outline)
 def set_subpath_start_points(inpt: Outline, selection_values: Tensor) -> Outline:
     """Set closed-subpath start points from explicit unit-interval values."""
     return _native_outline(
@@ -48,7 +46,6 @@ def set_subpath_start_points(inpt: Outline, selection_values: Tensor) -> Outline
     )
 
 
-@_dispatchable(Outline)
 def reorder_subpaths(inpt: Outline, keys: Tensor) -> Outline:
     """Order subpaths by explicit sort keys."""
     return _native_outline(

@@ -1,9 +1,8 @@
-"""Registration and dispatch utilities for functional kernels."""
+"""Shared helpers for functional kernels."""
 
 from __future__ import annotations
 
-import functools
-from typing import TYPE_CHECKING, Any, Concatenate, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -14,12 +13,6 @@ if TYPE_CHECKING:
 
     import numpy as np
     from numpy.typing import NDArray
-
-P = ParamSpec("P")
-R = TypeVar("R")
-S = TypeVar("S")
-
-_KERNEL_REGISTRY: dict[object, dict[type[object], object]] = {}
 
 
 def _native_outline(
@@ -39,48 +32,3 @@ def _native_outline(
         torch.from_numpy(out_types).to(device=types_device),
         torch.from_numpy(out_coords).view(-1, COORD_DIM).to(device=coords_device),
     )
-
-
-def _passthrough(inpt: object, *_args: object, **_kwargs: object) -> object:
-    return inpt
-
-
-def _get_kernel(
-    functional: object,
-    input_type: type[object],
-    *,
-    allow_passthrough: bool = False,
-) -> Callable[..., object]:
-    registry = _KERNEL_REGISTRY.get(functional)
-    if not registry:
-        name = getattr(functional, "__name__", type(functional).__name__)
-        msg = f"no kernel is registered for {name}"
-        raise ValueError(msg)
-    for cls in input_type.__mro__:
-        if kernel := registry.get(cls):
-            return cast("Callable[..., object]", kernel)
-    if allow_passthrough:
-        return _passthrough
-    name = getattr(functional, "__name__", type(functional).__name__)
-    msg = f"{name} does not support {input_type.__name__}"
-    raise TypeError(msg)
-
-
-def _dispatchable(
-    input_type: type[S],
-) -> Callable[[Callable[Concatenate[S, P], R]], Callable[Concatenate[S, P], R]]:
-    def decorator(
-        kernel: Callable[Concatenate[S, P], R],
-    ) -> Callable[Concatenate[S, P], R]:
-        @functools.wraps(kernel)
-        def dispatcher(inpt: S, *args: P.args, **kwargs: P.kwargs) -> R:
-            resolved = cast(
-                "Callable[Concatenate[S, P], R]",
-                _get_kernel(dispatcher, type(inpt)),
-            )
-            return resolved(inpt, *args, **kwargs)
-
-        _KERNEL_REGISTRY[dispatcher] = {input_type: kernel}
-        return dispatcher
-
-    return decorator

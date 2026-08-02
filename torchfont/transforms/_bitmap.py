@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from torchfont.transforms import functional as _functional
 from torchfont.transforms._transform import Transform
@@ -29,16 +29,7 @@ class RenderBitmap(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Bitmap:
         del params
-        return cast(
-            "Bitmap",
-            self._call_kernel(
-                _functional.render_bitmap,
-                inpt,
-                self.size,
-                self.mode,
-                self.fill_rule,
-            ),
-        )
+        return _functional.render_bitmap(inpt, self.size, self.mode, self.fill_rule)
 
 
 __all__ = ["RenderBitmap"]

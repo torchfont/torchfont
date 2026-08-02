@@ -9,7 +9,6 @@ from torch import nn
 from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from torchfont.structures import Outline
-from torchfont.transforms.functional._utils import _get_kernel
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,17 +31,6 @@ class Transform(nn.Module):
     def transform(self, inpt: object, params: dict[str, Any]) -> object:
         """Transform one selected input using parameters from ``make_params``."""
         raise NotImplementedError
-
-    def _call_kernel(
-        self,
-        functional: Callable[..., object],
-        inpt: object,
-        *args: object,
-        **kwargs: object,
-    ) -> object:
-        """Dispatch a functional kernel or pass unsupported semantic data through."""
-        kernel = _get_kernel(functional, type(inpt), allow_passthrough=True)
-        return kernel(inpt, *args, **kwargs)
 
     def forward(self, *inputs: object) -> object:
         """Transform selected leaves and preserve the enclosing pytree structure."""

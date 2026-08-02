@@ -1,5 +1,4 @@
 import pickle
-from typing import cast
 
 import pytest
 import torch
@@ -26,7 +25,6 @@ from torchfont.transforms import (
     ToPureTensor,
     Transform,
 )
-from torchfont.transforms import functional as _functional
 
 
 class AddToCoords(Transform):
@@ -293,8 +291,3 @@ def test_random_location_rejects_multiple_variable_glyphs() -> None:
 
     with pytest.raises(ValueError, match="requires exactly one"):
         RandomLocation()([ref, ref])
-
-
-def test_functional_rejects_unsupported_input_types() -> None:
-    with pytest.raises(TypeError, match="horizontal_flip does not support Tensor"):
-        _functional.horizontal_flip(cast("Outline", torch.zeros(1)))

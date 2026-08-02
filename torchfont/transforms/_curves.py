@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
@@ -17,11 +17,11 @@ if TYPE_CHECKING:
 
 
 class _SimpleCurveTransform(Transform):
-    function: ClassVar[Callable[..., object]]
+    function: ClassVar[Callable[..., Outline]]
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast("Outline", self._call_kernel(self.function, inpt))
+        return self.function(inpt)
 
 
 class QuadToCubic(Transform):
@@ -33,12 +33,7 @@ class QuadToCubic(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast(
-            "Outline",
-            self._call_kernel(
-                _functional.quad_to_cubic, inpt, merge_curves=self.merge_curves
-            ),
-        )
+        return _functional.quad_to_cubic(inpt, merge_curves=self.merge_curves)
 
 
 class CubicToQuad(_SimpleCurveTransform):
@@ -80,16 +75,12 @@ class RandomSplitSegments(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         values = params["values"]
-        return cast(
-            "Outline",
-            self._call_kernel(
-                _functional.split_segments,
-                inpt,
-                values[0],
-                values[1],
-                split_probability=self.split_probability,
-                split_range=self.split_range,
-            ),
+        return _functional.split_segments(
+            inpt,
+            values[0],
+            values[1],
+            split_probability=self.split_probability,
+            split_range=self.split_range,
         )
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -23,14 +23,7 @@ class HorizontalFlip(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast(
-            "Outline",
-            self._call_kernel(
-                _functional.horizontal_flip,
-                inpt,
-                preserve_winding=self.preserve_winding,
-            ),
-        )
+        return _functional.horizontal_flip(inpt, preserve_winding=self.preserve_winding)
 
 
 class VerticalFlip(Transform):
@@ -42,14 +35,7 @@ class VerticalFlip(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast(
-            "Outline",
-            self._call_kernel(
-                _functional.vertical_flip,
-                inpt,
-                preserve_winding=self.preserve_winding,
-            ),
-        )
+        return _functional.vertical_flip(inpt, preserve_winding=self.preserve_winding)
 
 
 class RandomHorizontalFlip(HorizontalFlip):
@@ -105,16 +91,12 @@ class Affine(Transform):
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
-        return cast(
-            "Outline",
-            self._call_kernel(
-                _functional.affine,
-                inpt,
-                angle=self.angle,
-                translate=self.translate,
-                scale=self.scale,
-                shear=self.shear,
-            ),
+        return _functional.affine(
+            inpt,
+            angle=self.angle,
+            translate=self.translate,
+            scale=self.scale,
+            shear=self.shear,
         )
 
 
@@ -177,7 +159,7 @@ class RandomAffine(Transform):
         }
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
-        return cast("Outline", self._call_kernel(_functional.affine, inpt, **params))
+        return _functional.affine(inpt, **params)
 
 
 class RandomCoordJitter(Transform):
@@ -195,10 +177,7 @@ class RandomCoordJitter(Transform):
         return {"noise": torch.randn((length, 3, 2)) * self.std}
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
-        return cast(
-            "Outline",
-            self._call_kernel(_functional.coord_jitter, inpt, params["noise"]),
-        )
+        return _functional.coord_jitter(inpt, params["noise"])
 
 
 __all__ = [

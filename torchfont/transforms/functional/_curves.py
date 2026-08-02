@@ -5,10 +5,7 @@ from torch import Tensor
 
 from torchfont import _torchfont
 from torchfont.structures import Outline
-from torchfont.transforms.functional._utils import (
-    _dispatchable,
-    _native_outline,
-)
+from torchfont.transforms.functional._utils import _native_outline
 
 
 def _quad_to_cubic(
@@ -108,25 +105,21 @@ def _merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     )
 
 
-@_dispatchable(Outline)
 def quad_to_cubic(inpt: Outline, *, merge_curves: bool = False) -> Outline:
     """Convert quadratic segments to cubic segments."""
     return Outline(*_quad_to_cubic(inpt.types, inpt.coords, merge_curves=merge_curves))
 
 
-@_dispatchable(Outline)
 def cubic_to_quad(inpt: Outline) -> Outline:
     """Convert cubic segments to quadratic segments."""
     return Outline(*_cubic_to_quad(inpt.types, inpt.coords))
 
 
-@_dispatchable(Outline)
 def merge_curves(inpt: Outline) -> Outline:
     """Merge adjacent pieces of the same parent curve or line."""
     return Outline(*_merge_curves(inpt.types, inpt.coords))
 
 
-@_dispatchable(Outline)
 def split_segments(
     inpt: Outline,
     selection_values: Tensor,

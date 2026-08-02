@@ -5,7 +5,7 @@ from torch import Tensor
 
 from torchfont import _torchfont
 from torchfont.structures import Outline
-from torchfont.transforms.functional._utils import _dispatchable, _native_outline
+from torchfont.transforms.functional._utils import _native_outline
 
 
 def _remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
@@ -35,13 +35,11 @@ def _remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     )
 
 
-@_dispatchable(Outline)
 def remove_overlaps(inpt: Outline) -> Outline:
     """Merge overlapping subpaths."""
     return Outline(*_remove_overlaps(inpt.types, inpt.coords))
 
 
-@_dispatchable(Outline)
 def remove_overlap_groups(inpt: Outline, selection_values: Tensor) -> Outline:
     """Simplify overlap groups according to explicit selection values."""
     return _native_outline(
