@@ -9,7 +9,6 @@ pub(crate) fn grid_locations(
     font: &skrifa::FontRef<'_>,
     axes: &BTreeMap<String, i64>,
 ) -> Result<Vec<Location>, Error> {
-    validate_grid_axes(axes)?;
     let info = axis_info(font);
     if info.is_empty() {
         return Ok(vec![Vec::new()]);
@@ -40,23 +39,7 @@ pub(crate) fn grid_location_count(
     font: &skrifa::FontRef<'_>,
     axes: &BTreeMap<String, i64>,
 ) -> Result<usize, Error> {
-    validate_grid_axes(axes)?;
     checked_location_count(&axis_info(font), axes)
-}
-
-fn validate_grid_axes(axes: &BTreeMap<String, i64>) -> Result<(), Error> {
-    if axes.is_empty() {
-        return Err(Error::Parse(
-            "grid_instances requires at least one axis; use default_instance for defaults"
-                .to_string(),
-        ));
-    }
-    if let Some((tag, count)) = axes.iter().find(|&(_, &count)| count <= 0) {
-        return Err(Error::Parse(format!(
-            "grid_instances axis density for '{tag}' must be greater than zero, got {count}"
-        )));
-    }
-    Ok(())
 }
 
 fn axis_sample_count(axis: &AxisInfo, axes: &BTreeMap<String, i64>) -> i64 {
@@ -66,10 +49,10 @@ fn axis_sample_count(axis: &AxisInfo, axes: &BTreeMap<String, i64>) -> i64 {
 fn checked_location_count(info: &[AxisInfo], axes: &BTreeMap<String, i64>) -> Result<usize, Error> {
     info.iter().try_fold(1usize, |total, axis| {
         let count = usize::try_from(axis_sample_count(axis, axes)).map_err(|_| {
-            Error::Parse("grid_instances axis density does not fit usize".to_string())
+            Error::Parse("grid instance axis density does not fit usize".to_string())
         })?;
         total.checked_mul(count).ok_or_else(|| {
-            Error::Parse("grid_instances location count overflowed usize".to_string())
+            Error::Parse("grid instance location count overflowed usize".to_string())
         })
     })
 }

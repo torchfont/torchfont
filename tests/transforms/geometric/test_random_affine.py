@@ -3,7 +3,8 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.transforms import Outline, RandomAffine
+from torchfont.structures import Outline
+from torchfont.transforms import RandomAffine
 
 
 def test_random_affine_is_reproducible_with_torch_seed(

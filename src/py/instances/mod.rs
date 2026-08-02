@@ -10,7 +10,7 @@ use pyo3::{
 };
 
 use crate::font::{default_location, map_font, parse_font_ref};
-use crate::instance_fn::{grid_location_count, grid_locations, named_locations};
+use crate::instances::{grid_location_count, grid_locations, named_locations};
 
 #[pyfunction]
 fn default_location_for_font(path: PathBuf, ttc_index: u32) -> PyResult<Vec<(String, f32)>> {

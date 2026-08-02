@@ -7,14 +7,16 @@ TorchFont の transform は torchvision v2 と同様に、意味を持つデー�
 ## データ型
 
 ```python
-from torchfont.transforms import Bitmap, GlyphData, Outline, TFTensor
+from torchfont import tf_tensors
+from torchfont.structures import GlyphData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つの tensor を一つにまとめます。
-`TFTensor` は torchvision の `TVTensor` に対応する意味 tensor の基底であり、
-`Bitmap(tensor)` は rasterized glyph を表す subclass です。通常の tensor 演算結果は
-plain tensor に戻るため、意味型の dispatch が model 内部まで伝播しません。copy、
-device・dtype 変換では subclass を維持します。
+`tf_tensors.TFTensor` は torchvision の `TVTensor` に対応する意味 tensor の基底であり、
+`tf_tensors.Bitmap(tensor)` は rasterized glyph を表す subclass です。通常の tensor
+演算結果はplain tensorに戻るため、意味型のdispatchがmodel内部まで伝播しません。
+copy、device・dtype変換ではsubclassを維持します。storageをcopyせず意味型へ戻すには
+`tf_tensors.wrap(tensor, like=bitmap)` を使います。
 `GlyphData[T]` は変換中の payload、元の dataset sample、実際に使用した variation
 location を保持します。payload は generic なので、メタデータを失わずに
 `Outline` から bitmap へ変換できます。
@@ -54,14 +56,15 @@ outline = data.data
 `torch.manual_seed` と DataLoader worker の seed が通常どおり機能します。
 組み込み transform は設定のみを保持し、pickle 可能です。container に渡す custom
 callable が pickle 可能かどうかは、その callable 自体に依存します。
-torchvision と同様に、`Compose` と `RandomApply` の callable 列は学習可能な child
-module として登録されません。したがって transform pipeline は parameter や可変な
-runtime state ではなく、設定を保持するものとして扱います。
+torchvision と同様に、通常の callable 列は学習可能な child module として
+登録されません。module 登録が必要な場合、`RandomApply` には
+`torch.nn.ModuleList` も渡せます。
 
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
 custom transform のために `check_inputs()` を利用できます。`Compose` と
-`RandomApply` には空でない callable の列を渡します。
+`RandomApply` には空でない callable の列または
+`torch.nn.ModuleList` を渡します。
 一回の呼び出しでは、一致した leaf 間で parameter を共有します。独立した乱数を
 使うべき sample には transform を個別に呼び出します。
 
@@ -79,18 +82,19 @@ custom transform のために `check_inputs()` を利用できます。`Compose`
 | outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
-| 出力 | `RenderBitmap` |
+| 出力 | `RenderBitmap`, `ToPureTensor` |
 
 `RenderBitmap` は各 `Outline` を `uint8` tensor を持つ `Bitmap` に変えます。
 これらが `GlyphData` 内にある場合も、sample と location は変換後の payload とともに
-維持されます。
+維持されます。`ToPureTensor` はmodelへ入力する前に、tensor storageをcopyせず
+`TFTensor` subclassを取り除きます。
 
 ## Functional kernel
 
 決定論的な処理は `torchfont.transforms.functional` から利用できます。
 
 ```python
-from torchfont.transforms import Outline
+from torchfont.structures import Outline
 from torchfont.transforms import functional as F
 
 outline = F.load_glyph(sample.ref)
@@ -104,15 +108,5 @@ shape = bitmap.shape
 functional API は乱数を生成しません。ランダムな選択と parameter sampling は
 `Random*` transform class の責務です。
 
-functional は意味的な入力型により kernel を dispatch します。下流の
-`Outline` subclass は transform class を変更せず functional を特殊化できます。
-
-```python
-@F.register_kernel(F.horizontal_flip, CustomOutline)
-def horizontal_flip_custom(inpt, *, preserve_winding=True): ...
-```
-
-組み込み outline transform は `Outline` instance を選択するため、登録した kernel は
-`Outline` subclass の dispatch を拡張します。独自の意味型には、その型を
-`_transformed_types` で選択する custom transform も必要です。複数 leaf の関係に応じて
-選択する場合のみ `_needs_transform_list()` を override します。
+functional は意味的な入力型により内部 kernel を dispatch します。
+非対応の入力型には `TypeError` を送出します。

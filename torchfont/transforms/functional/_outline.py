@@ -1,12 +1,14 @@
-"""Whole-outline transformation functions."""
+"""Functional whole-outline kernels."""
 
 import torch
 from torch import Tensor
 
 from torchfont import _torchfont
+from torchfont.structures import Outline
+from torchfont.transforms.functional._utils import _dispatchable, _native_outline
 
 
-def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+def _remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Merge overlapping subpaths using Skia PathOps winding simplification.
 
     Args:
@@ -31,3 +33,22 @@ def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         torch.from_numpy(out_types).to(device=types_device),
         torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )
+
+
+@_dispatchable(Outline)
+def remove_overlaps(inpt: Outline) -> Outline:
+    """Merge overlapping subpaths."""
+    return Outline(*_remove_overlaps(inpt.types, inpt.coords))
+
+
+@_dispatchable(Outline)
+def remove_overlap_groups(inpt: Outline, selection_values: Tensor) -> Outline:
+    """Simplify overlap groups according to explicit selection values."""
+    return _native_outline(
+        inpt,
+        _torchfont.random_remove_overlaps,
+        selection_values.cpu().contiguous().numpy(),
+    )
+
+
+__all__ = ["remove_overlap_groups", "remove_overlaps"]

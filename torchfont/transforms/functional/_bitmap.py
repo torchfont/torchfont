@@ -1,4 +1,4 @@
-"""Glyph outline rasterization."""
+"""Functional glyph rasterization kernels."""
 
 from typing import Literal
 
@@ -6,12 +6,15 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
+from torchfont.structures import Outline
+from torchfont.tf_tensors import Bitmap
+from torchfont.transforms.functional._utils import _dispatchable
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 FillRule = Literal["winding", "even_odd"]
 
 
-def render_bitmap(
+def _render_bitmap(
     types: Tensor,
     coords: Tensor,
     size: int = 64,
@@ -49,3 +52,17 @@ def render_bitmap(
         types.numpy(), coords.reshape(-1).numpy(), size, mode, fill_rule
     )
     return torch.from_numpy(raw).view(height, width)
+
+
+@_dispatchable(Outline)
+def render_bitmap(
+    inpt: Outline,
+    size: int = 64,
+    mode: BitmapMode = "bbox_square",
+    fill_rule: FillRule = "winding",
+) -> Bitmap:
+    """Render an outline into a greyscale semantic bitmap."""
+    return Bitmap(_render_bitmap(inpt.types, inpt.coords, size, mode, fill_rule))
+
+
+__all__ = ["BitmapMode", "FillRule", "render_bitmap"]

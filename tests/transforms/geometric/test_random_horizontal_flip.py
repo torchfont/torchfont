@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from torchfont.transforms import Outline, RandomHorizontalFlip
+from torchfont.structures import Outline
+from torchfont.transforms import RandomHorizontalFlip
 
 
 @pytest.mark.parametrize(("p", "changes"), [(0.0, False), (1.0, True)])

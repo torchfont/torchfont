@@ -3,8 +3,8 @@ import pytest
 import torch
 
 from torchfont import _torchfont
-from torchfont.io import ElementType
-from torchfont.transforms import Outline, RandomSplitSegments
+from torchfont.structures import ElementType, Outline
+from torchfont.transforms import RandomSplitSegments
 
 
 def _mixed_segments() -> tuple[torch.Tensor, torch.Tensor]:

@@ -3,8 +3,9 @@
 <!-- markdownlint-disable MD013 -->
 
 `torchfont.datasets` exposes reference-first PyTorch datasets. Dataset items are
-small, pickle-friendly dataclasses; outline loading happens explicitly in a
-transform with `functional.load_glyph` (see [Transform Utilities](./transforms.md)).
+small, pickle-friendly dataclasses. Pass `LoadGlyph()` or a composed transform
+pipeline to the dataset's `transform` argument to load outlines lazily (see
+[Transform Utilities](./transforms.md)).
 
 Dataset indices and class targets are built from font files at construction
 time. Glyph outlines and registered-axis values are loaded lazily from the
@@ -15,7 +16,7 @@ inconsistent samples or labels.
 ## Reference Types
 
 ```python
-from torchfont.datasets import (
+from torchfont.structures import (
     FontRef,
     GlyphRef,
     GlyphSample,
@@ -121,8 +122,8 @@ dataset = VariableGlyphDataset(
 
 `VariableGlyphDataset` does not put a location in the index. Use it for training
 augmentation where the transform samples a fresh location for each access.
-`instance_fn` is an instance-count function: it gives each font a discrete multiplicity
-without fixing concrete locations. Static fonts are included as normal fonts.
+The instance-count function gives each font a discrete multiplicity without fixing concrete
+locations. Static fonts are included as normal fonts.
 
 Constructor:
 
@@ -148,24 +149,23 @@ Targets:
 from torchfont.instance_fn import (
     default_instance,
     default_instance_count,
-    grid_instances,
     grid_instance_count,
-    named_instances,
+    grid_instances,
     named_instance_count,
+    named_instances,
 )
 ```
 
-Built-ins:
-
-- `named_instances(font)`: fvar named instances, deduplicated; falls back to default
+- `named_instances(font)`: deduplicated fvar named instances, falling back to default
 - `default_instance(font)`: one default location
-- `grid_instances({"wght": 7, "wdth": 3})`: evenly spaced fixed grid; axes absent from a font are ignored, unlisted axes use their defaults, and static fonts use one default instance
-- `named_instance_count(font)`: instance count matching `named_instances`
+- `grid_instances({"wght": 7, "wdth": 3})`: evenly spaced fixed grid
+- `named_instance_count(font)`: count matching `named_instances`
 - `default_instance_count(font)`: one instance slot
-- `grid_instance_count({"wght": 7, "wdth": 3})`: instance count matching `grid_instances`
+- `grid_instance_count({"wght": 7, "wdth": 3})`: count matching `grid_instances`
 
 For transform-time variation sampling, see `RandomLocation` in
 [Transform Utilities](./transforms.md). Datasets do not have a dataset-level seed.
 
 Custom instance functions may return zero locations. Unknown axes and duplicate
-locations after normalization raise `ValueError` during dataset construction.
+locations after normalization raise
+`ValueError` during dataset construction.

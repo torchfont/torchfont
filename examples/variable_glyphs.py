@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader
 
 from torchfont.datasets import VariableGlyphDataset
 from torchfont.instance_fn import grid_instance_count
-from torchfont.transforms import GlyphData, Outline, RandomLocation
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import RandomLocation
 
 
 def collate_fn(

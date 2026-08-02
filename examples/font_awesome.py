@@ -3,7 +3,8 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import GlyphData, LoadGlyph, Outline
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
 def collate_fn(

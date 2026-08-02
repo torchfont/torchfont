@@ -6,9 +6,9 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.io import ElementType
-from torchfont.transforms import Outline, RandomRemoveOverlaps
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import ElementType, GlyphSample, Outline
+from torchfont.transforms import RandomRemoveOverlaps
 from torchfont.transforms import functional as _functional
 
 logger = logging.getLogger(__name__)

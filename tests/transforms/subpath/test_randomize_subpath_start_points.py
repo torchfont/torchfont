@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from torchfont.transforms import Outline, RandomizeSubpathStartPoints
+from torchfont.structures import Outline
+from torchfont.transforms import RandomizeSubpathStartPoints
 
 
 def test_randomize_subpath_start_points_is_reproducible(

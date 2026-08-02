@@ -1,7 +1,7 @@
 mod dataset;
 mod error;
 mod font;
-mod instance_fn;
+mod instances;
 mod outline;
 mod py;
 mod transform;

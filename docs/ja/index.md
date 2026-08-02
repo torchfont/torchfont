@@ -31,5 +31,5 @@ features:
     details: "`GlyphSample` は決定的なグリフ参照と target index を持ち、読み込みや batch 化方針は transform 側に置けます。"
   - icon: 🧩
     title: 柔軟な前処理
-    details: "`quad_to_cubic` のような小さな utility を使い、tensor 整形は dataset やモデル固有コードで調整できます。"
+    details: "torchvision v2形式の意味型class transformをpipelineとして組み合わせ、可変長tensorの整形はモデル固有のcollate codeで調整できます。"
 ---

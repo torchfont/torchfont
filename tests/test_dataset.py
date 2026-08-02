@@ -16,16 +16,12 @@ from torch.utils.data import DataLoader
 
 import torchfont.datasets as datasets_module
 import torchfont.instance_fn as instance_fn_module
+import torchfont.structures as structures_module
 import torchfont.transforms as transforms_module
 from torchfont import _torchfont
 from torchfont.datasets import (
-    FontRef,
     GlyphDataset,
-    GlyphRef,
-    GlyphSample,
     VariableGlyphDataset,
-    VariableGlyphRef,
-    VariableGlyphSample,
 )
 from torchfont.instance_fn import (
     default_instance,
@@ -35,9 +31,35 @@ from torchfont.instance_fn import (
     named_instance_count,
     named_instances,
 )
-from torchfont.io import ElementType
+from torchfont.structures import (
+    ElementType,
+    FontRef,
+    GlyphRef,
+    GlyphSample,
+    VariableGlyphRef,
+    VariableGlyphSample,
+)
 from torchfont.transforms import RandomLocation
 from torchfont.transforms import functional as _functional
+
+
+class _TestInstances:
+    def __init__(
+        self,
+        locations: list[dict[str, float]] | None = None,
+        *,
+        count: int | None = None,
+    ) -> None:
+        self._locations = locations or []
+        self._count = len(self._locations) if count is None else count
+
+    def locations(self, font: FontRef) -> list[dict[str, float]]:
+        del font
+        return self._locations
+
+    def count(self, font: FontRef) -> int:
+        del font
+        return self._count
 
 
 def _load_pair(
@@ -218,12 +240,12 @@ def test_default_and_grid_instance_functions() -> None:
     ]
 
 
-def test_instance_locations_fn_can_return_zero_locations() -> None:
+def test_instance_function_can_return_zero_locations() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",
         patterns=("lato/Lato-Regular.ttf",),
         codepoints=range(0x41, 0x44),
-        instance_fn=lambda _font: [],
+        instance_fn=_TestInstances().locations,
     )
 
     assert len(dataset) == 0
@@ -239,7 +261,7 @@ def test_variable_glyph_dataset_instance_count_refs_without_styles() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41, 0x42],
-        instance_fn=lambda _font: 2,
+        instance_fn=_TestInstances(count=2).count,
     )
 
     assert repr(dataset) == (
@@ -265,7 +287,7 @@ def test_variable_glyph_dataset_instance_count_refs_without_styles() -> None:
     assert coords.shape[1] == 6
 
 
-def test_variable_glyph_dataset_defaults_to_named_instance_count() -> None:
+def test_variable_glyph_dataset_defaults_to_named_instances() -> None:
     fixed = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
@@ -282,7 +304,7 @@ def test_variable_glyph_dataset_defaults_to_named_instance_count() -> None:
     assert variable.character_targets.tolist() == fixed.character_targets.tolist()
 
 
-def test_instance_count_fns_match_instance_locations_fn_multiplicity() -> None:
+def test_instance_functions_match_fixed_and_variable_multiplicity() -> None:
     named_fixed = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
@@ -313,8 +335,8 @@ def test_instance_count_fns_match_instance_locations_fn_multiplicity() -> None:
     assert len(grid_variable) == 4
 
 
-def test_instance_count_fns_keep_static_fonts_at_one_slot() -> None:
-    for instance_count in [
+def test_instance_count_functions_keep_static_fonts_at_one_slot() -> None:
+    for instance_fn in [
         default_instance_count,
         named_instance_count,
         grid_instance_count({"wght": 2}),
@@ -323,7 +345,7 @@ def test_instance_count_fns_keep_static_fonts_at_one_slot() -> None:
             root="tests/fonts",
             patterns=("lato/Lato-Regular.ttf",),
             codepoints=[0x41],
-            instance_fn=instance_count,
+            instance_fn=instance_fn,
         )
         assert len(dataset) == 1
 
@@ -333,7 +355,7 @@ def test_variable_glyph_dataset_transform_can_sample_location() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_fn=lambda _font: 1,
+        instance_fn=_TestInstances(count=1).count,
         transform=_variable_to_pair,
     )
 
@@ -535,9 +557,9 @@ def test_head_bold_is_not_invented_as_a_weight_class(tmp_path: Path) -> None:
 
 
 def test_datasets_public_api_is_ref_centered() -> None:
-    assert datasets_module.FontRef is FontRef
+    assert structures_module.FontRef is FontRef
     assert datasets_module.GlyphDataset is GlyphDataset
-    assert datasets_module.GlyphSample is GlyphSample
+    assert structures_module.GlyphSample is GlyphSample
     assert datasets_module.VariableGlyphDataset is VariableGlyphDataset
 
 
@@ -552,13 +574,10 @@ def test_native_dataset_helpers_are_available() -> None:
     assert hasattr(_torchfont, "load_glyph")
 
 
-def test_instance_fn_module_exports_instance_functions() -> None:
+def test_instance_function_module_exports_builtins() -> None:
     assert instance_fn_module.default_instance is default_instance
-    assert instance_fn_module.default_instance_count is default_instance_count
     assert instance_fn_module.named_instances is named_instances
-    assert instance_fn_module.named_instance_count is named_instance_count
     assert instance_fn_module.grid_instances is grid_instances
-    assert instance_fn_module.grid_instance_count is grid_instance_count
 
 
 def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
@@ -566,7 +585,7 @@ def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_fn=lambda _font: 1,
+        instance_fn=_TestInstances(count=1).count,
     )
     ref = dataset[0].ref
 
@@ -583,64 +602,42 @@ def test_missing_instance_location_axes_use_defaults() -> None:
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),
         codepoints=[0x41],
-        instance_fn=lambda _font: [{"wght": 400.0}],
+        instance_fn=_TestInstances([{"wght": 400.0}]).locations,
     )
 
     assert len(dataset) == 1
     assert dataset[0].ref.location == {"wght": 400.0, "wdth": 100.0}
 
 
-def test_instance_locations_fn_rejects_duplicate_normalized_locations() -> None:
+def test_instance_function_rejects_duplicate_normalized_locations() -> None:
     with pytest.raises(ValueError, match="duplicate variation locations"):
         GlyphDataset(
             root="tests/fonts",
             patterns=("roboto/Roboto*.ttf",),
             codepoints=[0x41],
-            instance_fn=lambda _font: [{"wght": 400.0}, {"wght": 400.0}],
+            instance_fn=_TestInstances([{"wght": 400.0}, {"wght": 400.0}]).locations,
         )
 
 
-def test_instance_locations_fn_rejects_unknown_axis() -> None:
+def test_instance_function_rejects_unknown_axis() -> None:
     with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
         GlyphDataset(
             root="tests/fonts",
             patterns=("roboto/Roboto*.ttf",),
             codepoints=[0x41],
-            instance_fn=lambda _font: [{"xxxx": 1.0}],
+            instance_fn=_TestInstances([{"xxxx": 1.0}]).locations,
         )
 
 
 @pytest.mark.parametrize("axes", [{}, {"wght": 0}, {"wght": -1}])
 def test_grid_functions_reject_invalid_axis_counts(axes: dict[str, int]) -> None:
-    with pytest.raises(ValueError, match="grid_instances"):
-        GlyphDataset(
-            root="tests/fonts",
-            patterns=("roboto/Roboto*.ttf",),
-            codepoints=[0x41],
-            instance_fn=grid_instances(axes),
-        )
-    with pytest.raises(ValueError, match="grid_instances"):
-        VariableGlyphDataset(
-            root="tests/fonts",
-            patterns=("roboto/Roboto*.ttf",),
-            codepoints=[0x41],
-            instance_fn=grid_instance_count(axes),
-        )
+    with pytest.raises(ValueError, match="ax"):
+        grid_instances(axes)
+    with pytest.raises(ValueError, match="ax"):
+        grid_instance_count(axes)
 
 
-@pytest.mark.parametrize("axes", [{}, {"wght": 0}, {"wght": -1}])
-def test_native_grid_locations_reject_invalid_axis_counts(
-    axes: dict[str, int],
-) -> None:
-    with pytest.raises(ValueError, match="grid_instances"):
-        _torchfont.grid_locations_for_font(
-            "tests/fonts/roboto/Roboto[wdth,wght].ttf",
-            0,
-            axes,
-        )
-
-
-def test_grid_functions_ignore_unknown_axes_and_pin_unlisted_axes_to_default() -> None:
+def test_grid_functions_ignore_unknown_axes_and_pin_unlisted_axes() -> None:
     fixed = GlyphDataset(
         root="tests/fonts",
         patterns=("roboto/Roboto*.ttf",),

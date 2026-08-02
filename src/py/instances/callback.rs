@@ -13,14 +13,14 @@ pub(crate) struct InstanceFunctionsBridge<'py> {
 impl<'py> InstanceFunctionsBridge<'py> {
     pub(crate) fn new(py: Python<'py>) -> PyResult<Self> {
         Ok(Self {
-            font_ref_class: PyModule::import(py, "torchfont.datasets")?.getattr("FontRef")?,
+            font_ref_class: PyModule::import(py, "torchfont.structures")?.getattr("FontRef")?,
             py_float: PyModule::import(py, "builtins")?.getattr("float")?,
             py_fspath: PyModule::import(py, "os")?.getattr("fspath")?,
             py_index: PyModule::import(py, "operator")?.getattr("index")?,
         })
     }
 
-    pub(crate) fn call_instance_locations(
+    pub(crate) fn call_locations(
         &self,
         callable: &Bound<'py, PyAny>,
         path: &Path,
@@ -35,7 +35,7 @@ impl<'py> InstanceFunctionsBridge<'py> {
         Ok(locations)
     }
 
-    pub(crate) fn call_instance_count(
+    pub(crate) fn call_count(
         &self,
         callable: &Bound<'py, PyAny>,
         path: &Path,

@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import ElementType
+from torchfont.structures import ElementType
 
 
 @pytest.fixture

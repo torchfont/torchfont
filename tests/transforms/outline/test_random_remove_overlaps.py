@@ -3,8 +3,8 @@ import pytest
 import torch
 
 from torchfont import _torchfont
-from torchfont.io import ElementType
-from torchfont.transforms import Outline, RandomRemoveOverlaps
+from torchfont.structures import ElementType, Outline
+from torchfont.transforms import RandomRemoveOverlaps
 
 
 def _rectangles(

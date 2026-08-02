@@ -1,12 +1,17 @@
-"""Bezier curve format conversion and segment transformation functions."""
+"""Functional curve conversion and segment kernels."""
 
 import torch
 from torch import Tensor
 
 from torchfont import _torchfont
+from torchfont.structures import Outline
+from torchfont.transforms.functional._utils import (
+    _dispatchable,
+    _native_outline,
+)
 
 
-def quad_to_cubic(
+def _quad_to_cubic(
     types: Tensor, coords: Tensor, *, merge_curves: bool = False
 ) -> tuple[Tensor, Tensor]:
     """Convert ``ElementType.QUAD_TO`` entries to ``ElementType.CURVE_TO``.
@@ -33,7 +38,7 @@ def quad_to_cubic(
     )
 
 
-def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+def _cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Convert ``ElementType.CURVE_TO`` entries to ``ElementType.QUAD_TO`` sequences.
 
     Each cubic Bezier segment is replaced by the minimum number of quadratic
@@ -68,7 +73,7 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     )
 
 
-def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+def _merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Merge adjacent segments that belong to the same parent curve or line.
 
     Adjacent cubic and quadratic Bezier segments are merged when they are pieces
@@ -101,3 +106,44 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
         torch.from_numpy(out_types).to(device=types_device),
         torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
     )
+
+
+@_dispatchable(Outline)
+def quad_to_cubic(inpt: Outline, *, merge_curves: bool = False) -> Outline:
+    """Convert quadratic segments to cubic segments."""
+    return Outline(*_quad_to_cubic(inpt.types, inpt.coords, merge_curves=merge_curves))
+
+
+@_dispatchable(Outline)
+def cubic_to_quad(inpt: Outline) -> Outline:
+    """Convert cubic segments to quadratic segments."""
+    return Outline(*_cubic_to_quad(inpt.types, inpt.coords))
+
+
+@_dispatchable(Outline)
+def merge_curves(inpt: Outline) -> Outline:
+    """Merge adjacent pieces of the same parent curve or line."""
+    return Outline(*_merge_curves(inpt.types, inpt.coords))
+
+
+@_dispatchable(Outline)
+def split_segments(
+    inpt: Outline,
+    selection_values: Tensor,
+    position_values: Tensor,
+    *,
+    split_probability: float,
+    split_range: tuple[float, float],
+) -> Outline:
+    """Split segments according to explicit selection and position values."""
+    return _native_outline(
+        inpt,
+        _torchfont.random_split_segments,
+        selection_values.cpu().contiguous().numpy(),
+        position_values.cpu().contiguous().numpy(),
+        split_probability,
+        split_range,
+    )
+
+
+__all__ = ["cubic_to_quad", "merge_curves", "quad_to_cubic", "split_segments"]

@@ -3,8 +3,8 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms import Outline, RandomCoordJitter
+from torchfont.structures import ElementType, Outline
+from torchfont.transforms import RandomCoordJitter
 
 
 def test_random_coord_jitter_changes_only_active_coordinates(
@@ -35,9 +35,9 @@ def test_random_coord_jitter_shares_noise_between_outlines(
     assert torch.equal(first.coords, second.coords)
 
 
-@pytest.mark.parametrize("std", [float("nan"), float("inf")])
-def test_random_coord_jitter_rejects_non_finite_std(std: float) -> None:
-    with pytest.raises(ValueError, match="std must be finite"):
+@pytest.mark.parametrize("std", [-0.1, float("nan"), float("inf")])
+def test_random_coord_jitter_rejects_invalid_std(std: float) -> None:
+    with pytest.raises(ValueError, match="std must be non-negative and finite"):
         RandomCoordJitter(std)
 
 

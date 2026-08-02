@@ -3,8 +3,9 @@
 <!-- markdownlint-disable MD013 -->
 
 `torchfont.datasets` は参照優先の PyTorch Dataset API を提供します。Dataset item
-は軽量で pickle しやすい dataclass で、outline の読み込みは transform 内で
-`functional.load_glyph`([Transform Utilities](./transforms.md) 参照)を明示的に呼びます。
+は軽量で pickle しやすい dataclass です。outline は dataset の `transform` 引数に
+`LoadGlyph()` または合成した transform pipeline を渡して遅延読み込みします
+（[Transform Utilities](./transforms.md) 参照）。
 
 Dataset の index と class target は構築時点のフォントファイルから作られます。
 glyph outline と登録済み軸の値は現在のディスク上のファイルから遅延読み込みされます。
@@ -15,7 +16,7 @@ Dataset object の lifetime 中にフォントファイルを変更すること�
 ## 参照型
 
 ```python
-from torchfont.datasets import (
+from torchfont.structures import (
     FontRef,
     GlyphRef,
     GlyphSample,
@@ -118,8 +119,8 @@ dataset = VariableGlyphDataset(
 ```
 
 `VariableGlyphDataset` は location を index に含めません。各アクセスで transform が
-新しい location をサンプルする training augmentation に向いています。`instance_fn`
-は各フォントの離散的な多重度だけを決める instance-count function です。静的フォントも通常の
+新しい location をサンプルする training augmentation に向いています。instance-count function
+は各フォントの離散的な多重度を決めます。静的フォントも通常の
 フォントとして含まれます。
 
 コンストラクタ:
@@ -146,21 +147,19 @@ targets:
 from torchfont.instance_fn import (
     default_instance,
     default_instance_count,
-    grid_instances,
     grid_instance_count,
-    named_instances,
+    grid_instances,
     named_instance_count,
+    named_instances,
 )
 ```
 
-組み込み関数:
-
-- `named_instances(font)`: fvar named instance を dedupe して返す。なければ default
+- `named_instances(font)`: fvar named instance を dedupe し、なければ default
 - `default_instance(font)`: default location 1 つ
-- `grid_instances({"wght": 7, "wdth": 3})`: 等間隔の固定 grid。フォントに存在しない軸は無視し、指定されなかった軸は default を使い、静的フォントは default 1 枠
-- `named_instance_count(font)`: `named_instances` と同じ多重度
+- `grid_instances({"wght": 7, "wdth": 3})`: 等間隔の固定 grid
+- `named_instance_count(font)`: `named_instances` に対応する個数
 - `default_instance_count(font)`: instance slot 1 つ
-- `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` と同じ多重度
+- `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` に対応する個数
 
 transform 時の variation sampling には [Transform Utilities](./transforms.md) の
 `RandomLocation` を使います。dataset-level seed はありません。

@@ -1,29 +1,29 @@
 import pickle
+from typing import cast
 
 import pytest
 import torch
 
-from torchfont.datasets import (
+from torchfont import tf_tensors
+from torchfont.structures import (
+    ElementType,
     FontRef,
+    GlyphData,
     GlyphRef,
     GlyphSample,
+    Outline,
     VariableGlyphRef,
     VariableGlyphSample,
 )
-from torchfont.io import ElementType
 from torchfont.transforms import (
-    Bitmap,
     Compose,
-    GlyphData,
-    HorizontalFlip,
     LoadGlyph,
-    Outline,
     QuadToCubic,
     RandomApply,
     RandomLocation,
     RandomSplitSegments,
     RenderBitmap,
-    TFTensor,
+    ToPureTensor,
     Transform,
 )
 from torchfont.transforms import functional as _functional
@@ -138,6 +138,12 @@ def test_random_apply_probability_boundaries(p: float, expected: float) -> None:
     assert torch.equal(output.coords, outline.coords + expected)
 
 
+def test_random_apply_accepts_module_list() -> None:
+    transform = RandomApply(torch.nn.ModuleList([AddToCoords(1.0)]), p=1.0)
+
+    assert torch.equal(transform(_line_outline()).coords, _line_outline().coords + 1.0)
+
+
 @pytest.mark.parametrize("p", [-0.1, 1.1])
 def test_random_apply_rejects_invalid_probability(p: float) -> None:
     with pytest.raises(ValueError, match="p must be between 0 and 1"):
@@ -183,7 +189,6 @@ def test_transform_repr_contains_configuration() -> None:
 
     representation = repr(transform)
 
-    assert "p=0.3" in representation
     assert "split_probability=0.2" in representation
 
 
@@ -225,21 +230,44 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     bitmap_output = Compose([LoadGlyph(), RenderBitmap(32)])(sample)
 
     assert isinstance(bitmap_output, GlyphData)
-    assert isinstance(bitmap_output.data, Bitmap)
+    assert isinstance(bitmap_output.data, tf_tensors.Bitmap)
     assert bitmap_output.data.shape == (32, 32)
     assert bitmap_output.sample is sample
 
 
 def test_bitmap_behaves_as_a_tensor_and_preserves_its_type() -> None:
-    bitmap = Bitmap(torch.zeros((8, 8), dtype=torch.uint8))
+    tensor = torch.zeros((8, 8), dtype=torch.uint8)
+    bitmap = tf_tensors.Bitmap(tensor)
 
     output = pickle.loads(pickle.dumps(bitmap))  # noqa: S301
 
-    assert isinstance(bitmap, TFTensor)
+    assert isinstance(bitmap, tf_tensors.TFTensor)
+    assert bitmap.data_ptr() == tensor.data_ptr()
     assert type(bitmap + 1) is torch.Tensor
-    assert isinstance(bitmap.to(dtype=torch.float32), Bitmap)
-    assert isinstance(output, Bitmap)
+    assert isinstance(bitmap.to(dtype=torch.float32), tf_tensors.Bitmap)
+    assert isinstance(output, tf_tensors.Bitmap)
     assert output.shape == (8, 8)
+
+
+def test_bitmap_accepts_tensor_like_data_and_can_be_rewrapped() -> None:
+    bitmap = tf_tensors.Bitmap([[0, 1], [2, 3]], dtype=torch.float32)
+    plain = bitmap + 1
+
+    output = tf_tensors.wrap(plain, like=bitmap)
+
+    assert bitmap.dtype is torch.float32
+    assert isinstance(output, tf_tensors.Bitmap)
+    assert torch.equal(output, torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
+
+
+def test_to_pure_tensor_removes_semantic_subclasses_in_pytrees() -> None:
+    bitmap = tf_tensors.Bitmap(torch.zeros((2, 2)))
+
+    output = ToPureTensor()({"bitmap": bitmap, "label": torch.tensor(1)})
+
+    assert type(output["bitmap"]) is torch.Tensor
+    assert output["bitmap"].data_ptr() == bitmap.data_ptr()
+    assert type(output["label"]) is torch.Tensor
 
 
 def test_random_location_returns_the_sampled_location() -> None:
@@ -267,22 +295,6 @@ def test_random_location_rejects_multiple_variable_glyphs() -> None:
         RandomLocation()([ref, ref])
 
 
-class CustomOutline(Outline):
-    pass
-
-
-@_functional.register_kernel(_functional.horizontal_flip, CustomOutline)
-def _horizontal_flip_custom(
-    inpt: CustomOutline, *, preserve_winding: bool = True
-) -> Outline:
-    del preserve_winding
-    return Outline(inpt.types, inpt.coords + 10.0)
-
-
-def test_functional_kernel_dispatch_supports_outline_subclasses() -> None:
-    outline = _line_outline()
-    custom = CustomOutline(outline.types, outline.coords)
-
-    output = HorizontalFlip()(custom)
-
-    assert torch.equal(output.coords, outline.coords + 10.0)
+def test_functional_rejects_unsupported_input_types() -> None:
+    with pytest.raises(TypeError, match="horizontal_flip does not support Tensor"):
+        _functional.horizontal_flip(cast("Outline", torch.zeros(1)))

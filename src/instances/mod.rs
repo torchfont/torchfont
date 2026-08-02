@@ -1,4 +1,4 @@
-//! Location and count strategies exposed as Python instance functions.
+//! Location and count operations backing Python instance policies.
 
 mod grid;
 mod locations;

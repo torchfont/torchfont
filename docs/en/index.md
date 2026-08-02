@@ -40,6 +40,6 @@ features:
   - icon: 🧩
     title: Flexible preprocessing
     details:
-      "Use small transform utilities such as `quad_to_cubic`, then shape tensors
-      in your dataset or model-specific code."
+      "Compose semantic class transforms in torchvision v2-style pipelines, then
+      shape variable-length tensors in model-specific collate code."
 ---

@@ -6,7 +6,7 @@ Access a sample from the dataset created in the previous chapter. Run the follow
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import functional as F
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -17,10 +17,12 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-outline = F.load_glyph(sample.ref)
+data = dataset[0]
+sample = data.sample
+outline = data.data
 types, coords = outline.types, outline.coords
 
 print(sample.ref)  # glyph reference
@@ -30,9 +32,9 @@ print(sample.style_idx)  # style class ID
 print(sample.character_idx)  # character class ID
 ```
 
-The return value is a `GlyphSample` dataclass. It stores a deterministic glyph
-reference and dataset-local target indices. Use `F.load_glyph(sample.ref)` when
-you need outline tensors.
+The return value is `GlyphData[Outline]`: `data` contains the semantic outline,
+while `sample` retains the deterministic glyph reference and dataset-local
+target indices.
 
 ## Outline model
 
@@ -51,8 +53,8 @@ Element types are defined in `ElementType`. Run the following code to see the ma
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import functional as F
-from torchfont.io import ElementType
+from torchfont.transforms import LoadGlyph
+from torchfont.structures import ElementType
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -63,10 +65,10 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-outline = F.load_glyph(sample.ref)
+outline = dataset[0].data
 types, coords = outline.types, outline.coords
 
 print(types)
@@ -91,7 +93,7 @@ Each path element uses a 6D coordinates vector. Run the following code to inspec
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import functional as F
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -102,10 +104,10 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-outline = F.load_glyph(sample.ref)
+outline = dataset[0].data
 types, coords = outline.types, outline.coords
 
 print(coords.shape)

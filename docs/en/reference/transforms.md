@@ -7,14 +7,17 @@ composition.
 ## Data types
 
 ```python
-from torchfont.transforms import Bitmap, GlyphData, Outline, TFTensor
+from torchfont import tf_tensors
+from torchfont.structures import GlyphData, Outline
 ```
 
-`Outline(types, coords)` keeps the two coupled tensors together. `TFTensor` is
-the semantic tensor base corresponding to torchvision's `TVTensor`, and
-`Bitmap(tensor)` is its rasterized-glyph subclass. Ordinary tensor operations on
-a `TFTensor` return a plain tensor so semantic dispatch does not leak into model
-code; copying and device/dtype conversion preserve the subclass. `GlyphData[T]`
+`Outline(types, coords)` keeps the two coupled tensors together.
+`tf_tensors.TFTensor` is the semantic tensor base corresponding to torchvision's
+`TVTensor`, and `tf_tensors.Bitmap(tensor)` is its rasterized-glyph subclass.
+Ordinary tensor operations on a `TFTensor` return a plain tensor so semantic
+dispatch does not leak into model code; copying and device/dtype conversion
+preserve the subclass. Use `tf_tensors.wrap(tensor, like=bitmap)` to restore a
+semantic subclass without copying data. `GlyphData[T]`
 keeps a transformed payload, the original dataset sample, and the concrete
 variation location together. Since its payload is generic, a pipeline can change
 it from `Outline` to a bitmap without losing metadata.
@@ -54,14 +57,15 @@ parameters, or element-level random values. Random transforms use PyTorch's
 default RNG, so `torch.manual_seed` and DataLoader worker seeding apply normally.
 Built-in transforms contain configuration only and remain pickle-friendly.
 Custom callables passed to a container are pickle-friendly only if the callable is.
-As in torchvision, callable sequences in `Compose` and `RandomApply` are not
-registered as trainable child modules. Transform pipelines should therefore hold
-configuration, not parameters or mutable runtime state.
+As in torchvision, ordinary callable sequences are not registered as trainable
+child modules. `RandomApply` also accepts `torch.nn.ModuleList` when module
+registration is required.
 
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.
-`Compose` and `RandomApply` require a non-empty sequence of callables.
+`Compose` and `RandomApply` require a non-empty sequence of callables;
+`RandomApply` additionally accepts a non-empty `torch.nn.ModuleList`.
 Parameters are shared across matching leaves in one call. Call a transform
 separately for independent samples that should receive independent randomness.
 
@@ -79,18 +83,19 @@ behavior inside an already-applied transform.
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
 | Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
-| Output | `RenderBitmap` |
+| Output | `RenderBitmap`, `ToPureTensor` |
 
 `RenderBitmap` changes each `Outline` leaf into a `Bitmap` containing a `uint8`
 tensor. When these leaves are inside `GlyphData`, the sample and location remain
-alongside the converted payload.
+alongside the converted payload. `ToPureTensor` removes `TFTensor` subclasses
+before data enters a model, without copying tensor storage.
 
 ## Functional kernels
 
 Deterministic operations are available from `torchfont.transforms.functional`:
 
 ```python
-from torchfont.transforms import Outline
+from torchfont.structures import Outline
 from torchfont.transforms import functional as F
 
 outline = F.load_glyph(sample.ref)
@@ -104,16 +109,5 @@ shape = bitmap.shape
 The functional API does not sample randomness. Random selection and parameter
 sampling belong to the `Random*` transform classes.
 
-Functionals dispatch kernels by the semantic input type. Downstream outline
-subclasses can specialize a functional without changing the transform class:
-
-```python
-@F.register_kernel(F.horizontal_flip, CustomOutline)
-def horizontal_flip_custom(inpt, *, preserve_winding=True): ...
-```
-
-Built-in outline transforms select `Outline` instances, so registered kernels
-extend dispatch for `Outline` subclasses. A custom semantic type also needs a
-custom transform whose `_transformed_types` selects that type. Override
-`_needs_transform_list()` only when selection depends on relationships between
-multiple leaves.
+Functionals dispatch their internal kernels by semantic input type. Unsupported
+input types raise `TypeError`.

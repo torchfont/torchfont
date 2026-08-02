@@ -5,10 +5,11 @@ import pytest
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphSample
 from torchfont.transforms import functional as _functional
-from torchfont.transforms.bitmap import render_bitmap
-from torchfont.transforms.curves import merge_curves
+from torchfont.transforms.functional._bitmap import _render_bitmap as render_bitmap
+from torchfont.transforms.functional._curves import _merge_curves as merge_curves
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms.bitmap import render_bitmap
+from torchfont.structures import ElementType
+from torchfont.transforms.functional._bitmap import _render_bitmap as render_bitmap
 
 from ._helpers import _occupied_size
 

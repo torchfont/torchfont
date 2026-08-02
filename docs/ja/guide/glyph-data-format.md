@@ -8,7 +8,7 @@
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import functional as F
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -19,10 +19,12 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-outline = F.load_glyph(sample.ref)
+data = dataset[0]
+sample = data.sample
+outline = data.data
 types, coords = outline.types, outline.coords
 
 print(sample.ref)  # グリフ参照
@@ -32,9 +34,8 @@ print(sample.style_idx)  # 書体スタイルのクラス ID
 print(sample.character_idx)  # 文字のクラス ID
 ```
 
-返り値は `GlyphSample` という Dataclass です。決定的なグリフ参照と
-dataset-local な target index を保持します。outline tensor が必要なときは
-`F.load_glyph(sample.ref)` を呼びます。
+返り値は `GlyphData[Outline]` です。`data` が意味型outlineを、`sample` が
+決定的なグリフ参照とdataset-localなtarget indexを保持します。
 
 ## Outline モデル
 
@@ -53,8 +54,8 @@ Element Type は `ElementType` で定義されています。次のコードで�
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import functional as F
-from torchfont.io import ElementType
+from torchfont.transforms import LoadGlyph
+from torchfont.structures import ElementType
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -65,10 +66,10 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-outline = F.load_glyph(sample.ref)
+outline = dataset[0].data
 types, coords = outline.types, outline.coords
 
 print(types)
@@ -93,7 +94,7 @@ MOVE_TO
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import functional as F
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -104,10 +105,10 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-outline = F.load_glyph(sample.ref)
+outline = dataset[0].data
 types, coords = outline.types, outline.coords
 
 print(coords.shape)

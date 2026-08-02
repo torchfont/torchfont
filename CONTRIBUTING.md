@@ -30,6 +30,25 @@ mise run data-sync
 - Avoid broad fallback paths or hidden network/git behavior unless they protect
   a real external boundary.
 
+## Transform Architecture
+
+Transform modules are organized by font-domain responsibility:
+
+- `torchfont.structures` owns non-tensor semantic values such as `Outline` and
+  `GlyphData`; `torchfont.tf_tensors` owns semantic tensor subclasses.
+- `torchfont.transforms._transform` contains only the transform engine, while
+  `_container` contains composition primitives.
+- Class transforms are split into `_glyph`, `_curves`, `_geometry`, `_outline`,
+  `_subpath`, `_bitmap`, and `_type_conversion` modules.
+- `torchfont.transforms.functional` mirrors those domains. Its public functions
+  are deterministic semantic kernels; `_utils` alone owns registration and
+  dispatch infrastructure.
+
+Keep class transforms configuration-only and use `make_params()` for random
+sampling. Put deterministic behavior in the corresponding functional module so
+class and direct functional calls share one kernel implementation. Add a new
+domain module only when the operation does not fit an existing font concept.
+
 ## Formatting, Checks, and Tests
 
 Run the project tasks before requesting review:

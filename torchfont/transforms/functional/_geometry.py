@@ -1,4 +1,4 @@
-"""Geometric transformation functions for glyph outline tensors.
+"""Functional geometric kernels for glyph outlines.
 
 All functions follow the same convention as :mod:`torchfont.transforms`:
 they accept ``(types, coords)`` and return a transformed ``(types, coords)``
@@ -23,7 +23,8 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.io import ElementType
+from torchfont.structures import ElementType, Outline
+from torchfont.transforms.functional._utils import _dispatchable
 
 
 def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
@@ -104,7 +105,7 @@ def _preserve_closed_subpath_winding(
     )
 
 
-def horizontal_flip(
+def _horizontal_flip(
     types: Tensor,
     coords: Tensor,
     *,
@@ -135,7 +136,7 @@ def horizontal_flip(
     return types, out_coords
 
 
-def vertical_flip(
+def _vertical_flip(
     types: Tensor,
     coords: Tensor,
     *,
@@ -163,7 +164,7 @@ def vertical_flip(
     return types, out_coords
 
 
-def affine(
+def _affine(
     types: Tensor,
     coords: Tensor,
     *,
@@ -208,3 +209,56 @@ def affine(
     matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
     center = _bbox_center(types, coords)
     return types, _apply_matrix(types, coords, matrix, center, translate)
+
+
+@_dispatchable(Outline)
+def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
+    """Flip an outline horizontally around its tight bounding-box centre."""
+    return Outline(
+        *_horizontal_flip(inpt.types, inpt.coords, preserve_winding=preserve_winding)
+    )
+
+
+@_dispatchable(Outline)
+def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
+    """Flip an outline vertically around its tight bounding-box centre."""
+    return Outline(
+        *_vertical_flip(inpt.types, inpt.coords, preserve_winding=preserve_winding)
+    )
+
+
+@_dispatchable(Outline)
+def affine(
+    inpt: Outline,
+    *,
+    angle: float = 0.0,
+    translate: tuple[float, float] = (0.0, 0.0),
+    scale: float = 1.0,
+    shear: float = 0.0,
+) -> Outline:
+    """Apply a deterministic affine transformation."""
+    return Outline(
+        *_affine(
+            inpt.types,
+            inpt.coords,
+            angle=angle,
+            translate=translate,
+            scale=scale,
+            shear=shear,
+        )
+    )
+
+
+@_dispatchable(Outline)
+def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
+    """Add caller-provided noise to active coordinate pairs."""
+    types, coords = inpt.types, inpt.coords
+    active = torch.stack(_active_pairs(types), dim=1).unsqueeze(-1)
+    points = coords.reshape(-1, 3, 2)
+    noise = noise[: types.size(0)].to(device=coords.device, dtype=coords.dtype)
+    return Outline(
+        types, torch.where(active, points + noise, points).reshape_as(coords)
+    )
+
+
+__all__ = ["affine", "coord_jitter", "horizontal_flip", "vertical_flip"]

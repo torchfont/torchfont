@@ -26,6 +26,6 @@ TorchFont は PyTorch の非公式ライブラリです。PyTorch プロジェ�
   Rust バックエンドが学習時にフォントファイルを直接高速に読み込みます。
   事前処理は不要で、フォントファイルが信頼できる唯一の情報源として機能します。
 - **組み合わせ可能な transform**:
-  functional transform を直接組み合わせられるほか、再利用可能なデータパイプライン向けに
-  torchvision v2 形式の `Transform`、`Compose`、`RandomApply` と、
-  `Outline` を認識するクラス API を提供します。
+  `Outline` を認識するclass APIと、torchvision v2形式の`Transform`、`Compose`、
+  `RandomApply`を再利用可能なpipeline向けに提供します。決定論的functionalは
+  低レベルkernelとして利用できます。

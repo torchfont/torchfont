@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, TypeAlias
 from torchfont import _torchfont
 
 if TYPE_CHECKING:
-    from torchfont.datasets import FontRef
+    from torchfont.structures import FontRef
 
 InstanceLocationsFn: TypeAlias = Callable[["FontRef"], Sequence[Mapping[str, float]]]
 InstanceCountFn: TypeAlias = Callable[["FontRef"], int]
@@ -30,15 +30,13 @@ def named_instances(font: "FontRef") -> list[dict[str, float]]:
 
 def grid_instances(axes: Mapping[str, int]) -> InstanceLocationsFn:
     """Build an instance function that samples selected axes on an even grid."""
-    counts = {str(tag): index(count) for tag, count in axes.items()}
+    counts = _normalize_axes(axes)
 
     def instances(font: "FontRef") -> list[dict[str, float]]:
         return [
             _location_dict(location)
             for location in _torchfont.grid_locations_for_font(
-                font.path,
-                font.ttc_index,
-                counts,
+                font.path, font.ttc_index, counts
             )
         ]
 
@@ -57,18 +55,28 @@ def named_instance_count(font: "FontRef") -> int:
 
 def grid_instance_count(axes: Mapping[str, int]) -> InstanceCountFn:
     """Build an instance-count function matching ``grid_instances``."""
-    counts = {str(tag): index(count) for tag, count in axes.items()}
+    counts = _normalize_axes(axes)
 
     def count(font: "FontRef") -> int:
         return int(
-            _torchfont.grid_location_count_for_font(
-                font.path,
-                font.ttc_index,
-                counts,
-            ),
+            _torchfont.grid_location_count_for_font(font.path, font.ttc_index, counts)
         )
 
     return count
+
+
+def _normalize_axes(axes: Mapping[str, int]) -> dict[str, int]:
+    counts = {str(tag): index(count) for tag, count in axes.items()}
+    if not counts:
+        msg = "axes must contain at least one axis; use the default instance function"
+        raise ValueError(msg)
+    if invalid := next(
+        ((tag, count) for tag, count in counts.items() if count <= 0), None
+    ):
+        tag, count = invalid
+        msg = f"axis sample count for {tag!r} must be positive, got {count}"
+        raise ValueError(msg)
+    return counts
 
 
 def _location_dict(pairs: Sequence[tuple[str, float]]) -> dict[str, float]:

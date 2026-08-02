@@ -9,23 +9,17 @@ construction, shuffling, and parallel loading.
 
 ## Define a `transform`
 
-`GlyphSample` carries a glyph reference and target indices. Which tensors you
-load depends on the task, so use `transform` to call `load_glyph` and keep only
-the values you need.
+`GlyphSample` carries a glyph reference and target indices. Use `LoadGlyph` as
+the first pipeline transform to load its semantic `Outline` while retaining the
+sample metadata.
 
 Like PyTorch datasets, `GlyphDataset` has a `transform` argument that applies a
-transformation to each item. Define a function that loads `types` and `coords`
-from `sample.ref`, pass it to the dataset, and verify the output. Run the
-following code:
+transformation to each item. Pass `LoadGlyph()` directly and verify the output:
 
 ```python
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import functional as F
-
-
-def transform(sample: GlyphSample):
-    outline = F.load_glyph(sample.ref)
-    return outline.types, outline.coords
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
 dataset = GlyphDataset(
@@ -36,17 +30,19 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
-types, coords = dataset[0]
+data: GlyphData[Outline] = dataset[0]
+types, coords = data.data.types, data.data.coords
 
 print(types.shape)
 print(coords.shape)
 ```
 
-With `transform`, `dataset[0]` now returns a `(types, coords)` tuple instead of
-a `GlyphSample`. `1` is the sequence length of this glyph; it varies per glyph.
+With `LoadGlyph`, `dataset[0]` returns `GlyphData[Outline]`. Its `data` field is
+the outline and its `sample` field retains the original metadata. `1` is the
+sequence length of this glyph; it varies per glyph.
 You will see output like:
 
 ```
@@ -63,18 +59,14 @@ Use `pad_sequence` to align sequences within a batch. Run the following code:
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import functional as F
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    outline = F.load_glyph(sample.ref)
-    return outline.types, outline.coords
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
     return types, coords
 
 
@@ -86,7 +78,7 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
@@ -117,19 +109,14 @@ from tqdm import tqdm
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import functional as F
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    outline = F.load_glyph(sample.ref)
-    types, coords = outline.types, outline.coords
-    return types[:512], coords[:512]
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types[:512] for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords[:512] for item in batch], batch_first=True)
     return types, coords
 
 
@@ -141,7 +128,7 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(

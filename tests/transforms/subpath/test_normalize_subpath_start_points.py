@@ -1,7 +1,9 @@
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms.subpath import normalize_subpath_start_points
+from torchfont.structures import ElementType
+from torchfont.transforms.functional._subpath import (
+    _normalize_subpath_start_points as normalize_subpath_start_points,
+)
 
 
 def test_normalize_subpath_start_points_uses_smallest_endpoint(

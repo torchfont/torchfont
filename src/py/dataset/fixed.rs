@@ -47,14 +47,10 @@ impl FixedGlyphIndex {
         root: String,
         codepoints: Option<Vec<u32>>,
         patterns: Option<Vec<String>>,
-        instance_fn: Bound<'_, PyAny>,
+        instances: Bound<'_, PyAny>,
     ) -> PyResult<Self> {
         Self::from_entries(build::build_fixed_entries(
-            py,
-            &root,
-            codepoints,
-            patterns,
-            &instance_fn,
+            py, &root, codepoints, patterns, &instances,
         )?)
     }
 

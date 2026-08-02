@@ -3,8 +3,8 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms.geometric import vertical_flip
+from torchfont.structures import ElementType
+from torchfont.transforms.functional._geometry import _vertical_flip as vertical_flip
 
 
 def _signed_area(types: torch.Tensor, coords: torch.Tensor) -> float:

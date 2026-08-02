@@ -1,0 +1,36 @@
+"""Internal dataset normalization helpers."""
+
+from __future__ import annotations
+
+from operator import index
+from typing import TYPE_CHECKING, SupportsIndex
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+def normalize_patterns(patterns: Sequence[str] | None) -> tuple[str, ...] | None:
+    if patterns is None:
+        return None
+    return tuple(str(pattern) for pattern in patterns)
+
+
+def normalize_codepoints(
+    codepoints: Sequence[SupportsIndex] | None,
+) -> tuple[int, ...] | None:
+    if codepoints is None:
+        return None
+    return tuple(sorted({index(codepoint) for codepoint in codepoints}))
+
+
+def normalize_index(idx: SupportsIndex, dataset_len: int) -> int:
+    resolved_idx = index(idx)
+    original_idx = resolved_idx
+    if resolved_idx < 0:
+        resolved_idx += dataset_len
+    if resolved_idx < 0 or resolved_idx >= dataset_len:
+        msg = (
+            f"index {original_idx} is out of range for dataset of length {dataset_len}"
+        )
+        raise IndexError(msg)
+    return resolved_idx
