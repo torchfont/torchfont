@@ -59,7 +59,7 @@ print(data.optical_size)  # ポイント単位の Optical Size
 ```python
 from torchfont.datasets import GlyphDataset
 from torchfont.transforms import LoadGlyph
-from torchfont.structures import ElementType
+from torchfont import ElementType
 
 dataset = GlyphDataset(
     root="data/google/fonts",

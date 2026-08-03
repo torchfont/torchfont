@@ -1,13 +1,13 @@
-# 意味構造
+# 基本型
 
-## `torchfont.structures`
+## `torchfont`
 
 変更不可の意味レコードとアウトラインのエンコーディングに使う共通型です。
 テンソルサブクラスの挙動を追加せず、データセットと変換パイプラインの間で
 フォントの意味を保持します。
 
 ```python
-from torchfont.structures import (
+from torchfont import (
     ElementType,
     FontRef,
     GlyphData,

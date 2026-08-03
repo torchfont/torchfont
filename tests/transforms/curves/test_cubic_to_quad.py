@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from torchfont.structures import ElementType
+from torchfont import ElementType
 from torchfont.transforms.functional._curves import (
     _cubic_to_quad as cubic_to_quad,
 )

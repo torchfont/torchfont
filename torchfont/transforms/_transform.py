@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from torch import nn
 from torch.utils._pytree import tree_flatten, tree_unflatten
 
-from torchfont.structures import Outline
+from torchfont._outline import Outline
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

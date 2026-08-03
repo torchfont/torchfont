@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.structures import ElementType, Outline
+from torchfont import ElementType, Outline
 from torchfont.transforms import RandomCoordJitter, SameParams
 from torchfont.transforms.functional import coord_jitter
 

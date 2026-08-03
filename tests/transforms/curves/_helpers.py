@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import torch
 
-from torchfont.structures import ElementType
+from torchfont import ElementType
 
 _Point = tuple[float, float]
 _CubicSeg = tuple[_Point, _Point, _Point, _Point]

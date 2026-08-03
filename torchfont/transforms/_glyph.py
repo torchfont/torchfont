@@ -7,17 +7,13 @@ from typing import TYPE_CHECKING, Any, Literal
 import torch
 
 from torchfont import _torchfont
-from torchfont.structures import (
-    GlyphData,
-    GlyphRef,
-    GlyphSample,
-    VariationLocation,
-)
+from torchfont._font import VariationLocation
+from torchfont._glyph import GlyphData, GlyphRef, GlyphSample
 from torchfont.transforms import functional as _functional
 from torchfont.transforms._transform import Transform
 
 if TYPE_CHECKING:
-    from torchfont.structures import Outline
+    from torchfont._outline import Outline
 
 
 class LoadGlyph(Transform):

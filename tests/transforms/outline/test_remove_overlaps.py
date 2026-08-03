@@ -1,6 +1,6 @@
 import torch
 
-from torchfont.structures import ElementType
+from torchfont import ElementType
 from torchfont.transforms.functional._outline import _remove_overlaps as remove_overlaps
 
 

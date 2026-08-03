@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-from torchfont.structures import COORD_DIM, Outline
+from torchfont._outline import COORD_DIM, Outline
 
 if TYPE_CHECKING:
     from collections.abc import Callable

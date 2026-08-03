@@ -12,19 +12,19 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
+import torchfont
 import torchfont.datasets as datasets_module
-import torchfont.structures as structures_module
 import torchfont.transforms as transforms_module
-from torchfont import _torchfont
-from torchfont.datasets import GlyphDataset
-from torchfont.structures import (
+from torchfont import (
     ElementType,
     FontRef,
     GlyphData,
     GlyphRef,
     GlyphSample,
     Outline,
+    _torchfont,
 )
+from torchfont.datasets import GlyphDataset
 from torchfont.transforms import LoadGlyph
 from torchfont.transforms import functional as _functional
 
@@ -353,7 +353,7 @@ def test_dataset_repr() -> None:
 
 def test_public_dataset_api_is_exported() -> None:
     assert datasets_module.GlyphDataset is GlyphDataset
-    assert structures_module.GlyphSample is GlyphSample
+    assert torchfont.GlyphSample is GlyphSample
     assert transforms_module.LoadGlyph is LoadGlyph
     assert hasattr(_torchfont, "GlyphIndex")
 

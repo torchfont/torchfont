@@ -13,7 +13,7 @@ from torchfont.transforms._transform import Transform
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from torchfont.structures import Outline
+    from torchfont._outline import Outline
 
 
 class _SimpleCurveTransform(Transform):

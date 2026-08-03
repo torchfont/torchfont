@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.structures import Outline
+from torchfont import Outline
 from torchfont.transforms import RandomHorizontalFlip, SameParams
 
 

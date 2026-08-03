@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.structures import Outline
+from torchfont import Outline
 from torchfont.transforms import RandomAffine, SameParams
 
 

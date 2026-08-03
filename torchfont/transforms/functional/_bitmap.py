@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.structures import Outline
+from torchfont._outline import Outline
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 FillRule = Literal["winding", "even_odd"]

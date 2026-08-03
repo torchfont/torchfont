@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.structures import ElementType, Outline
+from torchfont import ElementType, Outline
 from torchfont.transforms import RandomizeSubpathOrder
 from torchfont.transforms import functional as _functional
 

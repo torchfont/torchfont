@@ -10,7 +10,7 @@ from torchfont.transforms import functional as _functional
 from torchfont.transforms._transform import Transform
 
 if TYPE_CHECKING:
-    from torchfont.structures import Outline
+    from torchfont._outline import Outline
 
 
 class RemoveOverlaps(Transform):

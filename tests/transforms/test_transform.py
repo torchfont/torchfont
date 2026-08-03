@@ -4,7 +4,7 @@ import pickle
 import pytest
 import torch
 
-from torchfont.structures import (
+from torchfont import (
     ElementType,
     FontRef,
     GlyphData,

@@ -8,7 +8,7 @@ composition.
 ## Data types
 
 ```python
-from torchfont.structures import GlyphData, Outline
+from torchfont import GlyphData, Outline
 ```
 
 `Outline(types, coords)` keeps the two coupled tensors together.
@@ -145,7 +145,7 @@ TorchFont's renderer does not require it.
 Deterministic operations are available from `torchfont.transforms.functional`:
 
 ```python
-from torchfont.structures import Outline
+from torchfont import Outline
 from torchfont.transforms import functional as F
 
 outline = F.load_glyph(sample.ref)
