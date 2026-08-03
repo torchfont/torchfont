@@ -12,21 +12,20 @@ BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 FillRule = Literal["winding", "even_odd"]
 
 
-def _render_bitmap(
-    types: Tensor,
-    coords: Tensor,
+def render_bitmap(
+    inpt: Outline,
     size: int = 64,
     mode: BitmapMode = "bbox_square",
     fill_rule: FillRule = "winding",
+    *,
+    antialias: bool = True,
 ) -> Tensor:
     """Render a glyph outline to a greyscale bitmap tensor.
 
     ``mode`` controls how outline coordinates are mapped to the output bitmap.
 
     Args:
-        types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)`` holding
-            coordinates in em units for each path element.
+        inpt: Glyph outline to render.
         size: Output image side length in pixels for ``"fixed"`` and
             ``"bbox_square"``. For ``"bbox"``, this sets the `coords` scale
             using the same fixed ``[-0.25, 1.25]`` range, then crops the output to
@@ -37,6 +36,7 @@ def _render_bitmap(
             cropped to the tight glyph bounding box. ``"bbox_square"`` scales
             the tight glyph bounding box uniformly and centres it.
         fill_rule: ``"winding"`` (non-zero) or ``"even_odd"``.
+        antialias: Whether to compute partial pixel coverage along path edges.
 
     Returns:
         uint8 tensor with values in ``[0, 255]``. Shape is ``(size, size)`` for
@@ -44,22 +44,12 @@ def _render_bitmap(
         ``"bbox"``.
 
     """
-    types = types.cpu().contiguous()
-    coords = coords.cpu().contiguous()
+    types = inpt.types.cpu().contiguous()
+    coords = inpt.coords.cpu().contiguous()
     raw, width, height = _torchfont.render_bitmap(
-        types.numpy(), coords.reshape(-1).numpy(), size, mode, fill_rule
+        types.numpy(), coords.reshape(-1).numpy(), size, mode, fill_rule, antialias
     )
     return torch.from_numpy(raw).view(height, width)
-
-
-def render_bitmap(
-    inpt: Outline,
-    size: int = 64,
-    mode: BitmapMode = "bbox_square",
-    fill_rule: FillRule = "winding",
-) -> Tensor:
-    """Render an outline into a ``uint8`` greyscale ``H x W`` bitmap."""
-    return _render_bitmap(inpt.types, inpt.coords, size, mode, fill_rule)
 
 
 __all__ = ["BitmapMode", "FillRule", "render_bitmap"]

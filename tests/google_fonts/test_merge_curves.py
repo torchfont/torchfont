@@ -6,9 +6,9 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
-from torchfont.structures import GlyphSample
+from torchfont.structures import GlyphSample, Outline
 from torchfont.transforms import functional as _functional
-from torchfont.transforms.functional._bitmap import _render_bitmap as render_bitmap
+from torchfont.transforms.functional import render_bitmap
 from torchfont.transforms.functional._curves import _merge_curves as merge_curves
 
 logger = logging.getLogger(__name__)
@@ -31,15 +31,13 @@ def _transform(sample: GlyphSample) -> Tensor:
     merged_types, merged_coords = merge_curves(types, coords)
 
     original = render_bitmap(
-        types,
-        coords,
+        outline,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     merged = render_bitmap(
-        merged_types,
-        merged_coords,
+        Outline(merged_types, merged_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",

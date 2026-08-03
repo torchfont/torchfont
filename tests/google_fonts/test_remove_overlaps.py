@@ -7,9 +7,9 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
-from torchfont.structures import ElementType, GlyphSample
+from torchfont.structures import ElementType, GlyphSample, Outline
 from torchfont.transforms import functional as _functional
-from torchfont.transforms.functional._bitmap import _render_bitmap as render_bitmap
+from torchfont.transforms.functional import render_bitmap
 from torchfont.transforms.functional._outline import _remove_overlaps as remove_overlaps
 
 logger = logging.getLogger(__name__)
@@ -80,29 +80,25 @@ def _transform(sample: GlyphSample) -> Tensor:
     ccw_coords = torch.cat([_OUTER_RECT_COORDS_CCW, simplified_coords])
 
     original = render_bitmap(
-        types,
-        coords,
+        outline,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     simplified = render_bitmap(
-        simplified_types,
-        simplified_coords,
+        Outline(simplified_types, simplified_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     simplified_cw = render_bitmap(
-        prepended_types,
-        cw_coords,
+        Outline(prepended_types, cw_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     simplified_ccw = render_bitmap(
-        prepended_types,
-        ccw_coords,
+        Outline(prepended_types, ccw_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",

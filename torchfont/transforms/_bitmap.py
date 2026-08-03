@@ -26,15 +26,24 @@ class RenderBitmap(Transform):
         size: int = 64,
         mode: BitmapMode = "bbox_square",
         fill_rule: FillRule = "winding",
+        *,
+        antialias: bool = True,
     ) -> None:
         super().__init__()
         self.size = size
         self.mode = mode
         self.fill_rule = fill_rule
+        self.antialias = antialias
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Tensor:
         del params
-        return _functional.render_bitmap(inpt, self.size, self.mode, self.fill_rule)
+        return _functional.render_bitmap(
+            inpt,
+            self.size,
+            self.mode,
+            self.fill_rule,
+            antialias=self.antialias,
+        )
 
 
 __all__ = ["RenderBitmap"]

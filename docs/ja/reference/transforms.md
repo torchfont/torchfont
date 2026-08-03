@@ -99,6 +99,9 @@ Dataset Sample に対しては、返される `GlyphData` の並列な `weight`�
 `torchvision.transforms.v2.ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
 形状が `1 x H x W` の `tv_tensors.Image` になります。両ライブラリが PyTree を処理するため、
 外側の `GlyphData` も維持されます。
+`RenderBitmap(antialias=False)` は Edge Coverage を二値化します。これは Vector の
+Rasterization を制御するもので、後段の `v2.Resize` における画像の Resampling を制御する
+`antialias` Option とは独立しています。
 
 ```python
 import torch

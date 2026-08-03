@@ -108,6 +108,9 @@ alongside the converted payload.
 it adds the channel
 dimension and returns a `tv_tensors.Image` of shape `1 x H x W`. It preserves
 the enclosing `GlyphData` because both libraries operate on pytrees.
+`RenderBitmap(antialias=False)` produces binary edge coverage. This controls
+vector rasterization and is independent of the `antialias` option on a later
+`v2.Resize`, which controls image resampling.
 
 ```python
 import torch

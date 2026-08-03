@@ -27,6 +27,7 @@ def render_bitmap(
     size: int,
     mode: _BitmapMode,
     fill_rule: _FillRule,
+    antialias: bool,
 ) -> tuple[np.ndarray, int, int]: ...
 def normalize_subpath_start_points(
     types: np.ndarray, coords: np.ndarray

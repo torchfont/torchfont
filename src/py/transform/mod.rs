@@ -265,6 +265,7 @@ pub(crate) fn render_bitmap(
     size: u32,
     mode: &str,
     fill_rule: &str,
+    antialias: bool,
 ) -> PyResult<(Py<PyArray1<u8>>, u32, u32)> {
     if size == 0 || size > 4096 {
         return Err(pyo3::exceptions::PyValueError::new_err(
@@ -292,7 +293,11 @@ pub(crate) fn render_bitmap(
     };
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     let rendered = py
-        .detach(|| crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_rule))
+        .detach(|| {
+            crate::transform::render_bitmap::render_bitmap(
+                &outline, size, mode, fill_rule, antialias,
+            )
+        })
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
                 "bbox output dimensions must be between 1 and 4096",
