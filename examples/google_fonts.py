@@ -6,6 +6,7 @@ import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
+from torchvision.transforms import v2
 from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset
@@ -14,6 +15,7 @@ from torchfont.transforms import (
     Compose,
     LoadGlyph,
     QuadToCubic,
+    RandomAffine,
     RemoveOverlaps,
     RenderBitmap,
 )
@@ -22,19 +24,33 @@ if TYPE_CHECKING:
     from torchfont.structures import GlyphData, GlyphSample, Outline
 
 
-class PrepareGlyph:
+class PrepareGlyph(torch.nn.Module):
     """Build two model inputs from one shared outline pipeline."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.outline = Compose(
-            [LoadGlyph(), RemoveOverlaps(), QuadToCubic(merge_curves=True)]
+            [
+                LoadGlyph(),
+                RemoveOverlaps(),
+                QuadToCubic(merge_curves=True),
+                RandomAffine(degrees=5.0, translate=(0.05, 0.05)),
+            ]
         )
-        self.render = RenderBitmap()
+        self.render = Compose(
+            [
+                RenderBitmap(size=96),
+                v2.ToImage(),
+                v2.Resize((64, 64), antialias=True),
+                v2.ToDtype(torch.float32, scale=True),
+                v2.ToPureTensor(),
+            ]
+        )
 
-    def __call__(self, sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
+    def forward(self, sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
         data = cast("GlyphData[Outline]", self.outline(sample))
-        bitmap = self.render(data).data
-        return data.data.types, data.data.coords, bitmap
+        image_data = cast("GlyphData[Tensor]", self.render(data))
+        return data.data.types, data.data.coords, image_data.data
 
 
 def collate_fn(
@@ -42,8 +58,8 @@ def collate_fn(
 ) -> tuple[Tensor, Tensor, Tensor]:
     types = pad_sequence([types for types, _, _ in batch], batch_first=True)
     coords = pad_sequence([coords for _, coords, _ in batch], batch_first=True)
-    bitmaps = torch.stack([bitmap for _, _, bitmap in batch])
-    return types, coords, bitmaps
+    images = torch.stack([image for _, _, image in batch])
+    return types, coords, images
 
 
 def main() -> None:

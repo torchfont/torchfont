@@ -1,14 +1,13 @@
 import pytest
 import torch
 
-from torchfont.structures import FontRef, GlyphRef
+from torchfont.structures import FontRef, GlyphData, GlyphRef, GlyphSample
 from torchfont.tf_tensors import Bitmap
 from torchfont.transforms import (
     Compose,
     HorizontalFlip,
     LoadGlyph,
     RenderBitmap,
-    ToPureTensor,
 )
 
 tv_tensors = pytest.importorskip("torchvision.tv_tensors")
@@ -22,10 +21,7 @@ def _render() -> Bitmap:
     return pipeline(GlyphRef(FontRef(FONT, 0), ord("A")))
 
 
-def test_pure_tensor_feeds_torchvision_v2() -> None:
-    pure = ToPureTensor()(_render())
-    assert type(pure) is torch.Tensor
-
+def test_to_image_converts_bitmap_to_channel_first_tv_image() -> None:
     pipeline = v2.Compose(
         [
             v2.ToImage(),
@@ -34,24 +30,41 @@ def test_pure_tensor_feeds_torchvision_v2() -> None:
             v2.ToDtype(torch.float32, scale=True),
         ]
     )
-    out = pipeline(pure.unsqueeze(0))
+    out = pipeline(_render())
 
     assert isinstance(out, tv_tensors.Image)
     assert out.shape == (1, 32, 32)
     assert out.dtype == torch.float32
 
 
-def test_bitmap_wraps_as_tv_image() -> None:
-    image = tv_tensors.Image(_render())
-    resized = v2.Resize((16, 16), antialias=True)(image)
+def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
+    ref = GlyphRef(FontRef(FONT, 0), ord("A"))
+    sample = GlyphSample(ref, font_idx=3, character_idx=5)
+    pipeline = Compose(
+        [
+            LoadGlyph(),
+            RenderBitmap(size=64),
+            v2.ToImage(),
+            v2.Resize((32, 32), antialias=True),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.ToPureTensor(),
+        ]
+    )
 
-    assert isinstance(resized, tv_tensors.Image)
-    assert resized.shape == (1, 16, 16)
+    out = pipeline(sample)
+
+    assert isinstance(out, GlyphData)
+    assert out.sample is sample
+    assert type(out.data) is torch.Tensor
+    assert out.data.shape == (1, 32, 32)
+    assert out.data.dtype == torch.float32
+    assert out.data.min() >= 0.0
+    assert out.data.max() <= 1.0
 
 
 def test_torchvision_passes_label_through() -> None:
     image, label = v2.RandomHorizontalFlip(p=1.0)(
-        tv_tensors.Image(_render()), torch.tensor(7)
+        v2.ToImage()(_render()), torch.tensor(7)
     )
 
     assert isinstance(image, tv_tensors.Image)

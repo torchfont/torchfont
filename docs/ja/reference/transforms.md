@@ -105,6 +105,40 @@ identity transform として扱います。`RandomApply` は一つの
 維持されます。`ToPureTensor` はmodelへ入力する前に、tensor storageをcopyせず
 `TFTensor` subclassを取り除きます。
 
+### renderしたglyphをtorchvisionで使う
+
+`RenderBitmap`はgrayscaleの`H x W` bitmapを返します。torchvision v2の
+`ToImage()`を画像pipelineへの境界として使うと、channel次元が追加され、
+shapeが`1 x H x W`の`tv_tensors.Image`になります。両libraryがpytreeを処理するため、
+外側の`GlyphData`も維持されます。
+
+```python
+import torch
+from torchvision.transforms import v2
+
+from torchfont.transforms import Compose, LoadGlyph, RenderBitmap
+
+transform = Compose(
+    [
+        LoadGlyph(),
+        RenderBitmap(size=96),
+        v2.ToImage(),
+        v2.RandomAffine(degrees=(-5.0, 5.0), translate=(0.05, 0.05), fill=0),
+        v2.Resize((64, 64), antialias=True),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.ToPureTensor(),
+    ]
+)
+
+data = transform(sample)
+image = data.data  # Tensor, (1, 64, 64), float32, range [0, 1]
+```
+
+幾何変換まではbitmapを`uint8`に保ち、modelへ渡す直前に
+`ToDtype(torch.float32, scale=True)`で変換します。`ToImage()`自体はpixel valueを
+scaleしません。`ToPureTensor()`はmodelへ渡す前にimage subclassを取り除きます。
+torchvisionは任意の統合先であり、TorchFontのrendererには不要です。
+
 ## Functional kernel
 
 決定論的な処理は `torchfont.transforms.functional` から利用できます。

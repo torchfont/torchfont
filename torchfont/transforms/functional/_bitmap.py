@@ -59,7 +59,7 @@ def render_bitmap(
     mode: BitmapMode = "bbox_square",
     fill_rule: FillRule = "winding",
 ) -> Bitmap:
-    """Render an outline into a greyscale semantic bitmap."""
+    """Render an outline into a ``uint8`` greyscale ``H x W`` bitmap."""
     return Bitmap(_render_bitmap(inpt.types, inpt.coords, size, mode, fill_rule))
 
 

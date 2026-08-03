@@ -113,6 +113,41 @@ tensor. When these leaves are inside `GlyphData`, the sample and location remain
 alongside the converted payload. `ToPureTensor` removes `TFTensor` subclasses
 before data enters a model, without copying tensor storage.
 
+### Using rendered glyphs with torchvision
+
+`RenderBitmap` returns a grayscale `H x W` bitmap. Use torchvision v2's
+`ToImage()` as the boundary into an image pipeline: it adds the channel
+dimension and returns a `tv_tensors.Image` of shape `1 x H x W`. It preserves
+the enclosing `GlyphData` because both libraries operate on pytrees.
+
+```python
+import torch
+from torchvision.transforms import v2
+
+from torchfont.transforms import Compose, LoadGlyph, RenderBitmap
+
+transform = Compose(
+    [
+        LoadGlyph(),
+        RenderBitmap(size=96),
+        v2.ToImage(),
+        v2.RandomAffine(degrees=(-5.0, 5.0), translate=(0.05, 0.05), fill=0),
+        v2.Resize((64, 64), antialias=True),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.ToPureTensor(),
+    ]
+)
+
+data = transform(sample)
+image = data.data  # Tensor, (1, 64, 64), float32 in [0, 1]
+```
+
+Keep the bitmap as `uint8` through geometric transforms and convert it with
+`ToDtype(torch.float32, scale=True)` near the model boundary. `ToImage()` does
+not scale pixel values. `ToPureTensor()` removes the image subclass before the
+payload enters a model. Torchvision remains an optional integration dependency;
+TorchFont's renderer does not require it.
+
 ## Functional kernels
 
 Deterministic operations are available from `torchfont.transforms.functional`:

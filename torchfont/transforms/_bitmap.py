@@ -14,7 +14,11 @@ if TYPE_CHECKING:
 
 
 class RenderBitmap(Transform):
-    """Render outlines into greyscale bitmap tensors."""
+    """Render outlines into ``uint8`` greyscale ``H x W`` bitmap tensors.
+
+    Apply ``torchvision.transforms.v2.ToImage`` afterwards to obtain a
+    channel-first ``tv_tensors.Image`` for torchvision pipelines.
+    """
 
     def __init__(
         self,
