@@ -61,9 +61,8 @@ Built-in transforms contain configuration only and remain pickle-friendly.
 is constructed from an ordinary list of modules. `RandomApply` and `SameParams`
 register the single module they wrap. Plain callables are intentionally
 unsupported: define a small `nn.Module` so its
-behavior, representation, and pickle requirements remain explicit. This avoids
-inheriting TorchVision's historical unregistered callable-list behavior and
-keeps module traversal, state dictionaries, hooks, and configuration display
+behavior, representation, and pickle requirements remain explicit. This keeps
+module traversal, state dictionaries, hooks, and configuration display
 consistent with PyTorch.
 
 Containers invoke registered children through the module call path, so forward

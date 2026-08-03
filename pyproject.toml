@@ -1,6 +1,6 @@
 [project]
 name = "torchfont"
-description = "Datasets, Transforms and Models specific to Vector Fonts"
+description = "PyTorch datasets and transforms for vector fonts"
 readme = "README.md"
 authors = [{ name = "Takumu Fujioka", email = "fjktkm@gmail.com" }]
 requires-python = ">=3.10"

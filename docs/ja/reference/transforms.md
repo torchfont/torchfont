@@ -56,8 +56,8 @@ outline = data.data
 組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
 渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
 `callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
-要件を明示します。これにより TorchVision の歴史的な未登録 `callable` リストの挙動を
-引き継がず、モジュールの走査、状態辞書、フック、設定表示を PyTorch の規則に揃えます。
+要件を明示します。これによりモジュールの走査、状態辞書、フック、設定表示を PyTorch の
+規則に揃えます。
 
 コンテナーは登録した子をモジュール呼び出し経路で呼ぶため、`forward` フックも機能します。
 `train()` と `eval()` は通常どおり伝播しますが、組み込みの確率的 Transform は意図的に

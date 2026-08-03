@@ -2,19 +2,32 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from contextlib import contextmanager
+from contextvars import ContextVar
 from enum import Enum
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from torch import nn
 from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from torchfont.structures import Outline
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
-@dataclass(frozen=True)
-class _SharedParamsInput:
-    inputs: tuple[object, ...]
+
+_SHARED_PARAMS_TARGET: ContextVar[object | None] = ContextVar(
+    "torchfont_shared_params_target", default=None
+)
+
+
+@contextmanager
+def _share_params(transform: object) -> Iterator[None]:
+    token = _SHARED_PARAMS_TARGET.set(transform)
+    try:
+        yield
+    finally:
+        _SHARED_PARAMS_TARGET.reset(token)
 
 
 class Transform(nn.Module):
@@ -38,9 +51,7 @@ class Transform(nn.Module):
 
     def forward(self, *inputs: object) -> object:
         """Transform semantic leaves and preserve the enclosing pytree."""
-        if len(inputs) == 1 and isinstance(inputs[0], _SharedParamsInput):
-            return self._forward(inputs[0].inputs, same_params=True)
-        return self._forward(inputs, same_params=False)
+        return self._forward(inputs, same_params=_SHARED_PARAMS_TARGET.get() is self)
 
     def _forward(self, inputs: tuple[object, ...], *, same_params: bool) -> object:
         inpt = inputs if len(inputs) > 1 else inputs[0]

@@ -188,6 +188,18 @@ def test_same_params_calls_wrapped_module_hooks() -> None:
     assert len(calls) == 1
 
 
+def test_same_params_preserves_wrapped_module_pre_hook_inputs() -> None:
+    transform = AddToCoords(1.0)
+    outlines = [_line_outline(), _line_outline()]
+    calls: list[tuple[object, ...]] = []
+    transform.register_forward_pre_hook(lambda _module, inputs: calls.append(inputs))
+
+    SameParams(transform)(outlines)
+
+    assert len(calls) == 1
+    assert calls[0][0] is outlines
+
+
 def test_transform_pipeline_is_pickleable() -> None:
     transform = Compose(
         [RandomApply(RandomSplitSegments(split_probability=1.0), p=0.5)]
