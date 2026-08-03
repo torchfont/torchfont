@@ -1,6 +1,6 @@
-# GlyphDataset の構築
+# `GlyphDataset` の構築
 
-`GlyphDataset`へローカルfont directoryを渡します。
+`GlyphDataset` へローカルフォントのディレクトリを渡します。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -12,12 +12,12 @@ print(len(dataset.font_classes))
 print(len(dataset.character_classes))
 ```
 
-各要素はfont faceと、そのfaceが収録するcodepoint一つを表します。各faceは収録
-codepointごとに1要素を持ちます。
+各要素はフォントフェイスと、そのフェイスが収録するコードポイント一つを表します。各フェイスは収録
+コードポイントごとに 1 要素を持ちます。
 
-## ファイルのfilter
+## ファイルのフィルター
 
-`patterns`にはgitignore形式のpattern一つ、またはsequenceを渡せます。
+`patterns` には `gitignore` 形式のパターン一つ、またはシーケンスを渡せます。
 
 ```python
 dataset = GlyphDataset(
@@ -31,9 +31,9 @@ dataset = GlyphDataset(
 )
 ```
 
-## 文字のfilter
+## 文字のフィルター
 
-整数のUnicode codepointを指定します。
+整数の Unicode コードポイントを指定します。
 
 ```python
 dataset = GlyphDataset(
@@ -42,12 +42,12 @@ dataset = GlyphDataset(
 )
 ```
 
-重複codepointは除去され、indexは決定的です。要求されたoutline glyphを一つも持たない
-fontは除外されます。
+重複コードポイントは除去され、インデックスは決定的です。要求されたアウトライングリフを一つも持たない
+フォントは除外されます。
 
-## Variation locationの選択
+## バリエーション位置の選択
 
-raw sampleは決定的です。評価時はdefault locationをロードします。
+未変換のサンプルは決定的です。評価時はデフォルト位置をロードします。
 
 ```python
 from torchfont.transforms import LoadGlyph
@@ -55,7 +55,7 @@ from torchfont.transforms import LoadGlyph
 dataset = GlyphDataset(root="data/google/fonts", transform=LoadGlyph())
 ```
 
-学習時はアクセスごとにlocationを1点抽出できます。
+学習時はアクセスごとに位置を 1 点抽出できます。
 
 ```python
 from torchfont.transforms import RandomLocation
@@ -63,5 +63,5 @@ from torchfont.transforms import RandomLocation
 dataset = GlyphDataset(root="data/google/fonts", transform=RandomLocation())
 ```
 
-`RandomLocation`はPyTorch RNGのseedに従います。static faceでは`LoadGlyph`と同じ
-空locationになります。
+`RandomLocation` は PyTorch RNG のシードに従います。静的フェイスでは `LoadGlyph` と同じ
+空の位置になります。

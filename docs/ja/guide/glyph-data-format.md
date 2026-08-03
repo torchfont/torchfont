@@ -4,7 +4,7 @@
 
 ## サンプルを取得する
 
-前のチャプターで作成した Dataset からサンプルを取得します。次のコードを実行してください。
+前の章で作成したデータセットからサンプルを取得します。次のコードを実行してください。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -28,29 +28,29 @@ outline = data.data
 types, coords = outline.types, outline.coords
 
 print(sample.ref)  # グリフ参照
-print(types)  # Element Type の系列
-print(coords)  # Coordinates の系列
-print(sample.font_idx)  # font faceのクラスID
+print(types)  # 要素型の系列
+print(coords)  # 座標の系列
+print(sample.font_idx)  # フォントフェイスのクラス ID
 print(sample.character_idx)  # 文字のクラス ID
 ```
 
-返り値は `GlyphData[Outline]` です。`data` が意味型outlineを、`sample` が
-決定的なグリフ参照とdataset-localなtarget indexを保持します。
+返り値は `GlyphData[Outline]` です。`data` が意味型のアウトラインを、`sample` が
+決定的なグリフ参照とデータセット固有のターゲットインデックスを保持します。
 
-## Outline モデル
+## アウトラインモデル
 
-グリフのアウトラインは、Path Element の系列として表現されます。
+グリフのアウトラインは、パス要素の系列として表現されます。
 
-- **Path element**: 1 つの Element Type と 1 行の Coordinates からなる最小単位
-- **Subpath**: グリフを構成する一続きの曲線ひとつを表す Path Element の系列
-- **Outline**: グリフ 1 文字分の輪郭を表す Path Element の系列
+- **パス要素**: 1 つの要素型と 1 行の座標からなる最小単位
+- **サブパス**: グリフを構成する一続きの曲線ひとつを表すパス要素の系列
+- **アウトライン**: グリフ 1 文字分の輪郭を表すパス要素の系列
 
-`types` は Element Type を整数で並べた `(seq_len,)` の `LongTensor`、
-`coords` は Coordinates を並べた `(seq_len, 6)` の `FloatTensor` です。
+`types` は要素型を整数で並べた `(seq_len,)` の `LongTensor`、
+`coords` は座標を並べた `(seq_len, 6)` の `FloatTensor` です。
 
-## Element Type
+## 要素型
 
-Element Type は `ElementType` で定義されています。次のコードで値と名前の対応を確認できます。
+要素型は `ElementType` で定義されています。次のコードで値と名前の対応を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -86,11 +86,11 @@ MOVE_TO
 種類は `MoveTo`、`LineTo`、`QuadTo`、`CurveTo`、`Close`、`End`、`Pad` の 7 つです。
 
 - `ElementType.END` はシーケンス終端を表します
-- `ElementType.PAD` は `pad_sequence` や独自 Padding で出現します
+- `ElementType.PAD` は `pad_sequence` や独自のパディングで出現します
 
-## Coordinates
+## 座標
 
-各 Path Element の Coordinates は 6 次元のベクトルです。次のコードで形状と内容を確認できます。
+各パス要素の座標は 6 次元のベクトルです。次のコードで形状と内容を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -122,7 +122,7 @@ torch.Size([seq_len, 6])
 tensor([cx0, cy0, cx1, cy1, x, y])
 ```
 
-使用する次元は Element Type によって異なります。
+使用する次元は要素型によって異なります。
 
 - **`MoveTo` / `LineTo`**: 終点 `(x, y)` のみ使用。制御点は 0
 - **`QuadTo`**: 制御点 `(cx0, cy0)` と終点 `(x, y)` を使用。`cx1`、`cy1` は 0
@@ -130,17 +130,17 @@ tensor([cx0, cy0, cx1, cy1, x, y])
 - **`Close` / `End` / `Pad`**: すべて 0
 
 ::: info
-Coordinates は em 単位です。フォントの design units を `unitsPerEm` で
+座標は `em` 単位です。フォントのデザイン単位を `unitsPerEm` で
 割った値として表されます。
 :::
 
-2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の Coordinates は `[cx0, cy0, 0, 0, x, y]` です。
+2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の座標は `[cx0, cy0, 0, 0, x, y]` です。
 
-## Font faceと文字のラベル
+## フォントフェイスと文字のラベル
 
 ### `font_idx`
 
-`font_idx`はfont faceのクラスIDです。次のコードで永続的なface参照を確認できます。
+`font_idx` はフォントフェイスのクラス ID です。次のコードで永続的なフェイス参照を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset

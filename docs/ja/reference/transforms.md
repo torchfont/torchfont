@@ -1,7 +1,7 @@
 # Transform
 
-TorchFont の transform は torchvision v2 と同様に、意味を持つデータ型、
-クラスベースの確率的 transform、決定論的 functional kernel、pytree の合成を
+TorchFont の Transform は torchvision v2 と同様に、意味を持つデータ型、
+クラスベースの確率的 Transform、決定論的な Functional カーネル、PyTree の合成を
 基本にします。
 
 ## データ型
@@ -11,22 +11,22 @@ from torchfont import tf_tensors
 from torchfont.structures import GlyphData, Outline
 ```
 
-`Outline(types, coords)` は不可分な二つの tensor を一つにまとめます。
-`tf_tensors.TFTensor` は torchvision の `TVTensor` に対応する意味 tensor の基底であり、
-`tf_tensors.Bitmap(tensor)` は rasterized glyph を表す subclass です。通常の tensor
-演算結果はplain tensorに戻るため、意味型のdispatchがmodel内部まで伝播しません。
-torchvisionの`TVTensor`と同様、`clone()`、`detach()`、`pin_memory()`、
-`requires_grad_()`、`to()`ではsubclassを維持します。一方、`float()`や`cpu()`などの
-convenience methodは通常の演算と同じ規則に従い、plain tensorを返します。storageを
-copyせず意味型へ戻すには`tf_tensors.wrap(tensor, like=bitmap)`を使います。
-メタデータを持つcustom `TFTensor` subclassは`wrap()` classmethodをoverrideできます。
-copy系operationと公開`tf_tensors.wrap()` helperはglobal registryを使わず、その
+`Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
+`tf_tensors.TFTensor` は torchvision の `TVTensor` に対応する意味テンソルの基底であり、
+`tf_tensors.Bitmap(tensor)` はラスタライズしたグリフを表すサブクラスです。通常のテンソル
+演算結果は通常のテンソルに戻るため、意味型のディスパッチがモデル内部まで伝播しません。
+torchvision の `TVTensor` と同様、`clone()`、`detach()`、`pin_memory()`、
+`requires_grad_()`、`to()` ではサブクラスを維持します。一方、`float()` や `cpu()` などの
+簡易メソッドは通常の演算と同じ規則に従い、通常のテンソルを返します。ストレージを
+コピーせず意味型へ戻すには `tf_tensors.wrap(tensor, like=bitmap)` を使います。
+メタデータを持つカスタム `TFTensor` サブクラスは `wrap()` クラスメソッドをオーバーライドできます。
+コピー系の演算と公開 `tf_tensors.wrap()` ヘルパーはグローバルレジストリを使わず、その
 メタデータを維持します。
-base実装はmetadata keywordを黙って無視せず拒否します。`Bitmap`は2次元以上を要求し、
-2次元のgrayscale glyphはchannel次元を追加せず`H x W`のまま保持します。
-`GlyphData[T]` は変換中の payload、元の dataset sample、実際に使用した variation
-location を保持します。payload は generic なので、メタデータを失わずに
-`Outline` から bitmap へ変換できます。
+基底実装はメタデータのキーワード引数を黙って無視せず拒否します。`Bitmap` は 2 次元以上を要求し、
+2 次元のグレースケールグリフはチャンネル次元を追加せず `H x W` のまま保持します。
+`GlyphData[T]` は変換中のペイロード、元のデータセットサンプル、実際に使用したバリエーション
+位置を保持します。ペイロードはジェネリックなので、メタデータを失わずに
+`Outline` からビットマップへ変換できます。
 
 ## 読み込みと合成
 
@@ -51,41 +51,40 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` は `GlyphSample` または `GlyphRef` を受け取ります。sample は
-`GlyphData[Outline]` に、ref 単体は `Outline` になります。
-`LoadGlyph`はfaceのdefault locationを使います。`RandomLocation`は`GlyphSample`
-または`GlyphRef`に対してlocationを1点抽出し、`GlyphData.location`に保存します。
-static faceでは空locationになります。
+`LoadGlyph` は `GlyphSample` または `GlyphRef` を受け取ります。サンプルは
+`GlyphData[Outline]` に、参照単体は `Outline` になります。
+`LoadGlyph` はフェイスのデフォルト位置を使います。`RandomLocation` は `GlyphSample`
+または `GlyphRef` に対して位置を 1 点抽出し、`GlyphData.location` に保存します。
+静的フェイスでは空の位置になります。
 
-`Transform` はネストした pytree を flatten し、一致する意味的な leaf ごとに独立して
-parameter を生成し、元の構造を復元します。同じvariable fontの複数glyphを一つの
-locationで扱う場合など、
-対応する複数 outline に同じ flip、affine parameter、element 単位の乱数を適用する場合は
-transform を `SameParams` で包みます。確率的 transform は PyTorch の default RNG を使うため、
-`torch.manual_seed` と DataLoader worker の seed が通常どおり機能します。
-`SameParams(RandomLocation())` を使うと同じfontの複数glyphに一つのlocationを選べますが、
-異なるfont間でraw axis valueを共有することは拒否します。
-組み込み transform は設定のみを保持し、pickle 可能です。`Compose` に通常の list を
-渡した場合も、子transformは内部の`torch.nn.ModuleList`に登録されます。plain callableは
-意図的に対応しません。小さな`nn.Module`を定義し、挙動、表示、pickle要件を明示します。
-これにより torchvision の歴史的な未登録 callable list の挙動を引き継がず、module
-traversal、state dictionary、hook、設定表示を PyTorch の規則に揃えます。
+`Transform` はネストした PyTree を平坦化し、一致する意味的なリーフごとに独立して
+パラメーターを生成し、元の構造を復元します。同じバリアブルフォントの複数グリフを一つの
+位置で扱う場合など、対応する複数アウトラインに同じ反転、アフィンパラメーター、要素単位の
+乱数を適用する場合は、Transform を `SameParams` で包みます。確率的 Transform は PyTorch の
+デフォルト RNG を使うため、`torch.manual_seed` と `DataLoader` ワーカーのシードが通常どおり
+機能します。`SameParams(RandomLocation())` を使うと同じフォントの複数グリフに一つの位置を
+選べますが、異なるフォント間で未変換の軸値を共有することは拒否します。
+組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
+渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
+`callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
+要件を明示します。これにより torchvision の歴史的な未登録 `callable` リストの挙動を
+引き継がず、モジュールの走査、状態辞書、フック、設定表示を PyTorch の規則に揃えます。
 
-container は登録した子をmodule call path経由で呼ぶため、forward hookも機能します。
-`train()` と `eval()` は通常どおり伝播しますが、組み込みの確率的transformは意図的に
-`training` flagを参照しません。前処理とmodel modeは別の関心事なので、評価時は
-`eval()`でaugmentationが止まることに依存せず、決定論的pipelineを明示的に選びます。
+コンテナーは登録した子をモジュール呼び出し経路で呼ぶため、`forward` フックも機能します。
+`train()` と `eval()` は通常どおり伝播しますが、組み込みの確率的 Transform は意図的に
+`training` フラグを参照しません。前処理とモデルのモードは別の関心事なので、評価時は
+`eval()` でデータ拡張が止まることに依存せず、決定論的パイプラインを明示的に選びます。
 
-torchvision v2 と同様に、transform と container は一つの pytree または複数の
-位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
-custom transform のために `check_inputs()` を利用できます。`Compose` は
-`nn.Module` の iterable を即座に `nn.ModuleList` へ materialize し、空の iterable は
-identity transform として扱います。`RandomApply` は一つの
-`nn.Module`、`SameParams` は一つの `Transform` を包みます。複数transformを
+torchvision v2 と同様に、Transform とコンテナーは一つの PyTree または複数の
+位置引数を受け取れます。リーフ間の関係をパラメーターのサンプリング前に確認する
+カスタム Transform のために `check_inputs()` を利用できます。`Compose` は
+`nn.Module` の `Iterable` を即座に `nn.ModuleList` へ具体化し、空の `Iterable` は
+恒等 Transform として扱います。`RandomApply` は一つの
+`nn.Module`、`SameParams` は一つの `Transform` を包みます。複数の Transform を
 `RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 
-`RandomApply(transform, p)` は一つの transform を適用するか制御します。
-`RandomSplitSegments.split_probability` などは、適用された transform 内部の挙動を
+`RandomApply(transform, p)` は一つの Transform を適用するか制御します。
+`RandomSplitSegments.split_probability` などは、適用された Transform 内部の挙動を
 制御します。
 
 ## 組み込み Transform
@@ -94,23 +93,23 @@ identity transform として扱います。`RandomApply` は一つの
 | --- | --- |
 | 読み込み | `LoadGlyph`, `RandomLocation` |
 | コンテナ | `Compose`, `RandomApply`, `SameParams` |
-| curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
+| Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
+| アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
+| Subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
 | 出力 | `RenderBitmap`, `ToPureTensor` |
 
-`RenderBitmap` は各 `Outline` を `uint8` tensor を持つ `Bitmap` に変えます。
-これらが `GlyphData` 内にある場合も、sample と location は変換後の payload とともに
-維持されます。`ToPureTensor` はmodelへ入力する前に、tensor storageをcopyせず
-`TFTensor` subclassを取り除きます。
+`RenderBitmap` は各 `Outline` を `uint8` テンソルを持つ `Bitmap` に変えます。
+これらが `GlyphData` 内にある場合も、サンプルと位置は変換後のペイロードとともに
+維持されます。`ToPureTensor` はモデルへ入力する前に、テンソルストレージをコピーせず
+`TFTensor` サブクラスを取り除きます。
 
-### renderしたglyphをtorchvisionで使う
+### レンダリングしたグリフを torchvision で使う
 
-`RenderBitmap`はgrayscaleの`H x W` bitmapを返します。torchvision v2の
-`ToImage()`を画像pipelineへの境界として使うと、channel次元が追加され、
-shapeが`1 x H x W`の`tv_tensors.Image`になります。両libraryがpytreeを処理するため、
-外側の`GlyphData`も維持されます。
+`RenderBitmap` はグレースケールの `H x W` ビットマップを返します。torchvision v2 の
+`ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
+形状が `1 x H x W` の `tv_tensors.Image` になります。両ライブラリが PyTree を処理するため、
+外側の `GlyphData` も維持されます。
 
 ```python
 import torch
@@ -134,12 +133,12 @@ data = transform(sample)
 image = data.data  # Tensor, (1, 64, 64), float32, range [0, 1]
 ```
 
-幾何変換まではbitmapを`uint8`に保ち、modelへ渡す直前に
-`ToDtype(torch.float32, scale=True)`で変換します。`ToImage()`自体はpixel valueを
-scaleしません。`ToPureTensor()`はmodelへ渡す前にimage subclassを取り除きます。
-torchvisionは任意の統合先であり、TorchFontのrendererには不要です。
+幾何変換まではビットマップを `uint8` に保ち、モデルへ渡す直前に
+`ToDtype(torch.float32, scale=True)` で変換します。`ToImage()` 自体はピクセル値を
+スケーリングしません。`ToPureTensor()` はモデルへ渡す前に `Image` サブクラスを取り除きます。
+torchvision は任意の統合先であり、TorchFont のレンダラーには不要です。
 
-## Functional kernel
+## Functional カーネル
 
 決定論的な処理は `torchfont.transforms.functional` から利用できます。
 
@@ -155,11 +154,11 @@ bitmap = F.render_bitmap(outline, size=64)
 shape = bitmap.shape
 ```
 
-functional API は乱数を生成しません。ランダムな選択と parameter sampling は
-`Random*` transform class の責務です。
+Functional API は乱数を生成しません。ランダムな選択とパラメーターのサンプリングは
+`Random*` Transform クラスの責務です。
 
-これらの transform が `nn.Module` なのは、合成、module 登録、PyTorch RNG、pytree
-処理のためです。Rust-backed outline functional は CPU/NumPy 境界を通る前処理であり、
-autograd への参加、accelerator 上での実行維持、`torch.compile` による capture は
-保証しません。現在の functional は signature に記載した単一の意味型を処理します。
-複数の outline 表現が必要になるまでは kernel registry を導入しません。
+これらの Transform が `nn.Module` なのは、合成、モジュール登録、PyTorch RNG、PyTree
+処理のためです。Rust バックエンドのアウトライン用 Functional は CPU / NumPy 境界を通る
+前処理であり、自動微分への参加、アクセラレーター上での実行維持、`torch.compile` による
+キャプチャーは保証しません。現在の Functional はシグネチャーに記載した単一の意味型を
+処理します。複数のアウトライン表現が必要になるまではカーネルレジストリを導入しません。

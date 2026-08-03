@@ -1,8 +1,8 @@
-# Glyphsets API
+# グリフセット API
 
 <!-- markdownlint-disable MD013 -->
 
-Google Fonts の "glyphsets" リポジトリに定義された codepoint グループの集
+Google Fonts の `glyphsets` リポジトリに定義されたコードポイントグループの集
 合です。これらのグループを使うと、フォント内のグリフを特定のスクリプトに
 関連するものだけに絞り込んだり、フォントサイズを抑えるためにグリフ数を制
 限したりできます。
@@ -17,7 +17,7 @@ from torchfont.glyphsets import LATIN_CORE, LATIN_KERNEL, get_glyphset_codepoint
 from torchfont.glyphsets import LATIN_CORE
 ```
 
-**GF Latin Core** グリフセットの codepoint 一覧（整数のリスト）。西欧言語
+**GF Latin Core** グリフセットのコードポイント一覧（整数のリスト）。西欧言語
 のほとんどに必要な基本ラテン文字をカバーします。
 
 ## `LATIN_KERNEL`
@@ -26,7 +26,7 @@ from torchfont.glyphsets import LATIN_CORE
 from torchfont.glyphsets import LATIN_KERNEL
 ```
 
-**GF Latin Kernel** グリフセットの codepoint 一覧（整数のリスト）。最小限
+**GF Latin Kernel** グリフセットのコードポイント一覧（整数のリスト）。最小限
 のフォント構成に適した、より小さなラテン文字のサブセットをカバーします。
 
 ## `get_glyphset_codepoints`
@@ -39,8 +39,8 @@ from torchfont.glyphsets import get_glyphset_codepoints
 codepoints = get_glyphset_codepoints(glyphset_name)
 ```
 
-Google Fonts glyphset レジストリから指定された名前のグリフセットの
-codepoint を整数のリストとして返します。
+Google Fonts のグリフセットレジストリから指定された名前のグリフセットを取得し、
+コードポイントを整数のリストとして返します。
 
 | 引数             | 型     | 説明                         |
 | ---------------- | ------ | ---------------------------- |
@@ -48,7 +48,7 @@ codepoint を整数のリストとして返します。
 
 | 返り値          | 型            | 説明                            |
 | --------------- | ------------- | ------------------------------- |
-| `codepoints`    | `list[int]`   | 該当グリフセットの codepoint    |
+| `codepoints`    | `list[int]`   | 該当グリフセットのコードポイント    |
 
 存在しないグリフセット名が指定された場合は `ValueError` を送出します。
 

@@ -1,8 +1,8 @@
 # データセット
 
-TorchFontのindex規則は一つです。各font faceと、そのfaceが収録する各Unicode
-codepointを1要素として数えます。outlineをロードするときにtransformがvariation
-locationを選択します。
+TorchFont のインデックス規則は一つです。各フォントフェイスと、そのフェイスが収録する各 Unicode
+コードポイントを 1 要素として数えます。アウトラインをロードするときに `transform` がバリエーション
+位置を選択します。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -14,9 +14,9 @@ dataset = GlyphDataset(
 )
 ```
 
-transformなしの`dataset[i]`はpickle可能な`GlyphSample`を返します。
+`transform` を指定しない場合、`dataset[i]` は `pickle` 可能な `GlyphSample` を返します。
 
-| Type | Fields |
+| 型 | フィールド |
 |---|---|
 | `FontRef` | `path: str`, `ttc_index: int` |
 | `GlyphRef` | `font: FontRef`, `codepoint: int` |
@@ -34,9 +34,9 @@ GlyphDataset(
 )
 ```
 
-indexとraw sampleは決定的です。各faceのdefault locationを読むには`LoadGlyph()`、
-transformのたびにlocationを1点抽出するには`RandomLocation()`を使います。static
-faceでは両方とも空locationを使うため同じoutlineになります。
+インデックスと未変換のサンプルは決定的です。各フェイスのデフォルト位置を読むには `LoadGlyph()`、
+変換のたびに位置を 1 点抽出するには `RandomLocation()` を使います。静的
+フェイスでは両方とも空の位置を使うため同じアウトラインになります。
 
 ```python
 from torchfont.transforms import LoadGlyph, RandomLocation
@@ -45,7 +45,7 @@ evaluation = GlyphDataset(root, transform=LoadGlyph())
 training = GlyphDataset(root, transform=RandomLocation())
 ```
 
-properties:
+プロパティ:
 
 - `font_classes -> list[FontRef]`
 - `font_targets -> LongTensor (N,)`
@@ -53,12 +53,12 @@ properties:
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
 
-sampling分布は各faceが収録するcodepoint数に比例します。異なる分布が必要な用途では
-PyTorch samplerで学習weightを調整してください。
+サンプリング分布は各フェイスが収録するコードポイント数に比例します。異なる分布が必要な用途では
+PyTorch のサンプラーで学習時の重みを調整してください。
 
-## 明示locationのロード
+## 明示的な位置のロード
 
-決定的な再現にはfunctional APIを使えます。
+決定的な再現には関数形式 API を使えます。
 
 ```python
 from torchfont.transforms import functional as F
