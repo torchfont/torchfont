@@ -1,169 +1,68 @@
-# データセット API
+# データセット
 
-<!-- markdownlint-disable MD013 -->
-
-`torchfont.datasets` は参照優先の PyTorch Dataset API を提供します。Dataset item
-は軽量で pickle しやすい dataclass で、outline の読み込みは transform 内で
-`load_glyph`([Transform Utilities](./transforms.md) 参照)を明示的に呼びます。
-
-Dataset の index と class target は構築時点のフォントファイルから作られます。
-glyph outline と登録済み軸の値は現在のディスク上のファイルから遅延読み込みされます。
-Dataset object の lifetime 中にフォントファイルを変更すること、pickle/unpickle
-境界をまたいで変更することは unsupported で、sample と label の不整合を起こす
-可能性があります。
-
-## 参照型
-
-```python
-from torchfont.datasets import (
-    FontRef,
-    GlyphRef,
-    GlyphSample,
-    VariableGlyphRef,
-    VariableGlyphSample,
-)
-```
-
-| 型 | フィールド |
-| -- | ---------- |
-| `FontRef` | `path: str`, `ttc_index: int` |
-| `GlyphRef` | `font: FontRef`, `codepoint: int`, `location: Mapping[str, float]` |
-| `VariableGlyphRef` | `font: FontRef`, `codepoint: int` |
-| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `style_idx: int`, `character_idx: int`, `weight: float \| None`, `width: float \| None`, `italic: float \| None`, `slant: float \| None`, `optical_size: float \| None` |
-| `VariableGlyphSample` | `ref: VariableGlyphRef`, `font_idx: int`, `character_idx: int` |
-
-`ttc_index` は read-fonts/skrifa が TrueType Collection 内のフォント位置に
-使っている名前に合わせています。単一フォントのファイルでは `0` です。
-
-## GlyphDataset
+TorchFont のインデックス規則は一つです。各フォントフェイスと、そのフェイスが収録する各 Unicode
+コードポイントを 1 要素として数えます。アウトラインをロードするときに `transform` がバリエーション
+位置を選択します。
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.instance_fn import named_instances
 
 dataset = GlyphDataset(
-    root="~/fonts",
-    codepoints=range(0x41, 0x5B),
-    patterns=("**/*.ttf",),
-    instance_fn=named_instances,
+    root="data/google/fonts",
+    codepoints=[0x41, 0x42],
+    patterns="ofl/*/*.ttf",
 )
 ```
 
-`GlyphDataset` は固定済み variation location を index に含めます。instance function
-は構築時だけ実行され、pickle state には保存されません。`transform` なしでは
-`dataset[i]` は `GlyphSample` を返します。
+`transform` を指定しない場合、`dataset[i]` は `pickle` 可能な `GlyphSample` を返します。
 
-コンストラクタ:
+| 型 | フィールド |
+|---|---|
+| `FontRef` | `path: str`, `ttc_index: int` |
+| `GlyphRef` | `font: FontRef`, `codepoint: int` |
+| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `character_idx: int` |
+
+## `GlyphDataset`
 
 ```python
 GlyphDataset(
     root: Path | str,
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
-    patterns: Sequence[str] | None = None,
-    instance_fn: InstanceLocationsFn = torchfont.instance_fn.named_instances,
+    patterns: str | Sequence[str] | None = None,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
 
-targets:
+インデックスと未変換の Sample は決定的です。各 Face の Default Location を読むには
+`LoadGlyph()`、変換のたびに位置を 1 点抽出するには `location="random"` を指定します。
+Static Face では両方の Policy が空の位置を使うため、同じ Outline になります。
 
-- `font_targets -> LongTensor (N,)`
-- `style_targets -> LongTensor (N,)`
-- `character_targets -> LongTensor (N,)`
-- `weight_targets -> FloatTensor (N,)`
-- `width_targets -> FloatTensor (N,)`
-- `italic_targets -> FloatTensor (N,)`
-- `slant_targets -> FloatTensor (N,)`
-- `optical_size_targets -> FloatTensor (N,)`
+```python
+from torchfont.transforms import LoadGlyph
 
-これらの target は OpenType の登録済み user scale を使うため、weight は CSS weight
-と比較可能、width は百分率、italic は
-`0`（Roman）から `1`（fully italic）、slant は度、optical size は point です。
-`italic_targets` の中間 variation 座標を含め、5つの target はすべて浮動小数点数です。
-各軸についてまず index 済み variation location を使い、`fvar` に存在しない軸だけを
-対応する OS/2、`head`、`post` field から変換します。fallback は `wght` に OS/2
-`usWeightClass`、`wdth` に
-OS/2 `usWidthClass`、`ital` に OS/2 `fsSelection.ITALIC`（OS/2 がない場合は
-`head.macStyle.ITALIC`）、`slnt` に `post.italicAngle` を使います。
-`head.macStyle.BOLD` は weight class ではないため、恣意的な `wght` 値には変換しません。
-フォントから導出できない値は `NaN` になるため、loss から除外する場合は
-`torch.isfinite` をそのまま利用できます。
-同じ値は各 sample の `sample.weight`、`sample.width`、`sample.italic`、
-`sample.slant`、`sample.optical_size` からも取得できるため、transform 内で利用できます。
-sample で取得できない値は `None`（target Tensor では `NaN`）です。
-これらの target property にアクセスした時点でフォントファイルを parse します。
-展開済みtarget vectorはDataset構築時には作られず、cacheもされません。
-OS/2 の optical-size range は恣意的な中点に変換しません。`opsz` は index 済み
-variation location が実際の座標を持つ場合だけ値を持ちます。
+evaluation = GlyphDataset(root, transform=LoadGlyph())
+training = GlyphDataset(root, transform=LoadGlyph(location="random"))
+```
 
-class 語彙:
+プロパティ:
 
 - `font_classes -> list[FontRef]`
-- `style_classes -> list[str]`
+- `font_targets -> LongTensor (N,)`
 - `character_classes -> list[str]`
 - `character_class_to_idx -> dict[str, int]`
-
-## VariableGlyphDataset
-
-```python
-from torchfont.datasets import VariableGlyphDataset
-from torchfont.instance_fn import named_instance_count
-
-dataset = VariableGlyphDataset(
-    root="~/fonts",
-    codepoints=range(0x41, 0x5B),
-    instance_fn=named_instance_count,
-)
-```
-
-`VariableGlyphDataset` は location を index に含めません。各アクセスで transform が
-新しい location をサンプルする training augmentation に向いています。`instance_fn`
-は各フォントの離散的な多重度だけを決める instance-count function です。静的フォントも通常の
-フォントとして含まれます。
-
-コンストラクタ:
-
-```python
-VariableGlyphDataset(
-    root: Path | str,
-    *,
-    instance_fn: InstanceCountFn = torchfont.instance_fn.named_instance_count,
-    codepoints: Sequence[SupportsIndex] | None = None,
-    patterns: Sequence[str] | None = None,
-    transform: Callable[[VariableGlyphSample], T] | None = None,
-)
-```
-
-targets:
-
-- `font_targets -> LongTensor (N,)`
 - `character_targets -> LongTensor (N,)`
 
-## Instance Functions
+サンプリング分布は各フェイスが収録するコードポイント数に比例します。異なる分布が必要な用途では
+PyTorch のサンプラーで学習時の重みを調整してください。
+
+## 明示的な位置のロード
+
+決定的な再現には関数形式 API を使えます。
 
 ```python
-from torchfont.instance_fn import (
-    default_instance,
-    default_instance_count,
-    grid_instances,
-    grid_instance_count,
-    named_instances,
-    named_instance_count,
-)
+from torchfont.transforms import functional as F
+
+outline = F.load_glyph(sample.ref)  # face default
+outline = F.load_glyph(sample.ref, {"wght": 700.0})
 ```
-
-組み込み関数:
-
-- `named_instances(font)`: fvar named instance を dedupe して返す。なければ default
-- `default_instance(font)`: default location 1 つ
-- `grid_instances({"wght": 7, "wdth": 3})`: 等間隔の固定 grid。フォントに存在しない軸は無視し、指定されなかった軸は default を使い、静的フォントは default 1 枠
-- `named_instance_count(font)`: `named_instances` と同じ多重度
-- `default_instance_count(font)`: instance slot 1 つ
-- `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` と同じ多重度
-
-transform 時の variation sampling には [Transform Utilities](./transforms.md) の
-`random_location` を使います。dataset-level seed はありません。
-
-カスタム instance function は 0 個の location を返せます。未知の軸や、正規化後に
-重複する location は Dataset 構築時に `ValueError` になります。

@@ -1,56 +1,54 @@
-"""Glyph sample and outline transform utilities.
+"""Composable transforms for semantic font data."""
 
-Most functions accept ``(types, coords)`` and return a transformed
-``(types, coords)`` pair without modifying the inputs. ``load_glyph`` is the
-one bridge function: it takes a dataset glyph reference and returns the
-``(types, coords)`` pair the rest of this module operates on, so it is
-typically the first call inside a ``GlyphDataset``/``VariableGlyphDataset``
-``transform``.
-"""
-
-from torchfont.transforms.bitmap import BitmapMode, render_bitmap
-from torchfont.transforms.curves import (
-    cubic_to_quad,
-    merge_curves,
-    quad_to_cubic,
-    random_split_segments,
+from torchfont.transforms import functional
+from torchfont.transforms._bitmap import RenderBitmap
+from torchfont.transforms._container import Compose, RandomApply, SameParams
+from torchfont.transforms._curves import (
+    CubicToQuad,
+    MergeCurves,
+    QuadToCubic,
+    RandomSplitSegments,
 )
-from torchfont.transforms.geometric import (
-    affine,
-    horizontal_flip,
-    random_affine,
-    random_coord_jitter,
-    random_horizontal_flip,
-    random_vertical_flip,
-    vertical_flip,
+from torchfont.transforms._geometry import (
+    Affine,
+    HorizontalFlip,
+    RandomAffine,
+    RandomCoordJitter,
+    RandomHorizontalFlip,
+    RandomVerticalFlip,
+    VerticalFlip,
 )
-from torchfont.transforms.load import load_glyph, random_location
-from torchfont.transforms.outline import random_remove_overlaps, remove_overlaps
-from torchfont.transforms.subpath import (
-    normalize_subpath_start_points,
-    randomize_subpath_order,
-    randomize_subpath_start_points,
+from torchfont.transforms._glyph import LoadGlyph
+from torchfont.transforms._outline import RandomRemoveOverlaps, RemoveOverlaps
+from torchfont.transforms._subpath import (
+    NormalizeSubpathStartPoints,
+    RandomizeSubpathOrder,
+    RandomizeSubpathStartPoints,
 )
+from torchfont.transforms._transform import Transform
 
 __all__ = [
-    "BitmapMode",
-    "affine",
-    "cubic_to_quad",
-    "horizontal_flip",
-    "load_glyph",
-    "merge_curves",
-    "normalize_subpath_start_points",
-    "quad_to_cubic",
-    "random_affine",
-    "random_coord_jitter",
-    "random_horizontal_flip",
-    "random_location",
-    "random_remove_overlaps",
-    "random_split_segments",
-    "random_vertical_flip",
-    "randomize_subpath_order",
-    "randomize_subpath_start_points",
-    "remove_overlaps",
-    "render_bitmap",
-    "vertical_flip",
+    "Affine",
+    "Compose",
+    "CubicToQuad",
+    "HorizontalFlip",
+    "LoadGlyph",
+    "MergeCurves",
+    "NormalizeSubpathStartPoints",
+    "QuadToCubic",
+    "RandomAffine",
+    "RandomApply",
+    "RandomCoordJitter",
+    "RandomHorizontalFlip",
+    "RandomRemoveOverlaps",
+    "RandomSplitSegments",
+    "RandomVerticalFlip",
+    "RandomizeSubpathOrder",
+    "RandomizeSubpathStartPoints",
+    "RemoveOverlaps",
+    "RenderBitmap",
+    "SameParams",
+    "Transform",
+    "VerticalFlip",
+    "functional",
 ]

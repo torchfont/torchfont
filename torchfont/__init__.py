@@ -9,7 +9,7 @@ Features:
     * A primary ``GlyphDataset`` API for local font directories and checkouts.
     * A Rust backend that renders glyph outlines directly into PyTorch-ready
       tensors.
-    * Small transform utilities for adapting glyph samples.
+    * Semantic, composable transform pipelines for adapting glyph samples.
 
 Examples:
     Assemble a dataset from local fonts::
@@ -24,8 +24,21 @@ References:
 
 Package Layout:
     Core public APIs live in submodules such as ``torchfont.datasets``,
-    ``torchfont.transforms``, and ``torchfont.io``.
+    ``torchfont.glyphsets``,
+    ``torchfont.structures`` and ``torchfont.transforms``.
 
 """
 
-__all__: list[str] = []
+from torchfont import (
+    datasets,
+    glyphsets,
+    structures,
+    transforms,
+)
+
+__all__ = [
+    "datasets",
+    "glyphsets",
+    "structures",
+    "transforms",
+]

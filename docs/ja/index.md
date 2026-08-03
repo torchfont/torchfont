@@ -21,15 +21,15 @@ hero:
 
 features:
   - icon: ⚙️
-    title: ローカルファーストな Dataset API
-    details: "`GlyphDataset(root=...)` を使い、ローカルのフォントディレクトリや clone 済み checkout をそのまま入力にできます。"
+    title: ローカルファーストなデータセット API
+    details: "`GlyphDataset(root=...)` を使い、ローカルのフォントディレクトリやクローン済みのリポジトリをそのまま入力にできます。"
   - icon: 🚀
     title: Rust バックエンド
-    details: "skrifa + PyO3 による実装で font を index 化し、必要なときにグリフアウトラインを element type + coordinates テンソルへ読み込みます。"
+    details: "`skrifa` と PyO3 による実装でフォントをインデックス化し、必要なときにグリフアウトラインを要素型と座標のテンソルへ読み込みます。"
   - icon: 🧱
-    title: Reference-first なデータモデル
-    details: "`GlyphSample` は決定的なグリフ参照と target index を持ち、読み込みや batch 化方針は transform 側に置けます。"
+    title: 参照を中心としたデータモデル
+    details: "`GlyphSample` は決定的なグリフ参照とターゲットインデックスを持ち、読み込みやバッチ化の方針は `transform` 側に置けます。"
   - icon: 🧩
     title: 柔軟な前処理
-    details: "`quad_to_cubic` のような小さな utility を使い、tensor 整形は dataset やモデル固有コードで調整できます。"
+    details: "`torchvision.transforms.v2` 形式の意味型変換をパイプラインとして組み合わせ、可変長テンソルの整形はモデル固有の `collate_fn` で調整できます。"
 ---

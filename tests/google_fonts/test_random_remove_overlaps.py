@@ -6,13 +6,10 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.io import ElementType
-from torchfont.transforms import (
-    load_glyph,
-    random_remove_overlaps,
-    render_bitmap,
-)
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import ElementType, GlyphSample, Outline
+from torchfont.transforms import RandomRemoveOverlaps
+from torchfont.transforms import functional as _functional
 
 logger = logging.getLogger(__name__)
 
@@ -29,36 +26,31 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    types, coords = load_glyph(sample.ref)
-    generator = torch.Generator().manual_seed(sample.ref.codepoint)
-    simplified_types, simplified_coords = random_remove_overlaps(
-        types,
-        coords,
-        generator=generator,
-    )
+    outline = _functional.load_glyph(sample.ref)
+    types, coords = outline.types, outline.coords
+    torch.manual_seed(sample.ref.codepoint)
+    simplified = RandomRemoveOverlaps()(Outline(types, coords))
+    simplified_types, simplified_coords = simplified.types, simplified.coords
 
-    original = render_bitmap(
-        types,
-        coords,
+    original = _functional.render_bitmap(
+        Outline(types, coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
-    simplified = render_bitmap(
-        simplified_types,
-        simplified_coords,
+    simplified_bitmap = _functional.render_bitmap(
+        simplified,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
 
-    failed = _hard_diff(original, simplified).any()
+    failed = _hard_diff(original, simplified_bitmap).any()
     if failed:
         logger.warning(
-            "random_remove_overlaps bitmap mismatch: %s U+%04X %s",
+            "random_remove_overlaps bitmap mismatch: %s U+%04X",
             sample.ref.font.path,
             sample.ref.codepoint,
-            sample.ref.location,
         )
     changed = not (
         torch.equal(types, simplified_types) and torch.equal(coords, simplified_coords)

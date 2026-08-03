@@ -6,9 +6,11 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.io import ElementType
-from torchfont.transforms import load_glyph, remove_overlaps, render_bitmap
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import ElementType, GlyphSample, Outline
+from torchfont.transforms import functional as _functional
+from torchfont.transforms.functional import render_bitmap
+from torchfont.transforms.functional._outline import _remove_overlaps as remove_overlaps
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,8 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    types, coords = load_glyph(sample.ref)
+    outline = _functional.load_glyph(sample.ref)
+    types, coords = outline.types, outline.coords
     simplified_types, simplified_coords = remove_overlaps(types, coords)
 
     # Prepend outer rect before glyph contours; End token truncates if appended.
@@ -77,29 +80,25 @@ def _transform(sample: GlyphSample) -> Tensor:
     ccw_coords = torch.cat([_OUTER_RECT_COORDS_CCW, simplified_coords])
 
     original = render_bitmap(
-        types,
-        coords,
+        outline,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     simplified = render_bitmap(
-        simplified_types,
-        simplified_coords,
+        Outline(simplified_types, simplified_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     simplified_cw = render_bitmap(
-        prepended_types,
-        cw_coords,
+        Outline(prepended_types, cw_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     simplified_ccw = render_bitmap(
-        prepended_types,
-        ccw_coords,
+        Outline(prepended_types, ccw_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
@@ -118,11 +117,10 @@ def _transform(sample: GlyphSample) -> Tensor:
         if has_overlaps:
             reasons.append("has_overlaps")
         logger.warning(
-            "remove_overlaps failure [%s]: %s U+%04X %s",
+            "remove_overlaps failure [%s]: %s U+%04X",
             ",".join(reasons),
             sample.ref.font.path,
             sample.ref.codepoint,
-            sample.ref.location,
         )
     return failed
 

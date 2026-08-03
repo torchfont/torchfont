@@ -15,7 +15,7 @@ pub(crate) struct RegisteredAxisValues {
 }
 
 impl RegisteredAxisValues {
-    pub(crate) fn apply_location(mut self, location: &Location) -> Self {
+    fn apply_location(mut self, location: &[(String, f32)]) -> Self {
         for (tag, value) in location {
             match tag.as_str() {
                 "wght" => self.weight = *value,
@@ -30,10 +30,6 @@ impl RegisteredAxisValues {
     }
 }
 
-/// Returns registered OpenType axis values for a concrete font location.
-///
-/// Concrete fvar location values are used first. OS/2, head and post provide
-/// equivalent coordinates only for axes that are absent from the location.
 pub(crate) fn registered_axis_values(
     font: &skrifa::FontRef<'_>,
     location: &Location,
@@ -66,21 +62,17 @@ pub(crate) fn registered_axis_values(
     {
         values.italic = f32::from(head.mac_style().contains(MacStyle::ITALIC));
     }
-
     if values.slant.is_nan()
         && let Ok(post) = font.post()
     {
         values.slant = post.italic_angle().to_f64() as f32;
     }
-
-    // OS/2 optical-size fields describe an applicability range, not a
-    // representative coordinate. Do not invent a point within that range.
     values
 }
 
 fn weight_value(weight_class: u16) -> f32 {
     match weight_class {
-        1..=1000 => weight_class as f32,
+        value @ 1..=1000 => value as f32,
         _ => f32::NAN,
     }
 }
@@ -105,12 +97,7 @@ mod tests {
     use super::{RegisteredAxisValues, weight_value, width_percentage};
 
     #[test]
-    fn location_overrides_only_matching_registered_axes() {
-        let location = vec![
-            ("wght".to_string(), 700.0),
-            ("ital".to_string(), 0.5),
-            ("TEST".to_string(), 42.0),
-        ];
+    fn location_values_override_fallbacks_by_registered_tag() {
         let values = RegisteredAxisValues {
             weight: 400.0,
             width: 100.0,
@@ -118,7 +105,11 @@ mod tests {
             slant: 0.0,
             optical_size: f32::NAN,
         }
-        .apply_location(&location);
+        .apply_location(&[
+            ("wght".to_string(), 700.0),
+            ("ital".to_string(), 0.5),
+            ("TEST".to_string(), 42.0),
+        ]);
 
         assert_eq!(values.weight, 700.0);
         assert_eq!(values.width, 100.0);
@@ -128,20 +119,20 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_os2_class_values() {
-        assert!(weight_value(0).is_nan());
-        assert!(weight_value(1001).is_nan());
-        assert!(width_percentage(0).is_nan());
-        assert!(width_percentage(10).is_nan());
-    }
-
-    #[test]
-    fn maps_valid_os2_class_values_to_registered_scales() {
+    fn maps_valid_os2_classes_to_registered_scales() {
         assert_eq!(weight_value(1), 1.0);
         assert_eq!(weight_value(400), 400.0);
         assert_eq!(weight_value(1000), 1000.0);
         assert_eq!(width_percentage(1), 50.0);
         assert_eq!(width_percentage(5), 100.0);
         assert_eq!(width_percentage(9), 200.0);
+    }
+
+    #[test]
+    fn invalid_os2_classes_are_unavailable() {
+        assert!(weight_value(0).is_nan());
+        assert!(weight_value(1001).is_nan());
+        assert!(width_percentage(0).is_nan());
+        assert!(width_percentage(10).is_nan());
     }
 }

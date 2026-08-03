@@ -1,37 +1,79 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
 import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
+from torchvision.transforms import v2
 from tqdm import tqdm
 
-from torchfont.datasets import GlyphDataset, GlyphSample
+from torchfont.datasets import GlyphDataset
 from torchfont.glyphsets import LATIN_CORE
-from torchfont.instance_fn import grid_instances
 from torchfont.transforms import (
-    load_glyph,
-    quad_to_cubic,
-    remove_overlaps,
-    render_bitmap,
+    Compose,
+    LoadGlyph,
+    QuadToCubic,
+    RandomAffine,
+    RemoveOverlaps,
+    RenderBitmap,
 )
 
+if TYPE_CHECKING:
+    from torchfont.structures import GlyphData, GlyphSample, Outline
 
-def transform(sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
-    types, coords = load_glyph(sample.ref)
-    types = types[:512]
-    coords = coords[:512]
-    types, coords = remove_overlaps(types, coords)
-    types, coords = quad_to_cubic(types, coords, merge_curves=True)
-    bitmap = render_bitmap(types, coords)
-    return types, coords, bitmap
+
+class GlyphPipeline(torch.nn.Module):
+    """Build two model inputs from one shared outline pipeline."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.prepare_outline = Compose(
+            [
+                LoadGlyph(location="random"),
+                RemoveOverlaps(),
+                QuadToCubic(merge_curves=True),
+                RandomAffine(degrees=5.0, translate=(0.05, 0.05)),
+            ]
+        )
+        self.rasterize = Compose(
+            [
+                RenderBitmap(size=96),
+                v2.ToImage(),
+                v2.Resize((64, 64), antialias=True),
+                v2.ToDtype(torch.float32, scale=True),
+                v2.ToPureTensor(),
+            ]
+        )
+
+    def forward(
+        self, sample: GlyphSample
+    ) -> tuple[Tensor, Tensor, Tensor, int, int, float]:
+        data = cast("GlyphData[Outline]", self.prepare_outline(sample))
+        image_data = cast("GlyphData[Tensor]", self.rasterize(data))
+        return (
+            data.data.types,
+            data.data.coords,
+            image_data.data,
+            data.font_idx,
+            data.character_idx,
+            data.weight,
+        )
 
 
 def collate_fn(
-    batch: list[tuple[Tensor, Tensor, Tensor]],
-) -> tuple[Tensor, Tensor, Tensor]:
-    types = pad_sequence([types for types, _, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords, _ in batch], batch_first=True)
-    bitmaps = torch.stack([bitmap for _, _, bitmap in batch])
-    return types, coords, bitmaps
+    batch: list[tuple[Tensor, Tensor, Tensor, int, int, float]],
+) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    types, coords, images, fonts, characters, weights = zip(*batch, strict=True)
+    return (
+        pad_sequence(list(types), batch_first=True),
+        pad_sequence(list(coords), batch_first=True),
+        torch.stack(images),
+        torch.tensor(fonts, dtype=torch.long),
+        torch.tensor(characters, dtype=torch.long),
+        torch.tensor(weights, dtype=torch.float32),
+    )
 
 
 def main() -> None:
@@ -44,8 +86,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        instance_fn=grid_instances({"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2}),
-        transform=transform,
+        transform=GlyphPipeline(),
     )
 
     dataloader = DataLoader(
@@ -59,7 +100,6 @@ def main() -> None:
 
     print(f"{len(dataset)=}")
     print(f"{len(dataset.font_classes)=}")
-    print(f"{len(dataset.style_classes)=}")
     print(f"{len(dataset.character_classes)=}")
 
     for batch in tqdm(dataloader, desc="Iterating over datasets"):

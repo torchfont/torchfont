@@ -3,8 +3,13 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms import cubic_to_quad, merge_curves
+from torchfont.structures import ElementType
+from torchfont.transforms.functional._curves import (
+    _cubic_to_quad as cubic_to_quad,
+)
+from torchfont.transforms.functional._curves import (
+    _merge_curves as merge_curves,
+)
 
 from ._helpers import (
     _CUBIC_CURVES,

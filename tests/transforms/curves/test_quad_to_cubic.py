@@ -1,8 +1,13 @@
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms import cubic_to_quad, quad_to_cubic
+from torchfont.structures import ElementType
+from torchfont.transforms.functional._curves import (
+    _cubic_to_quad as cubic_to_quad,
+)
+from torchfont.transforms.functional._curves import (
+    _quad_to_cubic as quad_to_cubic,
+)
 
 from ._helpers import (
     _CUBIC_CURVES,

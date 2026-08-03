@@ -3,107 +3,79 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms import random_coord_jitter
+from torchfont.structures import ElementType, Outline
+from torchfont.transforms import RandomCoordJitter, SameParams
+from torchfont.transforms.functional import coord_jitter
 
 
-def test_random_coord_jitter_changes_active_coords(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
+def test_random_coord_jitter_changes_only_active_coordinates(
+    quad_outline: tuple[torch.Tensor, torch.Tensor],
+    close_end_zeros: Callable[[torch.Tensor, torch.Tensor], bool],
 ) -> None:
-    types, coords = simple_outline
-    g = torch.Generator().manual_seed(42)
-    _, out = random_coord_jitter(types, coords, std=0.1, generator=g)
-
-    line_idx = types.tolist().index(ElementType.LINE_TO.value)
-    assert not torch.equal(out[line_idx, 4:6], coords[line_idx, 4:6])
+    types, coords = quad_outline
+    output = RandomCoordJitter(1.0)(Outline(types, coords))
+    quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
+    assert not torch.equal(output.coords[quad_idx, 0:2], coords[quad_idx, 0:2])
+    assert output.coords[quad_idx, 2:4].tolist() == [0.0, 0.0]
+    assert close_end_zeros(types, output.coords)
 
 
 def test_random_coord_jitter_zero_std_is_identity(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    types, coords = simple_outline
-    _, out = random_coord_jitter(types, coords, std=0.0)
-    assert torch.equal(out, coords)
+    outline = Outline(*simple_outline)
+    output = RandomCoordJitter(0.0)(outline)
+    assert torch.equal(output.coords, outline.coords)
 
 
-def test_random_coord_jitter_preserves_padding_zeros(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
-    close_end_zeros: Callable[[torch.Tensor, torch.Tensor], bool],
-) -> None:
-    types, coords = simple_outline
-    g = torch.Generator().manual_seed(1)
-    _, out = random_coord_jitter(types, coords, std=1.0, generator=g)
-    assert close_end_zeros(types, out)
-
-
-def test_random_coord_jitter_quad_pair1_stays_zero(
-    quad_outline: tuple[torch.Tensor, torch.Tensor],
-) -> None:
-    types, coords = quad_outline
-    g = torch.Generator().manual_seed(2)
-    _, out = random_coord_jitter(types, coords, std=1.0, generator=g)
-
-    quad_idx = types.tolist().index(ElementType.QUAD_TO.value)
-    assert out[quad_idx, 2].item() == pytest.approx(0.0)
-    assert out[quad_idx, 3].item() == pytest.approx(0.0)
-
-
-def test_random_coord_jitter_jitters_all_cubic_pairs(
-    cubic_outline: tuple[torch.Tensor, torch.Tensor],
-) -> None:
-    types, coords = cubic_outline
-    g = torch.Generator().manual_seed(7)
-    _, out = random_coord_jitter(types, coords, std=0.5, generator=g)
-
-    curve_idx = types.tolist().index(ElementType.CURVE_TO.value)
-    assert not torch.equal(out[curve_idx, 0:2], coords[curve_idx, 0:2])
-    assert not torch.equal(out[curve_idx, 2:4], coords[curve_idx, 2:4])
-    assert not torch.equal(out[curve_idx, 4:6], coords[curve_idx, 4:6])
-
-
-def test_random_coord_jitter_does_not_modify_types(
+def test_random_coord_jitter_samples_noise_independently_between_outlines(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    types, coords = simple_outline
-    g = torch.Generator().manual_seed(0)
-    out_types, _ = random_coord_jitter(types, coords, std=0.1, generator=g)
-    assert torch.equal(out_types, types)
+    outline = Outline(*simple_outline)
+    first, second = RandomCoordJitter(0.1)([outline, outline])
+    assert not torch.equal(first.coords, second.coords)
 
 
-@pytest.mark.parametrize("std", [float("nan"), float("inf")])
-def test_random_coord_jitter_non_finite_std_raises(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
-    std: float,
-) -> None:
-    types, coords = simple_outline
-    with pytest.raises(ValueError, match="std must be finite"):
-        random_coord_jitter(types, coords, std=std)
-
-
-def test_random_coord_jitter_deterministic_with_generator(
+def test_random_coord_jitter_can_share_noise_explicitly(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    types, coords = simple_outline
-    g1 = torch.Generator().manual_seed(99)
-    g2 = torch.Generator().manual_seed(99)
-    _, out1 = random_coord_jitter(types, coords, std=0.05, generator=g1)
-    _, out2 = random_coord_jitter(types, coords, std=0.05, generator=g2)
-    assert torch.equal(out1, out2)
+    outline = Outline(*simple_outline)
+    first, second = SameParams(RandomCoordJitter(0.1))([outline, outline])
+    assert torch.equal(first.coords, second.coords)
+
+
+@pytest.mark.parametrize("std", [-0.1, float("nan"), float("inf")])
+def test_random_coord_jitter_rejects_invalid_std(std: float) -> None:
+    with pytest.raises(ValueError, match="std must be non-negative and finite"):
+        RandomCoordJitter(std)
+
+
+def test_coord_jitter_accepts_noise_for_a_longer_outline(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    outline = Outline(*simple_outline)
+    noise = torch.ones((len(outline.types) + 1, 3, 2))
+
+    output = coord_jitter(outline, noise)
+
+    assert output.coords.shape == outline.coords.shape
+
+
+@pytest.mark.parametrize("shape", [(1, 3, 2), (6, 6), (6, 2, 3)])
+def test_coord_jitter_rejects_incompatible_noise_shape(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+    shape: tuple[int, ...],
+) -> None:
+    with pytest.raises(ValueError, match="noise must"):
+        coord_jitter(Outline(*simple_outline), torch.ones(shape))
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_random_coord_jitter_accepts_cpu_generator_for_cuda_input(
+def test_random_coord_jitter_preserves_cuda_device(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    types, coords = (tensor.cuda() for tensor in simple_outline)
-    generator = torch.Generator().manual_seed(99)
-
-    out_types, out_coords = random_coord_jitter(
-        types,
-        coords,
-        std=0.05,
-        generator=generator,
+    output = RandomCoordJitter(0.1)(
+        Outline(*(tensor.cuda() for tensor in simple_outline))
     )
-
-    assert out_types.device.type == "cuda"
-    assert out_coords.device.type == "cuda"
+    assert output.types.device.type == "cuda"
+    assert output.coords.device.type == "cuda"

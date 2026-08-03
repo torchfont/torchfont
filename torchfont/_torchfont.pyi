@@ -1,4 +1,4 @@
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, TypeAlias
 
@@ -27,6 +27,7 @@ def render_bitmap(
     size: int,
     mode: _BitmapMode,
     fill_rule: _FillRule,
+    antialias: bool,
 ) -> tuple[np.ndarray, int, int]: ...
 def normalize_subpath_start_points(
     types: np.ndarray, coords: np.ndarray
@@ -53,47 +54,7 @@ def tight_bbox(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[float, float, float, float] | None: ...
 
-class FixedGlyphIndex:
-    sample_count: int
-    style_count: int
-    @classmethod
-    def from_root(
-        cls,
-        root: str,
-        codepoints: Sequence[int] | None,
-        patterns: Sequence[str] | None,
-        instance_fn: Callable[..., Sequence[Mapping[str, float]]],
-    ) -> FixedGlyphIndex: ...
-    def font_refs(self) -> list[tuple[Path, int]]: ...
-    def style_classes(self) -> list[str]: ...
-    def character_codepoints(self) -> list[int]: ...
-    def locate(
-        self,
-        idx: int,
-    ) -> tuple[
-        Path,
-        int,
-        int,
-        int,
-        list[tuple[str, float]],
-        int,
-        int,
-        float | None,
-        float | None,
-        float | None,
-        float | None,
-        float | None,
-    ]: ...
-    def font_targets(self) -> np.ndarray: ...
-    def style_targets(self) -> np.ndarray: ...
-    def character_targets(self) -> np.ndarray: ...
-    def weight_targets(self) -> np.ndarray: ...
-    def width_targets(self) -> np.ndarray: ...
-    def italic_targets(self) -> np.ndarray: ...
-    def slant_targets(self) -> np.ndarray: ...
-    def optical_size_targets(self) -> np.ndarray: ...
-
-class VariableGlyphIndex:
+class GlyphIndex:
     sample_count: int
     @classmethod
     def from_root(
@@ -101,8 +62,7 @@ class VariableGlyphIndex:
         root: str,
         codepoints: Sequence[int] | None,
         patterns: Sequence[str] | None,
-        instance_fn: Callable[..., int],
-    ) -> VariableGlyphIndex: ...
+    ) -> GlyphIndex: ...
     def font_refs(self) -> list[tuple[Path, int]]: ...
     def character_codepoints(self) -> list[int]: ...
     def locate(self, idx: int) -> tuple[Path, int, int, int, int]: ...
@@ -119,21 +79,17 @@ def variation_axes(
     path: str,
     ttc_index: int,
 ) -> list[tuple[str, float, float, float]]: ...
-def default_location_for_font(path: str, ttc_index: int) -> list[tuple[str, float]]: ...
-def named_instance_locations_for_font(
+def glyph_targets(
     path: str,
     ttc_index: int,
-) -> list[list[tuple[str, float]]]: ...
-def grid_locations_for_font(
-    path: str,
-    ttc_index: int,
-    axes: dict[str, int],
-) -> list[list[tuple[str, float]]]: ...
-def grid_location_count_for_font(
-    path: str,
-    ttc_index: int,
-    axes: dict[str, int],
-) -> int: ...
+    location: dict[str, float],
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+    float,
+]: ...
 
 LATIN_CORE: list[int]
 LATIN_KERNEL: list[int]

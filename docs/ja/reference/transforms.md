@@ -1,447 +1,156 @@
-# トランスフォーム Utility
+# Transform
 
-`torchfont.transforms` は glyph sample と tensor を調整するための小さな utility 関数を提供します。
-dataset item の整形は利用側の前処理コードで行います。
+TorchFont の Transform は TorchVision Transforms v2（`torchvision.transforms.v2`）と同様に、意味を持つデータ型、
+クラスベースの確率的 Transform、決定論的な Functional カーネル、PyTree の合成を
+基本にします。
 
-## load_glyph
+## データ型
 
 ```python
-from torchfont.transforms import load_glyph
-
-types, coords = load_glyph(sample.ref)
+from torchfont.structures import GlyphData, Outline
 ```
 
-`load_glyph` は dataset のグリフ参照から、このモジュールの他の関数が扱う
-`(types, coords)` へのブリッジです。通常
-`GlyphDataset`/`VariableGlyphDataset` の `transform` 内で最初に呼びます。
-`(types, coords)` を返し、`types` は 1-D `LongTensor`、`coords` は shape
-`(N, 6)` の 2-D `FloatTensor` です。
+`Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
+`GlyphData[T]` は変換中の Payload、Glyph 参照、実際に使用した Variation Location、Target
+を保持します。Payload は Generic なので、Metadata を失わずに
+`Outline` から通常のビットマップテンソルへ変換できます。ラスタライズしたグリフには
+TorchFont 固有のテンソルサブクラスを設けず、画像として扱う必要がある境界で TorchVision の
+`ToImage()` を明示的に適用します。
 
-outline から outline への transform は入力 device を維持します。native outline
-演算は CPU 上の Rust で実行し、結果を対応する入力 device に戻してから返します。
-
-`VariableGlyphRef` では location を明示的に渡します。
+## 読み込みと合成
 
 ```python
-from torchfont.transforms import random_location
-
-sample = variable_dataset[0]
-location = random_location(sample.ref.font)
-types, coords = load_glyph(sample.ref, location)
-```
-
-明示的な location では、未知の軸、範囲外の値、NaN/inf は `ValueError` になります。
-指定されなかった軸はフォントの default を使います。
-
-## random_location
-
-```python
-from torchfont.transforms import random_location
-
-location = random_location(sample.ref.font, generator=None)
-```
-
-各 variation axis を user-space の最小値と最大値の間で独立に一様サンプリングします。
-静的フォントでは空の辞書を返します。ランダム性は任意の `torch.Generator` で管理し、
-CUDA generator も利用できます。
-
-## quad_to_cubic
-
-```python
-from torchfont.transforms import quad_to_cubic
-```
-
-```python
-types, coords = quad_to_cubic(types, coords)
-# 1 つの連続した outline シーケンスでは:
-types, coords = quad_to_cubic(types, coords, merge_curves=True)
-```
-
-`ElementType.QUAD_TO` を `ElementType.CURVE_TO` へ変換します。
-
-- path element の数は変わりません
-- 各 2 次セグメントの `[cx0, cy0, 0, 0, x, y]` は、直前終点を使って
-  3 次制御点に書き換えられます
-
-`merge_curves=True` を指定すると、変換直後に復元可能な隣接カーブと共線の line を
-同じ Rust 呼び出し内でまとめます。`cubic_to_quad` の後段で特に有用です。
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)`, `coords=(N, 6)`
-- `merge_curves=True` の場合: 出力 `types=(M,)`, `coords=(M, 6)`（長さが変わる場合あり）
-
-## cubic_to_quad
-
-```python
-from torchfont.transforms import cubic_to_quad
-```
-
-```python
-types, coords = cubic_to_quad(types, coords)
-```
-
-fonttools cu2qu と同じ近似方針で、`ElementType.CURVE_TO` を 2 次 spline へ変換します。
-
-- 1 つの連続した outline シーケンスを受け取ります
-- 1 つの cubic が複数の `ElementType.QUAD_TO` に展開されることがあります
-- 隣接する 2 次制御点の中点が暗黙の on-curve 点になります
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`
-
-## merge_curves
-
-```python
-from torchfont.transforms import merge_curves
-```
-
-```python
-types, coords = merge_curves(types, coords)
-```
-
-隣接セグメントを 1 つの親形状として復元できる場合にまとめます。
-
-- 分割された cubic は、復元誤差が許容範囲内なら 1 つの cubic に戻します
-- 分割された quadratic は、復元誤差が許容範囲内なら 1 つの quadratic に戻します
-- 同方向へ進む連続した共線の `LineTo` は 1 つにまとめます
-- subpath 境界は保持します
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`
-
-## random_split_segments
-
-```python
-from torchfont.transforms import random_split_segments
-
-types, coords = random_split_segments(
-    types,
-    coords,
-    split_probability=0.2,
-    split_range=(0.2, 0.8),
-    generator=None,
+from torchfont.transforms import (
+    Compose,
+    LoadGlyph,
+    RandomApply,
+    RandomSplitSegments,
+    RemoveOverlaps,
 )
-```
 
-形状を変えず、描画 segment をランダムに細分化します。
-
-- 各 `LINE_TO`、`QUAD_TO`、`CURVE_TO` segment を独立に
-  `split_probability`（デフォルト: `0.2`）で選択します
-- `split_probability` は `0.0` 以上 `1.0` 以下で指定します
-- 選択した segment は独立に `split_range`（デフォルト: `(0.2, 0.8)`）から
-  sample したパラメータ位置で分割します
-- `split_range` は `0 < min <= max < 1` を満たす必要があります。同じ値を指定すると
-  分割位置が固定されます
-- 1 本も選択されない no-op の結果もあります
-- `MOVE_TO`、`CLOSE`、`END`、`PAD` element は変更しません
-- subpath の境界と open/closed 状態を維持します
-- `torch.Generator` を渡すと選択と分割位置を再現できます
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`。`N <= M <= 2N`
-
-
-## remove_overlaps
-
-```python
-from torchfont.transforms import remove_overlaps
-```
-
-```python
-types, coords = remove_overlaps(types, coords)
-```
-
-Skia PathOps を使い、winding に基づく hole を保ったまま重なったグリフ subpath を統合します。
-
-- 1 つの連続した outline シーケンスを受け取ります
-- 重なり内部の edge を除去し、新しい可変長 outline を返します
-- Skia PathOps が簡約できない outline は元のまま返します
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`
-
-## random_remove_overlaps
-
-```python
-from torchfont.transforms import random_remove_overlaps
-
-types, coords = random_remove_overlaps(types, coords, generator=None)
-```
-
-データ拡張のため、重なりのある subpath をランダムな 1 個以上のグループとして統合します。
-
-- closed subpath の tight bounding box の交差を overlap の近似として使います
-- bbox で連結した subpath を独立した overlap グループにします
-- 各グループを独立に確率 0.5 で選択します
-- 選択された各グループを 1 回の Skia PathOps 呼び出しで統合します
-- overlap グループがある場合は少なくとも 1 グループを選択します
-- PathOps が選択グループを簡約できない場合はそのグループを変更しません
-- `torch.Generator` を渡すと選択を再現できます
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`
-
-## normalize_subpath_start_points
-
-```python
-from torchfont.transforms import normalize_subpath_start_points
-```
-
-```python
-types, coords = normalize_subpath_start_points(types, coords)
-```
-
-各 subpath の開始点を、辞書順で最小の `(x, y)` 終点へ移します。
-
-- closed subpath のみを変更し、open subpath は変更しません
-- 回転が元の close edge をまたぐ場合、その暗黙 edge を `LineTo` として実体化します
-- 表す形状は保持します。元の開始点以外へ回す場合は `LineTo` が 1 つ増えることがあります
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`
-
-## randomize_subpath_start_points
-
-```python
-from torchfont.transforms import randomize_subpath_start_points
-```
-
-```python
-types, coords = randomize_subpath_start_points(types, coords)
-```
-
-各 subpath の開始終点を一様ランダムに選びます。
-
-- subpath の開始点にモデルを依存させたくない場合の augmentation に使えます
-- closed subpath のみを変更し、open subpath は変更しません
-- `generator`: 再現性のためのオプション `torch.Generator`
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(M,)`, `coords=(M, 6)`
-
-## randomize_subpath_order
-
-```python
-from torchfont.transforms import randomize_subpath_order
-
-types, coords = randomize_subpath_order(types, coords, generator=None)
-```
-
-各 subpath の形状、開始点、winding、open/closed 状態を保持したまま、subpath 全体の
-順序をランダムに入れ替えます。sequence model が任意の contour 順序に依存するのを
-防ぐために利用できます。
-
-抽出済みの単色 outline では、hole は contour の順序ではなく winding/fill rule で
-決まります。この transform は、別の意味を持ち得る元 font の point index、TrueType
-instruction、variation delta、composite component、color glyph layer の順序には作用しません。
-
-## horizontal_flip
-
-```python
-from torchfont.transforms import horizontal_flip
-```
-
-```python
-types, coords = horizontal_flip(types, coords)
-```
-
-グリフアウトラインを tight bounding-box の中心を軸に水平反転します。
-
-- on-curve 終点と off-curve 制御点の両方を変換します
-- 座標が 0 の element type（CLOSE、END、PAD）は変更しません
-- 閉じた subpath の巻き順はデフォルトで保持します
-- 反転後の巻き順をそのまま使うには `preserve_winding=False` を指定します
-- 開いた subpath は反転しますが、走査方向は反転しません
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)`, `coords=(N, 6)`
-
-## vertical_flip
-
-```python
-from torchfont.transforms import vertical_flip
-```
-
-```python
-types, coords = vertical_flip(types, coords)
-```
-
-グリフアウトラインを tight bounding-box の中心を軸に垂直反転します。
-
-- on-curve 終点と off-curve 制御点の両方を変換します
-- 座標が 0 の element type（CLOSE、END、PAD）は変更しません
-- 閉じた subpath の巻き順はデフォルトで保持します
-- 反転後の巻き順をそのまま使うには `preserve_winding=False` を指定します
-- 開いた subpath は反転しますが、走査方向は反転しません
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)`, `coords=(N, 6)`
-
-## affine
-
-```python
-from torchfont.transforms import affine
-```
-
-```python
-types, coords = affine(
-    types, coords, angle=15.0, translate=(0.05, 0.0), scale=0.9, shear=5.0
+transform = Compose(
+    [
+        LoadGlyph(),
+        RandomApply(RandomSplitSegments(split_probability=0.2), p=0.5),
+        RemoveOverlaps(),
+    ]
 )
+
+data = transform(sample)
+outline = data.data
 ```
 
-グリフアウトラインに決定論的なアフィン変換を適用します。
+`LoadGlyph` は `GlyphSample` または `GlyphRef` を受け取ります。サンプルは
+`GlyphData[Outline]` に、参照単体は `Outline` になります。
+`LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
+Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点抽出し、
+`GlyphData.location` に保存します。Static Face では空の位置になります。
+Dataset Sample に対しては、返される `GlyphData` の並列な `weight`、`width`、`italic`、
+`slant`、`optical_size` Target も解決します。
 
-tight bounding-box の中心を基準に一様スケール・x-shear・回転を合成し、
-`translate` を適用します。すべてのアクティブな制御点と終点を変換します。
-座標が 0 の element type（CLOSE、END、PAD）は変更しません。
+`Transform` はネストした PyTree を平坦化し、一致する意味的なリーフごとに独立して
+パラメーターを生成し、元の構造を復元します。同じバリアブルフォントの複数グリフを一つの
+位置で扱う場合など、対応する複数アウトラインに同じ反転、アフィンパラメーター、要素単位の
+乱数を適用する場合は、Transform を `SameParams` で包みます。確率的 Transform は PyTorch の
+デフォルト RNG を使うため、`torch.manual_seed` と `DataLoader` ワーカーのシードが通常どおり
+機能します。`SameParams(LoadGlyph(location="random"))` を使うと同じ Font の複数 Glyph に
+一つの位置を選べますが、異なる Font 間で未変換の Axis 値を共有することは拒否します。
+組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
+渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
+`callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
+要件を明示します。これによりモジュールの走査、状態辞書、フック、設定表示を PyTorch の
+規則に揃えます。
 
-- `angle`: 反時計回りの回転角度（単位: 度、デフォルト: `0.0`）
-- `translate`: em 単位での平行移動 `(tx, ty)`（有限値が必須、デフォルト: `(0.0, 0.0)`）
-- `scale`: 一様スケール係数（正かつ有限の値が必須、デフォルト: `1.0`）
-- `shear`: x-shear 角度（単位: 度、デフォルト: `0.0`）
+コンテナーは登録した子をモジュール呼び出し経路で呼ぶため、`forward` フックも機能します。
+`train()` と `eval()` は通常どおり伝播しますが、組み込みの確率的 Transform は意図的に
+`training` フラグを参照しません。前処理とモデルのモードは別の関心事なので、評価時は
+`eval()` でデータ拡張が止まることに依存せず、決定論的パイプラインを明示的に選びます。
 
-### 入出力
+`torchvision.transforms.v2` と同様に、Transform とコンテナーは一つの PyTree または複数の
+位置引数を受け取れます。リーフ間の関係をパラメーターのサンプリング前に確認する
+カスタム Transform のために `check_inputs()` を利用できます。`Compose` は
+`nn.Module` の `Iterable` を即座に `nn.ModuleList` へ具体化し、空の `Iterable` は
+恒等 Transform として扱います。`RandomApply` は一つの
+`nn.Module`、`SameParams` は一つの `Transform` を包みます。複数の Transform を
+`RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
+`RandomApply(transform, p)` は一つの Transform を適用するか制御します。
+`RandomSplitSegments.split_probability` などは、適用された Transform 内部の挙動を
+制御します。
 
-## random_horizontal_flip
+## 組み込み Transform
+
+| 分類 | Transform |
+| --- | --- |
+| 読み込み | `LoadGlyph` |
+| コンテナ | `Compose`, `RandomApply`, `SameParams` |
+| Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
+| アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
+| Subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
+| 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
+| 出力 | `RenderBitmap` |
+
+`RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
+`GlyphData` 内にある場合も、参照、Location、Target は変換後の Payload とともに維持されます。
+
+### レンダリングしたグリフを TorchVision で使う
+
+`RenderBitmap` はグレースケールの通常の `H x W` テンソルを返します。
+`torchvision.transforms.v2.ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
+形状が `1 x H x W` の `tv_tensors.Image` になります。両ライブラリが PyTree を処理するため、
+外側の `GlyphData` も維持されます。
+`RenderBitmap(antialias=False)` は Edge Coverage を二値化します。これは Vector の
+Rasterization を制御するもので、後段の `v2.Resize` における画像の Resampling を制御する
+`antialias` Option とは独立しています。
 
 ```python
-from torchfont.transforms import random_horizontal_flip
-```
+import torch
+from torchvision.transforms import v2
 
-```python
-types, coords = random_horizontal_flip(types, coords, p=0.5)
-```
+from torchfont.transforms import Compose, LoadGlyph, RenderBitmap
 
-確率 `p` で `horizontal_flip` をランダムに適用します。
-
-- `p`: 反転確率（デフォルト: `0.5`）
-- `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
-- `generator`: 再現性のためのオプション `torch.Generator`
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)`, `coords=(N, 6)`
-
-## random_vertical_flip
-
-```python
-from torchfont.transforms import random_vertical_flip
-```
-
-```python
-types, coords = random_vertical_flip(types, coords, p=0.5)
-```
-
-確率 `p` で `vertical_flip` をランダムに適用します。
-
-- `p`: 反転確率（デフォルト: `0.5`）
-- `preserve_winding`: 反転後も閉じた subpath の巻き順を保持します（デフォルト: `True`）
-- `generator`: 再現性のためのオプション `torch.Generator`
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)`, `coords=(N, 6)`
-
-## random_affine
-
-```python
-from torchfont.transforms import random_affine
-```
-
-```python
-types, coords = random_affine(
-    types,
-    coords,
-    degrees=15.0,
-    translate=(0.05, 0.05),
-    scale=(0.9, 1.1),
-    shear=5.0,
+transform = Compose(
+    [
+        LoadGlyph(),
+        RenderBitmap(size=96),
+        v2.ToImage(),
+        v2.RandomAffine(degrees=(-5.0, 5.0), translate=(0.05, 0.05), fill=0),
+        v2.Resize((64, 64), antialias=True),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.ToPureTensor(),
+    ]
 )
+
+data = transform(sample)
+image = data.data  # Tensor, (1, 64, 64), float32, range [0, 1]
 ```
 
-指定した範囲から一様サンプリングしたランダムなアフィン変換を適用します。
+幾何変換まではビットマップを `uint8` に保ち、モデルへ渡す直前に
+`ToDtype(torch.float32, scale=True)` で変換します。`ToImage()` 自体はピクセル値を
+スケーリングしません。`ToPureTensor()` はモデルへ渡す前に `Image` サブクラスを取り除きます。
+TorchVision は任意の統合先であり、TorchFont のレンダラーには不要です。
 
-- `degrees`: 回転範囲（度）。単一の float `d` を指定すると `[-d, d]` になります
-- `translate`: em 単位での最大絶対平行移動 `(max_dx, max_dy)`。
-  各軸を `[-max_d, max_d]` からサンプリングします（デフォルト: 平行移動なし）
-- `scale`: スケール範囲 `(min, max)`。両値は正かつ有限の値が必須
-  （デフォルト: スケールなし）
-- `shear`: x-shear 範囲（度）。`degrees` と同じ書式（デフォルト: `0.0`）
-- `generator`: 再現性のためのオプション `torch.Generator`
+## Functional カーネル
 
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
-
-## random_coord_jitter
+決定論的な処理は `torchfont.transforms.functional` から利用できます。
 
 ```python
-from torchfont.transforms import random_coord_jitter
+from torchfont.structures import Outline
+from torchfont.transforms import functional as F
+
+outline = F.load_glyph(sample.ref)
+outline = F.remove_overlaps(outline)
+outline = F.quad_to_cubic(outline, merge_curves=True)
+outline = F.affine(outline, angle=10.0)
+bitmap = F.render_bitmap(outline, size=64)
+shape = bitmap.shape
 ```
 
-```python
-types, coords = random_coord_jitter(types, coords, std=0.005)
-```
+Functional API は乱数を生成しません。ランダムな選択とパラメーターのサンプリングは
+`Random*` Transform クラスの責務です。
 
-各アクティブな outline 座標に独立したガウスノイズを加算します。
-
-- `std`: em 単位での有限な標準偏差。`0.005` は
-  1000-UPM フォントで約 5 フォントユニットに相当します
-- 座標が 0 の element type（CLOSE、END、PAD）と未使用の座標列は変更しません
-- `generator`: 再現性のためのオプション `torch.Generator`
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `types=(N,)` (変更なし), `coords=(N, 6)`
-
-## render_bitmap
-
-```python
-from torchfont.transforms import render_bitmap
-```
-
-```python
-bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
-```
-
-グリフアウトラインをグレースケールビットマップテンソルへレンダリングします。
-`mode` に応じた座標変換で出力ビットマップへ配置します。
-
-- `size` は 1〜4096 の整数（デフォルト: 64）
-- `mode="fixed"` は em 単位の固定範囲 `[-0.25, 1.25] x [-0.25, 1.25]` に配置
-- `mode="bbox"` は fixed と同じ座標スケールを保ち、tight bbox に合わせた可変サイズのビットマップを返します
-- `mode="bbox_square"` は tight bbox を縦横比を保って正方形内に中央配置（デフォルト）
-- クリップ済みアウトラインを直接渡すと元の形状を正確に再現できます
-
-### 入出力
-
-- 入力: `types=(N,)`, `coords=(N, 6)`
-- 出力: `uint8` テンソル、値域 `[0, 255]`。`fixed` / `bbox_square` は
-  `(size, size)`、`bbox` は可変の `(height, width)`
+これらの Transform が `nn.Module` なのは、合成、モジュール登録、PyTorch RNG、PyTree
+処理のためです。Rust バックエンドのアウトライン用 Functional は CPU / NumPy 境界を通る
+前処理であり、自動微分への参加、アクセラレーター上での実行維持、`torch.compile` による
+キャプチャーは保証しません。現在の Functional はシグネチャーに記載した単一の意味型を
+処理します。複数のアウトライン表現が必要になるまではカーネルレジストリを導入しません。

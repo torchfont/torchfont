@@ -1,45 +1,25 @@
 import pytest
 import torch
 
-from torchfont.transforms import random_vertical_flip
+from torchfont.structures import Outline
+from torchfont.transforms import RandomVerticalFlip
 
 
-def test_random_vertical_flip_applies_with_p1(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
+@pytest.mark.parametrize(("p", "changes"), [(0.0, False), (1.0, True)])
+def test_random_vertical_flip_probability_boundaries(
+    simple_outline: tuple[torch.Tensor, torch.Tensor], p: float, *, changes: bool
 ) -> None:
     types, coords = simple_outline
-    g = torch.Generator().manual_seed(0)
-    _, out = random_vertical_flip(
-        types,
-        coords,
-        p=1.0,
-        preserve_winding=False,
-        generator=g,
-    )
-    assert not torch.equal(out, coords)
-
-
-def test_random_vertical_flip_skips_with_p0(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
-) -> None:
-    types, coords = simple_outline
-    _, out = random_vertical_flip(types, coords, p=0.0)
-    assert torch.equal(out, coords)
+    output = RandomVerticalFlip(p, preserve_winding=False)(Outline(types, coords))
+    assert (not torch.equal(output.coords, coords)) is changes
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_random_vertical_flip_accepts_cpu_generator_for_cuda_input(
+def test_random_vertical_flip_preserves_cuda_device(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    types, coords = (tensor.cuda() for tensor in simple_outline)
-    generator = torch.Generator().manual_seed(0)
-
-    out_types, out_coords = random_vertical_flip(
-        types,
-        coords,
-        p=1.0,
-        generator=generator,
+    output = RandomVerticalFlip(1.0)(
+        Outline(*(tensor.cuda() for tensor in simple_outline))
     )
-
-    assert out_types.device.type == "cuda"
-    assert out_coords.device.type == "cuda"
+    assert output.types.device.type == "cuda"
+    assert output.coords.device.type == "cuda"

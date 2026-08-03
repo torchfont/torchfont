@@ -28,6 +28,7 @@ pub(crate) fn render_bitmap(
     size: u32,
     mode: RenderMode,
     fill_rule: FillRule,
+    antialias: bool,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
     let track_bounds = !matches!(mode, RenderMode::Fixed);
     let (path, bounds) = build_path(outline, track_bounds);
@@ -40,7 +41,7 @@ pub(crate) fn render_bitmap(
         return Ok(blank_for_mode(size, mode));
     };
 
-    let data = draw_alpha_path(&path, width, height, transform, fill_rule);
+    let data = draw_alpha_path(&path, width, height, transform, fill_rule, antialias);
     Ok(RenderedBitmap {
         data,
         width,
@@ -99,9 +100,10 @@ fn draw_alpha_path(
     height: u32,
     transform: Transform,
     fill_rule: FillRule,
+    antialias: bool,
 ) -> Vec<u8> {
     let mut mask = Mask::new(width, height).expect("width and height are nonzero");
-    mask.fill_path(path, fill_rule, true, transform);
+    mask.fill_path(path, fill_rule, antialias, transform);
     mask.take()
 }
 

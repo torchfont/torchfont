@@ -2,20 +2,49 @@ use pyo3::prelude::*;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::font::{axis_info, map_font, parse_font_ref};
+use crate::font::{
+    axis_info, canonicalize_location, map_font, parse_font_ref, registered_axis_values,
+};
 use crate::transform::load::load_glyph_outline;
 
 #[pyfunction]
 pub(crate) fn variation_axes(
+    py: Python<'_>,
     path: PathBuf,
     ttc_index: u32,
 ) -> PyResult<Vec<(String, f32, f32, f32)>> {
-    let data = map_font(&path)?;
-    let font = parse_font_ref(&data[..], &path, ttc_index)?;
-    Ok(axis_info(&font)
-        .into_iter()
-        .map(|axis| (axis.tag, axis.min, axis.default, axis.max))
-        .collect())
+    py.detach(|| {
+        let data = map_font(&path)?;
+        let font = parse_font_ref(&data[..], &path, ttc_index)?;
+        Ok(axis_info(&font)
+            .into_iter()
+            .map(|axis| (axis.tag, axis.min, axis.default, axis.max))
+            .collect())
+    })
+}
+
+type GlyphTargets = (f32, f32, f32, f32, f32);
+
+#[pyfunction]
+pub(crate) fn glyph_targets(
+    py: Python<'_>,
+    path: PathBuf,
+    ttc_index: u32,
+    location: BTreeMap<String, f32>,
+) -> PyResult<GlyphTargets> {
+    py.detach(|| {
+        let data = map_font(&path)?;
+        let font = parse_font_ref(&data[..], &path, ttc_index)?;
+        let location = canonicalize_location(&font, &path, ttc_index, Some(&location))?;
+        let values = registered_axis_values(&font, &location);
+        Ok((
+            values.weight,
+            values.width,
+            values.italic,
+            values.slant,
+            values.optical_size,
+        ))
+    })
 }
 
 #[pyfunction]
@@ -26,6 +55,7 @@ pub(crate) fn load_glyph<'py>(
     codepoint: u32,
     location: Option<BTreeMap<String, f32>>,
 ) -> PyResult<super::OutlineArrays<'py>> {
-    let outline = load_glyph_outline(&path, ttc_index, codepoint, location.as_ref())?;
+    let outline =
+        py.detach(|| load_glyph_outline(&path, ttc_index, codepoint, location.as_ref()))?;
     Ok(super::encode(py, &outline))
 }

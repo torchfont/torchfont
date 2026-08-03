@@ -2,19 +2,16 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
-
-
-def transform(sample: GlyphSample) -> tuple[Tensor, Tensor]:
-    return load_glyph(sample.ref)
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
 def collate_fn(
-    batch: list[tuple[Tensor, Tensor]],
+    batch: list[GlyphData[Outline]],
 ) -> tuple[Tensor, Tensor]:
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+    types = pad_sequence([data.data.types for data in batch], batch_first=True)
+    coords = pad_sequence([data.data.coords for data in batch], batch_first=True)
     return types, coords
 
 
@@ -22,7 +19,7 @@ def main() -> None:
     dataset = GlyphDataset(
         root="data/fortawesome/font-awesome",
         patterns=("otfs/*.otf",),
-        transform=transform,
+        transform=LoadGlyph(),
     )
 
     dataloader = DataLoader(
@@ -36,7 +33,6 @@ def main() -> None:
 
     print(f"{len(dataset)=}")
     print(f"{len(dataset.font_classes)=}")
-    print(f"{len(dataset.style_classes)=}")
     print(f"{len(dataset.character_classes)=}")
 
     for batch in dataloader:

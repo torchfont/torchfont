@@ -46,12 +46,14 @@ pub(crate) fn quad_to_cubic<'py>(
     merge_curves: bool,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    let result = curves::quad_to_cubic::quad_to_cubic(&outline);
-    let result = if merge_curves {
-        crate::transform::curves::merge_curves::merge_curves(&result)
-    } else {
-        result
-    };
+    let result = py.detach(|| {
+        let result = curves::quad_to_cubic::quad_to_cubic(&outline);
+        if merge_curves {
+            crate::transform::curves::merge_curves::merge_curves(&result)
+        } else {
+            result
+        }
+    });
     Ok(encode(py, &result))
 }
 
@@ -62,7 +64,7 @@ pub(crate) fn cubic_to_quad<'py>(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    curves::cubic_to_quad::cubic_to_quad(&outline)
+    py.detach(|| curves::cubic_to_quad::cubic_to_quad(&outline))
         .map(|outline| encode(py, &outline))
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
@@ -78,7 +80,8 @@ pub(crate) fn merge_curves<'py>(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(encode(py, &curves::merge_curves::merge_curves(&outline)))
+    let result = py.detach(|| curves::merge_curves::merge_curves(&outline));
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -124,16 +127,16 @@ pub(crate) fn random_split_segments<'py>(
             segment_position_values.push(position);
         }
     }
-    Ok(encode(
-        py,
-        &curves::split_segments::random_split_segments(
+    let result = py.detach(|| {
+        curves::split_segments::random_split_segments(
             &outline,
             &segment_selection_values,
             &segment_position_values,
             split_probability,
             split_range,
-        ),
-    ))
+        )
+    });
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -143,10 +146,8 @@ pub(crate) fn normalize_subpath_start_points<'py>(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(encode(
-        py,
-        &subpath::normalize_subpath_start_points(&outline),
-    ))
+    let result = py.detach(|| subpath::normalize_subpath_start_points(&outline));
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -170,10 +171,9 @@ pub(crate) fn randomize_subpath_start_points<'py>(
         .zip(r)
         .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
         .collect();
-    Ok(encode(
-        py,
-        &subpath::randomize_subpath_start_points(&outline, &subpath_random_values),
-    ))
+    let result =
+        py.detach(|| subpath::randomize_subpath_start_points(&outline, &subpath_random_values));
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -197,10 +197,8 @@ pub(crate) fn randomize_subpath_order<'py>(
         .zip(r)
         .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
         .collect();
-    Ok(encode(
-        py,
-        &subpath::randomize_subpath_order(&outline, &subpath_random_values),
-    ))
+    let result = py.detach(|| subpath::randomize_subpath_order(&outline, &subpath_random_values));
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -210,7 +208,8 @@ pub(crate) fn reverse_closed_subpaths<'py>(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(encode(py, &subpath::reverse_closed_subpaths(&outline)))
+    let result = py.detach(|| subpath::reverse_closed_subpaths(&outline));
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -220,10 +219,8 @@ pub(crate) fn remove_overlaps<'py>(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(encode(
-        py,
-        &crate::transform::remove_overlaps::remove_overlaps(&outline),
-    ))
+    let result = py.detach(|| crate::transform::remove_overlaps::remove_overlaps(&outline));
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
@@ -241,19 +238,23 @@ pub(crate) fn random_remove_overlaps<'py>(
             "random_values length must be at least types length",
         ));
     }
-    Ok(encode(
-        py,
-        &crate::transform::remove_overlaps::random_remove_overlaps(&outline, random_values),
-    ))
+    let random_values = random_values.to_vec();
+    let result = py.detach(|| {
+        crate::transform::remove_overlaps::random_remove_overlaps(&outline, &random_values)
+    });
+    Ok(encode(py, &result))
 }
 
 #[pyfunction]
 pub(crate) fn tight_bbox(
+    py: Python<'_>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<Option<(f32, f32, f32, f32)>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(crate::outline::bounds_from_outline(&outline).map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
+    Ok(py
+        .detach(|| crate::outline::bounds_from_outline(&outline))
+        .map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
 }
 
 #[pyfunction]
@@ -264,6 +265,7 @@ pub(crate) fn render_bitmap(
     size: u32,
     mode: &str,
     fill_rule: &str,
+    antialias: bool,
 ) -> PyResult<(Py<PyArray1<u8>>, u32, u32)> {
     if size == 0 || size > 4096 {
         return Err(pyo3::exceptions::PyValueError::new_err(
@@ -290,7 +292,12 @@ pub(crate) fn render_bitmap(
         }
     };
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    let rendered = crate::transform::render_bitmap::render_bitmap(&outline, size, mode, fill_rule)
+    let rendered = py
+        .detach(|| {
+            crate::transform::render_bitmap::render_bitmap(
+                &outline, size, mode, fill_rule, antialias,
+            )
+        })
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
                 "bbox output dimensions must be between 1 and 4096",
@@ -306,6 +313,7 @@ pub(crate) fn render_bitmap(
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load::load_glyph, m)?)?;
     m.add_function(wrap_pyfunction!(load::variation_axes, m)?)?;
+    m.add_function(wrap_pyfunction!(load::glyph_targets, m)?)?;
     m.add_function(wrap_pyfunction!(quad_to_cubic, m)?)?;
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;

@@ -3,8 +3,8 @@ from collections.abc import Callable
 import pytest
 import torch
 
-from torchfont.io import ElementType
-from torchfont.transforms import affine
+from torchfont.structures import ElementType
+from torchfont.transforms.functional._geometry import _affine as affine
 
 
 def test_affine_identity_leaves_coords_unchanged(

@@ -22,8 +22,8 @@ It is not affiliated with or endorsed by the PyTorch project.
 
 TorchFont is local-first: point `GlyphDataset` at a font directory or a
 repository checkout that already exists on disk, and TorchFont turns font files
-into lightweight glyph references. Load outlines explicitly with `load_glyph`
-inside your transform when tensors are needed.
+into lightweight glyph references. Load outlines explicitly with `LoadGlyph`
+in your transform pipeline when tensors are needed.
 
 ## Installation
 
@@ -47,17 +47,14 @@ pip install torchfont
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
     return types, coords
 
 
@@ -65,7 +62,7 @@ dataset = GlyphDataset(
     root="~/fonts",  # or "tests/fonts" in this repository
     patterns=("*.ttf",),
     codepoints=range(0x20, 0x7F),  # printable ASCII
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
@@ -79,11 +76,10 @@ print(coords_t.shape)  # (8, L, 6)
 
 - local font directories and repository checkouts as the input boundary
 - Rust-backed indexing plus explicit outline loading through lightweight glyph references
-- transform utilities such as `quad_to_cubic` for adapting glyph samples
+- `torchvision.transforms.v2`-style semantic pipelines for adapting glyph samples
 - PyTorch `DataLoader` integration through ordinary user-defined `collate_fn` functions
 
-TorchFont does not need to own Git clone / fetch / checkout in the main
-workflow. Sync repositories with Git or another tool, then point
+Manage font repository synchronization with Git or another tool, then point
 `GlyphDataset(root=...)` at the resulting directory.
 
 ## Citation

@@ -1,22 +1,14 @@
 use std::path::{Path, PathBuf};
 
-use skrifa::{MetadataProvider, raw::FileRef, raw::types::NameId};
+use skrifa::{MetadataProvider, raw::FileRef};
 
 use crate::error::Error;
 use crate::font::map_font;
-
-struct Name {
-    family_name: String,
-    subfamily_name: String,
-    typographic_family_name: String,
-    typographic_subfamily_name: String,
-}
 
 pub(crate) struct DiscoveredFont {
     path: PathBuf,
     ttc_index: u32,
     codepoints: Vec<u32>,
-    name: Name,
 }
 
 impl DiscoveredFont {
@@ -62,22 +54,6 @@ impl DiscoveredFont {
         self.codepoints.len()
     }
 
-    pub(crate) fn family_name(&self) -> &str {
-        if self.name.typographic_family_name.is_empty() {
-            &self.name.family_name
-        } else {
-            &self.name.typographic_family_name
-        }
-    }
-
-    pub(crate) fn subfamily_name(&self) -> &str {
-        if self.name.typographic_subfamily_name.is_empty() {
-            &self.name.subfamily_name
-        } else {
-            &self.name.typographic_subfamily_name
-        }
-    }
-
     fn from_font(
         path: &Path,
         ttc_index: u32,
@@ -101,22 +77,6 @@ impl DiscoveredFont {
                 .into_iter()
                 .map(|(codepoint, _)| codepoint)
                 .collect(),
-            name: parse_name_table(font),
         }
-    }
-}
-
-fn parse_name_table(font: &skrifa::FontRef<'_>) -> Name {
-    let one = |id: NameId| {
-        font.localized_strings(id)
-            .english_or_first()
-            .map(|value| value.to_string())
-            .unwrap_or_default()
-    };
-    Name {
-        family_name: one(NameId::FAMILY_NAME),
-        subfamily_name: one(NameId::SUBFAMILY_NAME),
-        typographic_family_name: one(NameId::TYPOGRAPHIC_FAMILY_NAME),
-        typographic_subfamily_name: one(NameId::TYPOGRAPHIC_SUBFAMILY_NAME),
     }
 }

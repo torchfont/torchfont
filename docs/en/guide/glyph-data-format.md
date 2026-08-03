@@ -6,7 +6,7 @@ Access a sample from the dataset created in the previous chapter. Run the follow
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -17,21 +17,28 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+data = dataset[0]
+outline = data.data
+types, coords = outline.types, outline.coords
 
-print(sample.ref)  # glyph reference
+print(data.ref)  # glyph reference
 print(types)  # element type sequence
 print(coords)  # coordinates sequence
-print(sample.style_idx)  # style class ID
-print(sample.character_idx)  # character class ID
+print(data.font_idx)  # font face class ID
+print(data.character_idx)  # character class ID
+print(data.weight)  # OpenType weight
+print(data.width)  # OpenType width percentage
+print(data.italic)  # OpenType italic value
+print(data.slant)  # slant angle
+print(data.optical_size)  # optical size in points
 ```
 
-The return value is a `GlyphSample` dataclass. It stores a deterministic glyph
-reference and dataset-local target indices. Use `load_glyph(sample.ref)` when
-you need outline tensors.
+The return value is `GlyphData[Outline]`. It keeps the semantic outline,
+deterministic glyph reference, and dataset-local targets in one shallow record.
+Registered-axis targets that are unavailable in the font are `NaN`.
 
 ## Outline model
 
@@ -50,8 +57,8 @@ Element types are defined in `ElementType`. Run the following code to see the ma
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
-from torchfont.io import ElementType
+from torchfont.transforms import LoadGlyph
+from torchfont.structures import ElementType
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -62,10 +69,11 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = dataset[0].data
+types, coords = outline.types, outline.coords
 
 print(types)
 print(ElementType(types[0].item()).name)
@@ -89,7 +97,7 @@ Each path element uses a 6D coordinates vector. Run the following code to inspec
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -100,10 +108,11 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = dataset[0].data
+types, coords = outline.types, outline.coords
 
 print(coords.shape)
 print(coords[0])
@@ -130,11 +139,11 @@ Coordinates are in em units: font design units divided by the font's
 
 Quadratic curves are emitted as `QuadTo` without conversion to cubic. To keep tensor shape fixed, `QuadTo` uses `[cx0, cy0, 0, 0, x, y]`.
 
-## Style and character labels
+## Font face and character labels
 
-### `style_idx`
+### `font_idx`
 
-`style_idx` is the style class ID. Run the following code to look up the corresponding name:
+`font_idx` is the font face class ID. Use it to look up the persistent face reference:
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -152,13 +161,13 @@ dataset = GlyphDataset(
 
 sample = dataset[0]
 
-print(dataset.style_classes[sample.style_idx])
+print(dataset.font_classes[sample.font_idx])
 ```
 
 You will see output like:
 
 ```
-Aclonica Regular
+FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
 ```
 
 ### `character_idx`

@@ -9,22 +9,17 @@ construction, shuffling, and parallel loading.
 
 ## Define a `transform`
 
-`GlyphSample` carries a glyph reference and target indices. Which tensors you
-load depends on the task, so use `transform` to call `load_glyph` and keep only
-the values you need.
+`GlyphSample` carries a glyph reference and target indices. Use `LoadGlyph` as
+the first pipeline transform to load its semantic `Outline` while retaining the
+sample metadata.
 
 Like PyTorch datasets, `GlyphDataset` has a `transform` argument that applies a
-transformation to each item. Define a function that loads `types` and `coords`
-from `sample.ref`, pass it to the dataset, and verify the output. Run the
-following code:
+transformation to each item. Pass `LoadGlyph()` directly and verify the output:
 
 ```python
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
-
-
-def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
 dataset = GlyphDataset(
@@ -35,22 +30,24 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
-types, coords = dataset[0]
+data: GlyphData[Outline] = dataset[0]
+types, coords = data.data.types, data.data.coords
 
 print(types.shape)
 print(coords.shape)
 ```
 
-With `transform`, `dataset[0]` now returns a `(types, coords)` tuple instead of
-a `GlyphSample`. `1` is the sequence length of this glyph; it varies per glyph.
-You will see output like:
+With `LoadGlyph`, `dataset[0]` returns `GlyphData[Outline]`. Its `data` field is
+the outline, while its other fields retain the reference, location, and targets.
+The first shape is `(N,)` and the second is `(N, 6)`, where `N` varies by glyph.
+For example:
 
 ```
-torch.Size([1])
-torch.Size([1, 6])
+torch.Size([37])
+torch.Size([37, 6])
 ```
 
 ## Create a DataLoader
@@ -62,17 +59,14 @@ Use `pad_sequence` to align sequences within a batch. Run the following code:
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
     return types, coords
 
 
@@ -84,7 +78,7 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
@@ -106,27 +100,23 @@ torch.Size([64, 369, 6])
 ## Multi-process loading
 
 Set `num_workers` and `prefetch_factor` to load data in parallel worker
-processes. Long sequences increase transfer overhead, so the `transform` truncates
-each sequence to the first 512 elements. Use `tqdm` to iterate over all batches
-and measure throughput. Run the following code:
+processes. Long sequences increase transfer overhead, so this example's
+`collate_fn` truncates each sequence to the first 512 elements. Use `tqdm` to
+iterate over all batches and measure throughput. Run the following code:
 
 ```python
 from tqdm import tqdm
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    types, coords = load_glyph(sample.ref)
-    return types[:512], coords[:512]
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types[:512] for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords[:512] for item in batch], batch_first=True)
     return types, coords
 
 
@@ -138,7 +128,7 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(
@@ -156,11 +146,11 @@ for batch in tqdm(loader):
     pass
 ```
 
-You will see output like the following. `it/s` is the batch processing speed.
-The entire Google Fonts dataset of 12.4 million samples completes in just 2
-minutes, fast enough for practical training loops.
+The dataset length depends on the selected font files and their character maps.
+The progress bar reports batch throughput as `it/s`; use it to choose worker and
+prefetch settings for your storage and training environment.
 
 ```
-len(dataset)=12460609
-100%|██████████| 194698/194698 [02:03<00:00, 1570.64it/s]
+len(dataset)=...
+100%|██████████| .../... [..., ...it/s]
 ```

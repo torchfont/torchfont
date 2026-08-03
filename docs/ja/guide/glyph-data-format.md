@@ -4,11 +4,11 @@
 
 ## サンプルを取得する
 
-前のチャプターで作成した Dataset からサンプルを取得します。次のコードを実行してください。
+前の章で作成したデータセットからサンプルを取得します。次のコードを実行してください。
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -19,41 +19,47 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+data = dataset[0]
+outline = data.data
+types, coords = outline.types, outline.coords
 
-print(sample.ref)  # グリフ参照
-print(types)  # Element Type の系列
-print(coords)  # Coordinates の系列
-print(sample.style_idx)  # 書体スタイルのクラス ID
-print(sample.character_idx)  # 文字のクラス ID
+print(data.ref)  # Glyph 参照
+print(types)  # 要素型の系列
+print(coords)  # 座標の系列
+print(data.font_idx)  # Font Face の Class ID
+print(data.character_idx)  # Character の Class ID
+print(data.weight)  # OpenType Weight
+print(data.width)  # OpenType Width のパーセント値
+print(data.italic)  # OpenType Italic 値
+print(data.slant)  # Slant 角度
+print(data.optical_size)  # ポイント単位の Optical Size
 ```
 
-返り値は `GlyphSample` という Dataclass です。決定的なグリフ参照と
-dataset-local な target index を保持します。outline tensor が必要なときは
-`load_glyph(sample.ref)` を呼びます。
+返り値の `GlyphData[Outline]` は、意味型の Outline、決定的な Glyph 参照、Dataset
+固有の Target を浅い一つの Record に保持します。
 
-## Outline モデル
+## アウトラインモデル
 
-グリフのアウトラインは、Path Element の系列として表現されます。
+グリフのアウトラインは、パス要素の系列として表現されます。
 
-- **Path element**: 1 つの Element Type と 1 行の Coordinates からなる最小単位
-- **Subpath**: グリフを構成する一続きの曲線ひとつを表す Path Element の系列
-- **Outline**: グリフ 1 文字分の輪郭を表す Path Element の系列
+- **パス要素**: 1 つの要素型と 1 行の座標からなる最小単位
+- **サブパス**: グリフを構成する一続きの曲線ひとつを表すパス要素の系列
+- **アウトライン**: グリフ 1 文字分の輪郭を表すパス要素の系列
 
-`types` は Element Type を整数で並べた `(seq_len,)` の `LongTensor`、
-`coords` は Coordinates を並べた `(seq_len, 6)` の `FloatTensor` です。
+`types` は要素型を整数で並べた `(seq_len,)` の `LongTensor`、
+`coords` は座標を並べた `(seq_len, 6)` の `FloatTensor` です。
 
-## Element Type
+## 要素型
 
-Element Type は `ElementType` で定義されています。次のコードで値と名前の対応を確認できます。
+要素型は `ElementType` で定義されています。次のコードで値と名前の対応を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
-from torchfont.io import ElementType
+from torchfont.transforms import LoadGlyph
+from torchfont.structures import ElementType
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -64,10 +70,11 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = dataset[0].data
+types, coords = outline.types, outline.coords
 
 print(types)
 print(ElementType(types[0].item()).name)
@@ -83,15 +90,15 @@ MOVE_TO
 種類は `MoveTo`、`LineTo`、`QuadTo`、`CurveTo`、`Close`、`End`、`Pad` の 7 つです。
 
 - `ElementType.END` はシーケンス終端を表します
-- `ElementType.PAD` は `pad_sequence` や独自 Padding で出現します
+- `ElementType.PAD` は `pad_sequence` や独自のパディングで出現します
 
-## Coordinates
+## 座標
 
-各 Path Element の Coordinates は 6 次元のベクトルです。次のコードで形状と内容を確認できます。
+各パス要素の座標は 6 次元のベクトルです。次のコードで形状と内容を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset
-from torchfont.transforms import load_glyph
+from torchfont.transforms import LoadGlyph
 
 dataset = GlyphDataset(
     root="data/google/fonts",
@@ -102,10 +109,11 @@ dataset = GlyphDataset(
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
     codepoints=range(0x41, 0x5B),
+    transform=LoadGlyph(),
 )
 
-sample = dataset[0]
-types, coords = load_glyph(sample.ref)
+outline = dataset[0].data
+types, coords = outline.types, outline.coords
 
 print(coords.shape)
 print(coords[0])
@@ -118,7 +126,7 @@ torch.Size([seq_len, 6])
 tensor([cx0, cy0, cx1, cy1, x, y])
 ```
 
-使用する次元は Element Type によって異なります。
+使用する次元は要素型によって異なります。
 
 - **`MoveTo` / `LineTo`**: 終点 `(x, y)` のみ使用。制御点は 0
 - **`QuadTo`**: 制御点 `(cx0, cy0)` と終点 `(x, y)` を使用。`cx1`、`cy1` は 0
@@ -126,17 +134,17 @@ tensor([cx0, cy0, cx1, cy1, x, y])
 - **`Close` / `End` / `Pad`**: すべて 0
 
 ::: info
-Coordinates は em 単位です。フォントの design units を `unitsPerEm` で
+座標は `em` 単位です。フォントのデザイン単位を `unitsPerEm` で
 割った値として表されます。
 :::
 
-2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の Coordinates は `[cx0, cy0, 0, 0, x, y]` です。
+2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の座標は `[cx0, cy0, 0, 0, x, y]` です。
 
-## スタイルと文字のラベル
+## フォントフェイスと文字のラベル
 
-### `style_idx`
+### `font_idx`
 
-`style_idx` は書体スタイルのクラス ID です。次のコードで対応するスタイル名を確認できます。
+`font_idx` はフォントフェイスのクラス ID です。次のコードで永続的なフェイス参照を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -154,13 +162,13 @@ dataset = GlyphDataset(
 
 sample = dataset[0]
 
-print(dataset.style_classes[sample.style_idx])
+print(dataset.font_classes[sample.font_idx])
 ```
 
 実行すると次のような出力が得られます。
 
 ```
-Aclonica Regular
+FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
 ```
 
 ### `character_idx`

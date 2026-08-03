@@ -4,21 +4,20 @@
 
 ## なぜ DataLoader を使うのか
 
-ニューラルネットワークの学習では、データを1件ずつ処理するのではなく、複数件をまとめたバッチ単位で処理します。バッチ処理により勾配の推定が安定し、GPU の並列演算を効率的に活用できます。`DataLoader` はバッチの構築・シャッフル・並列読み込みをまとめて担う PyTorch の標準ユーティリティです。
+ニューラルネットワークの学習では、データを 1 件ずつ処理するのではなく、複数件をまとめたバッチ単位で処理します。バッチ処理により勾配の推定が安定し、GPU の並列演算を効率的に活用できます。`DataLoader` はバッチの構築・シャッフル・並列読み込みをまとめて担う PyTorch の標準ユーティリティです。
 
 ## `transform` を定義する
 
-`GlyphSample` はグリフ参照と target index を持ちます。どの tensor を読み込むかはタスクによって異なるため、`transform` で `load_glyph` を呼び、必要な値だけを返します。
+`GlyphSample` はグリフ参照とターゲットインデックスを持ちます。パイプラインの最初に
+`LoadGlyph` を使うと、サンプルのメタデータを保持したまま意味型 `Outline` を読み込めます。
 
-`GlyphDataset` には、PyTorch の Dataset と同様にアイテムごとに変換を適用する `transform` 引数があります。ここでは `sample.ref` から `types` と `coords` を読み込む関数を定義し、Dataset に渡して動作を確認します。次のコードを実行してください。
+`GlyphDataset` には、PyTorch のデータセットと同様にアイテムごとに変換を適用する
+`transform` 引数があります。`LoadGlyph()` を直接渡して動作を確認します。
 
 ```python
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
-
-
-def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
 dataset = GlyphDataset(
@@ -29,20 +28,23 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
-types, coords = dataset[0]
+data: GlyphData[Outline] = dataset[0]
+types, coords = data.data.types, data.data.coords
 
 print(types.shape)
 print(coords.shape)
 ```
 
-`transform` を渡すと、`dataset[0]` の返り値が `GlyphSample` から `(types, coords)` のタプルに変わります。`1` はこのグリフのシーケンス長で、グリフごとに異なります。実行すると次のような出力が得られます。
+`LoadGlyph` を渡すと、`dataset[0]` は `GlyphData[Outline]` を返します。`data` Field が
+Outline で、ほかの Field が参照、Location、Target を保持します。最初の形状は `(N,)`、
+次は `(N, 6)` で、`N` は Glyph ごとに異なります。例えば次のようになります。
 
 ```
-torch.Size([1])
-torch.Size([1, 6])
+torch.Size([37])
+torch.Size([37, 6])
 ```
 
 ## DataLoader を作成する
@@ -53,17 +55,14 @@ torch.Size([1, 6])
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    return load_glyph(sample.ref)
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
     return types, coords
 
 
@@ -75,7 +74,7 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
@@ -85,7 +84,7 @@ print(types_t.shape)
 print(coords_t.shape)
 ```
 
-`collate_fn` はバッチ内の最長シーケンスに合わせて padding します。実行すると次のような出力が得られます。1 次元目はバッチサイズです。2 次元目はバッチ内の最長シーケンス長で、バッチごとに異なります。
+`collate_fn` はバッチ内の最長シーケンスに合わせてパディングします。実行すると次のような出力が得られます。1 次元目はバッチサイズです。2 次元目はバッチ内の最長シーケンス長で、バッチごとに異なります。
 
 ```
 torch.Size([64, 369])
@@ -94,25 +93,21 @@ torch.Size([64, 369, 6])
 
 ## マルチプロセス読み込み
 
-`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。シーケンス長が長いと転送コストが大きくなるため、`transform` で先頭 512 要素に切り詰めます。`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
+`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。シーケンス長が長いと転送コストが大きくなるため、この例の `collate_fn` で先頭 512 要素に切り詰めます。`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
 
 ```python
 from tqdm import tqdm
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphData, Outline
+from torchfont.transforms import LoadGlyph
 
 
-def transform(sample: GlyphSample):
-    types, coords = load_glyph(sample.ref)
-    return types[:512], coords[:512]
-
-
-def collate_fn(batch):
-    types = pad_sequence([types for types, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords in batch], batch_first=True)
+def collate_fn(batch: list[GlyphData[Outline]]):
+    types = pad_sequence([item.data.types[:512] for item in batch], batch_first=True)
+    coords = pad_sequence([item.data.coords[:512] for item in batch], batch_first=True)
     return types, coords
 
 
@@ -124,7 +119,7 @@ dataset = GlyphDataset(
         "ufl/*/*.ttf",
         "!ofl/adobeblank/AdobeBlank-Regular.ttf",
     ),
-    transform=transform,
+    transform=LoadGlyph(),
 )
 
 loader = DataLoader(
@@ -142,9 +137,9 @@ for batch in tqdm(loader):
     pass
 ```
 
-実行すると次のような出力が得られます。`it/s` はバッチの処理速度です。1,246 万サンプルからなる Google Fonts 全体をわずか 2 分でイテレートできています。1 エポックがこの速度で回るため、実用的な学習ループに十分なスループットです。
+データセット長は、選択したフォントファイルと各フォントの文字マップによって変わります。プログレスバーの `it/s` はバッチの処理速度です。ストレージや学習環境に適したワーカー数とプリフェッチ設定を決める指標として利用してください。
 
 ```
-len(dataset)=12460609
-100%|██████████| 194698/194698 [02:03<00:00, 1570.64it/s]
+len(dataset)=...
+100%|██████████| .../... [..., ...it/s]
 ```

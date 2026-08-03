@@ -5,8 +5,11 @@ import pytest
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset, GlyphSample
-from torchfont.transforms import load_glyph, merge_curves, render_bitmap
+from torchfont.datasets import GlyphDataset
+from torchfont.structures import GlyphSample, Outline
+from torchfont.transforms import functional as _functional
+from torchfont.transforms.functional import render_bitmap
+from torchfont.transforms.functional._curves import _merge_curves as merge_curves
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +26,18 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def _transform(sample: GlyphSample) -> Tensor:
-    types, coords = load_glyph(sample.ref)
+    outline = _functional.load_glyph(sample.ref)
+    types, coords = outline.types, outline.coords
     merged_types, merged_coords = merge_curves(types, coords)
 
     original = render_bitmap(
-        types,
-        coords,
+        outline,
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
     )
     merged = render_bitmap(
-        merged_types,
-        merged_coords,
+        Outline(merged_types, merged_coords),
         size=BITMAP_SIZE,
         mode="fixed",
         fill_rule="winding",
@@ -44,10 +46,9 @@ def _transform(sample: GlyphSample) -> Tensor:
     failed = _hard_diff(original, merged).any()
     if failed:
         logger.warning(
-            "merge_curves bitmap mismatch: %s U+%04X %s",
+            "merge_curves bitmap mismatch: %s U+%04X",
             sample.ref.font.path,
             sample.ref.codepoint,
-            sample.ref.location,
         )
     return failed
 

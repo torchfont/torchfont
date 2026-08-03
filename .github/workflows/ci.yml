@@ -65,12 +65,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - environment: development
+          - environment: latest
             runner: ubuntu-latest
           - environment: minimum
             runner: ubuntu-latest
             python-version: "3.10"
             torch-version: "2.3.*"
+            torchvision-version: "0.18.*"
           - environment: windows
             runner: windows-latest
     steps:
@@ -82,7 +83,7 @@ jobs:
         with:
           enable-cache: "true"
       - run: cargo test --all-targets --all-features
-      - if: matrix.environment == 'development'
+      - if: matrix.environment == 'latest'
         run: uv run --locked ty check
       - if: matrix.environment != 'minimum'
         run: uv run --locked pytest tests
@@ -94,6 +95,7 @@ jobs:
           --python ${{ matrix.python-version }}
           --index https://download.pytorch.org/whl/cpu
           --with "torch==${{ matrix.torch-version }}"
+          --with "torchvision==${{ matrix.torchvision-version }}"
           pytest tests
 
   linux:

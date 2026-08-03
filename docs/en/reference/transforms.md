@@ -1,454 +1,168 @@
-# Transform Utilities
+# Transforms
 
-`torchfont.transforms` provides small utility functions for adapting glyph
-samples and tensors. Keep dataset item shaping in your own preprocessing code.
+TorchFont transforms follow the TorchVision Transforms v2
+(`torchvision.transforms.v2`) model: semantic data objects,
+class-based stochastic transforms, deterministic functional kernels, and pytree
+composition.
 
-## load_glyph
+## Data types
 
 ```python
-from torchfont.transforms import load_glyph
-
-types, coords = load_glyph(sample.ref)
+from torchfont.structures import GlyphData, Outline
 ```
 
-`load_glyph` is the bridge from a dataset glyph reference to the `(types,
-coords)` pair the rest of this module operates on — typically the first call
-inside a `GlyphDataset`/`VariableGlyphDataset` `transform`. It returns
-`(types, coords)`, where `types` is a 1-D `LongTensor` and `coords` is a 2-D
-`FloatTensor` of shape `(N, 6)`.
+`Outline(types, coords)` keeps the two coupled tensors together.
+`GlyphData[T]` keeps a transformed payload, glyph reference, concrete variation
+location, and targets together. Since its payload is generic, a pipeline can
+change it from `Outline` to a plain bitmap tensor without losing metadata. Rasterized
+glyphs do not need a TorchFont-specific tensor subclass: they cross into image
+semantics explicitly through TorchVision's `ToImage()` when required.
 
-Outline-to-outline transforms preserve their input devices. Native outline
-operations run in Rust on CPU and move their results back to the corresponding
-input devices before returning.
-
-For `VariableGlyphRef`, pass a location explicitly:
+## Loading and composition
 
 ```python
-from torchfont.transforms import random_location
-
-sample = variable_dataset[0]
-location = random_location(sample.ref.font)
-types, coords = load_glyph(sample.ref, location)
-```
-
-For explicit locations, unknown axes, out-of-range values, and NaN/inf values
-raise `ValueError`. Missing axes use the font default.
-
-## random_location
-
-```python
-from torchfont.transforms import random_location
-
-location = random_location(sample.ref.font, generator=None)
-```
-
-Samples each variation axis independently and uniformly over its user-space
-minimum and maximum. Static fonts return an empty dictionary. Randomness uses
-the optional `torch.Generator`, including a CUDA generator when provided.
-
-## quad_to_cubic
-
-```python
-from torchfont.transforms import quad_to_cubic
-```
-
-```python
-types, coords = quad_to_cubic(types, coords)
-# or, for one continuous outline sequence:
-types, coords = quad_to_cubic(types, coords, merge_curves=True)
-```
-
-Converts `ElementType.QUAD_TO` path elements to `ElementType.CURVE_TO`.
-
-- path element count is unchanged
-- for each quadratic segment, `[cx0, cy0, 0, 0, x, y]` is rewritten to cubic
-  control points using the previous endpoint
-
-Set `merge_curves=True` to merge adjacent reconstructable curves and collinear
-lines in the same Rust call immediately after conversion. This mode is useful
-after `cubic_to_quad`.
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)`, `coords=(N, 6)`
-- with `merge_curves=True`: output `types=(M,)`, `coords=(M, 6)` (length may differ)
-
-## cubic_to_quad
-
-```python
-from torchfont.transforms import cubic_to_quad
-```
-
-```python
-types, coords = cubic_to_quad(types, coords)
-```
-
-Converts `ElementType.CURVE_TO` path elements to quadratic splines using the same
-approximation strategy as fonttools cu2qu.
-
-- accepts one continuous outline sequence
-- one cubic may expand into multiple `ElementType.QUAD_TO` path elements
-- adjacent quadratic controls imply on-curve points at their midpoints
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`
-
-## merge_curves
-
-```python
-from torchfont.transforms import merge_curves
-```
-
-```python
-types, coords = merge_curves(types, coords)
-```
-
-Collapses adjacent segments when they can be reconstructed as one parent shape.
-
-- split cubic pieces are merged back into one cubic when the reconstruction fits
-- split quadratic pieces are merged back into one quadratic when the reconstruction fits
-- consecutive collinear `LineTo` path elements moving in the same direction are merged
-- subpath boundaries are preserved
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`
-
-## random_split_segments
-
-```python
-from torchfont.transforms import random_split_segments
-
-types, coords = random_split_segments(
-    types,
-    coords,
-    split_probability=0.2,
-    split_range=(0.2, 0.8),
-    generator=None,
+from torchfont.transforms import (
+    Compose,
+    LoadGlyph,
+    RandomApply,
+    RandomSplitSegments,
+    RemoveOverlaps,
 )
-```
 
-Randomly subdivides drawing segments without changing their shape.
-
-- each `LINE_TO`, `QUAD_TO`, and `CURVE_TO` segment is independently selected
-  with `split_probability` (default: `0.2`)
-- `split_probability` must be between `0.0` and `1.0`
-- selected segments are split at an independently sampled parameter in
-  `split_range` (default: `(0.2, 0.8)`)
-- `split_range` must satisfy `0 < min <= max < 1`; equal bounds select a fixed
-  split parameter
-- selecting no segments is a valid no-op result
-- `MOVE_TO`, `CLOSE`, `END`, and `PAD` elements are unchanged
-- subpath boundaries and open/closed state are preserved
-- pass a `torch.Generator` for reproducible selection and split positions
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`, where `N <= M <= 2N`
-
-
-## remove_overlaps
-
-```python
-from torchfont.transforms import remove_overlaps
-```
-
-```python
-types, coords = remove_overlaps(types, coords)
-```
-
-Merges overlapping glyph subpaths with Skia PathOps while preserving winding-based holes.
-
-- accepts one continuous outline sequence
-- removes internal overlap edges and returns a new variable-length outline
-- returns the original outline unchanged when Skia PathOps cannot simplify it
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`
-
-## random_remove_overlaps
-
-```python
-from torchfont.transforms import random_remove_overlaps
-
-types, coords = random_remove_overlaps(types, coords, generator=None)
-```
-
-Randomly merges one or more groups of overlapping subpaths for augmentation.
-
-- tight bounding-box intersections approximate which closed subpaths overlap
-- bbox-connected subpaths form independent overlap groups
-- each group is selected independently with probability 0.5
-- each selected group is merged with one Skia PathOps call
-- at least one group is selected when overlap groups exist
-- leaves a selected group unchanged if PathOps cannot simplify it
-- pass a `torch.Generator` for reproducible selection
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`
-
-## normalize_subpath_start_points
-
-```python
-from torchfont.transforms import normalize_subpath_start_points
-```
-
-```python
-types, coords = normalize_subpath_start_points(types, coords)
-```
-
-Moves each subpath start to its lexicographically smallest `(x, y)` endpoint.
-
-- only closed subpaths are changed; open subpaths are left unchanged
-- when rotation crosses the old closing edge, that implicit edge is materialised as `LineTo`
-- the represented geometry is preserved; rotating away from the original start may add one `LineTo`
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`
-
-## randomize_subpath_start_points
-
-```python
-from torchfont.transforms import randomize_subpath_start_points
-```
-
-```python
-types, coords = randomize_subpath_start_points(types, coords)
-```
-
-Chooses a uniformly random start endpoint for each subpath.
-
-- useful as augmentation when a model should not depend on subpath start-point position
-- only closed subpaths are changed; open subpaths are left unchanged
-- `generator`: optional `torch.Generator` for reproducibility
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(M,)`, `coords=(M, 6)`
-
-## randomize_subpath_order
-
-```python
-from torchfont.transforms import randomize_subpath_order
-
-types, coords = randomize_subpath_order(types, coords, generator=None)
-```
-
-Randomly permutes complete subpaths while preserving every subpath's geometry,
-start point, winding, and open/closed state. This helps prevent sequence models
-from learning an arbitrary contour order.
-
-For an extracted monochrome outline, contour order does not determine holes:
-the winding/fill rule does. This transform intentionally does not operate on
-source-font point indices, TrueType instructions, variation deltas, composite
-components, or color-glyph layers, whose ordering can carry other semantics.
-
-## horizontal_flip
-
-```python
-from torchfont.transforms import horizontal_flip
-```
-
-```python
-types, coords = horizontal_flip(types, coords)
-```
-
-Flips a glyph outline horizontally around its tight bounding-box centre.
-
-- both on-curve endpoints and off-curve control points are transformed
-- zero-coordinate element types (CLOSE, END, PAD) are not modified
-- closed subpath winding is preserved by default
-- pass `preserve_winding=False` to keep the reflected winding order instead
-- open subpaths are reflected but not reversed
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)`, `coords=(N, 6)`
-
-## vertical_flip
-
-```python
-from torchfont.transforms import vertical_flip
-```
-
-```python
-types, coords = vertical_flip(types, coords)
-```
-
-Flips a glyph outline vertically around its tight bounding-box centre.
-
-- both on-curve endpoints and off-curve control points are transformed
-- zero-coordinate element types (CLOSE, END, PAD) are not modified
-- closed subpath winding is preserved by default
-- pass `preserve_winding=False` to keep the reflected winding order instead
-- open subpaths are reflected but not reversed
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)`, `coords=(N, 6)`
-
-## affine
-
-```python
-from torchfont.transforms import affine
-```
-
-```python
-types, coords = affine(
-    types, coords, angle=15.0, translate=(0.05, 0.0), scale=0.9, shear=5.0
+transform = Compose(
+    [
+        LoadGlyph(),
+        RandomApply(RandomSplitSegments(split_probability=0.2), p=0.5),
+        RemoveOverlaps(),
+    ]
 )
+
+data = transform(sample)
+outline = data.data
 ```
 
-Applies a deterministic affine transformation to a glyph outline.
+`LoadGlyph` accepts a `GlyphSample` or `GlyphRef`. A sample becomes
+`GlyphData[Outline]`, while a bare reference becomes `Outline`.
+`LoadGlyph` uses the face's default location unless `location="random"` is set.
+The random policy samples one location for a `GlyphSample` or `GlyphRef` and
+records it in `GlyphData.location`; on a static face it naturally uses an empty
+location. For dataset samples, it also resolves the parallel `weight`, `width`,
+`italic`, `slant`, and `optical_size` targets on the returned `GlyphData`.
 
-Composes uniform scale, x-shear, and rotation around the tight bounding-box
-centre, then applies `translate`. All active control points and endpoints are
-transformed; zero-coordinate element types (CLOSE, END, PAD) are not modified.
+`Transform` flattens nested pytree inputs, samples parameters independently for
+each matching semantic leaf, and restores the input structure. Wrap a transform
+with `SameParams` when corresponding outlines, such as multiple glyphs from the
+same variable font at one location, must receive the same flip, affine parameters, or
+element-level random values. Random transforms use PyTorch's default RNG, so
+`torch.manual_seed` and DataLoader worker seeding apply normally.
+`SameParams(LoadGlyph(location="random"))` may likewise select one location for
+multiple glyphs from the same font; sharing raw axis values across different
+fonts is rejected.
+Built-in transforms contain configuration only and remain pickle-friendly.
+`Compose` registers its children in a `torch.nn.ModuleList`, including when it
+is constructed from an ordinary list of modules. `RandomApply` and `SameParams`
+register the single module they wrap. Plain callables are intentionally
+unsupported: define a small `nn.Module` so its
+behavior, representation, and pickle requirements remain explicit. This keeps
+module traversal, state dictionaries, hooks, and configuration display
+consistent with PyTorch.
 
-- `angle`: counter-clockwise rotation in degrees (default: `0.0`)
-- `translate`: translation `(tx, ty)` in em units; values must be finite (default: `(0.0, 0.0)`)
-- `scale`: uniform scale factor, must be positive and finite (default: `1.0`)
-- `shear`: x-shear angle in degrees (default: `0.0`)
+Containers invoke registered children through the module call path, so forward
+hooks remain effective. `train()` and `eval()` propagate normally, but built-in
+random transforms intentionally do not use the `training` flag: preprocessing
+and model mode are separate concerns. Select a deterministic pipeline explicitly
+for evaluation rather than relying on `eval()` to disable augmentation.
 
-### I/O Shape
+Like `torchvision.transforms.v2`, transforms and containers accept either one pytree or
+multiple positional inputs. `check_inputs()` is available to custom transforms
+that need to check relationships between leaves before sampling parameters.
+`Compose` immediately materializes an iterable of `nn.Module` objects into an
+`nn.ModuleList`; an empty iterable is an identity transform. `RandomApply` wraps
+one `nn.Module`, while `SameParams` wraps one `Transform`. Use `Compose` inside
+`RandomApply` when grouping several transforms.
 
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)` (unchanged), `coords=(N, 6)`
+`RandomApply(transform, p)` controls whether one transform is applied.
+Probabilities such as `RandomSplitSegments.split_probability` control behavior
+inside an already-applied transform.
 
-## random_horizontal_flip
+## Built-in transforms
+
+| Category | Transforms |
+| --- | --- |
+| Loading | `LoadGlyph` |
+| Containers | `Compose`, `RandomApply`, `SameParams` |
+| Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
+| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
+| Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
+| Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
+| Output | `RenderBitmap` |
+
+`RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
+these leaves are inside `GlyphData`, its reference, location, and targets remain
+alongside the converted payload.
+
+### Using rendered glyphs with TorchVision
+
+`RenderBitmap` returns a plain grayscale `H x W` tensor. Use
+`torchvision.transforms.v2.ToImage()` as the boundary into an image pipeline:
+it adds the channel
+dimension and returns a `tv_tensors.Image` of shape `1 x H x W`. It preserves
+the enclosing `GlyphData` because both libraries operate on pytrees.
+`RenderBitmap(antialias=False)` produces binary edge coverage. This controls
+vector rasterization and is independent of the `antialias` option on a later
+`v2.Resize`, which controls image resampling.
 
 ```python
-from torchfont.transforms import random_horizontal_flip
-```
+import torch
+from torchvision.transforms import v2
 
-```python
-types, coords = random_horizontal_flip(types, coords, p=0.5)
-```
+from torchfont.transforms import Compose, LoadGlyph, RenderBitmap
 
-Randomly applies `horizontal_flip` with probability `p`.
-
-- `p`: flip probability (default: `0.5`)
-- `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
-- `generator`: optional `torch.Generator` for reproducibility
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)`, `coords=(N, 6)`
-
-## random_vertical_flip
-
-```python
-from torchfont.transforms import random_vertical_flip
-```
-
-```python
-types, coords = random_vertical_flip(types, coords, p=0.5)
-```
-
-Randomly applies `vertical_flip` with probability `p`.
-
-- `p`: flip probability (default: `0.5`)
-- `preserve_winding`: preserve closed subpath winding after reflection (default: `True`)
-- `generator`: optional `torch.Generator` for reproducibility
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)`, `coords=(N, 6)`
-
-## random_affine
-
-```python
-from torchfont.transforms import random_affine
-```
-
-```python
-types, coords = random_affine(
-    types,
-    coords,
-    degrees=15.0,
-    translate=(0.05, 0.05),
-    scale=(0.9, 1.1),
-    shear=5.0,
+transform = Compose(
+    [
+        LoadGlyph(),
+        RenderBitmap(size=96),
+        v2.ToImage(),
+        v2.RandomAffine(degrees=(-5.0, 5.0), translate=(0.05, 0.05), fill=0),
+        v2.Resize((64, 64), antialias=True),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.ToPureTensor(),
+    ]
 )
+
+data = transform(sample)
+image = data.data  # Tensor, (1, 64, 64), float32 in [0, 1]
 ```
 
-Applies a random affine transformation sampled uniformly from the given ranges.
+Keep the bitmap as `uint8` through geometric transforms and convert it with
+`ToDtype(torch.float32, scale=True)` near the model boundary. `ToImage()` does
+not scale pixel values. `ToPureTensor()` removes the image subclass before the
+payload enters a model. TorchVision remains an optional integration dependency;
+TorchFont's renderer does not require it.
 
-- `degrees`: rotation range in degrees; a single float `d` gives `[-d, d]`
-- `translate`: maximum absolute translation `(max_dx, max_dy)` in em units;
-  each axis is sampled from `[-max_d, max_d]` (default: no translation)
-- `scale`: scale range `(min, max)`; both values must be positive and finite
-  (default: no scaling)
-- `shear`: x-shear range in degrees; same format as `degrees` (default: `0.0`)
-- `generator`: optional `torch.Generator` for reproducibility
+## Functional kernels
 
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)` (unchanged), `coords=(N, 6)`
-
-## random_coord_jitter
+Deterministic operations are available from `torchfont.transforms.functional`:
 
 ```python
-from torchfont.transforms import random_coord_jitter
+from torchfont.structures import Outline
+from torchfont.transforms import functional as F
+
+outline = F.load_glyph(sample.ref)
+outline = F.remove_overlaps(outline)
+outline = F.quad_to_cubic(outline, merge_curves=True)
+outline = F.affine(outline, angle=10.0)
+bitmap = F.render_bitmap(outline, size=64)
+shape = bitmap.shape
 ```
 
-```python
-types, coords = random_coord_jitter(types, coords, std=0.005)
-```
+The functional API does not sample randomness. Random selection and parameter
+sampling belong to the `Random*` transform classes.
 
-Adds independent Gaussian noise to each active value in the outline coordinates.
-
-- `std`: finite standard deviation in em units;
-  `0.005` ≈ 5 font-units in a 1000-UPM font
-- only active `coords` columns are perturbed (zero-coordinate element types
-  CLOSE, END, PAD and unused zero-padding columns are left unchanged)
-- `generator`: optional `torch.Generator` for reproducibility
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `types=(N,)` (unchanged), `coords=(N, 6)`
-
-## render_bitmap
-
-```python
-from torchfont.transforms import render_bitmap
-```
-
-```python
-bitmap = render_bitmap(types, coords, size=64, mode="bbox_square")
-```
-
-Renders a glyph outline to a greyscale bitmap tensor. `mode` controls how
-coordinates are mapped to the output bitmap.
-
-- `size` must be between 1 and 4096 (default: 64)
-- `mode="fixed"` maps the fixed em-unit range `[-0.25, 1.25] x [-0.25, 1.25]`
-- `mode="bbox"` keeps the fixed-mode scale and returns a variable-size bitmap
-  cropped to the tight glyph bounding box
-- `mode="bbox_square"` scales the tight glyph bounding box uniformly and centres
-  it (default)
-- rendering uses the clipped outline directly for faithful shape
-
-### I/O Shape
-
-- input: `types=(N,)`, `coords=(N, 6)`
-- output: `uint8` tensor with values in `[0, 255]`; shape is `(size, size)` for
-  `fixed` / `bbox_square` and variable `(height, width)` for `bbox`
+These transforms are `nn.Module` objects for composition, registration, PyTorch
+RNG behavior, and pytree processing. Rust-backed outline functionals cross a
+CPU/NumPy boundary and are preprocessing operations: they are not promised to
+participate in autograd, remain on an accelerator, or be captured by
+`torch.compile`. Functionals currently operate on the single semantic input type
+documented by their signatures; TorchFont does not add a kernel registry until
+multiple outline representations require one.
