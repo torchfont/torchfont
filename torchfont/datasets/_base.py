@@ -23,7 +23,7 @@ T = TypeVar("T")
 
 
 class _BaseGlyphDataset(Dataset[T], Generic[T]):
-    """Common configuration and targets for fixed and variable glyph datasets."""
+    """Common configuration and targets for map-style glyph datasets."""
 
     _index: _torchfont.GlyphIndex
 

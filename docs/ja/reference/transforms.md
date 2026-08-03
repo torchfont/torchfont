@@ -58,7 +58,8 @@ outline = data.data
 static faceでは空locationになります。
 
 `Transform` はネストした pytree を flatten し、一致する意味的な leaf ごとに独立して
-parameter を生成し、元の構造を復元します。同じ variable glyph の互換な instance など、
+parameter を生成し、元の構造を復元します。同じvariable fontの複数glyphを一つの
+locationで扱う場合など、
 対応する複数 outline に同じ flip、affine parameter、element 単位の乱数を適用する場合は
 transform を `SameParams` で包みます。確率的 transform は PyTorch の default RNG を使うため、
 `torch.manual_seed` と DataLoader worker の seed が通常どおり機能します。

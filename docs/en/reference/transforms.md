@@ -61,8 +61,8 @@ one location for a `GlyphSample` or `GlyphRef` and records it in
 
 `Transform` flattens nested pytree inputs, samples parameters independently for
 each matching semantic leaf, and restores the input structure. Wrap a transform
-with `SameParams` when corresponding outlines, such as compatible instances of
-one variable glyph, must receive the same flip, affine parameters, or
+with `SameParams` when corresponding outlines, such as multiple glyphs from the
+same variable font at one location, must receive the same flip, affine parameters, or
 element-level random values. Random transforms use PyTorch's default RNG, so
 `torch.manual_seed` and DataLoader worker seeding apply normally.
 `SameParams(RandomLocation())` may likewise select one location for multiple

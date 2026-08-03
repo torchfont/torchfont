@@ -1,4 +1,4 @@
-"""Fixed-location glyph dataset."""
+"""Font-face glyph dataset."""
 
 from __future__ import annotations
 
