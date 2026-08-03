@@ -27,11 +27,15 @@ from torchfont.structures import (
 `torch.long`、`coords` は形状 `(N, 6)` の `torch.float32` で、各行が一対一に対応し、
 同じデバイス上に置かれます。これらの構造的不変条件は `Outline` 構築時に検査されます。
 各要素型で使われない座標、および `CLOSE`、`END`、`PAD` の全座標には意味が
-ありません。`GlyphData` は変換後のペイロード、元のサンプル、確定済みのバリエーション
-位置をひとまとまりにします。
+ありません。`GlyphData` は変換後の Payload、Glyph 参照、確定済みの Variation Location、
+並列な `font_idx`、`character_idx`、`weight`、`width`、`italic`、`slant`、`optical_size`
+Target を浅い一つの Record に保持します。Registered Axis の値を優先し、Axis にない値は
+可能な場合に OS/2、`head`、`post` の同等な Metadata から取得します。取得できない Target
+は `NaN` です。
 
-`Outline` と `GlyphData` は意図的に同一性による比較を使います。テンソルペイロードの比較には
-`dataclass` が生成する `bool` を返す等値比較ではなく、`torch.equal()` などを明示的に使います。
+`Outline` と `GlyphData` は意図的に同一性による比較を使います。Tensor Payload には
+`dataclass` が生成する等値比較ではなく、`torch.equal()` などを使います。`GlyphSample` は
+値 Record のままです。
 
 ### `ElementType: IntEnum`
 

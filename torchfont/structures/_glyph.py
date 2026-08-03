@@ -93,41 +93,39 @@ class GlyphSample:
 
 @dataclass(frozen=True, eq=False)
 class GlyphData(Generic[T]):
-    """A transformed glyph payload together with its dataset metadata."""
+    """A loaded glyph payload together with its reference and targets."""
 
     data: T
-    sample: GlyphSample
+    ref: GlyphRef
     location: VariationLocation
-
-    def __init__(
-        self,
-        data: T,
-        sample: GlyphSample,
-        location: (
-            Mapping[str, float] | Iterable[tuple[str, float]] | VariationLocation
-        ),
-    ) -> None:
-        object.__setattr__(self, "data", data)
-        object.__setattr__(self, "sample", sample)
-        object.__setattr__(
-            self,
-            "location",
-            location
-            if isinstance(location, VariationLocation)
-            else VariationLocation(location),
-        )
+    font_idx: int
+    character_idx: int
+    weight: float
+    width: float
+    italic: float
+    slant: float
+    optical_size: float
 
 
 def _flatten_glyph_data(value: GlyphData[Any]) -> tuple[list[Any], object]:
-    return [value.data], (value.sample, value.location)
+    return [value.data], (
+        value.ref,
+        value.location,
+        value.font_idx,
+        value.character_idx,
+        value.weight,
+        value.width,
+        value.italic,
+        value.slant,
+        value.optical_size,
+    )
 
 
 def _unflatten_glyph_data(
-    children: Iterable[Any], context: tuple[Any, Any]
+    children: Iterable[Any], context: tuple[Any, ...]
 ) -> GlyphData[Any]:
-    sample, location = context
     (data,) = children
-    return GlyphData(data, sample, location)
+    return GlyphData(data, *context)
 
 
 register_pytree_node(GlyphData, _flatten_glyph_data, _unflatten_glyph_data)

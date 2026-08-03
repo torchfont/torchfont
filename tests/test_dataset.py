@@ -53,9 +53,9 @@ def test_dataset_indexes_each_face_codepoint_once() -> None:
     assert dataset.font_targets.tolist() == [0, 0]
     assert dataset.character_targets.tolist() == [0, 1]
     assert dataset.character_classes == ["A", "B"]
-    assert dataset[0] == dataset[0]
-    assert isinstance(dataset[0], GlyphSample)
-    assert isinstance(dataset[0].ref, GlyphRef)
+    sample = dataset[0]
+    assert isinstance(sample, GlyphSample)
+    assert isinstance(sample.ref, GlyphRef)
 
 
 def test_dataset_treats_static_and_variable_files_as_one_face_each() -> None:
@@ -232,7 +232,11 @@ def test_dataset_is_pickleable() -> None:
         pickle.loads(pickle.dumps(dataset)),  # noqa: S301
     )
 
-    assert restored[0] == dataset[0]
+    restored_sample = restored[0]
+    sample = dataset[0]
+    assert restored_sample.ref == sample.ref
+    assert restored_sample.font_idx == sample.font_idx
+    assert restored_sample.character_idx == sample.character_idx
     assert torch.equal(restored.font_targets, dataset.font_targets)
     assert torch.equal(restored.character_targets, dataset.character_targets)
 
@@ -252,7 +256,11 @@ def test_dataset_accepts_negative_index() -> None:
         patterns="lato/Lato-Regular.ttf",
         codepoints=[0x41, 0x42],
     )
-    assert dataset[-1] == dataset[1]
+    negative = dataset[-1]
+    positive = dataset[1]
+    assert negative.ref == positive.ref
+    assert negative.font_idx == positive.font_idx
+    assert negative.character_idx == positive.character_idx
 
 
 def test_dataset_rejects_missing_root(tmp_path: Path) -> None:
@@ -357,7 +365,11 @@ def test_patterns_accept_string_or_sequence() -> None:
     sequence = GlyphDataset(
         "tests/fonts", patterns=("lato/Lato-Regular.ttf",), codepoints=[0x41]
     )
-    assert string[0] == sequence[0]
+    string_sample = string[0]
+    sequence_sample = sequence[0]
+    assert string_sample.ref == sequence_sample.ref
+    assert string_sample.font_idx == sequence_sample.font_idx
+    assert string_sample.character_idx == sequence_sample.character_idx
 
 
 def test_codepoints_are_normalized_and_deduplicated() -> None:

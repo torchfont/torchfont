@@ -1,3 +1,4 @@
+import math
 import pickle
 
 import pytest
@@ -248,7 +249,14 @@ def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
 
     assert isinstance(output, GlyphData)
     assert isinstance(output.data, Outline)
-    assert output.sample is sample
+    assert output.ref is sample.ref
+    assert output.font_idx == sample.font_idx
+    assert output.character_idx == sample.character_idx
+    assert output.weight == 400.0
+    assert output.width == 100.0
+    assert output.italic == 0.0
+    assert output.slant == 0.0
+    assert math.isnan(output.optical_size)
     assert output.location == {}
 
 
@@ -259,7 +267,10 @@ def test_glyph_metadata_is_not_reprocessed_as_pytree_data() -> None:
     second = LoadGlyph()(first)
 
     assert isinstance(second, GlyphData)
-    assert second.sample is sample
+    assert second.ref is first.ref
+    assert second.font_idx == first.font_idx
+    assert second.character_idx == first.character_idx
+    assert second.weight == first.weight
     assert second.location is first.location
     assert second.data is first.data
 
@@ -271,7 +282,8 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     assert isinstance(bitmap_output, GlyphData)
     assert type(bitmap_output.data) is torch.Tensor
     assert bitmap_output.data.shape == (32, 32)
-    assert bitmap_output.sample is sample
+    assert bitmap_output.ref is sample.ref
+    assert bitmap_output.weight == 400.0
 
 
 def test_load_glyph_returns_the_randomly_sampled_location() -> None:
@@ -285,7 +297,12 @@ def test_load_glyph_returns_the_randomly_sampled_location() -> None:
 
     assert isinstance(output, GlyphData)
     assert isinstance(output.data, Outline)
-    assert output.sample is sample
+    assert output.ref is sample.ref
+    assert output.weight == output.location["wght"]
+    assert output.width == output.location["wdth"]
+    assert output.italic == 0.0
+    assert output.slant == 0.0
+    assert math.isnan(output.optical_size)
     assert set(output.location) == {"wdth", "wght"}
 
 

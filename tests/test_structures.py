@@ -1,3 +1,4 @@
+import math
 import pickle
 
 import pytest
@@ -93,14 +94,36 @@ def test_outline_rejects_mismatched_devices() -> None:
         )
 
 
-def test_tensor_containers_use_identity_equality() -> None:
+def test_semantic_containers_use_identity_equality() -> None:
     types = torch.tensor([1, 6], dtype=torch.long)
     coords = torch.zeros((2, 6))
     first = Outline(types, coords)
     second = Outline(types.clone(), coords.clone())
     sample = GlyphSample(GlyphRef(FontRef("font.ttf", 0), 0x41), 0, 0)
-    first_data = GlyphData(first, sample, {})
-    second_data = GlyphData(second, sample, {})
+    first_data = GlyphData(
+        first,
+        sample.ref,
+        VariationLocation(),
+        0,
+        0,
+        400.0,
+        100.0,
+        0.0,
+        0.0,
+        math.nan,
+    )
+    second_data = GlyphData(
+        second,
+        sample.ref,
+        VariationLocation(),
+        0,
+        0,
+        400.0,
+        100.0,
+        0.0,
+        0.0,
+        math.nan,
+    )
 
     assert first != second
     assert first_data != second_data

@@ -12,9 +12,9 @@ from torchfont.structures import GlyphData, Outline
 ```
 
 `Outline(types, coords)` keeps the two coupled tensors together.
-`GlyphData[T]` keeps a transformed payload, the original dataset sample, and the concrete
-variation location together. Since its payload is generic, a pipeline can change
-it from `Outline` to a plain bitmap tensor without losing metadata. Rasterized
+`GlyphData[T]` keeps a transformed payload, glyph reference, concrete variation
+location, and targets together. Since its payload is generic, a pipeline can
+change it from `Outline` to a plain bitmap tensor without losing metadata. Rasterized
 glyphs do not need a TorchFont-specific tensor subclass: they cross into image
 semantics explicitly through TorchVision's `ToImage()` when required.
 
@@ -46,7 +46,8 @@ outline = data.data
 `LoadGlyph` uses the face's default location unless `location="random"` is set.
 The random policy samples one location for a `GlyphSample` or `GlyphRef` and
 records it in `GlyphData.location`; on a static face it naturally uses an empty
-location.
+location. For dataset samples, it also resolves the parallel `weight`, `width`,
+`italic`, `slant`, and `optical_size` targets on the returned `GlyphData`.
 
 `Transform` flattens nested pytree inputs, samples parameters independently for
 each matching semantic leaf, and restores the input structure. Wrap a transform
@@ -97,8 +98,8 @@ inside an already-applied transform.
 | Output | `RenderBitmap` |
 
 `RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
-these leaves are inside `GlyphData`, the sample and location remain alongside
-the converted payload.
+these leaves are inside `GlyphData`, its reference, location, and targets remain
+alongside the converted payload.
 
 ### Using rendered glyphs with TorchVision
 

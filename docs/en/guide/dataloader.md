@@ -41,9 +41,9 @@ print(coords.shape)
 ```
 
 With `LoadGlyph`, `dataset[0]` returns `GlyphData[Outline]`. Its `data` field is
-the outline and its `sample` field retains the original metadata. The first
-shape is `(N,)` and the second is `(N, 6)`, where `N` varies by glyph. For
-example:
+the outline, while its other fields retain the reference, location, and targets.
+The first shape is `(N,)` and the second is `(N, 6)`, where `N` varies by glyph.
+For example:
 
 ```
 torch.Size([37])

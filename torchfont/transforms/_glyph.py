@@ -11,6 +11,7 @@ from torchfont.structures import (
     GlyphData,
     GlyphRef,
     GlyphSample,
+    VariationLocation,
 )
 from torchfont.transforms import functional as _functional
 from torchfont.transforms._transform import Transform
@@ -53,10 +54,7 @@ class LoadGlyph(Transform):
         for tag, minimum, _default, maximum in _torchfont.variation_axes(
             ref.font.path, ref.font.ttc_index
         ):
-            location[str(tag)] = (
-                float(minimum)
-                + (float(maximum) - float(minimum)) * torch.rand(()).item()
-            )
+            location[str(tag)] = torch.empty(()).uniform_(minimum, maximum).item()
         return {"location": location}
 
     def transform(
@@ -67,11 +65,23 @@ class LoadGlyph(Transform):
             _default_location(ref) if self.location == "default" else params["location"]
         )
         outline = _functional.load_glyph(ref, location)
-        return (
-            GlyphData(outline, inpt, location)
-            if isinstance(inpt, GlyphSample)
-            else outline
-        )
+        if isinstance(inpt, GlyphSample):
+            weight, width, italic, slant, optical_size = _torchfont.glyph_targets(
+                ref.font.path, ref.font.ttc_index, location
+            )
+            return GlyphData(
+                data=outline,
+                ref=ref,
+                location=VariationLocation(location),
+                font_idx=inpt.font_idx,
+                character_idx=inpt.character_idx,
+                weight=weight,
+                width=width,
+                italic=italic,
+                slant=slant,
+                optical_size=optical_size,
+            )
+        return outline
 
 
 def _default_location(ref: GlyphRef) -> dict[str, float]:

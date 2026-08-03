@@ -57,7 +57,9 @@ def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
     out = pipeline(sample)
 
     assert isinstance(out, GlyphData)
-    assert out.sample is sample
+    assert out.ref is sample.ref
+    assert out.font_idx == sample.font_idx
+    assert out.character_idx == sample.character_idx
     assert type(out.data) is torch.Tensor
     assert out.data.shape == (1, 32, 32)
     assert out.data.dtype == torch.float32

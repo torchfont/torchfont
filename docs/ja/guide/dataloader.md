@@ -38,9 +38,9 @@ print(types.shape)
 print(coords.shape)
 ```
 
-`LoadGlyph` を渡すと、`dataset[0]` は `GlyphData[Outline]` を返します。`data`
-フィールドがアウトライン、`sample` フィールドが元のメタデータです。最初の形状は `(N,)`、
-次は `(N, 6)` で、`N` はグリフごとに異なります。例えば次のようになります。
+`LoadGlyph` を渡すと、`dataset[0]` は `GlyphData[Outline]` を返します。`data` Field が
+Outline で、ほかの Field が参照、Location、Target を保持します。最初の形状は `(N,)`、
+次は `(N, 6)` で、`N` は Glyph ごとに異なります。例えば次のようになります。
 
 ```
 torch.Size([37])

@@ -30,12 +30,16 @@ for multiprocessing data loaders.
 on the same device. These structural invariants are checked when an `Outline`
 is constructed. Coordinates that are inactive for an element type, including
 all coordinates for `CLOSE`, `END`, and `PAD`, have no semantic value.
-`GlyphData` couples a transformed payload with its source sample and resolved
-variation location.
+`GlyphData` is a shallow record containing a transformed payload, glyph
+reference, resolved variation location, and the parallel `font_idx`,
+`character_idx`, `weight`, `width`, `italic`, `slant`, and `optical_size`
+targets. Registered variation-axis values take precedence; values not
+represented by an axis are read from equivalent OS/2, `head`, and `post`
+metadata when available. Unavailable targets are `NaN`.
 
 `Outline` and `GlyphData` intentionally use identity equality. Their tensor
 payloads require explicit comparisons such as `torch.equal()` rather than
-dataclass-generated boolean equality.
+dataclass-generated equality. `GlyphSample` remains a value record.
 
 ### `ElementType: IntEnum`
 

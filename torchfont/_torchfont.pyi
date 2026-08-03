@@ -78,6 +78,17 @@ def variation_axes(
     path: str,
     ttc_index: int,
 ) -> list[tuple[str, float, float, float]]: ...
+def glyph_targets(
+    path: str,
+    ttc_index: int,
+    location: dict[str, float],
+) -> tuple[
+    float,
+    float,
+    float,
+    float,
+    float,
+]: ...
 
 LATIN_CORE: list[int]
 LATIN_KERNEL: list[int]

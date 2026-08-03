@@ -23,19 +23,23 @@ dataset = GlyphDataset(
 )
 
 data = dataset[0]
-sample = data.sample
 outline = data.data
 types, coords = outline.types, outline.coords
 
-print(sample.ref)  # グリフ参照
+print(data.ref)  # Glyph 参照
 print(types)  # 要素型の系列
 print(coords)  # 座標の系列
-print(sample.font_idx)  # フォントフェイスのクラス ID
-print(sample.character_idx)  # 文字のクラス ID
+print(data.font_idx)  # Font Face の Class ID
+print(data.character_idx)  # Character の Class ID
+print(data.weight)  # OpenType Weight
+print(data.width)  # OpenType Width のパーセント値
+print(data.italic)  # OpenType Italic 値
+print(data.slant)  # Slant 角度
+print(data.optical_size)  # ポイント単位の Optical Size
 ```
 
-返り値は `GlyphData[Outline]` です。`data` が意味型のアウトラインを、`sample` が
-決定的なグリフ参照とデータセット固有のターゲットインデックスを保持します。
+返り値の `GlyphData[Outline]` は、意味型の Outline、決定的な Glyph 参照、Dataset
+固有の Target を浅い一つの Record に保持します。
 
 ## アウトラインモデル
 

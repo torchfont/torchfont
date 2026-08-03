@@ -11,8 +11,8 @@ from torchfont.structures import GlyphData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
-`GlyphData[T]` は変換中のペイロード、元のデータセットサンプル、実際に使用したバリエーション
-位置を保持します。ペイロードはジェネリックなので、メタデータを失わずに
+`GlyphData[T]` は変換中の Payload、Glyph 参照、実際に使用した Variation Location、Target
+を保持します。Payload は Generic なので、Metadata を失わずに
 `Outline` から通常のビットマップテンソルへ変換できます。ラスタライズしたグリフには
 TorchFont 固有のテンソルサブクラスを設けず、画像として扱う必要がある境界で TorchVision の
 `ToImage()` を明示的に適用します。
@@ -45,6 +45,8 @@ outline = data.data
 `LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
 Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点抽出し、
 `GlyphData.location` に保存します。Static Face では空の位置になります。
+Dataset Sample に対しては、返される `GlyphData` の並列な `weight`、`width`、`italic`、
+`slant`、`optical_size` Target も解決します。
 
 `Transform` はネストした PyTree を平坦化し、一致する意味的なリーフごとに独立して
 パラメーターを生成し、元の構造を復元します。同じバリアブルフォントの複数グリフを一つの
@@ -89,7 +91,7 @@ Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点
 | 出力 | `RenderBitmap` |
 
 `RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
-`GlyphData` 内にある場合も、サンプルと位置は変換後のペイロードとともに維持されます。
+`GlyphData` 内にある場合も、参照、Location、Target は変換後の Payload とともに維持されます。
 
 ### レンダリングしたグリフを TorchVision で使う
 

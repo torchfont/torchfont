@@ -21,20 +21,24 @@ dataset = GlyphDataset(
 )
 
 data = dataset[0]
-sample = data.sample
 outline = data.data
 types, coords = outline.types, outline.coords
 
-print(sample.ref)  # glyph reference
+print(data.ref)  # glyph reference
 print(types)  # element type sequence
 print(coords)  # coordinates sequence
-print(sample.font_idx)  # font face class ID
-print(sample.character_idx)  # character class ID
+print(data.font_idx)  # font face class ID
+print(data.character_idx)  # character class ID
+print(data.weight)  # OpenType weight
+print(data.width)  # OpenType width percentage
+print(data.italic)  # OpenType italic value
+print(data.slant)  # slant angle
+print(data.optical_size)  # optical size in points
 ```
 
-The return value is `GlyphData[Outline]`: `data` contains the semantic outline,
-while `sample` retains the deterministic glyph reference and dataset-local
-target indices.
+The return value is `GlyphData[Outline]`. It keeps the semantic outline,
+deterministic glyph reference, and dataset-local targets in one shallow record.
+Registered-axis targets that are unavailable in the font are `NaN`.
 
 ## Outline model
 

@@ -47,19 +47,33 @@ class GlyphPipeline(torch.nn.Module):
             ]
         )
 
-    def forward(self, sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
+    def forward(
+        self, sample: GlyphSample
+    ) -> tuple[Tensor, Tensor, Tensor, int, int, float]:
         data = cast("GlyphData[Outline]", self.prepare_outline(sample))
         image_data = cast("GlyphData[Tensor]", self.rasterize(data))
-        return data.data.types, data.data.coords, image_data.data
+        return (
+            data.data.types,
+            data.data.coords,
+            image_data.data,
+            data.font_idx,
+            data.character_idx,
+            data.weight,
+        )
 
 
 def collate_fn(
-    batch: list[tuple[Tensor, Tensor, Tensor]],
-) -> tuple[Tensor, Tensor, Tensor]:
-    types = pad_sequence([types for types, _, _ in batch], batch_first=True)
-    coords = pad_sequence([coords for _, coords, _ in batch], batch_first=True)
-    images = torch.stack([image for _, _, image in batch])
-    return types, coords, images
+    batch: list[tuple[Tensor, Tensor, Tensor, int, int, float]],
+) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    types, coords, images, fonts, characters, weights = zip(*batch, strict=True)
+    return (
+        pad_sequence(list(types), batch_first=True),
+        pad_sequence(list(coords), batch_first=True),
+        torch.stack(images),
+        torch.tensor(fonts, dtype=torch.long),
+        torch.tensor(characters, dtype=torch.long),
+        torch.tensor(weights, dtype=torch.float32),
+    )
 
 
 def main() -> None:
