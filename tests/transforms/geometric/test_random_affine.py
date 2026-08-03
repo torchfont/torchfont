@@ -54,6 +54,12 @@ def test_random_affine_rejects_invalid_degrees(
         RandomAffine(degrees=degrees)
 
 
+@pytest.mark.parametrize("name", ["degrees", "translate", "scale", "shear"])
+def test_random_affine_rejects_non_pair_ranges(name: str) -> None:
+    with pytest.raises(ValueError, match="too many values to unpack"):
+        RandomAffine(**{name: (1.0, 2.0, 3.0)})  # ty: ignore[invalid-argument-type]
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
 def test_random_affine_preserves_cuda_device(
     simple_outline: tuple[torch.Tensor, torch.Tensor],

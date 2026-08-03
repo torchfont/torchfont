@@ -61,11 +61,14 @@ GlyphDataset(
     root: Path | str,
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
-    patterns: Sequence[str] | None = None,
+    patterns: str | Sequence[str] | None = None,
     instance_fn: InstanceLocationsFn = torchfont.instance_fn.named_instances,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
+
+`patterns`には一つのglob文字列、またはglob文字列のsequenceを渡せます。一つの文字列は
+文字のsequenceではなく、一つのpatternとして扱われます。
 
 targets:
 
@@ -131,10 +134,12 @@ VariableGlyphDataset(
     *,
     instance_fn: InstanceCountFn = torchfont.instance_fn.named_instance_count,
     codepoints: Sequence[SupportsIndex] | None = None,
-    patterns: Sequence[str] | None = None,
+    patterns: str | Sequence[str] | None = None,
     transform: Callable[[VariableGlyphSample], T] | None = None,
 )
 ```
+
+`patterns`は`GlyphDataset`と同じく、単一文字列またはsequenceを受け取ります。
 
 targets:
 

@@ -34,7 +34,7 @@ class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
-        patterns: Sequence[str] | None = None,
+        patterns: str | Sequence[str] | None = None,
         instance_fn: InstanceLocationsFn = _instance_fn.named_instances,
         transform: None = None,
     ) -> None: ...
@@ -45,7 +45,7 @@ class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
-        patterns: Sequence[str] | None = None,
+        patterns: str | Sequence[str] | None = None,
         instance_fn: InstanceLocationsFn = _instance_fn.named_instances,
         transform: Callable[[GlyphSample], T],
     ) -> None: ...
@@ -55,7 +55,7 @@ class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
-        patterns: Sequence[str] | None = None,
+        patterns: str | Sequence[str] | None = None,
         instance_fn: InstanceLocationsFn = _instance_fn.named_instances,
         transform: Callable[[GlyphSample], T] | None = None,
     ) -> None:

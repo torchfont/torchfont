@@ -32,7 +32,7 @@ class _BaseGlyphDataset(Dataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None,
-        patterns: Sequence[str] | None,
+        patterns: str | Sequence[str] | None,
         transform: Callable[[object], T] | None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()

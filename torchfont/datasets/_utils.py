@@ -9,9 +9,13 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-def normalize_patterns(patterns: Sequence[str] | None) -> tuple[str, ...] | None:
+def normalize_patterns(
+    patterns: str | Sequence[str] | None,
+) -> tuple[str, ...] | None:
     if patterns is None:
         return None
+    if isinstance(patterns, str):
+        return (patterns,)
     return tuple(str(pattern) for pattern in patterns)
 
 

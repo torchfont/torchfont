@@ -1,8 +1,9 @@
 import pickle
 
 import pytest
+import torch
 
-from torchfont.structures import FontRef, GlyphRef, VariationLocation
+from torchfont.structures import FontRef, GlyphRef, Outline, VariationLocation
 
 
 def test_variation_location_is_order_independent_and_hashable() -> None:
@@ -37,3 +38,49 @@ def test_glyph_ref_normalizes_location() -> None:
     ref = GlyphRef(FontRef("font.ttf", 0), ord("A"), {"wght": 400})
 
     assert isinstance(ref.location, VariationLocation)
+
+
+@pytest.mark.parametrize(
+    ("types", "coords", "match"),
+    [
+        (
+            torch.zeros((1, 1), dtype=torch.long),
+            torch.zeros((1, 6)),
+            "types must be 1-D",
+        ),
+        (
+            torch.zeros(1, dtype=torch.long),
+            torch.zeros((1, 5)),
+            "coords must have shape",
+        ),
+        (
+            torch.zeros(1, dtype=torch.long),
+            torch.zeros((2, 6)),
+            "same number of rows",
+        ),
+    ],
+)
+def test_outline_rejects_incompatible_shapes(
+    types: torch.Tensor,
+    coords: torch.Tensor,
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        Outline(types, coords)
+
+
+def test_outline_rejects_invalid_dtypes() -> None:
+    with pytest.raises(TypeError, match=r"types must have dtype torch\.long"):
+        Outline(torch.zeros(1), torch.zeros((1, 6)))
+    with pytest.raises(TypeError, match=r"coords must have dtype torch\.float32"):
+        Outline(
+            torch.zeros(1, dtype=torch.long), torch.zeros((1, 6), dtype=torch.int64)
+        )
+
+
+def test_outline_rejects_mismatched_devices() -> None:
+    with pytest.raises(ValueError, match="must be on the same device"):
+        Outline(
+            torch.zeros(1, dtype=torch.long, device="meta"),
+            torch.zeros((1, 6)),
+        )

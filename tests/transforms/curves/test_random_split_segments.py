@@ -125,6 +125,11 @@ def test_random_split_segments_rejects_invalid_range(
         RandomSplitSegments(split_range=split_range)
 
 
+def test_random_split_segments_rejects_non_pair_range() -> None:
+    with pytest.raises(ValueError, match="too many values to unpack"):
+        RandomSplitSegments(split_range=(0.2, 0.5, 0.8))  # ty: ignore[invalid-argument-type]
+
+
 def test_random_split_segments_accepts_fixed_split_parameter() -> None:
     types, coords = _mixed_segments()
 

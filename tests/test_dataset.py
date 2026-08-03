@@ -138,6 +138,18 @@ def test_glyph_dataset_static_fonts_returns_refs() -> None:
     assert sample.character_idx == 0
 
 
+@pytest.mark.parametrize("dataset_type", [GlyphDataset, VariableGlyphDataset])
+def test_dataset_accepts_one_pattern_as_a_string(dataset_type: type) -> None:
+    dataset = dataset_type(
+        root="tests/fonts",
+        patterns="lato/Lato-Regular.ttf",
+        codepoints=[0x41],
+    )
+
+    assert dataset.patterns == ("lato/Lato-Regular.ttf",)
+    assert len(dataset) == 1
+
+
 def test_load_glyph_returns_outline_tensors() -> None:
     dataset = GlyphDataset(
         root="tests/fonts",

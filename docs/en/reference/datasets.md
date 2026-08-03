@@ -61,11 +61,14 @@ GlyphDataset(
     root: Path | str,
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
-    patterns: Sequence[str] | None = None,
+    patterns: str | Sequence[str] | None = None,
     instance_fn: InstanceLocationsFn = torchfont.instance_fn.named_instances,
     transform: Callable[[GlyphSample], T] | None = None,
 )
 ```
+
+`patterns` accepts either one glob string or a sequence of glob strings. A
+single string is treated as one pattern rather than as a sequence of characters.
 
 Targets:
 
@@ -133,10 +136,13 @@ VariableGlyphDataset(
     *,
     instance_fn: InstanceCountFn = torchfont.instance_fn.named_instance_count,
     codepoints: Sequence[SupportsIndex] | None = None,
-    patterns: Sequence[str] | None = None,
+    patterns: str | Sequence[str] | None = None,
     transform: Callable[[VariableGlyphSample], T] | None = None,
 )
 ```
+
+`patterns` follows the same single-string or sequence convention as
+`GlyphDataset`.
 
 Targets:
 

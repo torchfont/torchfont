@@ -25,11 +25,12 @@ from torchfont.structures import (
 値を黙って上書きせず拒否します。`FontRef`、glyph reference、dataset sample は
 frozen dataclass で、multiprocessing data loader でも pickle 可能です。
 
-`Outline` は一つの可変長、非 batch glyph を表します。`types` の shape は `(N,)`、
-`coords` は `(N, 6)` で、各行が一対一に対応します。producer は両方の tensor を
-同じ device に置きます。各 element type で使われない座標、および `CLOSE`、`END`、
-`PAD` の全座標には意味がありません。`GlyphData` は transform 後の payload、元の
-sample、確定済み variation location をひとまとまりにします。
+`Outline` は一つの可変長、非 batch glyph を表します。`types` はshape `(N,)` の
+`torch.long`、`coords` はshape `(N, 6)` の`torch.float32`で、各行が一対一に対応し、
+同じdevice上に置かれます。これらの構造的不変条件は`Outline`構築時に検査されます。
+各element typeで使われない座標、および`CLOSE`、`END`、`PAD`の全座標には意味が
+ありません。`GlyphData` はtransform後のpayload、元のsample、確定済みvariation
+locationをひとまとまりにします。
 
 ### `ElementType: IntEnum`
 

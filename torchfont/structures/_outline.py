@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 
+import torch
 from torch import Tensor
 
 
@@ -20,6 +21,7 @@ class ElementType(IntEnum):
 
 TYPE_DIM: int = len(ElementType)
 COORD_DIM: int = 6
+_COORD_NDIM = 2
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,28 @@ class Outline:
 
     types: Tensor
     coords: Tensor
+
+    def __post_init__(self) -> None:
+        """Reject structurally invalid coupled tensors at construction."""
+        if self.types.ndim != 1:
+            msg = f"types must be 1-D, got {self.types.ndim}-D"
+            raise ValueError(msg)
+        if self.coords.ndim != _COORD_NDIM or self.coords.shape[1] != COORD_DIM:
+            shape = tuple(self.coords.shape)
+            msg = f"coords must have shape (N, {COORD_DIM}), got {shape}"
+            raise ValueError(msg)
+        if self.types.shape[0] != self.coords.shape[0]:
+            msg = "types and coords must have the same number of rows"
+            raise ValueError(msg)
+        if self.types.dtype is not torch.long:
+            msg = f"types must have dtype torch.long, got {self.types.dtype}"
+            raise TypeError(msg)
+        if self.coords.dtype is not torch.float32:
+            msg = f"coords must have dtype torch.float32, got {self.coords.dtype}"
+            raise TypeError(msg)
+        if self.types.device != self.coords.device:
+            msg = "types and coords must be on the same device"
+            raise ValueError(msg)
 
 
 __all__ = ["COORD_DIM", "TYPE_DIM", "ElementType", "Outline"]

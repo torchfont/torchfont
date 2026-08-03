@@ -32,7 +32,7 @@ class VariableGlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         *,
         instance_fn: InstanceCountFn = _instance_fn.named_instance_count,
         codepoints: Sequence[SupportsIndex] | None = None,
-        patterns: Sequence[str] | None = None,
+        patterns: str | Sequence[str] | None = None,
         transform: None = None,
     ) -> None: ...
 
@@ -43,7 +43,7 @@ class VariableGlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         *,
         instance_fn: InstanceCountFn = _instance_fn.named_instance_count,
         codepoints: Sequence[SupportsIndex] | None = None,
-        patterns: Sequence[str] | None = None,
+        patterns: str | Sequence[str] | None = None,
         transform: Callable[[VariableGlyphSample], T],
     ) -> None: ...
 
@@ -53,7 +53,7 @@ class VariableGlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         *,
         instance_fn: InstanceCountFn = _instance_fn.named_instance_count,
         codepoints: Sequence[SupportsIndex] | None = None,
-        patterns: Sequence[str] | None = None,
+        patterns: str | Sequence[str] | None = None,
         transform: Callable[[VariableGlyphSample], T] | None = None,
     ) -> None:
         super().__init__(

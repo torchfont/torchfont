@@ -1,8 +1,8 @@
 """Functional geometric kernels for glyph outlines.
 
-All functions follow the same convention as :mod:`torchfont.transforms`:
-they accept ``(types, coords)`` and return a transformed ``(types, coords)``
-pair without modifying the inputs.
+Public functions accept and return :class:`torchfont.structures.Outline`
+objects without modifying the input. Private tensor helpers operate on the
+underlying ``(types, coords)`` pair.
 
 Coordinates layout (``coords`` shape ``(N, 6)``)::
 
@@ -248,6 +248,16 @@ def affine(
 def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
     """Add caller-provided noise to active coordinate pairs."""
     types, coords = inpt.types, inpt.coords
+    noise_tail_shape = (3, 2)
+    if (
+        noise.ndim != len(noise_tail_shape) + 1
+        or tuple(noise.shape[1:]) != noise_tail_shape
+    ):
+        msg = f"noise must have shape (N, 3, 2), got {tuple(noise.shape)}"
+        raise ValueError(msg)
+    if noise.shape[0] < types.shape[0]:
+        msg = "noise must have at least as many rows as the outline"
+        raise ValueError(msg)
     active = torch.stack(_active_pairs(types), dim=1).unsqueeze(-1)
     points = coords.reshape(-1, 3, 2)
     noise = noise[: types.size(0)].to(device=coords.device, dtype=coords.dtype)

@@ -39,7 +39,10 @@ class VerticalFlip(Transform):
 
 
 class RandomHorizontalFlip(HorizontalFlip):
-    """Flip all outlines in an input horizontally with probability ``p``."""
+    """Flip each outline independently with probability ``p``.
+
+    Wrap with :class:`SameParams` to share one decision across outlines.
+    """
 
     def __init__(self, p: float = 0.5, *, preserve_winding: bool = True) -> None:
         super().__init__(preserve_winding=preserve_winding)
@@ -56,7 +59,10 @@ class RandomHorizontalFlip(HorizontalFlip):
 
 
 class RandomVerticalFlip(VerticalFlip):
-    """Flip all outlines in an input vertically with probability ``p``."""
+    """Flip each outline independently with probability ``p``.
+
+    Wrap with :class:`SameParams` to share one decision across outlines.
+    """
 
     def __init__(self, p: float = 0.5, *, preserve_winding: bool = True) -> None:
         super().__init__(preserve_winding=preserve_winding)
@@ -104,7 +110,8 @@ def _symmetric_range(value: float | tuple[float, float]) -> tuple[float, float]:
     if isinstance(value, (float, int)):
         bounds = (-abs(float(value)), abs(float(value)))
     else:
-        bounds = (float(value[0]), float(value[1]))
+        lower, upper = value
+        bounds = (float(lower), float(upper))
     if not all(math.isfinite(item) for item in bounds) or bounds[0] > bounds[1]:
         msg = "range values must be finite and ordered"
         raise ValueError(msg)
@@ -112,7 +119,10 @@ def _symmetric_range(value: float | tuple[float, float]) -> tuple[float, float]:
 
 
 class RandomAffine(Transform):
-    """Apply one randomly sampled affine transform to all outlines in an input."""
+    """Apply independently sampled affine parameters to each outline.
+
+    Wrap with :class:`SameParams` to share one parameter sample across outlines.
+    """
 
     def __init__(
         self,
@@ -124,19 +134,21 @@ class RandomAffine(Transform):
     ) -> None:
         super().__init__()
         self.degrees = _symmetric_range(degrees)
-        if translate is not None and not all(
-            math.isfinite(value) and value >= 0.0 for value in translate
-        ):
-            msg = "translate values must be non-negative and finite"
-            raise ValueError(msg)
-        if scale is not None and not all(
-            math.isfinite(value) and value > 0.0 for value in scale
-        ):
-            msg = "scale values must be positive and finite"
-            raise ValueError(msg)
-        if scale is not None and scale[0] > scale[1]:
-            msg = "scale values must be ordered"
-            raise ValueError(msg)
+        if translate is not None:
+            translate_x, translate_y = translate
+            translate = (float(translate_x), float(translate_y))
+            if not all(math.isfinite(value) and value >= 0.0 for value in translate):
+                msg = "translate values must be non-negative and finite"
+                raise ValueError(msg)
+        if scale is not None:
+            scale_min, scale_max = scale
+            scale = (float(scale_min), float(scale_max))
+            if not all(math.isfinite(value) and value > 0.0 for value in scale):
+                msg = "scale values must be positive and finite"
+                raise ValueError(msg)
+            if scale[0] > scale[1]:
+                msg = "scale values must be ordered"
+                raise ValueError(msg)
         self.translate = translate
         self.scale = scale
         self.shear = _symmetric_range(shear)

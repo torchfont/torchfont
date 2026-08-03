@@ -41,13 +41,15 @@ Transform modules are organized by font-domain responsibility:
 - Class transforms are split into `_glyph`, `_curves`, `_geometry`, `_outline`,
   `_subpath`, `_bitmap`, and `_type_conversion` modules.
 - `torchfont.transforms.functional` mirrors those domains. Its public functions
-  are deterministic semantic kernels; `_utils` alone owns registration and
-  dispatch infrastructure.
+  are deterministic semantic kernels; `_utils` contains shared helpers for the
+  Rust/NumPy boundary.
 
 Keep class transforms configuration-only and use `make_params()` for random
 sampling. Put deterministic behavior in the corresponding functional module so
 class and direct functional calls share one kernel implementation. Add a new
 domain module only when the operation does not fit an existing font concept.
+Do not add a kernel registry until more than one semantic representation needs
+dispatch.
 
 ## Formatting, Checks, and Tests
 

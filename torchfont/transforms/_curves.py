@@ -57,6 +57,8 @@ class RandomSplitSegments(Transform):
         split_range: tuple[float, float] = (0.2, 0.8),
     ) -> None:
         super().__init__()
+        split_min, split_max = split_range
+        split_range = (float(split_min), float(split_max))
         if not 0.0 <= split_probability <= 1.0:
             msg = "split_probability must be between 0 and 1"
             raise ValueError(msg)

@@ -28,10 +28,12 @@ for multiprocessing data loaders.
 
 `Outline` represents one variable-length, unbatched glyph. `types` has shape
 `(N,)`, `coords` has shape `(N, 6)`, and their rows correspond one-to-one.
-Producers keep both tensors on the same device. Coordinates that are inactive
-for an element type, including all coordinates for `CLOSE`, `END`, and `PAD`,
-have no semantic value. `GlyphData` couples a transformed payload with its
-source sample and resolved variation location.
+`types` uses `torch.long`, `coords` uses `torch.float32`, and both tensors are
+on the same device. These structural invariants are checked when an `Outline`
+is constructed. Coordinates that are inactive for an element type, including
+all coordinates for `CLOSE`, `END`, and `PAD`, have no semantic value.
+`GlyphData` couples a transformed payload with its source sample and resolved
+variation location.
 
 ### `ElementType: IntEnum`
 
