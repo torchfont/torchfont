@@ -79,8 +79,7 @@ print(coords_t.shape)  # (8, L, 6)
 - torchvision v2-style semantic transform pipelines for adapting glyph samples
 - PyTorch `DataLoader` integration through ordinary user-defined `collate_fn` functions
 
-TorchFont does not need to own Git clone / fetch / checkout in the main
-workflow. Sync repositories with Git or another tool, then point
+Manage font repository synchronization with Git or another tool, then point
 `GlyphDataset(root=...)` at the resulting directory.
 
 ## Citation

@@ -1,9 +1,8 @@
 # Datasets
 
 TorchFont uses one deterministic indexing rule: one dataset element for every
-font face and supported Unicode codepoint. A variable font is one face, regardless
-of its axes or named instances. Variation locations are selected by transforms,
-not by expanding the dataset index.
+font face and supported Unicode codepoint. Transforms select variation locations
+when loading outlines.
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -55,11 +54,9 @@ Properties:
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
 
-The face-based rule is deliberately mechanical rather than statistically fair:
-a family distributed as several static faces has more elements than the same
-design distributed as one variable face. TorchFont does not infer families or a
-measure over design space. Adjust training weights with a PyTorch sampler when
-the application requires a different distribution.
+The sampling distribution is proportional to the number of supported
+codepoints in each face. Adjust training weights with a PyTorch sampler when the
+application requires a different distribution.
 
 ## Loading explicit locations
 

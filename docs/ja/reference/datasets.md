@@ -1,8 +1,8 @@
 # データセット
 
 TorchFontのindex規則は一つです。各font faceと、そのfaceが収録する各Unicode
-codepointを1要素として数えます。variable fontもaxis数やnamed instance数によらず
-1 faceです。variation locationはdataset indexを展開せずtransformで選択します。
+codepointを1要素として数えます。outlineをロードするときにtransformがvariation
+locationを選択します。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -53,10 +53,8 @@ properties:
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
 
-face単位の規則は統計的公平性ではなく機械的な単純さを優先します。同じdesignでも、
-複数static faceで配布されるfamilyは、1つのvariable faceで配布される場合より要素が
-多くなります。TorchFontはfamilyやdesign spaceの測度を推測しません。異なる分布が
-必要な用途ではPyTorch samplerで学習weightを調整してください。
+sampling分布は各faceが収録するcodepoint数に比例します。異なる分布が必要な用途では
+PyTorch samplerで学習weightを調整してください。
 
 ## 明示locationのロード
 

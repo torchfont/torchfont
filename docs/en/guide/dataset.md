@@ -13,8 +13,7 @@ print(len(dataset.character_classes))
 ```
 
 Each element represents one font face and one codepoint supported by that face.
-Variable fonts are not expanded by named instances or grid locations: a variable
-face contributes exactly one element per supported codepoint.
+Every face contributes one element per supported codepoint.
 
 ## Filtering files
 

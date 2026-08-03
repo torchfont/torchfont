@@ -12,9 +12,8 @@ print(len(dataset.font_classes))
 print(len(dataset.character_classes))
 ```
 
-各要素はfont faceと、そのfaceが収録するcodepoint一つを表します。variable fontを
-named instanceやgrid locationで展開しません。variable faceも収録codepointごとに
-ちょうど1要素を持ちます。
+各要素はfont faceと、そのfaceが収録するcodepoint一つを表します。各faceは収録
+codepointごとに1要素を持ちます。
 
 ## ファイルのfilter
 
