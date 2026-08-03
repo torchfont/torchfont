@@ -1,7 +1,8 @@
-"""Torchvision v2-style transform primitives for semantic font data."""
+"""torchvision.transforms.v2-style primitives for semantic font data."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -9,6 +10,11 @@ from torch import nn
 from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from torchfont.structures import Outline
+
+
+@dataclass(frozen=True)
+class _SharedParamsInput:
+    inputs: tuple[object, ...]
 
 
 class Transform(nn.Module):
@@ -30,9 +36,11 @@ class Transform(nn.Module):
         """Transform one selected input using parameters from ``make_params``."""
         raise NotImplementedError
 
-    def forward(self, *inputs: object, _same_params: bool = False) -> object:
+    def forward(self, *inputs: object) -> object:
         """Transform semantic leaves and preserve the enclosing pytree."""
-        return self._forward(inputs, same_params=_same_params)
+        if len(inputs) == 1 and isinstance(inputs[0], _SharedParamsInput):
+            return self._forward(inputs[0].inputs, same_params=True)
+        return self._forward(inputs, same_params=False)
 
     def _forward(self, inputs: tuple[object, ...], *, same_params: bool) -> object:
         inpt = inputs if len(inputs) > 1 else inputs[0]

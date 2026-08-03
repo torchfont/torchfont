@@ -19,7 +19,7 @@
 |---|---|---|
 |パイプライン|`local_fonts.py`|`GlyphDataset` + ローカルな `collate_fn` のオフライン例|
 |バリアブルグリフ|`variable_glyphs.py`|アクセスごとにバリエーション軸の位置を一様ランダムサンプリング|
-|画像パイプライン|`google_fonts.py`|Google Fonts + TorchFont と torchvision v2 の Transform + `DataLoader`|
+|画像パイプライン|`google_fonts.py`|Google Fonts + TorchFont と `torchvision.transforms.v2` + `DataLoader`|
 |コーパス|`font_awesome.py`|Font Awesome のチェックアウト|
 |コーパス|`material_design_icons.py`|Material Design Icons のチェックアウト|
 |コーパス|`source_han_code_jp.py`|Source Han Code JP TTC のチェックアウト|

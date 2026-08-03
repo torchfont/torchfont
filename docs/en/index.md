@@ -40,6 +40,6 @@ features:
   - icon: 🧩
     title: Flexible preprocessing
     details:
-      "Compose semantic class transforms in torchvision v2-style pipelines, then
+      "Compose semantic class transforms in `torchvision.transforms.v2`-style pipelines, then
       shape variable-length tensors in model-specific collate code."
 ---

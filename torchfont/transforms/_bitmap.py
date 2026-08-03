@@ -8,8 +8,9 @@ from torchfont.transforms import functional as _functional
 from torchfont.transforms._transform import Transform
 
 if TYPE_CHECKING:
+    from torch import Tensor
+
     from torchfont.structures import Outline
-    from torchfont.tf_tensors import Bitmap
     from torchfont.transforms.functional._bitmap import BitmapMode, FillRule
 
 
@@ -17,7 +18,7 @@ class RenderBitmap(Transform):
     """Render outlines into ``uint8`` greyscale ``H x W`` bitmap tensors.
 
     Apply ``torchvision.transforms.v2.ToImage`` afterwards to obtain a
-    channel-first ``tv_tensors.Image`` for torchvision pipelines.
+    channel-first ``tv_tensors.Image`` for TorchVision pipelines.
     """
 
     def __init__(
@@ -31,7 +32,7 @@ class RenderBitmap(Transform):
         self.mode = mode
         self.fill_rule = fill_rule
 
-    def transform(self, inpt: Outline, params: dict[str, Any]) -> Bitmap:
+    def transform(self, inpt: Outline, params: dict[str, Any]) -> Tensor:
         del params
         return _functional.render_bitmap(inpt, self.size, self.mode, self.fill_rule)
 

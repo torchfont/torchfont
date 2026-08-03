@@ -25,8 +25,7 @@ References:
 Package Layout:
     Core public APIs live in submodules such as ``torchfont.datasets``,
     ``torchfont.glyphsets``,
-    ``torchfont.structures``, ``torchfont.tf_tensors``, and
-    ``torchfont.transforms``.
+    ``torchfont.structures`` and ``torchfont.transforms``.
 
 """
 
@@ -34,7 +33,6 @@ from torchfont import (
     datasets,
     glyphsets,
     structures,
-    tf_tensors,
     transforms,
 )
 
@@ -42,6 +40,5 @@ __all__ = [
     "datasets",
     "glyphsets",
     "structures",
-    "tf_tensors",
     "transforms",
 ]

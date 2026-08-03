@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 from torch import nn
 
-from torchfont.transforms._transform import Transform
+from torchfont.transforms._transform import Transform, _SharedParamsInput
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -84,7 +84,7 @@ class SameParams(nn.Module):
 
     def forward(self, *inputs: object) -> object:
         """Apply the wrapped transform with one shared parameter sample."""
-        return self.transform(*inputs, _same_params=True)
+        return self.transform(_SharedParamsInput(inputs))
 
 
 __all__ = ["Compose", "RandomApply", "SameParams"]

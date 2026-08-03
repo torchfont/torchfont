@@ -31,5 +31,5 @@ features:
     details: "`GlyphSample` は決定的なグリフ参照とターゲットインデックスを持ち、読み込みやバッチ化の方針は `transform` 側に置けます。"
   - icon: 🧩
     title: 柔軟な前処理
-    details: "torchvision v2 形式の意味型変換をパイプラインとして組み合わせ、可変長テンソルの整形はモデル固有の `collate_fn` で調整できます。"
+    details: "`torchvision.transforms.v2` 形式の意味型変換をパイプラインとして組み合わせ、可変長テンソルの整形はモデル固有の `collate_fn` で調整できます。"
 ---

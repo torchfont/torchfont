@@ -1,32 +1,21 @@
 # Transform
 
-TorchFont の Transform は torchvision v2 と同様に、意味を持つデータ型、
+TorchFont の Transform は TorchVision Transforms v2（`torchvision.transforms.v2`）と同様に、意味を持つデータ型、
 クラスベースの確率的 Transform、決定論的な Functional カーネル、PyTree の合成を
 基本にします。
 
 ## データ型
 
 ```python
-from torchfont import tf_tensors
 from torchfont.structures import GlyphData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
-`tf_tensors.TFTensor` は torchvision の `TVTensor` に対応する意味テンソルの基底であり、
-`tf_tensors.Bitmap(tensor)` はラスタライズしたグリフを表すサブクラスです。通常のテンソル
-演算結果は通常のテンソルに戻るため、意味型のディスパッチがモデル内部まで伝播しません。
-torchvision の `TVTensor` と同様、`clone()`、`detach()`、`pin_memory()`、
-`requires_grad_()`、`to()` ではサブクラスを維持します。一方、`float()` や `cpu()` などの
-簡易メソッドは通常の演算と同じ規則に従い、通常のテンソルを返します。ストレージを
-コピーせず意味型へ戻すには `tf_tensors.wrap(tensor, like=bitmap)` を使います。
-メタデータを持つカスタム `TFTensor` サブクラスは `wrap()` クラスメソッドをオーバーライドできます。
-コピー系の演算と公開 `tf_tensors.wrap()` ヘルパーはグローバルレジストリを使わず、その
-メタデータを維持します。
-基底実装はメタデータのキーワード引数を黙って無視せず拒否します。`Bitmap` は 2 次元以上を要求し、
-2 次元のグレースケールグリフはチャンネル次元を追加せず `H x W` のまま保持します。
 `GlyphData[T]` は変換中のペイロード、元のデータセットサンプル、実際に使用したバリエーション
 位置を保持します。ペイロードはジェネリックなので、メタデータを失わずに
-`Outline` からビットマップへ変換できます。
+`Outline` から通常のビットマップテンソルへ変換できます。ラスタライズしたグリフには
+TorchFont 固有のテンソルサブクラスを設けず、画像として扱う必要がある境界で TorchVision の
+`ToImage()` を明示的に適用します。
 
 ## 読み込みと合成
 
@@ -67,7 +56,7 @@ outline = data.data
 組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
 渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
 `callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
-要件を明示します。これにより torchvision の歴史的な未登録 `callable` リストの挙動を
+要件を明示します。これにより TorchVision の歴史的な未登録 `callable` リストの挙動を
 引き継がず、モジュールの走査、状態辞書、フック、設定表示を PyTorch の規則に揃えます。
 
 コンテナーは登録した子をモジュール呼び出し経路で呼ぶため、`forward` フックも機能します。
@@ -75,7 +64,7 @@ outline = data.data
 `training` フラグを参照しません。前処理とモデルのモードは別の関心事なので、評価時は
 `eval()` でデータ拡張が止まることに依存せず、決定論的パイプラインを明示的に選びます。
 
-torchvision v2 と同様に、Transform とコンテナーは一つの PyTree または複数の
+`torchvision.transforms.v2` と同様に、Transform とコンテナーは一つの PyTree または複数の
 位置引数を受け取れます。リーフ間の関係をパラメーターのサンプリング前に確認する
 カスタム Transform のために `check_inputs()` を利用できます。`Compose` は
 `nn.Module` の `Iterable` を即座に `nn.ModuleList` へ具体化し、空の `Iterable` は
@@ -97,17 +86,15 @@ torchvision v2 と同様に、Transform とコンテナーは一つの PyTree �
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
-| 出力 | `RenderBitmap`, `ToPureTensor` |
+| 出力 | `RenderBitmap` |
 
-`RenderBitmap` は各 `Outline` を `uint8` テンソルを持つ `Bitmap` に変えます。
-これらが `GlyphData` 内にある場合も、サンプルと位置は変換後のペイロードとともに
-維持されます。`ToPureTensor` はモデルへ入力する前に、テンソルストレージをコピーせず
-`TFTensor` サブクラスを取り除きます。
+`RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
+`GlyphData` 内にある場合も、サンプルと位置は変換後のペイロードとともに維持されます。
 
-### レンダリングしたグリフを torchvision で使う
+### レンダリングしたグリフを TorchVision で使う
 
-`RenderBitmap` はグレースケールの `H x W` ビットマップを返します。torchvision v2 の
-`ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
+`RenderBitmap` はグレースケールの通常の `H x W` テンソルを返します。
+`torchvision.transforms.v2.ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
 形状が `1 x H x W` の `tv_tensors.Image` になります。両ライブラリが PyTree を処理するため、
 外側の `GlyphData` も維持されます。
 
@@ -136,7 +123,7 @@ image = data.data  # Tensor, (1, 64, 64), float32, range [0, 1]
 幾何変換まではビットマップを `uint8` に保ち、モデルへ渡す直前に
 `ToDtype(torch.float32, scale=True)` で変換します。`ToImage()` 自体はピクセル値を
 スケーリングしません。`ToPureTensor()` はモデルへ渡す前に `Image` サブクラスを取り除きます。
-torchvision は任意の統合先であり、TorchFont のレンダラーには不要です。
+TorchVision は任意の統合先であり、TorchFont のレンダラーには不要です。
 
 ## Functional カーネル
 

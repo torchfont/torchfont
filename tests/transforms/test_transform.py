@@ -1,11 +1,8 @@
 import pickle
-from typing import cast
 
 import pytest
 import torch
-from typing_extensions import Self
 
-from torchfont import tf_tensors
 from torchfont.structures import (
     ElementType,
     FontRef,
@@ -23,7 +20,6 @@ from torchfont.transforms import (
     RandomSplitSegments,
     RenderBitmap,
     SameParams,
-    ToPureTensor,
     Transform,
 )
 
@@ -252,98 +248,9 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     bitmap_output = Compose([LoadGlyph(), RenderBitmap(32)])(sample)
 
     assert isinstance(bitmap_output, GlyphData)
-    assert isinstance(bitmap_output.data, tf_tensors.Bitmap)
+    assert type(bitmap_output.data) is torch.Tensor
     assert bitmap_output.data.shape == (32, 32)
     assert bitmap_output.sample is sample
-
-
-def test_bitmap_behaves_as_a_tensor_and_preserves_its_type() -> None:
-    tensor = torch.zeros((8, 8), dtype=torch.uint8)
-    bitmap = tf_tensors.Bitmap(tensor)
-
-    output = pickle.loads(pickle.dumps(bitmap))  # noqa: S301
-
-    assert isinstance(bitmap, tf_tensors.TFTensor)
-    assert bitmap.data_ptr() == tensor.data_ptr()
-    assert type(bitmap + 1) is torch.Tensor
-    assert isinstance(bitmap.to(dtype=torch.float32), tf_tensors.Bitmap)
-    assert type(bitmap.float()) is torch.Tensor
-    assert type(bitmap.cpu()) is torch.Tensor
-    assert isinstance(output, tf_tensors.Bitmap)
-    assert output.shape == (8, 8)
-
-
-def test_bitmap_accepts_tensor_like_data_and_can_be_rewrapped() -> None:
-    bitmap = tf_tensors.Bitmap([[0, 1], [2, 3]], dtype=torch.float32)
-    plain = bitmap + 1
-
-    output = tf_tensors.wrap(plain, like=bitmap)
-
-    assert bitmap.dtype is torch.float32
-    assert isinstance(output, tf_tensors.Bitmap)
-    assert torch.equal(output, torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
-
-
-@pytest.mark.parametrize("shape", [(), (3,)])
-def test_bitmap_rejects_data_with_fewer_than_two_dimensions(
-    shape: tuple[int, ...],
-) -> None:
-    with pytest.raises(ValueError, match="Bitmap data must be at least 2-D"):
-        tf_tensors.Bitmap(torch.zeros(shape))
-
-
-def test_base_tf_tensor_wrap_rejects_unknown_metadata() -> None:
-    bitmap = tf_tensors.Bitmap(torch.zeros((2, 2)))
-
-    with pytest.raises(
-        TypeError, match=r"Bitmap\.wrap\(\) does not accept metadata: label"
-    ):
-        tf_tensors.wrap(bitmap + 1, like=bitmap, label="ignored")
-
-
-def test_custom_tf_tensor_controls_metadata_wrapping() -> None:
-    class LabeledBitmap(tf_tensors.Bitmap):
-        label: str
-
-        def __new__(cls, data: object, *, label: str) -> Self:
-            output = cast("Self", super().__new__(cls, data))
-            output.label = label
-            return output
-
-        def __init__(self, data: object, *, label: str) -> None:
-            del data, label
-
-        @classmethod
-        def wrap(
-            cls,
-            tensor: torch.Tensor,
-            *,
-            like: Self,
-            **metadata: object,
-        ) -> Self:
-            output = tensor.as_subclass(cls)
-            output.label = str(metadata.get("label", like.label))
-            return output
-
-    bitmap = LabeledBitmap(torch.zeros((2, 2)), label="source")
-
-    cloned = bitmap.clone()
-    relabeled = tf_tensors.wrap(bitmap + 1, like=bitmap, label="derived")
-
-    assert isinstance(cloned, LabeledBitmap)
-    assert cloned.label == "source"
-    assert isinstance(relabeled, LabeledBitmap)
-    assert relabeled.label == "derived"
-
-
-def test_to_pure_tensor_removes_semantic_subclasses_in_pytrees() -> None:
-    bitmap = tf_tensors.Bitmap(torch.zeros((2, 2)))
-
-    output = ToPureTensor()({"bitmap": bitmap, "label": torch.tensor(1)})
-
-    assert type(output["bitmap"]) is torch.Tensor
-    assert output["bitmap"].data_ptr() == bitmap.data_ptr()
-    assert type(output["label"]) is torch.Tensor
 
 
 def test_random_location_returns_the_sampled_location() -> None:

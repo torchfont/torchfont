@@ -25,11 +25,13 @@ impl GlyphIndex {
     #[classmethod]
     fn from_root(
         _cls: &Bound<'_, PyType>,
+        py: Python<'_>,
         root: String,
         codepoints: Option<Vec<u32>>,
         patterns: Option<Vec<String>>,
     ) -> PyResult<Self> {
-        Self::from_entries(build::build_entries(&root, codepoints, patterns)?)
+        let entries = py.detach(|| build::build_entries(&root, codepoints, patterns))?;
+        Self::from_entries(entries)
     }
 
     #[getter]

@@ -18,7 +18,7 @@ Some scripts use `num_workers=8`. If you set `num_workers=0`, also remove
 |---|---|---|
 |Pipeline|`local_fonts.py`|Offline local-font pipeline with `GlyphDataset` + local `collate_fn`|
 |Variable glyphs|`variable_glyphs.py`|Uniformly sample variation-axis locations on every access|
-|Image pipeline|`google_fonts.py`|Google Fonts checkout + TorchFont and torchvision v2 transforms + DataLoader|
+|Image pipeline|`google_fonts.py`|Google Fonts checkout + TorchFont and `torchvision.transforms.v2` + DataLoader|
 |Corpus checkout|`font_awesome.py`|Font Awesome checkout|
 |Corpus checkout|`material_design_icons.py`|Material Design Icons checkout|
 |Corpus checkout|`source_han_code_jp.py`|Source Han Code JP TTC checkout|

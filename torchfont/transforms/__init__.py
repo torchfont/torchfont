@@ -26,7 +26,6 @@ from torchfont.transforms._subpath import (
     RandomizeSubpathStartPoints,
 )
 from torchfont.transforms._transform import Transform
-from torchfont.transforms._type_conversion import ToPureTensor
 
 __all__ = [
     "Affine",
@@ -50,7 +49,6 @@ __all__ = [
     "RemoveOverlaps",
     "RenderBitmap",
     "SameParams",
-    "ToPureTensor",
     "Transform",
     "VerticalFlip",
     "functional",

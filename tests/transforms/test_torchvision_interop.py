@@ -2,7 +2,6 @@ import pytest
 import torch
 
 from torchfont.structures import FontRef, GlyphData, GlyphRef, GlyphSample
-from torchfont.tf_tensors import Bitmap
 from torchfont.transforms import (
     Compose,
     HorizontalFlip,
@@ -16,7 +15,7 @@ v2 = pytest.importorskip("torchvision.transforms.v2")
 FONT = "tests/fonts/roboto/Roboto[wdth,wght].ttf"
 
 
-def _render() -> Bitmap:
+def _render() -> torch.Tensor:
     pipeline = Compose([LoadGlyph(), HorizontalFlip(), RenderBitmap(size=64)])
     return pipeline(GlyphRef(FontRef(FONT, 0), ord("A")))
 
@@ -35,6 +34,10 @@ def test_to_image_converts_bitmap_to_channel_first_tv_image() -> None:
     assert isinstance(out, tv_tensors.Image)
     assert out.shape == (1, 32, 32)
     assert out.dtype == torch.float32
+
+
+def test_render_bitmap_returns_a_plain_tensor() -> None:
+    assert type(_render()) is torch.Tensor
 
 
 def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:

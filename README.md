@@ -76,7 +76,7 @@ print(coords_t.shape)  # (8, L, 6)
 
 - local font directories and repository checkouts as the input boundary
 - Rust-backed indexing plus explicit outline loading through lightweight glyph references
-- torchvision v2-style semantic transform pipelines for adapting glyph samples
+- `torchvision.transforms.v2`-style semantic pipelines for adapting glyph samples
 - PyTorch `DataLoader` integration through ordinary user-defined `collate_fn` functions
 
 Manage font repository synchronization with Git or another tool, then point
