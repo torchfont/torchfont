@@ -121,9 +121,11 @@ def test_compose_rejects_plain_callables() -> None:
         Compose([lambda value: value + 1])  # ty: ignore[invalid-argument-type]
 
 
-def test_compose_rejects_empty_sequences() -> None:
-    with pytest.raises(ValueError, match="transforms must not be empty"):
-        Compose([])
+def test_empty_compose_is_identity() -> None:
+    outline = _line_outline()
+
+    assert Compose([])(outline) is outline
+    assert Compose([])(outline, "label") == (outline, "label")
 
 
 @pytest.mark.parametrize(("p", "expected"), [(0.0, 0.0), (1.0, 3.0)])
@@ -306,11 +308,24 @@ def test_random_location_handles_multiple_variable_glyphs_independently() -> Non
     assert isinstance(second, Outline)
 
 
-def test_random_location_rejects_shared_parameters() -> None:
-    ref = VariableGlyphRef(
+def test_random_location_can_share_parameters_within_one_font() -> None:
+    font = FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0)
+    first_sample = VariableGlyphSample(VariableGlyphRef(font, ord("A")), 0, 0)
+    second_sample = VariableGlyphSample(VariableGlyphRef(font, ord("B")), 0, 1)
+
+    first, second = SameParams(RandomLocation())([first_sample, second_sample])
+
+    assert isinstance(first, GlyphData)
+    assert isinstance(second, GlyphData)
+    assert first.location == second.location
+
+
+def test_random_location_rejects_shared_parameters_across_fonts() -> None:
+    first = VariableGlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
+    second = VariableGlyphRef(FontRef("tests/fonts/lato/Lato-Regular.ttf", 0), ord("A"))
 
-    with pytest.raises(ValueError, match="cannot share parameters"):
-        SameParams(RandomLocation())([ref, ref])
+    with pytest.raises(ValueError, match="only within one font"):
+        SameParams(RandomLocation())([first, second])

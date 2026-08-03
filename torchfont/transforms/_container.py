@@ -17,9 +17,6 @@ def _module_list(
     if not isinstance(transforms, (Sequence, nn.ModuleList)):
         msg = "transforms must be a sequence of nn.Module objects"
         raise TypeError(msg)
-    if not transforms:
-        msg = "transforms must not be empty"
-        raise ValueError(msg)
     invalid = next(
         (transform for transform in transforms if not isinstance(transform, nn.Module)),
         None,
@@ -47,13 +44,11 @@ class Compose(nn.Module):
     def forward(self, *inputs: object) -> object:
         """Apply all configured transforms to the inputs."""
         unpack = len(inputs) > 1
+        output: object = inputs if unpack else inputs[0]
         for transform in self.transforms:
             output = transform(*inputs)
             inputs = cast("tuple[object, ...]", output) if unpack else (output,)
         return output
-
-    def extra_repr(self) -> str:
-        return ""
 
 
 class RandomApply(nn.Module):

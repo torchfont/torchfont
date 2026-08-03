@@ -45,8 +45,14 @@ class RandomLocation(Transform):
     _transformed_types = (VariableGlyphSample, VariableGlyphRef)
 
     def check_same_params(self, selected_inputs: list[object]) -> None:
-        if len(selected_inputs) > 1:
-            msg = "RandomLocation cannot share parameters across glyph inputs"
+        refs: list[VariableGlyphRef] = []
+        for item in selected_inputs:
+            if isinstance(item, VariableGlyphSample):
+                refs.append(item.ref)
+            elif isinstance(item, VariableGlyphRef):
+                refs.append(item)
+        if refs and any(ref.font != refs[0].font for ref in refs[1:]):
+            msg = "RandomLocation can share parameters only within one font"
             raise ValueError(msg)
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:

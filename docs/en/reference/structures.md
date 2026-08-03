@@ -21,8 +21,10 @@ from torchfont.structures import (
 ```
 
 `VariationLocation` is an immutable, hashable mapping. Axis tags are stored in
-deterministic sorted order. `FontRef`, glyph references, and dataset samples are
-frozen dataclasses and remain pickle-friendly for multiprocessing data loaders.
+deterministic sorted order, and iterable inputs with duplicate normalized tags
+are rejected rather than silently overwriting a value. `FontRef`, glyph
+references, and dataset samples are frozen dataclasses and remain pickle-friendly
+for multiprocessing data loaders.
 
 `Outline` represents one variable-length, unbatched glyph. `types` has shape
 `(N,)`, `coords` has shape `(N, 6)`, and their rows correspond one-to-one.

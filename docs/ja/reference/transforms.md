@@ -56,6 +56,8 @@ parameter を生成し、元の構造を復元します。同じ variable glyph 
 対応する複数 outline に同じ flip、affine parameter、element 単位の乱数を適用する場合は
 transform を `SameParams` で包みます。確率的 transform は PyTorch の default RNG を使うため、
 `torch.manual_seed` と DataLoader worker の seed が通常どおり機能します。
+`SameParams(RandomLocation())` を使うと同じfontの複数glyphに一つのlocationを選べますが、
+異なるfont間でraw axis valueを共有することは拒否します。
 組み込み transform は設定のみを保持し、pickle 可能です。`Compose` に通常の list を
 渡した場合も、子transformは内部の`torch.nn.ModuleList`に登録されます。plain callableは
 意図的に対応しません。小さな`nn.Module`を定義し、挙動、表示、pickle要件を明示します。
@@ -64,8 +66,9 @@ traversal、state dictionary、hook、設定表示を PyTorch の規則に揃え
 
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
-custom transform のために `check_inputs()` を利用できます。`Compose` には空でない
-`nn.Module` の列または `nn.ModuleList` を渡します。`RandomApply` は一つの
+custom transform のために `check_inputs()` を利用できます。`Compose` には
+`nn.Module` の列または `nn.ModuleList` を渡し、空の列は identity transform として
+扱います。`RandomApply` は一つの
 `nn.Module`、`SameParams` は一つの `Transform` を包みます。複数transformを
 `RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 

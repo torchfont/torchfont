@@ -58,6 +58,9 @@ with `SameParams` when corresponding outlines, such as compatible instances of
 one variable glyph, must receive the same flip, affine parameters, or
 element-level random values. Random transforms use PyTorch's default RNG, so
 `torch.manual_seed` and DataLoader worker seeding apply normally.
+`SameParams(RandomLocation())` may likewise select one location for multiple
+glyphs from the same font; sharing raw axis values across different fonts is
+rejected.
 Built-in transforms contain configuration only and remain pickle-friendly.
 `Compose` registers its children in a `torch.nn.ModuleList`, including when it
 is constructed from an ordinary list of modules. `RandomApply` and `SameParams`
@@ -71,10 +74,10 @@ consistent with PyTorch.
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.
-`Compose` requires a non-empty sequence of `nn.Module` objects or an
-`nn.ModuleList`. `RandomApply` wraps one `nn.Module`, while `SameParams` wraps
-one `Transform`. Use `Compose` inside `RandomApply` when grouping several
-transforms.
+`Compose` accepts a sequence of `nn.Module` objects or an `nn.ModuleList`; an
+empty sequence is an identity transform. `RandomApply` wraps one `nn.Module`,
+while `SameParams` wraps one `Transform`. Use `Compose` inside `RandomApply` when
+grouping several transforms.
 
 `RandomApply(transform, p)` controls whether one transform is applied.
 Probabilities such as `RandomSplitSegments.split_probability` control behavior

@@ -22,6 +22,11 @@ def test_variation_location_is_immutable() -> None:
         location["wght"] = 700  # type: ignore[index]  # ty: ignore[invalid-assignment]
 
 
+def test_variation_location_rejects_duplicate_normalized_tags() -> None:
+    with pytest.raises(ValueError, match="duplicate variation axis tag 'wght'"):
+        VariationLocation([("wght", 400), ("wght", 700)])
+
+
 def test_variation_location_pickle_round_trip() -> None:
     location = VariationLocation({"wght": 400})
 

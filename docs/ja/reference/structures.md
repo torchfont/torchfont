@@ -21,7 +21,8 @@ from torchfont.structures import (
 ```
 
 `VariationLocation` は変更不可で hash 可能な mapping で、axis tag を常に
-ソート済みの順序で保持します。`FontRef`、glyph reference、dataset sample は
+ソート済みの順序で保持します。iterable input に正規化後の重複tagがある場合は、
+値を黙って上書きせず拒否します。`FontRef`、glyph reference、dataset sample は
 frozen dataclass で、multiprocessing data loader でも pickle 可能です。
 
 `Outline` は一つの可変長、非 batch glyph を表します。`types` の shape は `(N,)`、

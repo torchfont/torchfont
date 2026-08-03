@@ -31,9 +31,14 @@ class VariationLocation(Mapping[str, float]):
             if isinstance(values, Mapping)
             else values
         )
-        normalized = tuple(
-            sorted({str(tag): float(value) for tag, value in items}.items())
-        )
+        normalized_values: dict[str, float] = {}
+        for raw_tag, raw_value in items:
+            tag = str(raw_tag)
+            if tag in normalized_values:
+                msg = f"duplicate variation axis tag {tag!r}"
+                raise ValueError(msg)
+            normalized_values[tag] = float(raw_value)
+        normalized = tuple(sorted(normalized_values.items()))
         object.__setattr__(self, "_items", normalized)
 
     def __getitem__(self, tag: str) -> float:
