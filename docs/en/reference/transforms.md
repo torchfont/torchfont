@@ -71,6 +71,12 @@ inheriting torchvision's historical unregistered callable-list behavior and
 keeps module traversal, state dictionaries, hooks, and configuration display
 consistent with PyTorch.
 
+Containers invoke registered children through the module call path, so forward
+hooks remain effective. `train()` and `eval()` propagate normally, but built-in
+random transforms intentionally do not use the `training` flag: preprocessing
+and model mode are separate concerns. Select a deterministic pipeline explicitly
+for evaluation rather than relying on `eval()` to disable augmentation.
+
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.

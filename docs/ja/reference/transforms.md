@@ -64,6 +64,11 @@ transform を `SameParams` で包みます。確率的 transform は PyTorch の
 これにより torchvision の歴史的な未登録 callable list の挙動を引き継がず、module
 traversal、state dictionary、hook、設定表示を PyTorch の規則に揃えます。
 
+container は登録した子をmodule call path経由で呼ぶため、forward hookも機能します。
+`train()` と `eval()` は通常どおり伝播しますが、組み込みの確率的transformは意図的に
+`training` flagを参照しません。前処理とmodel modeは別の関心事なので、評価時は
+`eval()`でaugmentationが止まることに依存せず、決定論的pipelineを明示的に選びます。
+
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
 custom transform のために `check_inputs()` を利用できます。`Compose` には

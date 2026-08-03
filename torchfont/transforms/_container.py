@@ -92,7 +92,7 @@ class SameParams(nn.Module):
 
     def forward(self, *inputs: object) -> object:
         """Apply the wrapped transform with one shared parameter sample."""
-        return self.transform.forward_same_params(*inputs)
+        return self.transform(*inputs, _same_params=True)
 
 
 __all__ = ["Compose", "RandomApply", "SameParams"]

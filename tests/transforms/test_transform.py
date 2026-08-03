@@ -178,6 +178,18 @@ def test_same_params_shares_randomness_between_outlines() -> None:
     assert torch.equal(first.coords, second.coords)
 
 
+def test_same_params_calls_wrapped_module_hooks() -> None:
+    transform = AddToCoords(1.0)
+    calls: list[object] = []
+    transform.register_forward_hook(
+        lambda _module, _inputs, output: calls.append(output)
+    )
+
+    SameParams(transform)([_line_outline(), _line_outline()])
+
+    assert len(calls) == 1
+
+
 def test_transform_pipeline_is_pickleable() -> None:
     transform = Compose(
         [RandomApply(RandomSplitSegments(split_probability=1.0), p=0.5)]

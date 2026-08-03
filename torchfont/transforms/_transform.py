@@ -30,13 +30,9 @@ class Transform(nn.Module):
         """Transform one selected input using parameters from ``make_params``."""
         raise NotImplementedError
 
-    def forward(self, *inputs: object) -> object:
-        """Transform semantic leaves independently and preserve the pytree."""
-        return self._forward(inputs, same_params=False)
-
-    def forward_same_params(self, *inputs: object) -> object:
-        """Transform semantic leaves with one explicitly shared parameter sample."""
-        return self._forward(inputs, same_params=True)
+    def forward(self, *inputs: object, _same_params: bool = False) -> object:
+        """Transform semantic leaves and preserve the enclosing pytree."""
+        return self._forward(inputs, same_params=_same_params)
 
     def _forward(self, inputs: tuple[object, ...], *, same_params: bool) -> object:
         inpt = inputs if len(inputs) > 1 else inputs[0]
