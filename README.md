@@ -22,8 +22,8 @@ It is not affiliated with or endorsed by the PyTorch project.
 
 TorchFont is local-first: point `GlyphDataset` at a font directory or a
 repository checkout that already exists on disk, and TorchFont turns font files
-into lightweight glyph references. Load outlines explicitly with `load_glyph`
-inside your transform when tensors are needed.
+into lightweight glyph references. Load outlines explicitly with `LoadGlyph`
+in your transform pipeline when tensors are needed.
 
 ## Installation
 

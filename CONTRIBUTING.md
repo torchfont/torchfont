@@ -34,12 +34,13 @@ mise run data-sync
 
 Transform modules are organized by font-domain responsibility:
 
-- `torchfont.structures` owns non-tensor semantic values such as `Outline` and
-  `GlyphData`; `torchfont.tf_tensors` owns semantic tensor subclasses.
+- `torchfont.structures` owns semantic values such as `Outline` and `GlyphData`.
+  Rasterized glyphs remain plain tensors and enter image semantics explicitly
+  through TorchVision.
 - `torchfont.transforms._transform` contains only the transform engine, while
   `_container` contains composition primitives.
 - Class transforms are split into `_glyph`, `_curves`, `_geometry`, `_outline`,
-  `_subpath`, `_bitmap`, and `_type_conversion` modules.
+  `_subpath`, and `_bitmap` modules.
 - `torchfont.transforms.functional` mirrors those domains. Its public functions
   are deterministic semantic kernels; `_utils` contains shared helpers for the
   Rust/NumPy boundary.
