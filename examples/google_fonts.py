@@ -24,12 +24,12 @@ if TYPE_CHECKING:
     from torchfont.structures import GlyphData, GlyphSample, Outline
 
 
-class PrepareGlyph(torch.nn.Module):
+class GlyphPipeline(torch.nn.Module):
     """Build two model inputs from one shared outline pipeline."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.outline = Compose(
+        self.prepare_outline = Compose(
             [
                 LoadGlyph(),
                 RemoveOverlaps(),
@@ -37,7 +37,7 @@ class PrepareGlyph(torch.nn.Module):
                 RandomAffine(degrees=5.0, translate=(0.05, 0.05)),
             ]
         )
-        self.render = Compose(
+        self.rasterize = Compose(
             [
                 RenderBitmap(size=96),
                 v2.ToImage(),
@@ -48,8 +48,8 @@ class PrepareGlyph(torch.nn.Module):
         )
 
     def forward(self, sample: GlyphSample) -> tuple[Tensor, Tensor, Tensor]:
-        data = cast("GlyphData[Outline]", self.outline(sample))
-        image_data = cast("GlyphData[Tensor]", self.render(data))
+        data = cast("GlyphData[Outline]", self.prepare_outline(sample))
+        image_data = cast("GlyphData[Tensor]", self.rasterize(data))
         return data.data.types, data.data.coords, image_data.data
 
 
@@ -72,7 +72,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        transform=PrepareGlyph(),
+        transform=GlyphPipeline(),
     )
 
     dataloader = DataLoader(
