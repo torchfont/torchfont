@@ -163,7 +163,7 @@ class RandomAffine(Transform):
 
 
 class RandomCoordJitter(Transform):
-    """Add shared Gaussian coordinate noise to corresponding outline elements."""
+    """Add Gaussian coordinate noise to active outline elements."""
 
     def __init__(self, std: float) -> None:
         super().__init__()

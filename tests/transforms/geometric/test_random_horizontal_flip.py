@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from torchfont.structures import Outline
-from torchfont.transforms import RandomHorizontalFlip
+from torchfont.transforms import RandomHorizontalFlip, SameParams
 
 
 @pytest.mark.parametrize(("p", "changes"), [(0.0, False), (1.0, True)])
@@ -18,7 +18,7 @@ def test_random_horizontal_flip_shares_decision_between_outlines(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     outline = Outline(*simple_outline)
-    first, second = RandomHorizontalFlip()([outline, outline])
+    first, second = SameParams(RandomHorizontalFlip())([outline, outline])
     assert torch.equal(first.types, second.types)
     assert torch.equal(first.coords, second.coords)
 

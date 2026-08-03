@@ -37,7 +37,7 @@ from torchfont.transforms import (
 transform = Compose(
     [
         LoadGlyph(),
-        RandomApply([RandomSplitSegments(split_probability=0.2)], p=0.5),
+        RandomApply(RandomSplitSegments(split_probability=0.2), p=0.5),
         RemoveOverlaps(),
     ]
 )
@@ -51,26 +51,25 @@ outline = data.data
 `RandomLocation` は `VariableGlyphSample` に対応し、サンプリングした location を
 `GlyphData.location` に保存します。
 
-`Transform` はネストした pytree を flatten し、`make_params()` を一度だけ呼び、
-一致するすべての意味的な leaf に同じパラメータを適用して元の構造を復元します。
-このため対応する複数 outline には同じ flip、affine parameter、element 単位の乱数が
-適用されます。確率的 transform は PyTorch の default RNG を使うため、
+`Transform` はネストした pytree を flatten し、一致する意味的な leaf ごとに独立して
+parameter を生成し、元の構造を復元します。同じ variable glyph の互換な instance など、
+対応する複数 outline に同じ flip、affine parameter、element 単位の乱数を適用する場合は
+transform を `SameParams` で包みます。確率的 transform は PyTorch の default RNG を使うため、
 `torch.manual_seed` と DataLoader worker の seed が通常どおり機能します。
-組み込み transform は設定のみを保持し、pickle 可能です。container に渡す custom
-module は通常の list から構築した場合も、`Compose` と `RandomApply` 内部の
-`torch.nn.ModuleList` に登録されます。plain callable は `Lambda` で明示的に包みます。
-その pickle 可否は包んだ callable に依存します。これにより torchvision の歴史的な
-未登録 list の挙動を引き継がず、module traversal、state dictionary、hook、設定表示を
-PyTorch の規則に揃えます。
+組み込み transform は設定のみを保持し、pickle 可能です。`Compose` に通常の list を
+渡した場合も、子transformは内部の`torch.nn.ModuleList`に登録されます。plain callableは
+意図的に対応しません。小さな`nn.Module`を定義し、挙動、表示、pickle要件を明示します。
+これにより torchvision の歴史的な未登録 callable list の挙動を引き継がず、module
+traversal、state dictionary、hook、設定表示を PyTorch の規則に揃えます。
 
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
-custom transform のために `check_inputs()` を利用できます。`Compose` と
-`RandomApply` には空でない `nn.Module` の列または `nn.ModuleList` を渡します。
-一回の呼び出しでは、一致した leaf 間で parameter を共有します。独立した乱数を
-使うべき sample には transform を個別に呼び出します。
+custom transform のために `check_inputs()` を利用できます。`Compose` には空でない
+`nn.Module` の列または `nn.ModuleList` を渡します。`RandomApply` は一つの
+`nn.Module`、`SameParams` は一つの `Transform` を包みます。複数transformを
+`RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 
-`RandomApply(transforms, p)` は transform 列全体を適用するか制御します。
+`RandomApply(transform, p)` は一つの transform を適用するか制御します。
 `RandomSplitSegments.split_probability` などは、適用された transform 内部の挙動を
 制御します。
 
@@ -79,7 +78,7 @@ custom transform のために `check_inputs()` を利用できます。`Compose`
 | 分類 | Transform |
 | --- | --- |
 | 読み込み | `LoadGlyph`, `RandomLocation` |
-| コンテナ | `Compose`, `Lambda`, `RandomApply` |
+| コンテナ | `Compose`, `RandomApply`, `SameParams` |
 | curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |

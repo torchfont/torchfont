@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchfont.structures import Outline
-from torchfont.transforms import RandomAffine
+from torchfont.transforms import RandomAffine, SameParams
 
 
 def test_random_affine_is_reproducible_with_torch_seed(
@@ -23,10 +23,12 @@ def test_random_affine_preserves_padding_and_shares_parameters(
     close_end_zeros: Callable[[torch.Tensor, torch.Tensor], bool],
 ) -> None:
     outline = Outline(*simple_outline)
-    first, second = RandomAffine(
-        degrees=15.0,
-        translate=(0.05, 0.05),
-        scale=(0.9, 1.1),
+    first, second = SameParams(
+        RandomAffine(
+            degrees=15.0,
+            translate=(0.05, 0.05),
+            scale=(0.9, 1.1),
+        )
     )([outline, outline])
     assert torch.equal(first.coords, second.coords)
     assert close_end_zeros(first.types, first.coords)

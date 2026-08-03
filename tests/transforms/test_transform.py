@@ -16,13 +16,13 @@ from torchfont.structures import (
 )
 from torchfont.transforms import (
     Compose,
-    Lambda,
     LoadGlyph,
     QuadToCubic,
     RandomApply,
     RandomLocation,
     RandomSplitSegments,
     RenderBitmap,
+    SameParams,
     ToPureTensor,
     Transform,
 )
@@ -38,7 +38,7 @@ class AddToCoords(Transform):
 
 
 class IncrementInts(Transform):
-    _transformed_types = (lambda value: isinstance(value, int),)
+    _transformed_types = (int,)
 
     def transform(self, inpt: object, _params: dict[str, object]) -> object:
         assert isinstance(inpt, int)
@@ -69,26 +69,11 @@ def test_transform_preserves_nested_structure_and_non_outline_leaves() -> None:
     assert torch.equal(output["outlines"][1].coords, second.coords + 2.0)
 
 
-def test_transform_type_predicates_select_semantic_leaves() -> None:
+def test_transform_types_select_semantic_leaves() -> None:
     assert IncrementInts()({"value": 1, "text": "1"}) == {
         "value": 2,
         "text": "1",
     }
-
-
-def test_transform_evaluates_type_predicates_once_per_leaf() -> None:
-    calls = 0
-
-    def select_int(value: object) -> bool:
-        nonlocal calls
-        calls += 1
-        return isinstance(value, int)
-
-    class CountedSelection(IncrementInts):
-        _transformed_types = (select_int,)
-
-    assert CountedSelection()([1, "one"]) == [2, "one"]
-    assert calls == 2
 
 
 def test_compose_is_an_nn_module_and_applies_transforms_in_order() -> None:
@@ -98,7 +83,6 @@ def test_compose_is_an_nn_module_and_applies_transforms_in_order() -> None:
     output = transform(outline)
 
     assert isinstance(transform, torch.nn.Module)
-    assert isinstance(transform, Transform)
     assert torch.equal(output.coords, outline.coords + 3.0)
 
 
@@ -112,19 +96,8 @@ def test_transform_and_compose_support_multiple_inputs() -> None:
     assert output[1] == "label"
 
 
-def test_compose_accepts_explicitly_wrapped_callables() -> None:
-    transform = Compose([Lambda(lambda value: value + 1)])
-
-    assert transform(2) == 3
-
-
-@pytest.mark.parametrize("container", [Compose, RandomApply])
 @pytest.mark.parametrize("as_module_list", [False, True])
-def test_transform_containers_register_stateful_transforms(
-    container: type[Compose] | type[RandomApply],
-    *,
-    as_module_list: bool,
-) -> None:
+def test_compose_registers_stateful_transforms(*, as_module_list: bool) -> None:
     class StatefulTransform(AddToCoords):
         def __init__(self) -> None:
             super().__init__(1.0)
@@ -132,7 +105,7 @@ def test_transform_containers_register_stateful_transforms(
 
     child = StatefulTransform()
     children = torch.nn.ModuleList([child]) if as_module_list else [child]
-    transform = container(children)
+    transform = Compose(children)
 
     assert transform.get_submodule("transforms.0") is child
     assert transform.state_dict()["transforms.0.offset"].item() == 1.0
@@ -143,40 +116,43 @@ def test_compose_rejects_non_sequence_iterables() -> None:
         Compose(iter([AddToCoords(1.0)]))  # ty: ignore[invalid-argument-type]
 
 
-def test_compose_requires_plain_callables_to_be_wrapped() -> None:
-    with pytest.raises(TypeError, match="wrap plain callables with Lambda"):
+def test_compose_rejects_plain_callables() -> None:
+    with pytest.raises(TypeError, match=r"only nn\.Module"):
         Compose([lambda value: value + 1])  # ty: ignore[invalid-argument-type]
 
 
-@pytest.mark.parametrize("container", [Compose, RandomApply])
-def test_transform_containers_reject_empty_sequences(
-    container: type[Compose] | type[RandomApply],
-) -> None:
+def test_compose_rejects_empty_sequences() -> None:
     with pytest.raises(ValueError, match="transforms must not be empty"):
-        container([])
+        Compose([])
 
 
 @pytest.mark.parametrize(("p", "expected"), [(0.0, 0.0), (1.0, 3.0)])
 def test_random_apply_probability_boundaries(p: float, expected: float) -> None:
     outline = _line_outline()
-    transform = RandomApply([AddToCoords(3.0)], p=p)
+    transform = RandomApply(AddToCoords(3.0), p=p)
 
     output = transform(outline)
 
-    assert isinstance(transform, Transform)
     assert torch.equal(output.coords, outline.coords + expected)
 
 
-def test_random_apply_accepts_module_list() -> None:
-    transform = RandomApply(torch.nn.ModuleList([AddToCoords(1.0)]), p=1.0)
+def test_random_apply_registers_transform() -> None:
+    child = AddToCoords(1.0)
+    transform = RandomApply(child, p=1.0)
 
     assert torch.equal(transform(_line_outline()).coords, _line_outline().coords + 1.0)
+    assert transform.get_submodule("transform") is child
+
+
+def test_random_apply_rejects_plain_callables() -> None:
+    with pytest.raises(TypeError, match=r"must be an nn\.Module"):
+        RandomApply(lambda value: value)  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.parametrize("p", [-0.1, 1.1])
 def test_random_apply_rejects_invalid_probability(p: float) -> None:
     with pytest.raises(ValueError, match="p must be between 0 and 1"):
-        RandomApply([AddToCoords(1.0)], p=p)
+        RandomApply(AddToCoords(1.0), p=p)
 
 
 def test_random_split_segments_handles_different_length_outlines() -> None:
@@ -190,11 +166,11 @@ def test_random_split_segments_handles_different_length_outlines() -> None:
     assert output[1].types.numel() == long.types.numel() + 3
 
 
-def test_random_split_segments_shares_randomness_between_outlines() -> None:
+def test_same_params_shares_randomness_between_outlines() -> None:
     transform = RandomSplitSegments(split_probability=0.5)
     outline = _line_outline(8)
 
-    first, second = transform([outline, outline])
+    first, second = SameParams(transform)([outline, outline])
 
     assert torch.equal(first.types, second.types)
     assert torch.equal(first.coords, second.coords)
@@ -202,7 +178,7 @@ def test_random_split_segments_shares_randomness_between_outlines() -> None:
 
 def test_transform_pipeline_is_pickleable() -> None:
     transform = Compose(
-        [RandomApply([RandomSplitSegments(split_probability=1.0)], p=0.5)]
+        [RandomApply(RandomSplitSegments(split_probability=1.0), p=0.5)]
     )
 
     restored = pickle.loads(pickle.dumps(transform))  # noqa: S301
@@ -213,7 +189,7 @@ def test_transform_pipeline_is_pickleable() -> None:
 
 def test_transform_repr_contains_configuration() -> None:
     transform = Compose(
-        [RandomApply([RandomSplitSegments(split_probability=0.2)], p=0.3)]
+        [RandomApply(RandomSplitSegments(split_probability=0.2), p=0.3)]
     )
 
     representation = repr(transform)
@@ -318,11 +294,23 @@ def test_random_location_returns_the_sampled_location() -> None:
     assert set(output.location) == {"wdth", "wght"}
 
 
-def test_random_location_rejects_multiple_variable_glyphs() -> None:
+def test_random_location_handles_multiple_variable_glyphs_independently() -> None:
     ref = VariableGlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
 
-    with pytest.raises(ValueError, match="requires exactly one"):
-        RandomLocation()([ref, ref])
+    first, second = RandomLocation()([ref, ref])
+
+    assert isinstance(first, Outline)
+    assert isinstance(second, Outline)
+
+
+def test_random_location_rejects_shared_parameters() -> None:
+    ref = VariableGlyphRef(
+        FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
+        ord("A"),
+    )
+
+    with pytest.raises(ValueError, match="cannot share parameters"):
+        SameParams(RandomLocation())([ref, ref])

@@ -38,7 +38,7 @@ from torchfont.transforms import (
 transform = Compose(
     [
         LoadGlyph(),
-        RandomApply([RandomSplitSegments(split_probability=0.2)], p=0.5),
+        RandomApply(RandomSplitSegments(split_probability=0.2), p=0.5),
         RemoveOverlaps(),
     ]
 )
@@ -52,37 +52,40 @@ outline = data.data
 `RandomLocation` performs the corresponding operation for
 `VariableGlyphSample` and records the sampled location in `GlyphData.location`.
 
-`Transform` flattens nested pytree inputs, calls `make_params()` once, applies
-the resulting parameters to every matching semantic leaf, and restores the
-input structure. Thus corresponding outlines receive the same flip, affine
-parameters, or element-level random values. Random transforms use PyTorch's
-default RNG, so `torch.manual_seed` and DataLoader worker seeding apply normally.
+`Transform` flattens nested pytree inputs, samples parameters independently for
+each matching semantic leaf, and restores the input structure. Wrap a transform
+with `SameParams` when corresponding outlines, such as compatible instances of
+one variable glyph, must receive the same flip, affine parameters, or
+element-level random values. Random transforms use PyTorch's default RNG, so
+`torch.manual_seed` and DataLoader worker seeding apply normally.
 Built-in transforms contain configuration only and remain pickle-friendly.
-`Compose` and `RandomApply` register their children in a `torch.nn.ModuleList`,
-including when constructed from an ordinary list of modules. Wrap a plain
-callable explicitly with `Lambda`; its pickle behavior then depends on the
-wrapped callable. This avoids inheriting torchvision's historical unregistered
-list behavior and keeps module traversal, state dictionaries, hooks, and
-configuration display consistent with PyTorch.
+`Compose` registers its children in a `torch.nn.ModuleList`, including when it
+is constructed from an ordinary list of modules. `RandomApply` and `SameParams`
+register the single module they wrap. Plain callables are intentionally
+unsupported: define a small `nn.Module` so its
+behavior, representation, and pickle requirements remain explicit. This avoids
+inheriting torchvision's historical unregistered callable-list behavior and
+keeps module traversal, state dictionaries, hooks, and configuration display
+consistent with PyTorch.
 
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.
-`Compose` and `RandomApply` require a non-empty sequence of `nn.Module` objects
-or an `nn.ModuleList`.
-Parameters are shared across matching leaves in one call. Call a transform
-separately for independent samples that should receive independent randomness.
+`Compose` requires a non-empty sequence of `nn.Module` objects or an
+`nn.ModuleList`. `RandomApply` wraps one `nn.Module`, while `SameParams` wraps
+one `Transform`. Use `Compose` inside `RandomApply` when grouping several
+transforms.
 
-`RandomApply(transforms, p)` controls whether a complete transform sequence is
-applied. Probabilities such as `RandomSplitSegments.split_probability` control
-behavior inside an already-applied transform.
+`RandomApply(transform, p)` controls whether one transform is applied.
+Probabilities such as `RandomSplitSegments.split_probability` control behavior
+inside an already-applied transform.
 
 ## Built-in transforms
 
 | Category | Transforms |
 | --- | --- |
 | Loading | `LoadGlyph`, `RandomLocation` |
-| Containers | `Compose`, `Lambda`, `RandomApply` |
+| Containers | `Compose`, `RandomApply`, `SameParams` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |

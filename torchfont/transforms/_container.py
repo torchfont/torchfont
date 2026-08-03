@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import cast
 
 import torch
@@ -25,10 +25,7 @@ def _module_list(
         None,
     )
     if invalid is not None:
-        msg = (
-            "transforms must contain only nn.Module objects; "
-            "wrap plain callables with Lambda"
-        )
+        msg = "transforms must contain only nn.Module objects"
         raise TypeError(msg)
     return (
         transforms
@@ -37,25 +34,7 @@ def _module_list(
     )
 
 
-class Lambda(nn.Module):
-    """Wrap a plain callable for explicit use in transform containers."""
-
-    def __init__(self, function: Callable[..., object]) -> None:
-        super().__init__()
-        if not callable(function):
-            msg = "function must be callable"
-            raise TypeError(msg)
-        self.function = function
-
-    def forward(self, *inputs: object) -> object:
-        """Call the wrapped function."""
-        return self.function(*inputs)
-
-    def extra_repr(self) -> str:
-        return getattr(self.function, "__name__", repr(self.function))
-
-
-class Compose(Transform):
+class Compose(nn.Module):
     """Apply a sequence of transforms in order."""
 
     def __init__(
@@ -77,33 +56,48 @@ class Compose(Transform):
         return ""
 
 
-class RandomApply(Transform):
-    """Apply a sequence of transforms with probability ``p``."""
+class RandomApply(nn.Module):
+    """Apply one transform with probability ``p``."""
 
     def __init__(
         self,
-        transforms: Sequence[nn.Module] | nn.ModuleList,
+        transform: nn.Module,
         p: float = 0.5,
     ) -> None:
         super().__init__()
-        self.transforms = _module_list(transforms)
+        if not isinstance(transform, nn.Module):
+            msg = "transform must be an nn.Module"
+            raise TypeError(msg)
+        self.transform = transform
         if not 0.0 <= p <= 1.0:
             msg = "p must be between 0 and 1"
             raise ValueError(msg)
         self.p = p
 
     def forward(self, *inputs: object) -> object:
-        """Apply all configured transforms together or return inputs unchanged."""
+        """Apply the configured transform or return inputs unchanged."""
         unpack = len(inputs) > 1
         if torch.rand(()) >= self.p:
             return inputs if unpack else inputs[0]
-        for transform in self.transforms:
-            output = transform(*inputs)
-            inputs = cast("tuple[object, ...]", output) if unpack else (output,)
-        return output
+        return self.transform(*inputs)
 
     def extra_repr(self) -> str:
         return f"p={self.p}"
 
 
-__all__ = ["Compose", "Lambda", "RandomApply"]
+class SameParams(nn.Module):
+    """Apply one transform with parameters shared across semantic leaves."""
+
+    def __init__(self, transform: Transform) -> None:
+        super().__init__()
+        if not isinstance(transform, Transform):
+            msg = "transform must be a Transform"
+            raise TypeError(msg)
+        self.transform = transform
+
+    def forward(self, *inputs: object) -> object:
+        """Apply the wrapped transform with one shared parameter sample."""
+        return self.transform.forward_same_params(*inputs)
+
+
+__all__ = ["Compose", "RandomApply", "SameParams"]

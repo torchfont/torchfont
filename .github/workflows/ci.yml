@@ -65,7 +65,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - environment: development
+          - environment: latest
             runner: ubuntu-latest
           - environment: minimum
             runner: ubuntu-latest
@@ -82,7 +82,7 @@ jobs:
         with:
           enable-cache: "true"
       - run: cargo test --all-targets --all-features
-      - if: matrix.environment == 'development'
+      - if: matrix.environment == 'latest'
         run: uv run --locked ty check
       - if: matrix.environment != 'minimum'
         run: uv run --locked pytest tests

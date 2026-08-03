@@ -44,16 +44,9 @@ class RandomLocation(Transform):
 
     _transformed_types = (VariableGlyphSample, VariableGlyphRef)
 
-    def check_inputs(self, flat_inputs: list[object]) -> None:
-        selected = [
-            item
-            for item, needs_transform in zip(
-                flat_inputs, self._needs_transform_list(flat_inputs), strict=True
-            )
-            if needs_transform
-        ]
-        if len(selected) != 1:
-            msg = "RandomLocation requires exactly one variable glyph input"
+    def check_same_params(self, selected_inputs: list[object]) -> None:
+        if len(selected_inputs) > 1:
+            msg = "RandomLocation cannot share parameters across glyph inputs"
             raise ValueError(msg)
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
