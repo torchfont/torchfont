@@ -25,8 +25,9 @@ _PRESERVE_SUBCLASS_OPS = {
 class TFTensor(Tensor):
     """Base class for tensors carrying TorchFont transform semantics.
 
-    Native tensor operations return plain tensors by default. Copying, moving,
-    and changing dtype preserve the semantic subclass.
+    Native tensor operations return plain tensors by default. ``clone()``,
+    ``detach()``, ``pin_memory()``, ``requires_grad_()``, and ``to()`` preserve
+    the semantic subclass, matching torchvision's ``TVTensor`` convention.
     """
 
     @staticmethod

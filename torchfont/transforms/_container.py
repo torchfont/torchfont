@@ -14,10 +14,13 @@ from torchfont.transforms._transform import Transform
 class Compose(Transform):
     """Apply a sequence of transforms in order."""
 
-    def __init__(self, transforms: Sequence[Callable[..., object]]) -> None:
+    def __init__(
+        self,
+        transforms: Sequence[Callable[..., object]] | nn.ModuleList,
+    ) -> None:
         super().__init__()
-        if not isinstance(transforms, Sequence):
-            msg = "transforms must be a sequence of callables"
+        if not isinstance(transforms, (Sequence, nn.ModuleList)):
+            msg = "transforms must be a sequence of callables or an nn.ModuleList"
             raise TypeError(msg)
         if not transforms:
             msg = "transforms must not be empty"

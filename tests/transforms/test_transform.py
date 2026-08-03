@@ -118,6 +118,27 @@ def test_compose_accepts_plain_callables() -> None:
 
 
 @pytest.mark.parametrize("container", [Compose, RandomApply])
+def test_module_list_registers_stateful_transforms(
+    container: type[Compose] | type[RandomApply],
+) -> None:
+    class StatefulTransform(AddToCoords):
+        def __init__(self) -> None:
+            super().__init__(1.0)
+            self.register_buffer("offset", torch.tensor(1.0))
+
+    child = StatefulTransform()
+    transform = container(torch.nn.ModuleList([child]))
+
+    assert transform.get_submodule("transforms.0") is child
+    assert transform.state_dict()["transforms.0.offset"].item() == 1.0
+
+
+def test_compose_rejects_non_sequence_iterables() -> None:
+    with pytest.raises(TypeError, match=r"sequence of callables or an nn\.ModuleList"):
+        Compose(iter([AddToCoords(1.0)]))  # ty: ignore[invalid-argument-type]
+
+
+@pytest.mark.parametrize("container", [Compose, RandomApply])
 def test_transform_containers_reject_empty_sequences(
     container: type[Compose] | type[RandomApply],
 ) -> None:
@@ -243,6 +264,8 @@ def test_bitmap_behaves_as_a_tensor_and_preserves_its_type() -> None:
     assert bitmap.data_ptr() == tensor.data_ptr()
     assert type(bitmap + 1) is torch.Tensor
     assert isinstance(bitmap.to(dtype=torch.float32), tf_tensors.Bitmap)
+    assert type(bitmap.float()) is torch.Tensor
+    assert type(bitmap.cpu()) is torch.Tensor
     assert isinstance(output, tf_tensors.Bitmap)
     assert output.shape == (8, 8)
 

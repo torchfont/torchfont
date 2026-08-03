@@ -15,9 +15,11 @@ from torchfont.structures import GlyphData, Outline
 `tf_tensors.TFTensor` is the semantic tensor base corresponding to torchvision's
 `TVTensor`, and `tf_tensors.Bitmap(tensor)` is its rasterized-glyph subclass.
 Ordinary tensor operations on a `TFTensor` return a plain tensor so semantic
-dispatch does not leak into model code; copying and device/dtype conversion
-preserve the subclass. Use `tf_tensors.wrap(tensor, like=bitmap)` to restore a
-semantic subclass without copying data. `GlyphData[T]`
+dispatch does not leak into model code. In line with torchvision's `TVTensor`,
+`clone()`, `detach()`, `pin_memory()`, `requires_grad_()`, and `to()` preserve the
+subclass; convenience methods such as `float()` and `cpu()` follow the ordinary
+operation rule. Use `tf_tensors.wrap(tensor, like=bitmap)` to restore a semantic
+subclass without copying data. `GlyphData[T]`
 keeps a transformed payload, the original dataset sample, and the concrete
 variation location together. Since its payload is generic, a pipeline can change
 it from `Outline` to a bitmap without losing metadata.
@@ -58,14 +60,14 @@ default RNG, so `torch.manual_seed` and DataLoader worker seeding apply normally
 Built-in transforms contain configuration only and remain pickle-friendly.
 Custom callables passed to a container are pickle-friendly only if the callable is.
 As in torchvision, ordinary callable sequences are not registered as trainable
-child modules. `RandomApply` also accepts `torch.nn.ModuleList` when module
-registration is required.
+child modules. `Compose` and `RandomApply` also accept `torch.nn.ModuleList`
+when module registration is required.
 
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.
-`Compose` and `RandomApply` require a non-empty sequence of callables;
-`RandomApply` additionally accepts a non-empty `torch.nn.ModuleList`.
+`Compose` and `RandomApply` require a non-empty sequence of callables or
+`torch.nn.ModuleList`.
 Parameters are shared across matching leaves in one call. Call a transform
 separately for independent samples that should receive independent randomness.
 

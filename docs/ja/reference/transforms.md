@@ -15,8 +15,10 @@ from torchfont.structures import GlyphData, Outline
 `tf_tensors.TFTensor` は torchvision の `TVTensor` に対応する意味 tensor の基底であり、
 `tf_tensors.Bitmap(tensor)` は rasterized glyph を表す subclass です。通常の tensor
 演算結果はplain tensorに戻るため、意味型のdispatchがmodel内部まで伝播しません。
-copy、device・dtype変換ではsubclassを維持します。storageをcopyせず意味型へ戻すには
-`tf_tensors.wrap(tensor, like=bitmap)` を使います。
+torchvisionの`TVTensor`と同様、`clone()`、`detach()`、`pin_memory()`、
+`requires_grad_()`、`to()`ではsubclassを維持します。一方、`float()`や`cpu()`などの
+convenience methodは通常の演算と同じ規則に従い、plain tensorを返します。storageを
+copyせず意味型へ戻すには`tf_tensors.wrap(tensor, like=bitmap)`を使います。
 `GlyphData[T]` は変換中の payload、元の dataset sample、実際に使用した variation
 location を保持します。payload は generic なので、メタデータを失わずに
 `Outline` から bitmap へ変換できます。
@@ -57,8 +59,8 @@ outline = data.data
 組み込み transform は設定のみを保持し、pickle 可能です。container に渡す custom
 callable が pickle 可能かどうかは、その callable 自体に依存します。
 torchvision と同様に、通常の callable 列は学習可能な child module として
-登録されません。module 登録が必要な場合、`RandomApply` には
-`torch.nn.ModuleList` も渡せます。
+登録されません。module 登録が必要な場合、`Compose` と `RandomApply` には
+`torch.nn.ModuleList` を渡せます。
 
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
