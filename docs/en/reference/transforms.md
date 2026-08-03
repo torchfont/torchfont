@@ -22,6 +22,9 @@ operation rule. Use `tf_tensors.wrap(tensor, like=bitmap)` to restore a semantic
 subclass without copying data. Custom `TFTensor` subclasses that carry metadata
 can override the `wrap()` classmethod; copy-like operations and the public
 `tf_tensors.wrap()` helper then preserve that metadata without a global registry.
+The base implementation rejects metadata keywords rather than silently ignoring
+them. `Bitmap` requires at least two tensor dimensions and keeps a two-dimensional
+grayscale glyph in `H x W` form without adding a channel dimension.
 `GlyphData[T]`
 keeps a transformed payload, the original dataset sample, and the concrete
 variation location together. Since its payload is generic, a pipeline can change

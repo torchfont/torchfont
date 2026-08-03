@@ -133,7 +133,7 @@ class VariableGlyphSample:
     character_idx: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class GlyphData(Generic[T]):
     """A transformed glyph payload together with its dataset metadata."""
 

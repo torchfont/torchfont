@@ -24,7 +24,7 @@ COORD_DIM: int = 6
 _COORD_NDIM = 2
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Outline:
     """One variable-length glyph outline encoded by two coupled tensors.
 

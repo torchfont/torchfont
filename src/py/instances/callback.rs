@@ -69,7 +69,11 @@ impl<'py> InstanceFunctionsBridge<'py> {
                 .py_float
                 .call1((item.get_item(1)?,))?
                 .extract::<f32>()?;
-            out.insert(tag, value);
+            if out.insert(tag.clone(), value).is_some() {
+                return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "duplicate variation axis tag '{tag}'"
+                )));
+            }
         }
         Ok(out)
     }

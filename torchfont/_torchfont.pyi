@@ -1,4 +1,4 @@
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal, TypeAlias
 
@@ -62,7 +62,7 @@ class FixedGlyphIndex:
         root: str,
         codepoints: Sequence[int] | None,
         patterns: Sequence[str] | None,
-        instance_fn: Callable[..., Sequence[Mapping[str, float]]],
+        instance_fn: Callable[..., Iterable[Mapping[str, float]]],
     ) -> FixedGlyphIndex: ...
     def font_refs(self) -> list[tuple[Path, int]]: ...
     def style_classes(self) -> list[str]: ...

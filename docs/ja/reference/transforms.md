@@ -22,6 +22,8 @@ copyせず意味型へ戻すには`tf_tensors.wrap(tensor, like=bitmap)`を使�
 メタデータを持つcustom `TFTensor` subclassは`wrap()` classmethodをoverrideできます。
 copy系operationと公開`tf_tensors.wrap()` helperはglobal registryを使わず、その
 メタデータを維持します。
+base実装はmetadata keywordを黙って無視せず拒否します。`Bitmap`は2次元以上を要求し、
+2次元のgrayscale glyphはchannel次元を追加せず`H x W`のまま保持します。
 `GlyphData[T]` は変換中の payload、元の dataset sample、実際に使用した variation
 location を保持します。payload は generic なので、メタデータを失わずに
 `Outline` から bitmap へ変換できます。

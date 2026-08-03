@@ -6,7 +6,7 @@ import pickle
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 import torch
@@ -42,18 +42,26 @@ from torchfont.structures import (
 from torchfont.transforms import RandomLocation
 from torchfont.transforms import functional as _functional
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+
+class _WeightTag:
+    def __str__(self) -> str:
+        return "wght"
+
 
 class _TestInstances:
     def __init__(
         self,
-        locations: list[dict[str, float]] | None = None,
+        locations: list[Mapping[str, float]] | None = None,
         *,
         count: int | None = None,
     ) -> None:
         self._locations = locations or []
         self._count = len(self._locations) if count is None else count
 
-    def locations(self, font: FontRef) -> list[dict[str, float]]:
+    def locations(self, font: FontRef) -> Iterable[Mapping[str, float]]:
         del font
         return self._locations
 
@@ -607,6 +615,11 @@ def test_location_validation_rejects_unknown_axis_range_and_nan() -> None:
         _load_pair(ref, {"wght": 10_000.0})
     with pytest.raises(ValueError, match="finite"):
         _load_pair(ref, {"wght": float("nan")})
+    with pytest.raises(ValueError, match="duplicate variation axis tag 'wght'"):
+        _load_pair(
+            ref,
+            {"wght": 400.0, _WeightTag(): 500.0},  # ty: ignore[invalid-argument-type]
+        )
 
 
 def test_missing_instance_location_axes_use_defaults() -> None:
@@ -631,6 +644,37 @@ def test_instance_function_rejects_duplicate_normalized_locations() -> None:
         )
 
 
+def test_instance_function_rejects_duplicate_normalized_axis_tags() -> None:
+    location = cast(
+        "Mapping[str, float]",
+        {
+            "wght": 400.0,
+            _WeightTag(): 500.0,
+        },
+    )
+    with pytest.raises(ValueError, match="duplicate variation axis tag 'wght'"):
+        GlyphDataset(
+            root="tests/fonts",
+            patterns="roboto/Roboto*.ttf",
+            codepoints=[0x41],
+            instance_fn=_TestInstances([location]).locations,
+        )
+
+
+def test_instance_function_accepts_location_iterables() -> None:
+    def locations(_font: FontRef) -> Iterable[Mapping[str, float]]:
+        yield {"wght": 400.0}
+
+    dataset = GlyphDataset(
+        root="tests/fonts",
+        patterns="roboto/Roboto*.ttf",
+        codepoints=[0x41],
+        instance_fn=locations,
+    )
+
+    assert len(dataset) == 1
+
+
 def test_instance_function_rejects_unknown_axis() -> None:
     with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
         GlyphDataset(
@@ -647,6 +691,15 @@ def test_grid_functions_reject_invalid_axis_counts(axes: dict[str, int]) -> None
         grid_instances(axes)
     with pytest.raises(ValueError, match="ax"):
         grid_instance_count(axes)
+
+
+def test_grid_functions_reject_duplicate_normalized_axis_tags() -> None:
+    axes = {"wght": 2, _WeightTag(): 3}
+
+    with pytest.raises(ValueError, match="duplicate variation axis tag 'wght'"):
+        grid_instances(axes)  # ty: ignore[invalid-argument-type]
+    with pytest.raises(ValueError, match="duplicate variation axis tag 'wght'"):
+        grid_instance_count(axes)  # ty: ignore[invalid-argument-type]
 
 
 def test_empty_grid_functions_select_one_default_instance() -> None:

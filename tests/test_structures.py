@@ -3,7 +3,14 @@ import pickle
 import pytest
 import torch
 
-from torchfont.structures import FontRef, GlyphRef, Outline, VariationLocation
+from torchfont.structures import (
+    FontRef,
+    GlyphData,
+    GlyphRef,
+    GlyphSample,
+    Outline,
+    VariationLocation,
+)
 
 
 def test_variation_location_is_order_independent_and_hashable() -> None:
@@ -84,3 +91,27 @@ def test_outline_rejects_mismatched_devices() -> None:
             torch.zeros(1, dtype=torch.long, device="meta"),
             torch.zeros((1, 6)),
         )
+
+
+def test_tensor_containers_use_identity_equality() -> None:
+    types = torch.tensor([1, 6], dtype=torch.long)
+    coords = torch.zeros((2, 6))
+    first = Outline(types, coords)
+    second = Outline(types.clone(), coords.clone())
+    sample = GlyphSample(
+        GlyphRef(FontRef("font.ttf", 0), 0x41, {}),
+        0,
+        0,
+        0,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    first_data = GlyphData(first, sample, {})
+    second_data = GlyphData(second, sample, {})
+
+    assert first != second
+    assert first_data != second_data
+    assert hash(first) == object.__hash__(first)

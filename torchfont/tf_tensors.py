@@ -22,6 +22,7 @@ _PRESERVE_SUBCLASS_OPS = {
     Tensor.requires_grad_,
     Tensor.to,
 }
+_MIN_BITMAP_NDIM = 2
 
 
 class TFTensor(Tensor):
@@ -82,7 +83,11 @@ class TFTensor(Tensor):
         **metadata: object,
     ) -> Self:
         """Restore this semantic subclass, customizable for subclass metadata."""
-        del like, metadata
+        del like
+        if metadata:
+            names = ", ".join(sorted(metadata))
+            msg = f"{cls.__name__}.wrap() does not accept metadata: {names}"
+            raise TypeError(msg)
         return cast("Self", tensor.as_subclass(cls))
 
     def __deepcopy__(self: _T, memo: dict[int, Any]) -> _T:  # noqa: PYI019
@@ -130,6 +135,9 @@ class Bitmap(TFTensor):
         tensor = cls._to_tensor(
             data, dtype=dtype, device=device, requires_grad=requires_grad
         )
+        if tensor.ndim < _MIN_BITMAP_NDIM:
+            msg = f"Bitmap data must be at least 2-D, got {tensor.ndim}-D"
+            raise ValueError(msg)
         return tensor.as_subclass(cls)
 
     def __init__(

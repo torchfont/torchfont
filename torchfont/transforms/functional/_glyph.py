@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING, overload
 import torch
 
 from torchfont import _torchfont
-from torchfont.structures import COORD_DIM, GlyphRef, Outline, VariableGlyphRef
+from torchfont.structures import (
+    COORD_DIM,
+    GlyphRef,
+    Outline,
+    VariableGlyphRef,
+    VariationLocation,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -34,13 +40,14 @@ def load_glyph(
             msg = "location cannot override a GlyphRef location"
             raise ValueError(msg)
         location = ref.location
+    normalized_location = (
+        None if location is None else dict(VariationLocation(location))
+    )
     raw_types, raw_coords = _torchfont.load_glyph(
         ref.font.path,
         ref.font.ttc_index,
         ref.codepoint,
-        None
-        if location is None
-        else {str(tag): float(value) for tag, value in location.items()},
+        normalized_location,
     )
     return Outline(
         torch.from_numpy(raw_types),

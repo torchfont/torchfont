@@ -1,6 +1,6 @@
 """Instance-location and instance-count functions for glyph datasets."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from operator import index
 from typing import TYPE_CHECKING, TypeAlias
 
@@ -9,7 +9,7 @@ from torchfont import _torchfont
 if TYPE_CHECKING:
     from torchfont.structures import FontRef
 
-InstanceLocationsFn: TypeAlias = Callable[["FontRef"], Sequence[Mapping[str, float]]]
+InstanceLocationsFn: TypeAlias = Callable[["FontRef"], Iterable[Mapping[str, float]]]
 InstanceCountFn: TypeAlias = Callable[["FontRef"], int]
 
 
@@ -66,7 +66,13 @@ def grid_instance_count(axes: Mapping[str, int]) -> InstanceCountFn:
 
 
 def _normalize_axes(axes: Mapping[str, int]) -> dict[str, int]:
-    counts = {str(tag): index(count) for tag, count in axes.items()}
+    counts: dict[str, int] = {}
+    for raw_tag, raw_count in axes.items():
+        tag = str(raw_tag)
+        if tag in counts:
+            msg = f"duplicate variation axis tag {tag!r}"
+            raise ValueError(msg)
+        counts[tag] = index(raw_count)
     if invalid := next(
         ((tag, count) for tag, count in counts.items() if count <= 0), None
     ):

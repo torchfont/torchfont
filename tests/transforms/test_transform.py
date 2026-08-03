@@ -287,6 +287,23 @@ def test_bitmap_accepts_tensor_like_data_and_can_be_rewrapped() -> None:
     assert torch.equal(output, torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
 
 
+@pytest.mark.parametrize("shape", [(), (3,)])
+def test_bitmap_rejects_data_with_fewer_than_two_dimensions(
+    shape: tuple[int, ...],
+) -> None:
+    with pytest.raises(ValueError, match="Bitmap data must be at least 2-D"):
+        tf_tensors.Bitmap(torch.zeros(shape))
+
+
+def test_base_tf_tensor_wrap_rejects_unknown_metadata() -> None:
+    bitmap = tf_tensors.Bitmap(torch.zeros((2, 2)))
+
+    with pytest.raises(
+        TypeError, match=r"Bitmap\.wrap\(\) does not accept metadata: label"
+    ):
+        tf_tensors.wrap(bitmap + 1, like=bitmap, label="ignored")
+
+
 def test_custom_tf_tensor_controls_metadata_wrapping() -> None:
     class LabeledBitmap(tf_tensors.Bitmap):
         label: str

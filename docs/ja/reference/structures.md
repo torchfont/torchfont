@@ -32,6 +32,9 @@ frozen dataclass で、multiprocessing data loader でも pickle 可能です。
 ありません。`GlyphData` はtransform後のpayload、元のsample、確定済みvariation
 locationをひとまとまりにします。
 
+`Outline`と`GlyphData`は意図的にidentity equalityを使います。tensor payloadの比較には
+dataclassが生成するbool equalityではなく、`torch.equal()`などを明示的に使います。
+
 ### `ElementType: IntEnum`
 
 ```python

@@ -35,6 +35,10 @@ all coordinates for `CLOSE`, `END`, and `PAD`, have no semantic value.
 `GlyphData` couples a transformed payload with its source sample and resolved
 variation location.
 
+`Outline` and `GlyphData` intentionally use identity equality. Their tensor
+payloads require explicit comparisons such as `torch.equal()` rather than
+dataclass-generated boolean equality.
+
 ### `ElementType: IntEnum`
 
 ```python
