@@ -2,8 +2,7 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import VariableGlyphDataset
-from torchfont.instance_fn import grid_instance_count
+from torchfont.datasets import GlyphDataset
 from torchfont.structures import GlyphData, Outline
 from torchfont.transforms import RandomLocation
 
@@ -18,7 +17,7 @@ def collate_fn(
 
 
 def main() -> None:
-    dataset = VariableGlyphDataset(
+    dataset = GlyphDataset(
         root="data/google/fonts",
         patterns=(
             "apache/*/*.ttf",
@@ -26,7 +25,6 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        instance_fn=grid_instance_count({"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2}),
         transform=RandomLocation(),
     )
 

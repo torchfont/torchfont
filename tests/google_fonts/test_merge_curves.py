@@ -48,10 +48,9 @@ def _transform(sample: GlyphSample) -> Tensor:
     failed = _hard_diff(original, merged).any()
     if failed:
         logger.warning(
-            "merge_curves bitmap mismatch: %s U+%04X %s",
+            "merge_curves bitmap mismatch: %s U+%04X",
             sample.ref.font.path,
             sample.ref.codepoint,
-            sample.ref.location,
         )
     return failed
 

@@ -1,58 +1,20 @@
-use pyo3::{Bound, PyResult, Python, types::PyAny};
+use pyo3::PyResult;
 
-use crate::dataset::{
-    DiscoveredFont, FixedFontEntry, VariableFontEntry, canonicalize_root, discover_font_files,
-};
-use crate::font::{Location, map_font, parse_font_ref};
-use crate::instances::canonicalize_locations;
-use crate::py::instances::callback::InstanceFunctionsBridge;
+use crate::dataset::{DiscoveredFont, FontEntry, canonicalize_root, discover_font_files};
 
-pub(super) fn build_fixed_entries(
-    py: Python<'_>,
+pub(super) fn build_entries(
     root: &str,
     codepoints: Option<Vec<u32>>,
     patterns: Option<Vec<String>>,
-    instances: &Bound<'_, PyAny>,
-) -> PyResult<Vec<FixedFontEntry>> {
-    let bridge = InstanceFunctionsBridge::new(py)?;
-    let mut entries = Vec::new();
-    for font in discover_fonts(root, codepoints, patterns)? {
-        let locations = instance_locations(&bridge, instances, &font)?;
-        if !locations.is_empty() {
-            entries.push(FixedFontEntry {
-                path: font.path().to_path_buf(),
-                ttc_index: font.ttc_index(),
-                codepoints: font.codepoints().to_vec(),
-                locations,
-                family_name: font.family_name().to_string(),
-                subfamily_name: font.subfamily_name().to_string(),
-            });
-        }
-    }
-    Ok(entries)
-}
-
-pub(super) fn build_variable_entries(
-    py: Python<'_>,
-    root: &str,
-    codepoints: Option<Vec<u32>>,
-    patterns: Option<Vec<String>>,
-    instances: &Bound<'_, PyAny>,
-) -> PyResult<Vec<VariableFontEntry>> {
-    let bridge = InstanceFunctionsBridge::new(py)?;
-    let mut entries = Vec::new();
-    for font in discover_fonts(root, codepoints, patterns)? {
-        let count = bridge.call_count(instances, font.path(), font.ttc_index())?;
-        if count != 0 {
-            entries.push(VariableFontEntry {
-                path: font.path().to_path_buf(),
-                ttc_index: font.ttc_index(),
-                codepoints: font.codepoints().to_vec(),
-                instance_count: count,
-            });
-        }
-    }
-    Ok(entries)
+) -> PyResult<Vec<FontEntry>> {
+    Ok(discover_fonts(root, codepoints, patterns)?
+        .into_iter()
+        .map(|font| FontEntry {
+            path: font.path().to_path_buf(),
+            ttc_index: font.ttc_index(),
+            codepoints: font.codepoints().to_vec(),
+        })
+        .collect())
 }
 
 fn discover_fonts(
@@ -75,15 +37,4 @@ fn discover_fonts(
         );
     }
     Ok(entries)
-}
-
-fn instance_locations(
-    bridge: &InstanceFunctionsBridge<'_>,
-    instances: &Bound<'_, PyAny>,
-    font: &DiscoveredFont,
-) -> PyResult<Vec<Location>> {
-    let raw = bridge.call_locations(instances, font.path(), font.ttc_index())?;
-    let data = map_font(font.path())?;
-    let font_ref = parse_font_ref(&data[..], font.path(), font.ttc_index())?;
-    canonicalize_locations(&font_ref, font.path(), font.ttc_index(), &raw).map_err(Into::into)
 }

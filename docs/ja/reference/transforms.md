@@ -53,8 +53,9 @@ outline = data.data
 
 `LoadGlyph` は `GlyphSample` または `GlyphRef` を受け取ります。sample は
 `GlyphData[Outline]` に、ref 単体は `Outline` になります。
-`RandomLocation` は `VariableGlyphSample` に対応し、サンプリングした location を
-`GlyphData.location` に保存します。
+`LoadGlyph`はfaceのdefault locationを使います。`RandomLocation`は`GlyphSample`
+または`GlyphRef`に対してlocationを1点抽出し、`GlyphData.location`に保存します。
+static faceでは空locationになります。
 
 `Transform` はネストした pytree を flatten し、一致する意味的な leaf ごとに独立して
 parameter を生成し、元の構造を復元します。同じ variable glyph の互換な instance など、

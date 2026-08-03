@@ -41,10 +41,10 @@ def test_variation_location_pickle_round_trip() -> None:
     assert pickle.loads(pickle.dumps(location)) == location  # noqa: S301
 
 
-def test_glyph_ref_normalizes_location() -> None:
-    ref = GlyphRef(FontRef("font.ttf", 0), ord("A"), {"wght": 400})
+def test_glyph_ref_identifies_face_and_codepoint() -> None:
+    ref = GlyphRef(FontRef("font.ttf", 0), ord("A"))
 
-    assert isinstance(ref.location, VariationLocation)
+    assert ref.codepoint == ord("A")
 
 
 @pytest.mark.parametrize(
@@ -98,17 +98,7 @@ def test_tensor_containers_use_identity_equality() -> None:
     coords = torch.zeros((2, 6))
     first = Outline(types, coords)
     second = Outline(types.clone(), coords.clone())
-    sample = GlyphSample(
-        GlyphRef(FontRef("font.ttf", 0), 0x41, {}),
-        0,
-        0,
-        0,
-        None,
-        None,
-        None,
-        None,
-        None,
-    )
+    sample = GlyphSample(GlyphRef(FontRef("font.ttf", 0), 0x41), 0, 0)
     first_data = GlyphData(first, sample, {})
     second_data = GlyphData(second, sample, {})
 

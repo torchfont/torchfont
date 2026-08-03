@@ -28,7 +28,7 @@ types, coords = outline.types, outline.coords
 print(sample.ref)  # glyph reference
 print(types)  # element type sequence
 print(coords)  # coordinates sequence
-print(sample.style_idx)  # style class ID
+print(sample.font_idx)  # font face class ID
 print(sample.character_idx)  # character class ID
 ```
 
@@ -135,11 +135,11 @@ Coordinates are in em units: font design units divided by the font's
 
 Quadratic curves are emitted as `QuadTo` without conversion to cubic. To keep tensor shape fixed, `QuadTo` uses `[cx0, cy0, 0, 0, x, y]`.
 
-## Style and character labels
+## Font face and character labels
 
-### `style_idx`
+### `font_idx`
 
-`style_idx` is the style class ID. Run the following code to look up the corresponding name:
+`font_idx` is the font face class ID. Use it to look up the persistent face reference:
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -157,13 +157,13 @@ dataset = GlyphDataset(
 
 sample = dataset[0]
 
-print(dataset.style_classes[sample.style_idx])
+print(dataset.font_classes[sample.font_idx])
 ```
 
 You will see output like:
 
 ```
-Aclonica Regular
+FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
 ```
 
 ### `character_idx`

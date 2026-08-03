@@ -48,10 +48,9 @@ def _transform(sample: GlyphSample) -> Tensor:
     failed = _hard_diff(original, simplified_bitmap).any()
     if failed:
         logger.warning(
-            "random_remove_overlaps bitmap mismatch: %s U+%04X %s",
+            "random_remove_overlaps bitmap mismatch: %s U+%04X",
             sample.ref.font.path,
             sample.ref.codepoint,
-            sample.ref.location,
         )
     changed = not (
         torch.equal(types, simplified_types) and torch.equal(coords, simplified_coords)

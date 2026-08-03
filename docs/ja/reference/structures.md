@@ -15,8 +15,6 @@ from torchfont.structures import (
     GlyphSample,
     Outline,
     VariationLocation,
-    VariableGlyphRef,
-    VariableGlyphSample,
 )
 ```
 

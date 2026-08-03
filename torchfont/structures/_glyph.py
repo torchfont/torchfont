@@ -76,34 +76,7 @@ class FontRef:
 
 @dataclass(frozen=True)
 class GlyphRef:
-    """Reference to one concrete glyph instance."""
-
-    font: FontRef
-    codepoint: int
-    location: VariationLocation
-
-    def __init__(
-        self,
-        font: FontRef,
-        codepoint: int,
-        location: (
-            Mapping[str, float] | Iterable[tuple[str, float]] | VariationLocation
-        ),
-    ) -> None:
-        object.__setattr__(self, "font", font)
-        object.__setattr__(self, "codepoint", codepoint)
-        object.__setattr__(
-            self,
-            "location",
-            location
-            if isinstance(location, VariationLocation)
-            else VariationLocation(location),
-        )
-
-
-@dataclass(frozen=True)
-class VariableGlyphRef:
-    """Reference to one glyph before choosing a variation location."""
+    """Reference to one glyph face and codepoint before choosing a location."""
 
     font: FontRef
     codepoint: int
@@ -111,24 +84,9 @@ class VariableGlyphRef:
 
 @dataclass(frozen=True)
 class GlyphSample:
-    """Dataset-local sample for a concrete glyph instance."""
+    """Dataset-local sample for one font face and codepoint."""
 
     ref: GlyphRef
-    font_idx: int
-    style_idx: int
-    character_idx: int
-    weight: float | None
-    width: float | None
-    italic: float | None
-    slant: float | None
-    optical_size: float | None
-
-
-@dataclass(frozen=True)
-class VariableGlyphSample:
-    """Dataset-local sample for a glyph whose location is chosen by transform."""
-
-    ref: VariableGlyphRef
     font_idx: int
     character_idx: int
 
@@ -138,13 +96,13 @@ class GlyphData(Generic[T]):
     """A transformed glyph payload together with its dataset metadata."""
 
     data: T
-    sample: GlyphSample | VariableGlyphSample
+    sample: GlyphSample
     location: VariationLocation
 
     def __init__(
         self,
         data: T,
-        sample: GlyphSample | VariableGlyphSample,
+        sample: GlyphSample,
         location: (
             Mapping[str, float] | Iterable[tuple[str, float]] | VariationLocation
         ),
@@ -180,7 +138,5 @@ __all__ = [
     "GlyphData",
     "GlyphRef",
     "GlyphSample",
-    "VariableGlyphRef",
-    "VariableGlyphSample",
     "VariationLocation",
 ]

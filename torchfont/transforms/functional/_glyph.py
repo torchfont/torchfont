@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -11,7 +11,6 @@ from torchfont.structures import (
     COORD_DIM,
     GlyphRef,
     Outline,
-    VariableGlyphRef,
     VariationLocation,
 )
 
@@ -19,27 +18,11 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-@overload
-def load_glyph(ref: GlyphRef) -> Outline: ...
-
-
-@overload
 def load_glyph(
-    ref: VariableGlyphRef,
-    location: Mapping[str, float] | None = None,
-) -> Outline: ...
-
-
-def load_glyph(
-    ref: GlyphRef | VariableGlyphRef,
+    ref: GlyphRef,
     location: Mapping[str, float] | None = None,
 ) -> Outline:
-    """Load one glyph outline at an explicit, deterministic location."""
-    if isinstance(ref, GlyphRef):
-        if location is not None:
-            msg = "location cannot override a GlyphRef location"
-            raise ValueError(msg)
-        location = ref.location
+    """Load one glyph outline at an explicit or default location."""
     normalized_location = (
         None if location is None else dict(VariationLocation(location))
     )

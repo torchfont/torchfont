@@ -1,33 +1,24 @@
 # GlyphDataset の構築
 
-## データセットを読み込む
-
-Google Fonts のセットアップが完了したら、`GlyphDataset` を使って読み込みます。
-次のコードを実行してください。
+`GlyphDataset`へローカルfont directoryを渡します。
 
 ```python
 from torchfont.datasets import GlyphDataset
 
 dataset = GlyphDataset(root="data/google/fonts")
 
-print(f"{len(dataset)=}")
-print(f"{len(dataset.style_classes)=}")
-print(f"{len(dataset.character_classes)=}")
+print(len(dataset))
+print(len(dataset.font_classes))
+print(len(dataset.character_classes))
 ```
 
-実行すると次のような出力が得られます。
-`style_classes` はフォントスタイルの種類数、`character_classes` はデータセットに含まれるユニークなコードポイントの数です。
+各要素はfont faceと、そのfaceが収録するcodepoint一つを表します。variable fontを
+named instanceやgrid locationで展開しません。variable faceも収録codepointごとに
+ちょうど1要素を持ちます。
 
-```
-len(dataset)=13745683
-len(dataset.style_classes)=9113
-len(dataset.character_classes)=1112000
-```
+## ファイルのfilter
 
-## `patterns` で絞り込む
-
-`patterns` を指定することで、読み込むフォントファイルを絞り込めます。
-Google Fonts では次の patterns を推奨します。
+`patterns`にはgitignore形式のpattern一つ、またはsequenceを渡せます。
 
 ```python
 dataset = GlyphDataset(
@@ -36,79 +27,42 @@ dataset = GlyphDataset(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
         "ufl/*/*.ttf",
-        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
+        "!ofl/adobeblank/*.ttf",
     ),
 )
 ```
 
-各パターンの意図は次のとおりです。
+## 文字のfilter
 
-- **`apache/*/*.ttf`、`ofl/*/*.ttf`、`ufl/*/*.ttf`**: Google Fonts のライセンスディレクトリは
-  この3つのみです。リポジトリにはこれら以外にもディレクトリがあり、テスト用フォントなどが
-  含まれることがあるため、明示的に3ディレクトリだけを対象にします。
-- **`/*/*.ttf`（`/**/*.ttf` ではない）**: Google Fonts の配布形式は TTF のみです。
-  また、`/**/*.ttf` にするとサブディレクトリに置かれた余分なフォントが
-  含まれてしまうため、1階層のみを対象にします。
-- **`!ofl/adobeblank/AdobeBlank-Regular.ttf`**: AdobeBlank はフォント表示のフォールバック
-  検証用に設計されたフォントで、対応するコードポイント数が極めて多い一方、
-  グリフに実質的な字形データが含まれていません。機械学習のデータセットに混入すると
-  品質を著しく低下させるため、除外することが望ましいです。
-
-このコードを実行すると次のような出力が得られます。patterns を指定しない場合と比べて、
-スタイル数と文字クラス数（コードポイント数）が絞られていることが確認できます。
-
-```
-len(dataset)=12460609
-len(dataset.style_classes)=8951
-len(dataset.character_classes)=114254
-```
-
-### コードポイントを絞る
-
-`codepoints` を指定すると、インデックス時に対象外のコードポイントを除外できます。
-
-アルファベット26文字（A–Z）に絞るには、次のように `codepoints` 引数を追加して実行してください。
+整数のUnicode codepointを指定します。
 
 ```python
 dataset = GlyphDataset(
     root="data/google/fonts",
-    patterns=(
-        "apache/*/*.ttf",
-        "ofl/*/*.ttf",
-        "ufl/*/*.ttf",
-        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
-    ),
     codepoints=range(0x41, 0x5B),
 )
 ```
 
-実行結果は次のとおりです。
+重複codepointは除去され、indexは決定的です。要求されたoutline glyphを一つも持たない
+fontは除外されます。
 
-```
-len(dataset)=220939
-len(dataset.style_classes)=8498
-len(dataset.character_classes)=26
-```
+## Variation locationの選択
 
-Unicode の基本多言語面（BMP、U+0000–U+FFFF）に絞るには、次のように指定してください。
+raw sampleは決定的です。評価時はdefault locationをロードします。
 
 ```python
-dataset = GlyphDataset(
-    root="data/google/fonts",
-    patterns=(
-        "apache/*/*.ttf",
-        "ofl/*/*.ttf",
-        "ufl/*/*.ttf",
-        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
-    ),
-    codepoints=range(0x0000, 0x10000),
-)
+from torchfont.transforms import LoadGlyph
+
+dataset = GlyphDataset(root="data/google/fonts", transform=LoadGlyph())
 ```
 
-実行結果は次のとおりです。
+学習時はアクセスごとにlocationを1点抽出できます。
 
+```python
+from torchfont.transforms import RandomLocation
+
+dataset = GlyphDataset(root="data/google/fonts", transform=RandomLocation())
 ```
-len(dataset)=12027967
-len(dataset.style_classes)=8951
-len(dataset.character_classes)=60004
-```
+
+`RandomLocation`はPyTorch RNGのseedに従います。static faceでは`LoadGlyph`と同じ
+空locationになります。

@@ -13,8 +13,6 @@ from torchfont.structures import (
     GlyphRef,
     GlyphSample,
     Outline,
-    VariableGlyphRef,
-    VariableGlyphSample,
 )
 from torchfont.transforms import (
     Compose,
@@ -221,9 +219,8 @@ def _glyph_sample() -> GlyphSample:
     ref = GlyphRef(
         FontRef("tests/fonts/lato/Lato-Regular.ttf", 0),
         ord("A"),
-        {},
     )
-    return GlyphSample(ref, 0, 0, 0, None, None, None, None, None)
+    return GlyphSample(ref, 0, 0)
 
 
 def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
@@ -235,7 +232,7 @@ def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
     assert isinstance(output, GlyphData)
     assert isinstance(output.data, Outline)
     assert output.sample is sample
-    assert output.location == sample.ref.location
+    assert output.location == {}
 
 
 def test_glyph_metadata_is_not_reprocessed_as_pytree_data() -> None:
@@ -350,11 +347,11 @@ def test_to_pure_tensor_removes_semantic_subclasses_in_pytrees() -> None:
 
 
 def test_random_location_returns_the_sampled_location() -> None:
-    ref = VariableGlyphRef(
+    ref = GlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
-    sample = VariableGlyphSample(ref, 0, 0)
+    sample = GlyphSample(ref, 0, 0)
 
     output = RandomLocation()(sample)
 
@@ -365,7 +362,7 @@ def test_random_location_returns_the_sampled_location() -> None:
 
 
 def test_random_location_handles_multiple_variable_glyphs_independently() -> None:
-    ref = VariableGlyphRef(
+    ref = GlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
@@ -378,8 +375,8 @@ def test_random_location_handles_multiple_variable_glyphs_independently() -> Non
 
 def test_random_location_can_share_parameters_within_one_font() -> None:
     font = FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0)
-    first_sample = VariableGlyphSample(VariableGlyphRef(font, ord("A")), 0, 0)
-    second_sample = VariableGlyphSample(VariableGlyphRef(font, ord("B")), 0, 1)
+    first_sample = GlyphSample(GlyphRef(font, ord("A")), 0, 0)
+    second_sample = GlyphSample(GlyphRef(font, ord("B")), 0, 1)
 
     first, second = SameParams(RandomLocation())([first_sample, second_sample])
 
@@ -389,11 +386,11 @@ def test_random_location_can_share_parameters_within_one_font() -> None:
 
 
 def test_random_location_rejects_shared_parameters_across_fonts() -> None:
-    first = VariableGlyphRef(
+    first = GlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
-    second = VariableGlyphRef(FontRef("tests/fonts/lato/Lato-Regular.ttf", 0), ord("A"))
+    second = GlyphRef(FontRef("tests/fonts/lato/Lato-Regular.ttf", 0), ord("A"))
 
     with pytest.raises(ValueError, match="only within one font"):
         SameParams(RandomLocation())([first, second])

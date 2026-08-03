@@ -1,6 +1,5 @@
 mod build;
-mod fixed;
-mod variable;
+mod glyph;
 
 use pyo3::{
     Bound, PyErr, PyResult,
@@ -10,8 +9,7 @@ use pyo3::{
 use crate::dataset::IndexOverflow;
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<fixed::FixedGlyphIndex>()?;
-    m.add_class::<variable::VariableGlyphIndex>()?;
+    m.add_class::<glyph::GlyphIndex>()?;
     Ok(())
 }
 
@@ -22,7 +20,6 @@ fn index_error(idx: usize, len: usize) -> PyErr {
 fn overflow_error(kind: IndexOverflow) -> PyErr {
     let message = match kind {
         IndexOverflow::SampleCount => "dataset sample count overflowed usize",
-        IndexOverflow::StyleCount => "dataset style count overflowed usize",
     };
     pyo3::exceptions::PyOverflowError::new_err(message)
 }

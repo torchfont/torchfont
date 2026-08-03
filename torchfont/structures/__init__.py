@@ -5,8 +5,6 @@ from torchfont.structures._glyph import (
     GlyphData,
     GlyphRef,
     GlyphSample,
-    VariableGlyphRef,
-    VariableGlyphSample,
     VariationLocation,
 )
 from torchfont.structures._outline import COORD_DIM, TYPE_DIM, ElementType, Outline
@@ -20,7 +18,5 @@ __all__ = [
     "GlyphRef",
     "GlyphSample",
     "Outline",
-    "VariableGlyphRef",
-    "VariableGlyphSample",
     "VariationLocation",
 ]

@@ -55,8 +55,9 @@ outline = data.data
 
 `LoadGlyph` accepts a `GlyphSample` or `GlyphRef`. A sample becomes
 `GlyphData[Outline]`, while a bare reference becomes `Outline`.
-`RandomLocation` performs the corresponding operation for
-`VariableGlyphSample` and records the sampled location in `GlyphData.location`.
+`LoadGlyph` uses the face's default location. `RandomLocation` instead samples
+one location for a `GlyphSample` or `GlyphRef` and records it in
+`GlyphData.location`; on a static face it naturally uses an empty location.
 
 `Transform` flattens nested pytree inputs, samples parameters independently for
 each matching semantic leaf, and restores the input structure. Wrap a transform

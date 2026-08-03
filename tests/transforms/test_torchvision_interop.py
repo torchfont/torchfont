@@ -19,7 +19,7 @@ FONT = "tests/fonts/roboto/Roboto[wdth,wght].ttf"
 
 def _render() -> Bitmap:
     pipeline = Compose([LoadGlyph(), HorizontalFlip(), RenderBitmap(size=64)])
-    return pipeline(GlyphRef(FontRef(FONT, 0), ord("A"), {"wght": 700.0}))
+    return pipeline(GlyphRef(FontRef(FONT, 0), ord("A")))
 
 
 def test_pure_tensor_feeds_torchvision_v2() -> None:

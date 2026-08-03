@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 from torchfont.datasets import GlyphDataset
 from torchfont.glyphsets import LATIN_CORE
-from torchfont.instance_fn import grid_instances
 from torchfont.transforms import (
     Compose,
     LoadGlyph,
@@ -57,7 +56,6 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        instance_fn=grid_instances({"wght": 7, "wdth": 3, "opsz": 3, "slnt": 2}),
         transform=PrepareGlyph(),
     )
 
@@ -72,7 +70,6 @@ def main() -> None:
 
     print(f"{len(dataset)=}")
     print(f"{len(dataset.font_classes)=}")
-    print(f"{len(dataset.style_classes)=}")
     print(f"{len(dataset.character_classes)=}")
 
     for batch in tqdm(dataloader, desc="Iterating over datasets"):

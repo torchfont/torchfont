@@ -25,7 +25,7 @@ T = TypeVar("T")
 class _BaseGlyphDataset(Dataset[T], Generic[T]):
     """Common configuration and targets for fixed and variable glyph datasets."""
 
-    _index: _torchfont.FixedGlyphIndex | _torchfont.VariableGlyphIndex
+    _index: _torchfont.GlyphIndex
 
     def __init__(
         self,

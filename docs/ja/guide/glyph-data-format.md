@@ -30,7 +30,7 @@ types, coords = outline.types, outline.coords
 print(sample.ref)  # グリフ参照
 print(types)  # Element Type の系列
 print(coords)  # Coordinates の系列
-print(sample.style_idx)  # 書体スタイルのクラス ID
+print(sample.font_idx)  # font faceのクラスID
 print(sample.character_idx)  # 文字のクラス ID
 ```
 
@@ -136,11 +136,11 @@ Coordinates は em 単位です。フォントの design units を `unitsPerEm` 
 
 2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の Coordinates は `[cx0, cy0, 0, 0, x, y]` です。
 
-## スタイルと文字のラベル
+## Font faceと文字のラベル
 
-### `style_idx`
+### `font_idx`
 
-`style_idx` は書体スタイルのクラス ID です。次のコードで対応するスタイル名を確認できます。
+`font_idx`はfont faceのクラスIDです。次のコードで永続的なface参照を確認できます。
 
 ```python
 from torchfont.datasets import GlyphDataset
@@ -158,13 +158,13 @@ dataset = GlyphDataset(
 
 sample = dataset[0]
 
-print(dataset.style_classes[sample.style_idx])
+print(dataset.font_classes[sample.font_idx])
 ```
 
 実行すると次のような出力が得られます。
 
 ```
-Aclonica Regular
+FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
 ```
 
 ### `character_idx`

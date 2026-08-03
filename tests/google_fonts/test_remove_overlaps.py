@@ -121,11 +121,10 @@ def _transform(sample: GlyphSample) -> Tensor:
         if has_overlaps:
             reasons.append("has_overlaps")
         logger.warning(
-            "remove_overlaps failure [%s]: %s U+%04X %s",
+            "remove_overlaps failure [%s]: %s U+%04X",
             ",".join(reasons),
             sample.ref.font.path,
             sample.ref.codepoint,
-            sample.ref.location,
         )
     return failed
 

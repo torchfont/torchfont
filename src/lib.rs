@@ -1,7 +1,6 @@
 mod dataset;
 mod error;
 mod font;
-mod instances;
 mod outline;
 mod py;
 mod transform;

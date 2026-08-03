@@ -1,43 +1,35 @@
 use std::path::PathBuf;
 
 use numpy::{IntoPyArray as _, PyArray1};
-use pyo3::{
-    Bound,
-    prelude::*,
-    types::{PyAny, PyType},
-};
+use pyo3::{Bound, prelude::*, types::PyType};
 
-use crate::dataset::{VariableFontEntry, VariableIndex};
+use crate::dataset::{FontEntry, GlyphIndex as CoreGlyphIndex};
 
 use super::{build, index_error, overflow_error};
 
-type VariableFontArg = (PathBuf, u32, Vec<u32>, usize);
-type VariableLocationArg = (PathBuf, u32, usize, u32, usize);
+type FontArg = (PathBuf, u32, Vec<u32>);
+type LocationArg = (PathBuf, u32, usize, u32, usize);
 
 #[pyclass(frozen, module = "torchfont._torchfont")]
-pub(super) struct VariableGlyphIndex {
-    inner: VariableIndex,
+pub(super) struct GlyphIndex {
+    inner: CoreGlyphIndex,
 }
 
 #[pymethods]
-impl VariableGlyphIndex {
+impl GlyphIndex {
     #[new]
-    fn new(fonts: Vec<VariableFontArg>) -> PyResult<Self> {
-        Self::from_entries(fonts.into_iter().map(variable_entry).collect())
+    fn new(fonts: Vec<FontArg>) -> PyResult<Self> {
+        Self::from_entries(fonts.into_iter().map(font_entry).collect())
     }
 
     #[classmethod]
     fn from_root(
         _cls: &Bound<'_, PyType>,
-        py: Python<'_>,
         root: String,
         codepoints: Option<Vec<u32>>,
         patterns: Option<Vec<String>>,
-        instances: Bound<'_, PyAny>,
     ) -> PyResult<Self> {
-        Self::from_entries(build::build_variable_entries(
-            py, &root, codepoints, patterns, &instances,
-        )?)
+        Self::from_entries(build::build_entries(&root, codepoints, patterns)?)
     }
 
     #[getter]
@@ -57,7 +49,7 @@ impl VariableGlyphIndex {
         self.inner.character_codepoints().to_vec()
     }
 
-    fn locate(&self, idx: usize) -> PyResult<VariableLocationArg> {
+    fn locate(&self, idx: usize) -> PyResult<LocationArg> {
         let sample = self
             .inner
             .locate(idx)
@@ -79,37 +71,28 @@ impl VariableGlyphIndex {
         self.inner.character_targets().into_pyarray(py).unbind()
     }
 
-    fn __getnewargs__(&self) -> (Vec<VariableFontArg>,) {
+    fn __getnewargs__(&self) -> (Vec<FontArg>,) {
         (self
             .inner
             .fonts()
             .iter()
-            .map(|font| {
-                (
-                    font.path.clone(),
-                    font.ttc_index,
-                    font.codepoints.clone(),
-                    font.instance_count,
-                )
-            })
+            .map(|font| (font.path.clone(), font.ttc_index, font.codepoints.clone()))
             .collect(),)
     }
 }
 
-impl VariableGlyphIndex {
-    fn from_entries(fonts: Vec<VariableFontEntry>) -> PyResult<Self> {
+impl GlyphIndex {
+    fn from_entries(fonts: Vec<FontEntry>) -> PyResult<Self> {
         Ok(Self {
-            inner: VariableIndex::new(fonts).map_err(overflow_error)?,
+            inner: CoreGlyphIndex::new(fonts).map_err(overflow_error)?,
         })
     }
 }
 
-fn variable_entry(args: VariableFontArg) -> VariableFontEntry {
-    let (path, ttc_index, codepoints, instance_count) = args;
-    VariableFontEntry {
+fn font_entry((path, ttc_index, codepoints): FontArg) -> FontEntry {
+    FontEntry {
         path,
         ttc_index,
         codepoints,
-        instance_count,
     }
 }
