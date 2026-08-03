@@ -58,16 +58,18 @@ input structure. Thus corresponding outlines receive the same flip, affine
 parameters, or element-level random values. Random transforms use PyTorch's
 default RNG, so `torch.manual_seed` and DataLoader worker seeding apply normally.
 Built-in transforms contain configuration only and remain pickle-friendly.
-Custom callables passed to a container are pickle-friendly only if the callable is.
-As in torchvision, ordinary callable sequences are not registered as trainable
-child modules. `Compose` and `RandomApply` also accept `torch.nn.ModuleList`
-when module registration is required.
+`Compose` and `RandomApply` register their children in a `torch.nn.ModuleList`,
+including when constructed from an ordinary list of modules. Wrap a plain
+callable explicitly with `Lambda`; its pickle behavior then depends on the
+wrapped callable. This avoids inheriting torchvision's historical unregistered
+list behavior and keeps module traversal, state dictionaries, hooks, and
+configuration display consistent with PyTorch.
 
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.
-`Compose` and `RandomApply` require a non-empty sequence of callables or
-`torch.nn.ModuleList`.
+`Compose` and `RandomApply` require a non-empty sequence of `nn.Module` objects
+or an `nn.ModuleList`.
 Parameters are shared across matching leaves in one call. Call a transform
 separately for independent samples that should receive independent randomness.
 
@@ -80,7 +82,7 @@ behavior inside an already-applied transform.
 | Category | Transforms |
 | --- | --- |
 | Loading | `LoadGlyph`, `RandomLocation` |
-| Containers | `Compose`, `RandomApply` |
+| Containers | `Compose`, `Lambda`, `RandomApply` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
@@ -111,5 +113,10 @@ shape = bitmap.shape
 The functional API does not sample randomness. Random selection and parameter
 sampling belong to the `Random*` transform classes.
 
-Functionals dispatch their internal kernels by semantic input type. Unsupported
-input types raise `TypeError`.
+These transforms are `nn.Module` objects for composition, registration, PyTorch
+RNG behavior, and pytree processing. Rust-backed outline functionals cross a
+CPU/NumPy boundary and are preprocessing operations: they are not promised to
+participate in autograd, remain on an accelerator, or be captured by
+`torch.compile`. Functionals currently operate on the single semantic input type
+documented by their signatures; TorchFont does not add a kernel registry until
+multiple outline representations require one.

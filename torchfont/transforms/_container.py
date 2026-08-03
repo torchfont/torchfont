@@ -11,21 +11,59 @@ from torch import nn
 from torchfont.transforms._transform import Transform
 
 
+def _module_list(
+    transforms: Sequence[nn.Module] | nn.ModuleList,
+) -> nn.ModuleList:
+    if not isinstance(transforms, (Sequence, nn.ModuleList)):
+        msg = "transforms must be a sequence of nn.Module objects"
+        raise TypeError(msg)
+    if not transforms:
+        msg = "transforms must not be empty"
+        raise ValueError(msg)
+    invalid = next(
+        (transform for transform in transforms if not isinstance(transform, nn.Module)),
+        None,
+    )
+    if invalid is not None:
+        msg = (
+            "transforms must contain only nn.Module objects; "
+            "wrap plain callables with Lambda"
+        )
+        raise TypeError(msg)
+    return (
+        transforms
+        if isinstance(transforms, nn.ModuleList)
+        else nn.ModuleList(transforms)
+    )
+
+
+class Lambda(nn.Module):
+    """Wrap a plain callable for explicit use in transform containers."""
+
+    def __init__(self, function: Callable[..., object]) -> None:
+        super().__init__()
+        if not callable(function):
+            msg = "function must be callable"
+            raise TypeError(msg)
+        self.function = function
+
+    def forward(self, *inputs: object) -> object:
+        """Call the wrapped function."""
+        return self.function(*inputs)
+
+    def extra_repr(self) -> str:
+        return getattr(self.function, "__name__", repr(self.function))
+
+
 class Compose(Transform):
     """Apply a sequence of transforms in order."""
 
     def __init__(
         self,
-        transforms: Sequence[Callable[..., object]] | nn.ModuleList,
+        transforms: Sequence[nn.Module] | nn.ModuleList,
     ) -> None:
         super().__init__()
-        if not isinstance(transforms, (Sequence, nn.ModuleList)):
-            msg = "transforms must be a sequence of callables or an nn.ModuleList"
-            raise TypeError(msg)
-        if not transforms:
-            msg = "transforms must not be empty"
-            raise ValueError(msg)
-        self.transforms = transforms
+        self.transforms = _module_list(transforms)
 
     def forward(self, *inputs: object) -> object:
         """Apply all configured transforms to the inputs."""
@@ -36,7 +74,7 @@ class Compose(Transform):
         return output
 
     def extra_repr(self) -> str:
-        return "\n".join(f"    {transform}" for transform in self.transforms)
+        return ""
 
 
 class RandomApply(Transform):
@@ -44,17 +82,11 @@ class RandomApply(Transform):
 
     def __init__(
         self,
-        transforms: Sequence[Callable[..., object]] | nn.ModuleList,
+        transforms: Sequence[nn.Module] | nn.ModuleList,
         p: float = 0.5,
     ) -> None:
         super().__init__()
-        if not isinstance(transforms, (Sequence, nn.ModuleList)):
-            msg = "transforms must be a sequence of callables or an nn.ModuleList"
-            raise TypeError(msg)
-        if not transforms:
-            msg = "transforms must not be empty"
-            raise ValueError(msg)
-        self.transforms = transforms
+        self.transforms = _module_list(transforms)
         if not 0.0 <= p <= 1.0:
             msg = "p must be between 0 and 1"
             raise ValueError(msg)
@@ -71,7 +103,7 @@ class RandomApply(Transform):
         return output
 
     def extra_repr(self) -> str:
-        return "\n".join(f"    {transform}" for transform in self.transforms)
+        return f"p={self.p}"
 
 
-__all__ = ["Compose", "RandomApply"]
+__all__ = ["Compose", "Lambda", "RandomApply"]

@@ -2,7 +2,7 @@
 
 from torchfont.transforms import functional
 from torchfont.transforms._bitmap import RenderBitmap
-from torchfont.transforms._container import Compose, RandomApply
+from torchfont.transforms._container import Compose, Lambda, RandomApply
 from torchfont.transforms._curves import (
     CubicToQuad,
     MergeCurves,
@@ -33,6 +33,7 @@ __all__ = [
     "Compose",
     "CubicToQuad",
     "HorizontalFlip",
+    "Lambda",
     "LoadGlyph",
     "MergeCurves",
     "NormalizeSubpathStartPoints",

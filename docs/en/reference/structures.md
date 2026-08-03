@@ -24,8 +24,12 @@ from torchfont.structures import (
 deterministic sorted order. `FontRef`, glyph references, and dataset samples are
 frozen dataclasses and remain pickle-friendly for multiprocessing data loaders.
 
-`Outline` couples the element-type and coordinate tensors. `GlyphData` couples a
-transformed payload with its source sample and resolved variation location.
+`Outline` represents one variable-length, unbatched glyph. `types` has shape
+`(N,)`, `coords` has shape `(N, 6)`, and their rows correspond one-to-one.
+Producers keep both tensors on the same device. Coordinates that are inactive
+for an element type, including all coordinates for `CLOSE`, `END`, and `PAD`,
+have no semantic value. `GlyphData` couples a transformed payload with its
+source sample and resolved variation location.
 
 ### `ElementType: IntEnum`
 

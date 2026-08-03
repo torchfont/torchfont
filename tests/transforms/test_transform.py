@@ -16,6 +16,7 @@ from torchfont.structures import (
 )
 from torchfont.transforms import (
     Compose,
+    Lambda,
     LoadGlyph,
     QuadToCubic,
     RandomApply,
@@ -111,15 +112,18 @@ def test_transform_and_compose_support_multiple_inputs() -> None:
     assert output[1] == "label"
 
 
-def test_compose_accepts_plain_callables() -> None:
-    transform = Compose([lambda value: value + 1])
+def test_compose_accepts_explicitly_wrapped_callables() -> None:
+    transform = Compose([Lambda(lambda value: value + 1)])
 
     assert transform(2) == 3
 
 
 @pytest.mark.parametrize("container", [Compose, RandomApply])
-def test_module_list_registers_stateful_transforms(
+@pytest.mark.parametrize("as_module_list", [False, True])
+def test_transform_containers_register_stateful_transforms(
     container: type[Compose] | type[RandomApply],
+    *,
+    as_module_list: bool,
 ) -> None:
     class StatefulTransform(AddToCoords):
         def __init__(self) -> None:
@@ -127,15 +131,21 @@ def test_module_list_registers_stateful_transforms(
             self.register_buffer("offset", torch.tensor(1.0))
 
     child = StatefulTransform()
-    transform = container(torch.nn.ModuleList([child]))
+    children = torch.nn.ModuleList([child]) if as_module_list else [child]
+    transform = container(children)
 
     assert transform.get_submodule("transforms.0") is child
     assert transform.state_dict()["transforms.0.offset"].item() == 1.0
 
 
 def test_compose_rejects_non_sequence_iterables() -> None:
-    with pytest.raises(TypeError, match=r"sequence of callables or an nn\.ModuleList"):
+    with pytest.raises(TypeError, match=r"sequence of nn\.Module"):
         Compose(iter([AddToCoords(1.0)]))  # ty: ignore[invalid-argument-type]
+
+
+def test_compose_requires_plain_callables_to_be_wrapped() -> None:
+    with pytest.raises(TypeError, match="wrap plain callables with Lambda"):
+        Compose([lambda value: value + 1])  # ty: ignore[invalid-argument-type]
 
 
 @pytest.mark.parametrize("container", [Compose, RandomApply])
@@ -209,6 +219,8 @@ def test_transform_repr_contains_configuration() -> None:
     representation = repr(transform)
 
     assert "split_probability=0.2" in representation
+    assert "p=0.3" in representation
+    assert representation.count("RandomSplitSegments") == 1
 
 
 def _glyph_sample() -> GlyphSample:

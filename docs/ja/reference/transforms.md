@@ -57,16 +57,16 @@ outline = data.data
 適用されます。確率的 transform は PyTorch の default RNG を使うため、
 `torch.manual_seed` と DataLoader worker の seed が通常どおり機能します。
 組み込み transform は設定のみを保持し、pickle 可能です。container に渡す custom
-callable が pickle 可能かどうかは、その callable 自体に依存します。
-torchvision と同様に、通常の callable 列は学習可能な child module として
-登録されません。module 登録が必要な場合、`Compose` と `RandomApply` には
-`torch.nn.ModuleList` を渡せます。
+module は通常の list から構築した場合も、`Compose` と `RandomApply` 内部の
+`torch.nn.ModuleList` に登録されます。plain callable は `Lambda` で明示的に包みます。
+その pickle 可否は包んだ callable に依存します。これにより torchvision の歴史的な
+未登録 list の挙動を引き継がず、module traversal、state dictionary、hook、設定表示を
+PyTorch の規則に揃えます。
 
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
 custom transform のために `check_inputs()` を利用できます。`Compose` と
-`RandomApply` には空でない callable の列または
-`torch.nn.ModuleList` を渡します。
+`RandomApply` には空でない `nn.Module` の列または `nn.ModuleList` を渡します。
 一回の呼び出しでは、一致した leaf 間で parameter を共有します。独立した乱数を
 使うべき sample には transform を個別に呼び出します。
 
@@ -79,7 +79,7 @@ custom transform のために `check_inputs()` を利用できます。`Compose`
 | 分類 | Transform |
 | --- | --- |
 | 読み込み | `LoadGlyph`, `RandomLocation` |
-| コンテナ | `Compose`, `RandomApply` |
+| コンテナ | `Compose`, `Lambda`, `RandomApply` |
 | curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
@@ -110,5 +110,8 @@ shape = bitmap.shape
 functional API は乱数を生成しません。ランダムな選択と parameter sampling は
 `Random*` transform class の責務です。
 
-functional は意味的な入力型により内部 kernel を dispatch します。
-非対応の入力型には `TypeError` を送出します。
+これらの transform が `nn.Module` なのは、合成、module 登録、PyTorch RNG、pytree
+処理のためです。Rust-backed outline functional は CPU/NumPy 境界を通る前処理であり、
+autograd への参加、accelerator 上での実行維持、`torch.compile` による capture は
+保証しません。現在の functional は signature に記載した単一の意味型を処理します。
+複数の outline 表現が必要になるまでは kernel registry を導入しません。

@@ -24,7 +24,14 @@ COORD_DIM: int = 6
 
 @dataclass(frozen=True)
 class Outline:
-    """A glyph outline represented by coupled element-type and coordinate tensors."""
+    """One variable-length glyph outline encoded by two coupled tensors.
+
+    ``types`` has shape ``(N,)`` and ``coords`` has shape ``(N, 6)`` with rows
+    ``[cx0, cy0, cx1, cy1, x, y]``. Rows correspond one-to-one. Coordinates
+    inactive for an element type, including every coordinate of ``CLOSE``,
+    ``END``, and ``PAD``, carry no semantic value. Producers keep both tensors
+    on the same device; an ``Outline`` is not a batched glyph representation.
+    """
 
     types: Tensor
     coords: Tensor

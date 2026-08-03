@@ -24,9 +24,11 @@ from torchfont.structures import (
 ソート済みの順序で保持します。`FontRef`、glyph reference、dataset sample は
 frozen dataclass で、multiprocessing data loader でも pickle 可能です。
 
-`Outline` は element-type tensor と coordinate tensor をひとまとまりにします。
-`GlyphData` は transform 後の payload、元の sample、確定済み variation location
-をひとまとまりにします。
+`Outline` は一つの可変長、非 batch glyph を表します。`types` の shape は `(N,)`、
+`coords` は `(N, 6)` で、各行が一対一に対応します。producer は両方の tensor を
+同じ device に置きます。各 element type で使われない座標、および `CLOSE`、`END`、
+`PAD` の全座標には意味がありません。`GlyphData` は transform 後の payload、元の
+sample、確定済み variation location をひとまとまりにします。
 
 ### `ElementType: IntEnum`
 
