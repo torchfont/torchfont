@@ -21,7 +21,7 @@ from torchfont.transforms import (
 )
 
 if TYPE_CHECKING:
-    from torchfont.structures import GlyphData, GlyphSample, Outline
+    from torchfont import GlyphData, GlyphSample, Outline
 
 
 class GlyphPipeline(torch.nn.Module):

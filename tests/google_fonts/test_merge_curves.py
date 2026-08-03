@@ -5,8 +5,8 @@ import pytest
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+from torchfont import GlyphSample, Outline
 from torchfont.datasets import GlyphDataset
-from torchfont.structures import GlyphSample, Outline
 from torchfont.transforms import functional as _functional
 from torchfont.transforms.functional import render_bitmap
 from torchfont.transforms.functional._curves import _merge_curves as merge_curves

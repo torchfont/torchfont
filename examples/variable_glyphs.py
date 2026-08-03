@@ -2,8 +2,8 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
+from torchfont import GlyphData, Outline
 from torchfont.datasets import GlyphDataset
-from torchfont.structures import GlyphData, Outline
 from torchfont.transforms import LoadGlyph
 
 

@@ -10,7 +10,7 @@ from torchfont.transforms._transform import Transform
 if TYPE_CHECKING:
     from torch import Tensor
 
-    from torchfont.structures import Outline
+    from torchfont._outline import Outline
     from torchfont.transforms.functional._bitmap import BitmapMode, FillRule
 
 

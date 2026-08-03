@@ -23,22 +23,29 @@ References:
     guidelines in greater depth.
 
 Package Layout:
-    Core public APIs live in submodules such as ``torchfont.datasets``,
-    ``torchfont.glyphsets``,
-    ``torchfont.structures`` and ``torchfont.transforms``.
+    Core data types are available directly from ``torchfont``. Other public
+    APIs live in submodules such as ``torchfont.datasets``,
+    ``torchfont.glyphsets`` and ``torchfont.transforms``.
 
 """
 
-from torchfont import (
-    datasets,
-    glyphsets,
-    structures,
-    transforms,
-)
+from torchfont._font import FontRef, VariationLocation
+from torchfont._glyph import GlyphData, GlyphRef, GlyphSample
+from torchfont._outline import COORD_DIM, TYPE_DIM, ElementType, Outline
+
+from . import datasets, glyphsets, transforms
 
 __all__ = [
+    "COORD_DIM",
+    "TYPE_DIM",
+    "ElementType",
+    "FontRef",
+    "GlyphData",
+    "GlyphRef",
+    "GlyphSample",
+    "Outline",
+    "VariationLocation",
     "datasets",
     "glyphsets",
-    "structures",
     "transforms",
 ]

@@ -6,9 +6,10 @@ import os
 from typing import TYPE_CHECKING, Generic, SupportsIndex, TypeVar, cast, overload
 
 from torchfont import _torchfont
+from torchfont._font import FontRef
+from torchfont._glyph import GlyphRef, GlyphSample
 from torchfont.datasets._base import _BaseGlyphDataset
 from torchfont.datasets._utils import normalize_index
-from torchfont.structures import FontRef, GlyphRef, GlyphSample
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence

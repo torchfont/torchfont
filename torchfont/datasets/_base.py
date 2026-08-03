@@ -10,8 +10,8 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
+from torchfont._font import FontRef
 from torchfont.datasets._utils import normalize_codepoints, normalize_patterns
-from torchfont.structures import FontRef
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence

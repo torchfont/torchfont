@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.structures import Outline
+from torchfont._outline import Outline
 from torchfont.transforms.functional._utils import _native_outline
 
 

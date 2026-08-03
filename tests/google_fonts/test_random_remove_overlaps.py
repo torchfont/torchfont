@@ -6,8 +6,8 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+from torchfont import ElementType, GlyphSample, Outline
 from torchfont.datasets import GlyphDataset
-from torchfont.structures import ElementType, GlyphSample, Outline
 from torchfont.transforms import RandomRemoveOverlaps
 from torchfont.transforms import functional as _functional
 

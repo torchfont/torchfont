@@ -58,7 +58,7 @@ Element types are defined in `ElementType`. Run the following code to see the ma
 ```python
 from torchfont.datasets import GlyphDataset
 from torchfont.transforms import LoadGlyph
-from torchfont.structures import ElementType
+from torchfont import ElementType
 
 dataset = GlyphDataset(
     root="data/google/fonts",

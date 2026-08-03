@@ -2,8 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from torchfont import _torchfont
-from torchfont.structures import ElementType, Outline
+from torchfont import ElementType, Outline, _torchfont
 from torchfont.transforms import RandomSplitSegments
 
 

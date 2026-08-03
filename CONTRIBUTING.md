@@ -34,7 +34,7 @@ mise run data-sync
 
 Transform modules are organized by font-domain responsibility:
 
-- `torchfont.structures` owns semantic values such as `Outline` and `GlyphData`.
+- `torchfont` exports core semantic values such as `Outline` and `GlyphData`.
   Rasterized glyphs remain plain tensors and enter image semantics explicitly
   through TorchVision.
 - `torchfont.transforms._transform` contains only the transform engine, while

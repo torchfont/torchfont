@@ -4,7 +4,11 @@ import pickle
 import pytest
 import torch
 
-from torchfont.structures import (
+import torchfont
+from torchfont import (
+    COORD_DIM,
+    TYPE_DIM,
+    ElementType,
     FontRef,
     GlyphData,
     GlyphRef,
@@ -12,6 +16,18 @@ from torchfont.structures import (
     Outline,
     VariationLocation,
 )
+
+
+def test_core_types_are_exported_from_package_root() -> None:
+    assert torchfont.COORD_DIM == COORD_DIM
+    assert torchfont.TYPE_DIM == TYPE_DIM
+    assert torchfont.ElementType is ElementType
+    assert torchfont.FontRef is FontRef
+    assert torchfont.GlyphData is GlyphData
+    assert torchfont.GlyphRef is GlyphRef
+    assert torchfont.GlyphSample is GlyphSample
+    assert torchfont.Outline is Outline
+    assert torchfont.VariationLocation is VariationLocation
 
 
 def test_variation_location_is_order_independent_and_hashable() -> None:

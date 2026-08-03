@@ -1,6 +1,6 @@
 """Functional geometric kernels for glyph outlines.
 
-Public functions accept and return :class:`torchfont.structures.Outline`
+Public functions accept and return :class:`torchfont.Outline`
 objects without modifying the input. Private tensor helpers operate on the
 underlying ``(types, coords)`` pair.
 
@@ -23,7 +23,7 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont.structures import ElementType, Outline
+from torchfont._outline import ElementType, Outline
 
 
 def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:

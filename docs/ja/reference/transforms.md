@@ -7,7 +7,7 @@ TorchFont の Transform は TorchVision Transforms v2（`torchvision.transforms.
 ## データ型
 
 ```python
-from torchfont.structures import GlyphData, Outline
+from torchfont import GlyphData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
@@ -135,7 +135,7 @@ TorchVision は任意の統合先であり、TorchFont のレンダラーには�
 決定論的な処理は `torchfont.transforms.functional` から利用できます。
 
 ```python
-from torchfont.structures import Outline
+from torchfont import Outline
 from torchfont.transforms import functional as F
 
 outline = F.load_glyph(sample.ref)

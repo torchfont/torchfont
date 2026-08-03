@@ -7,15 +7,13 @@ from typing import TYPE_CHECKING
 import torch
 
 from torchfont import _torchfont
-from torchfont.structures import (
-    COORD_DIM,
-    GlyphRef,
-    Outline,
-    VariationLocation,
-)
+from torchfont._font import VariationLocation
+from torchfont._outline import COORD_DIM, Outline
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from torchfont._glyph import GlyphRef
 
 
 def load_glyph(

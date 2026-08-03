@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont.structures import FontRef, GlyphData, GlyphRef, GlyphSample
+from torchfont import FontRef, GlyphData, GlyphRef, GlyphSample
 from torchfont.transforms import (
     Compose,
     HorizontalFlip,

@@ -1,6 +1,6 @@
 import torch
 
-from torchfont.structures import ElementType
+from torchfont import ElementType
 from torchfont.transforms.functional._subpath import (
     _normalize_subpath_start_points as normalize_subpath_start_points,
 )

@@ -1,13 +1,13 @@
-# Semantic Structures
+# Core Types
 
-## `torchfont.structures`
+## `torchfont`
 
 Immutable semantic records and shared outline-encoding types. These values carry
 font meaning through datasets and transform pipelines without adding tensor
 subclass behavior.
 
 ```python
-from torchfont.structures import (
+from torchfont import (
     ElementType,
     FontRef,
     GlyphData,
