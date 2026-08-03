@@ -39,12 +39,12 @@ print(coords.shape)
 ```
 
 `LoadGlyph` を渡すと、`dataset[0]` は `GlyphData[Outline]` を返します。`data`
-field が outline、`sample` field が元の metadata です。`1` はこのグリフの
-シーケンス長で、グリフごとに異なります。
+field が outline、`sample` field が元の metadata です。最初の shape は `(N,)`、
+次は `(N, 6)` で、`N` は glyph ごとに異なります。例えば次のようになります。
 
 ```
-torch.Size([1])
-torch.Size([1, 6])
+torch.Size([37])
+torch.Size([37, 6])
 ```
 
 ## DataLoader を作成する
@@ -93,7 +93,7 @@ torch.Size([64, 369, 6])
 
 ## マルチプロセス読み込み
 
-`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。シーケンス長が長いと転送コストが大きくなるため、`transform` で先頭 512 要素に切り詰めます。`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
+`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。シーケンス長が長いと転送コストが大きくなるため、この例の `collate_fn` で先頭 512 要素に切り詰めます。`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
 
 ```python
 from tqdm import tqdm
@@ -137,9 +137,9 @@ for batch in tqdm(loader):
     pass
 ```
 
-実行すると次のような出力が得られます。`it/s` はバッチの処理速度です。1,246 万サンプルからなる Google Fonts 全体をわずか 2 分でイテレートできています。1 エポックがこの速度で回るため、実用的な学習ループに十分なスループットです。
+データセット長は、選択したフォントファイルと各フォントの character map によって変わります。progress bar の `it/s` はバッチの処理速度です。ストレージや学習環境に適した worker 数と prefetch 設定を決める指標として利用してください。
 
 ```
-len(dataset)=12460609
-100%|██████████| 194698/194698 [02:03<00:00, 1570.64it/s]
+len(dataset)=...
+100%|██████████| .../... [..., ...it/s]
 ```

@@ -41,13 +41,13 @@ print(coords.shape)
 ```
 
 With `LoadGlyph`, `dataset[0]` returns `GlyphData[Outline]`. Its `data` field is
-the outline and its `sample` field retains the original metadata. `1` is the
-sequence length of this glyph; it varies per glyph.
-You will see output like:
+the outline and its `sample` field retains the original metadata. The first
+shape is `(N,)` and the second is `(N, 6)`, where `N` varies by glyph. For
+example:
 
 ```
-torch.Size([1])
-torch.Size([1, 6])
+torch.Size([37])
+torch.Size([37, 6])
 ```
 
 ## Create a DataLoader
@@ -100,9 +100,9 @@ torch.Size([64, 369, 6])
 ## Multi-process loading
 
 Set `num_workers` and `prefetch_factor` to load data in parallel worker
-processes. Long sequences increase transfer overhead, so the `transform` truncates
-each sequence to the first 512 elements. Use `tqdm` to iterate over all batches
-and measure throughput. Run the following code:
+processes. Long sequences increase transfer overhead, so this example's
+`collate_fn` truncates each sequence to the first 512 elements. Use `tqdm` to
+iterate over all batches and measure throughput. Run the following code:
 
 ```python
 from tqdm import tqdm
@@ -146,11 +146,11 @@ for batch in tqdm(loader):
     pass
 ```
 
-You will see output like the following. `it/s` is the batch processing speed.
-The entire Google Fonts dataset of 12.4 million samples completes in just 2
-minutes, fast enough for practical training loops.
+The dataset length depends on the selected font files and their character maps.
+The progress bar reports batch throughput as `it/s`; use it to choose worker and
+prefetch settings for your storage and training environment.
 
 ```
-len(dataset)=12460609
-100%|██████████| 194698/194698 [02:03<00:00, 1570.64it/s]
+len(dataset)=...
+100%|██████████| .../... [..., ...it/s]
 ```
