@@ -67,9 +67,6 @@ def grid_instance_count(axes: Mapping[str, int]) -> InstanceCountFn:
 
 def _normalize_axes(axes: Mapping[str, int]) -> dict[str, int]:
     counts = {str(tag): index(count) for tag, count in axes.items()}
-    if not counts:
-        msg = "axes must contain at least one axis; use the default instance function"
-        raise ValueError(msg)
     if invalid := next(
         ((tag, count) for tag, count in counts.items() if count <= 0), None
     ):

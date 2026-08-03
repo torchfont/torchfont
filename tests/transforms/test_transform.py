@@ -1,7 +1,9 @@
 import pickle
+from typing import cast
 
 import pytest
 import torch
+from typing_extensions import Self
 
 from torchfont import tf_tensors
 from torchfont.structures import (
@@ -111,13 +113,15 @@ def test_compose_registers_stateful_transforms(*, as_module_list: bool) -> None:
     assert transform.state_dict()["transforms.0.offset"].item() == 1.0
 
 
-def test_compose_rejects_non_sequence_iterables() -> None:
-    with pytest.raises(TypeError, match=r"sequence of nn\.Module"):
-        Compose(iter([AddToCoords(1.0)]))  # ty: ignore[invalid-argument-type]
+def test_compose_materializes_module_iterables() -> None:
+    child = AddToCoords(1.0)
+    transform = Compose(iter([child]))
+
+    assert transform.get_submodule("transforms.0") is child
 
 
 def test_compose_rejects_plain_callables() -> None:
-    with pytest.raises(TypeError, match=r"only nn\.Module"):
+    with pytest.raises(TypeError, match="is not a Module subclass"):
         Compose([lambda value: value + 1])  # ty: ignore[invalid-argument-type]
 
 
@@ -281,6 +285,41 @@ def test_bitmap_accepts_tensor_like_data_and_can_be_rewrapped() -> None:
     assert bitmap.dtype is torch.float32
     assert isinstance(output, tf_tensors.Bitmap)
     assert torch.equal(output, torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
+
+
+def test_custom_tf_tensor_controls_metadata_wrapping() -> None:
+    class LabeledBitmap(tf_tensors.Bitmap):
+        label: str
+
+        def __new__(cls, data: object, *, label: str) -> Self:
+            output = cast("Self", super().__new__(cls, data))
+            output.label = label
+            return output
+
+        def __init__(self, data: object, *, label: str) -> None:
+            del data, label
+
+        @classmethod
+        def wrap(
+            cls,
+            tensor: torch.Tensor,
+            *,
+            like: Self,
+            **metadata: object,
+        ) -> Self:
+            output = tensor.as_subclass(cls)
+            output.label = str(metadata.get("label", like.label))
+            return output
+
+    bitmap = LabeledBitmap(torch.zeros((2, 2)), label="source")
+
+    cloned = bitmap.clone()
+    relabeled = tf_tensors.wrap(bitmap + 1, like=bitmap, label="derived")
+
+    assert isinstance(cloned, LabeledBitmap)
+    assert cloned.label == "source"
+    assert isinstance(relabeled, LabeledBitmap)
+    assert relabeled.label == "derived"
 
 
 def test_to_pure_tensor_removes_semantic_subclasses_in_pytrees() -> None:

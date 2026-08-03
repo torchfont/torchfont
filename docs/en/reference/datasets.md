@@ -159,13 +159,18 @@ from torchfont.instance_fn import (
 - `named_instances(font)`: deduplicated fvar named instances, falling back to default
 - `default_instance(font)`: one default location
 - `grid_instances({"wght": 7, "wdth": 3})`: evenly spaced fixed grid
+- `grid_instances({})`: one default location, the empty-grid identity
 - `named_instance_count(font)`: count matching `named_instances`
 - `default_instance_count(font)`: one instance slot
 - `grid_instance_count({"wght": 7, "wdth": 3})`: count matching `grid_instances`
 
+Grid policies pin unlisted axes to their defaults and ignore requested axes that
+a particular font does not have, so one policy can cover heterogeneous font
+collections.
+
 For transform-time variation sampling, see `RandomLocation` in
 [Transform Utilities](./transforms.md). Datasets do not have a dataset-level seed.
 
-Custom instance functions may return zero locations. Unknown axes and duplicate
-locations after normalization raise
+Custom instance functions may return zero locations. Unknown axes returned by a
+custom function and duplicate locations after normalization raise
 `ValueError` during dataset construction.

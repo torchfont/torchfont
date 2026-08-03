@@ -19,7 +19,10 @@ dispatch does not leak into model code. In line with torchvision's `TVTensor`,
 `clone()`, `detach()`, `pin_memory()`, `requires_grad_()`, and `to()` preserve the
 subclass; convenience methods such as `float()` and `cpu()` follow the ordinary
 operation rule. Use `tf_tensors.wrap(tensor, like=bitmap)` to restore a semantic
-subclass without copying data. `GlyphData[T]`
+subclass without copying data. Custom `TFTensor` subclasses that carry metadata
+can override the `wrap()` classmethod; copy-like operations and the public
+`tf_tensors.wrap()` helper then preserve that metadata without a global registry.
+`GlyphData[T]`
 keeps a transformed payload, the original dataset sample, and the concrete
 variation location together. Since its payload is generic, a pipeline can change
 it from `Outline` to a bitmap without losing metadata.
@@ -80,10 +83,10 @@ for evaluation rather than relying on `eval()` to disable augmentation.
 Like torchvision v2, transforms and containers accept either one pytree or
 multiple positional inputs. `check_inputs()` is available to custom transforms
 that need to check relationships between leaves before sampling parameters.
-`Compose` accepts a sequence of `nn.Module` objects or an `nn.ModuleList`; an
-empty sequence is an identity transform. `RandomApply` wraps one `nn.Module`,
-while `SameParams` wraps one `Transform`. Use `Compose` inside `RandomApply` when
-grouping several transforms.
+`Compose` immediately materializes an iterable of `nn.Module` objects into an
+`nn.ModuleList`; an empty iterable is an identity transform. `RandomApply` wraps
+one `nn.Module`, while `SameParams` wraps one `Transform`. Use `Compose` inside
+`RandomApply` when grouping several transforms.
 
 `RandomApply(transform, p)` controls whether one transform is applied.
 Probabilities such as `RandomSplitSegments.split_probability` control behavior

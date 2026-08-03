@@ -19,6 +19,9 @@ torchvisionの`TVTensor`と同様、`clone()`、`detach()`、`pin_memory()`、
 `requires_grad_()`、`to()`ではsubclassを維持します。一方、`float()`や`cpu()`などの
 convenience methodは通常の演算と同じ規則に従い、plain tensorを返します。storageを
 copyせず意味型へ戻すには`tf_tensors.wrap(tensor, like=bitmap)`を使います。
+メタデータを持つcustom `TFTensor` subclassは`wrap()` classmethodをoverrideできます。
+copy系operationと公開`tf_tensors.wrap()` helperはglobal registryを使わず、その
+メタデータを維持します。
 `GlyphData[T]` は変換中の payload、元の dataset sample、実際に使用した variation
 location を保持します。payload は generic なので、メタデータを失わずに
 `Outline` から bitmap へ変換できます。
@@ -71,9 +74,9 @@ container は登録した子をmodule call path経由で呼ぶため、forward h
 
 torchvision v2 と同様に、transform と container は一つの pytree または複数の
 位置引数を受け取れます。leaf 間の関係を parameter sampling 前に確認する
-custom transform のために `check_inputs()` を利用できます。`Compose` には
-`nn.Module` の列または `nn.ModuleList` を渡し、空の列は identity transform として
-扱います。`RandomApply` は一つの
+custom transform のために `check_inputs()` を利用できます。`Compose` は
+`nn.Module` の iterable を即座に `nn.ModuleList` へ materialize し、空の iterable は
+identity transform として扱います。`RandomApply` は一つの
 `nn.Module`、`SameParams` は一つの `Transform` を包みます。複数transformを
 `RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 

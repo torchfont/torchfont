@@ -2,28 +2,20 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import torch
 from torch import nn
 
 from torchfont.transforms._transform import Transform
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 
 def _module_list(
-    transforms: Sequence[nn.Module] | nn.ModuleList,
+    transforms: Iterable[nn.Module] | nn.ModuleList,
 ) -> nn.ModuleList:
-    if not isinstance(transforms, (Sequence, nn.ModuleList)):
-        msg = "transforms must be a sequence of nn.Module objects"
-        raise TypeError(msg)
-    invalid = next(
-        (transform for transform in transforms if not isinstance(transform, nn.Module)),
-        None,
-    )
-    if invalid is not None:
-        msg = "transforms must contain only nn.Module objects"
-        raise TypeError(msg)
     return (
         transforms
         if isinstance(transforms, nn.ModuleList)
@@ -36,7 +28,7 @@ class Compose(nn.Module):
 
     def __init__(
         self,
-        transforms: Sequence[nn.Module] | nn.ModuleList,
+        transforms: Iterable[nn.Module] | nn.ModuleList,
     ) -> None:
         super().__init__()
         self.transforms = _module_list(transforms)

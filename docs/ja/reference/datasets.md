@@ -157,12 +157,16 @@ from torchfont.instance_fn import (
 - `named_instances(font)`: fvar named instance を dedupe し、なければ default
 - `default_instance(font)`: default location 1 つ
 - `grid_instances({"wght": 7, "wdth": 3})`: 等間隔の固定 grid
+- `grid_instances({})`: default location 1つを返す空gridのidentity
 - `named_instance_count(font)`: `named_instances` に対応する個数
 - `default_instance_count(font)`: instance slot 1 つ
 - `grid_instance_count({"wght": 7, "wdth": 3})`: `grid_instances` に対応する個数
 
+grid policyは指定していない軸をdefaultに固定し、個別fontが持たない指定軸を無視します。
+このため一つのpolicyを異種font collectionへ適用できます。
+
 transform 時の variation sampling には [Transform Utilities](./transforms.md) の
 `RandomLocation` を使います。dataset-level seed はありません。
 
-カスタム instance function は 0 個の location を返せます。未知の軸や、正規化後に
-重複する location は Dataset 構築時に `ValueError` になります。
+カスタム instance function は 0 個の location を返せます。カスタム関数が返した
+未知の軸や、正規化後に重複する location は Dataset 構築時に `ValueError` になります。

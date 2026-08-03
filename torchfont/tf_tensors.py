@@ -13,6 +13,8 @@ _T = TypeVar("_T", bound="TFTensor")
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from typing_extensions import Self
+
 _PRESERVE_SUBCLASS_OPS = {
     Tensor.clone,
     Tensor.detach,
@@ -58,18 +60,30 @@ class TFTensor(Tensor):
         with DisableTorchFunctionSubclass():
             output = func(*args, **(kwargs or {}))
         if func in _PRESERVE_SUBCLASS_OPS and isinstance(args[0], cls):
-            return cls._wrap_output(output)
+            return cls._wrap_output(output, like=args[0])
         if isinstance(output, cls):
             return output.as_subclass(Tensor)
         return output
 
     @classmethod
-    def _wrap_output(cls, output: object) -> object:
+    def _wrap_output(cls, output: object, *, like: TFTensor) -> object:
         if isinstance(output, Tensor) and not isinstance(output, cls):
-            return output.as_subclass(cls)
+            return cls.wrap(output, like=like)
         if isinstance(output, (tuple, list)):
-            return type(output)(cls._wrap_output(item) for item in output)
+            return type(output)(cls._wrap_output(item, like=like) for item in output)
         return output
+
+    @classmethod
+    def wrap(
+        cls,
+        tensor: Tensor,
+        *,
+        like: Self,
+        **metadata: object,
+    ) -> Self:
+        """Restore this semantic subclass, customizable for subclass metadata."""
+        del like, metadata
+        return cast("Self", tensor.as_subclass(cls))
 
     def __deepcopy__(self: _T, memo: dict[int, Any]) -> _T:  # noqa: PYI019
         """Copy tensor storage while preserving the semantic subclass."""
@@ -130,9 +144,9 @@ class Bitmap(TFTensor):
         del data, dtype, device, requires_grad
 
 
-def wrap(wrappee: Tensor, *, like: _T) -> _T:
-    """Wrap a tensor in the same TorchFont semantic subclass as ``like``."""
-    return cast("_T", wrappee.as_subclass(type(like)))
+def wrap(wrappee: Tensor, *, like: _T, **metadata: object) -> _T:
+    """Wrap a tensor like ``like``, preserving subclass-specific metadata."""
+    return type(like).wrap(wrappee, like=like, **metadata)
 
 
 __all__ = ["Bitmap", "TFTensor", "wrap"]

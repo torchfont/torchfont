@@ -629,12 +629,31 @@ def test_instance_function_rejects_unknown_axis() -> None:
         )
 
 
-@pytest.mark.parametrize("axes", [{}, {"wght": 0}, {"wght": -1}])
+@pytest.mark.parametrize("axes", [{"wght": 0}, {"wght": -1}])
 def test_grid_functions_reject_invalid_axis_counts(axes: dict[str, int]) -> None:
     with pytest.raises(ValueError, match="ax"):
         grid_instances(axes)
     with pytest.raises(ValueError, match="ax"):
         grid_instance_count(axes)
+
+
+def test_empty_grid_functions_select_one_default_instance() -> None:
+    fixed = GlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_fn=grid_instances({}),
+    )
+    variable = VariableGlyphDataset(
+        root="tests/fonts",
+        patterns=("roboto/Roboto*.ttf",),
+        codepoints=[0x41],
+        instance_fn=grid_instance_count({}),
+    )
+
+    assert len(fixed) == 1
+    assert len(variable) == 1
+    assert fixed[0].ref.location == {"wght": 400.0, "wdth": 100.0}
 
 
 def test_grid_functions_ignore_unknown_axes_and_pin_unlisted_axes() -> None:
