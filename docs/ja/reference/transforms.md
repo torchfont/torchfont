@@ -42,17 +42,17 @@ outline = data.data
 
 `LoadGlyph` は `GlyphSample` または `GlyphRef` を受け取ります。サンプルは
 `GlyphData[Outline]` に、参照単体は `Outline` になります。
-`LoadGlyph` はフェイスのデフォルト位置を使います。`RandomLocation` は `GlyphSample`
-または `GlyphRef` に対して位置を 1 点抽出し、`GlyphData.location` に保存します。
-静的フェイスでは空の位置になります。
+`LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
+Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点抽出し、
+`GlyphData.location` に保存します。Static Face では空の位置になります。
 
 `Transform` はネストした PyTree を平坦化し、一致する意味的なリーフごとに独立して
 パラメーターを生成し、元の構造を復元します。同じバリアブルフォントの複数グリフを一つの
 位置で扱う場合など、対応する複数アウトラインに同じ反転、アフィンパラメーター、要素単位の
 乱数を適用する場合は、Transform を `SameParams` で包みます。確率的 Transform は PyTorch の
 デフォルト RNG を使うため、`torch.manual_seed` と `DataLoader` ワーカーのシードが通常どおり
-機能します。`SameParams(RandomLocation())` を使うと同じフォントの複数グリフに一つの位置を
-選べますが、異なるフォント間で未変換の軸値を共有することは拒否します。
+機能します。`SameParams(LoadGlyph(location="random"))` を使うと同じ Font の複数 Glyph に
+一つの位置を選べますが、異なる Font 間で未変換の Axis 値を共有することは拒否します。
 組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
 渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
 `callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
@@ -80,7 +80,7 @@ outline = data.data
 
 | 分類 | Transform |
 | --- | --- |
-| 読み込み | `LoadGlyph`, `RandomLocation` |
+| 読み込み | `LoadGlyph` |
 | コンテナ | `Compose`, `RandomApply`, `SameParams` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |

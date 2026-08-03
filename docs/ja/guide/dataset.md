@@ -58,10 +58,11 @@ dataset = GlyphDataset(root="data/google/fonts", transform=LoadGlyph())
 学習時はアクセスごとに位置を 1 点抽出できます。
 
 ```python
-from torchfont.transforms import RandomLocation
-
-dataset = GlyphDataset(root="data/google/fonts", transform=RandomLocation())
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    transform=LoadGlyph(location="random"),
+)
 ```
 
-`RandomLocation` は PyTorch RNG のシードに従います。静的フェイスでは `LoadGlyph` と同じ
+ランダムな位置は PyTorch RNG のシードに従います。Static Face では Default Policy と同じ
 空の位置になります。

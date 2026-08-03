@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
 from torchfont.structures import GlyphData, Outline
-from torchfont.transforms import RandomLocation
+from torchfont.transforms import LoadGlyph
 
 
 def collate_fn(
@@ -25,7 +25,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        transform=RandomLocation(),
+        transform=LoadGlyph(location="random"),
     )
 
     dataloader = DataLoader(

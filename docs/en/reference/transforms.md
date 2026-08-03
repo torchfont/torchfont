@@ -43,9 +43,10 @@ outline = data.data
 
 `LoadGlyph` accepts a `GlyphSample` or `GlyphRef`. A sample becomes
 `GlyphData[Outline]`, while a bare reference becomes `Outline`.
-`LoadGlyph` uses the face's default location. `RandomLocation` instead samples
-one location for a `GlyphSample` or `GlyphRef` and records it in
-`GlyphData.location`; on a static face it naturally uses an empty location.
+`LoadGlyph` uses the face's default location unless `location="random"` is set.
+The random policy samples one location for a `GlyphSample` or `GlyphRef` and
+records it in `GlyphData.location`; on a static face it naturally uses an empty
+location.
 
 `Transform` flattens nested pytree inputs, samples parameters independently for
 each matching semantic leaf, and restores the input structure. Wrap a transform
@@ -53,9 +54,9 @@ with `SameParams` when corresponding outlines, such as multiple glyphs from the
 same variable font at one location, must receive the same flip, affine parameters, or
 element-level random values. Random transforms use PyTorch's default RNG, so
 `torch.manual_seed` and DataLoader worker seeding apply normally.
-`SameParams(RandomLocation())` may likewise select one location for multiple
-glyphs from the same font; sharing raw axis values across different fonts is
-rejected.
+`SameParams(LoadGlyph(location="random"))` may likewise select one location for
+multiple glyphs from the same font; sharing raw axis values across different
+fonts is rejected.
 Built-in transforms contain configuration only and remain pickle-friendly.
 `Compose` registers its children in a `torch.nn.ModuleList`, including when it
 is constructed from an ordinary list of modules. `RandomApply` and `SameParams`
@@ -87,7 +88,7 @@ inside an already-applied transform.
 
 | Category | Transforms |
 | --- | --- |
-| Loading | `LoadGlyph`, `RandomLocation` |
+| Loading | `LoadGlyph` |
 | Containers | `Compose`, `RandomApply`, `SameParams` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |

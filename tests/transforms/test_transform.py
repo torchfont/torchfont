@@ -16,7 +16,6 @@ from torchfont.transforms import (
     LoadGlyph,
     QuadToCubic,
     RandomApply,
-    RandomLocation,
     RandomSplitSegments,
     RenderBitmap,
     SameParams,
@@ -223,6 +222,16 @@ def test_transform_repr_contains_configuration() -> None:
     assert representation.count("RandomSplitSegments") == 1
 
 
+def test_load_glyph_repr_contains_location_policy() -> None:
+    assert repr(LoadGlyph()) == "LoadGlyph(location=default)"
+    assert repr(LoadGlyph(location="random")) == "LoadGlyph(location=random)"
+
+
+def test_load_glyph_rejects_invalid_location_policy() -> None:
+    with pytest.raises(ValueError, match="location must be 'default' or 'random'"):
+        LoadGlyph(location="invalid")  # ty: ignore[invalid-argument-type]
+
+
 def _glyph_sample() -> GlyphSample:
     ref = GlyphRef(
         FontRef("tests/fonts/lato/Lato-Regular.ttf", 0),
@@ -265,14 +274,14 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     assert bitmap_output.sample is sample
 
 
-def test_random_location_returns_the_sampled_location() -> None:
+def test_load_glyph_returns_the_randomly_sampled_location() -> None:
     ref = GlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
     sample = GlyphSample(ref, 0, 0)
 
-    output = RandomLocation()(sample)
+    output = LoadGlyph(location="random")(sample)
 
     assert isinstance(output, GlyphData)
     assert isinstance(output.data, Outline)
@@ -280,31 +289,33 @@ def test_random_location_returns_the_sampled_location() -> None:
     assert set(output.location) == {"wdth", "wght"}
 
 
-def test_random_location_handles_multiple_variable_glyphs_independently() -> None:
+def test_load_glyph_samples_multiple_variable_glyphs_independently() -> None:
     ref = GlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
     )
 
-    first, second = RandomLocation()([ref, ref])
+    first, second = LoadGlyph(location="random")([ref, ref])
 
     assert isinstance(first, Outline)
     assert isinstance(second, Outline)
 
 
-def test_random_location_can_share_parameters_within_one_font() -> None:
+def test_load_glyph_can_share_random_locations_within_one_font() -> None:
     font = FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0)
     first_sample = GlyphSample(GlyphRef(font, ord("A")), 0, 0)
     second_sample = GlyphSample(GlyphRef(font, ord("B")), 0, 1)
 
-    first, second = SameParams(RandomLocation())([first_sample, second_sample])
+    first, second = SameParams(LoadGlyph(location="random"))(
+        [first_sample, second_sample]
+    )
 
     assert isinstance(first, GlyphData)
     assert isinstance(second, GlyphData)
     assert first.location == second.location
 
 
-def test_random_location_rejects_shared_parameters_across_fonts() -> None:
+def test_load_glyph_rejects_shared_random_locations_across_fonts() -> None:
     first = GlyphRef(
         FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
         ord("A"),
@@ -312,4 +323,4 @@ def test_random_location_rejects_shared_parameters_across_fonts() -> None:
     second = GlyphRef(FontRef("tests/fonts/lato/Lato-Regular.ttf", 0), ord("A"))
 
     with pytest.raises(ValueError, match="only within one font"):
-        SameParams(RandomLocation())([first, second])
+        SameParams(LoadGlyph(location="random"))([first, second])

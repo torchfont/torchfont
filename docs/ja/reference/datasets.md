@@ -34,15 +34,15 @@ GlyphDataset(
 )
 ```
 
-インデックスと未変換のサンプルは決定的です。各フェイスのデフォルト位置を読むには `LoadGlyph()`、
-変換のたびに位置を 1 点抽出するには `RandomLocation()` を使います。静的
-フェイスでは両方とも空の位置を使うため同じアウトラインになります。
+インデックスと未変換の Sample は決定的です。各 Face の Default Location を読むには
+`LoadGlyph()`、変換のたびに位置を 1 点抽出するには `location="random"` を指定します。
+Static Face では両方の Policy が空の位置を使うため、同じ Outline になります。
 
 ```python
-from torchfont.transforms import LoadGlyph, RandomLocation
+from torchfont.transforms import LoadGlyph
 
 evaluation = GlyphDataset(root, transform=LoadGlyph())
-training = GlyphDataset(root, transform=RandomLocation())
+training = GlyphDataset(root, transform=LoadGlyph(location="random"))
 ```
 
 プロパティ:

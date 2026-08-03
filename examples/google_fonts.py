@@ -31,7 +31,7 @@ class GlyphPipeline(torch.nn.Module):
         super().__init__()
         self.prepare_outline = Compose(
             [
-                LoadGlyph(),
+                LoadGlyph(location="random"),
                 RemoveOverlaps(),
                 QuadToCubic(merge_curves=True),
                 RandomAffine(degrees=5.0, translate=(0.05, 0.05)),

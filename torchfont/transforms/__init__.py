@@ -18,7 +18,7 @@ from torchfont.transforms._geometry import (
     RandomVerticalFlip,
     VerticalFlip,
 )
-from torchfont.transforms._glyph import LoadGlyph, RandomLocation
+from torchfont.transforms._glyph import LoadGlyph
 from torchfont.transforms._outline import RandomRemoveOverlaps, RemoveOverlaps
 from torchfont.transforms._subpath import (
     NormalizeSubpathStartPoints,
@@ -40,7 +40,6 @@ __all__ = [
     "RandomApply",
     "RandomCoordJitter",
     "RandomHorizontalFlip",
-    "RandomLocation",
     "RandomRemoveOverlaps",
     "RandomSplitSegments",
     "RandomVerticalFlip",

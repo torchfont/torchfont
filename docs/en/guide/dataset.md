@@ -58,10 +58,11 @@ dataset = GlyphDataset(root="data/google/fonts", transform=LoadGlyph())
 Draw one location per access for training:
 
 ```python
-from torchfont.transforms import RandomLocation
-
-dataset = GlyphDataset(root="data/google/fonts", transform=RandomLocation())
+dataset = GlyphDataset(
+    root="data/google/fonts",
+    transform=LoadGlyph(location="random"),
+)
 ```
 
-`RandomLocation` follows PyTorch RNG seeding. On static faces it produces the
-same empty location as `LoadGlyph`.
+Random locations follow PyTorch RNG seeding. On static faces this produces the
+same empty location as the default policy.

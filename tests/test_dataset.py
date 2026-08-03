@@ -25,7 +25,7 @@ from torchfont.structures import (
     GlyphSample,
     Outline,
 )
-from torchfont.transforms import LoadGlyph, RandomLocation
+from torchfont.transforms import LoadGlyph
 from torchfont.transforms import functional as _functional
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ def _outline_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
 
 
 def _worker_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
-    outline = RandomLocation()(sample).data
+    outline = LoadGlyph(location="random")(sample).data
     return outline.types, outline.coords
 
 
@@ -156,27 +156,27 @@ def test_load_glyph_uses_default_location() -> None:
     assert data.location == {"wdth": 100.0, "wght": 400.0}
 
 
-def test_random_location_samples_one_location_reproducibly() -> None:
+def test_load_glyph_samples_one_location_reproducibly() -> None:
     sample = GlyphDataset(
         "tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41]
     )[0]
 
     torch.manual_seed(123)
-    first = RandomLocation()(sample)
+    first = LoadGlyph(location="random")(sample)
     torch.manual_seed(123)
-    second = RandomLocation()(sample)
+    second = LoadGlyph(location="random")(sample)
 
     assert first.location == second.location
     assert set(first.location) == {"wdth", "wght"}
     assert first.location != LoadGlyph()(sample).location
 
 
-def test_random_location_on_static_face_uses_empty_location() -> None:
+def test_load_glyph_random_location_on_static_face_is_empty() -> None:
     sample = GlyphDataset(
         "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
     )[0]
 
-    random = RandomLocation()(sample)
+    random = LoadGlyph(location="random")(sample)
     default = LoadGlyph()(sample)
 
     assert random.location == {}
@@ -203,7 +203,7 @@ def test_dataset_supports_multiprocessing_transform() -> None:
     assert coords.shape[0] == 1
 
 
-def test_random_location_supports_multiprocessing() -> None:
+def test_load_glyph_random_location_supports_multiprocessing() -> None:
     dataset = GlyphDataset(
         "tests/fonts",
         patterns="roboto/Roboto*.ttf",
@@ -347,7 +347,6 @@ def test_public_dataset_api_is_exported() -> None:
     assert datasets_module.GlyphDataset is GlyphDataset
     assert structures_module.GlyphSample is GlyphSample
     assert transforms_module.LoadGlyph is LoadGlyph
-    assert transforms_module.RandomLocation is RandomLocation
     assert hasattr(_torchfont, "GlyphIndex")
 
 

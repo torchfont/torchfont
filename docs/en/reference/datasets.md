@@ -35,15 +35,15 @@ GlyphDataset(
 ```
 
 The index and raw samples are deterministic. Use `LoadGlyph()` to load each face
-at its default location, or `RandomLocation()` to draw one location whenever a
-sample is transformed. On a static face, both transforms use the same empty
+at its default location, or set `location="random"` to draw one location whenever
+a sample is transformed. On a static face, both policies use the same empty
 location.
 
 ```python
-from torchfont.transforms import LoadGlyph, RandomLocation
+from torchfont.transforms import LoadGlyph
 
 evaluation = GlyphDataset(root, transform=LoadGlyph())
-training = GlyphDataset(root, transform=RandomLocation())
+training = GlyphDataset(root, transform=LoadGlyph(location="random"))
 ```
 
 Properties:
