@@ -40,7 +40,7 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` は `GlyphSample` または `GlyphRef` を受け取ります。サンプルは
+`LoadGlyph` は一つの `GlyphSample` または `GlyphRef` を読み込みます。サンプルは
 `GlyphData[Outline]` に、参照単体は `Outline` になります。
 `LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
 Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点抽出し、
@@ -48,13 +48,12 @@ Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点
 Dataset Sample に対しては、返される `GlyphData` の並列な `weight`、`width`、`italic`、
 `slant`、`optical_size` Target も解決します。
 
-`Transform` はネストした PyTree を平坦化し、一致する意味的なリーフごとに独立して
-パラメーターを生成し、元の構造を復元します。同じバリアブルフォントの複数グリフを一つの
-位置で扱う場合など、対応する複数アウトラインに同じ反転、アフィンパラメーター、要素単位の
-乱数を適用する場合は、Transform を `SameParams` で包みます。確率的 Transform は PyTorch の
+`Transform` はネストした PyTree を平坦化し、一致するすべての意味的なリーフに対して
+パラメーターを一度だけ生成し、元の構造を復元します。そのため、一回の呼び出しに含まれる
+対応する複数アウトラインには、同じ反転、アフィンパラメーター、要素単位の乱数が適用されます。
+独立したサンプルには Transform を個別に適用します。確率的 Transform は PyTorch の
 デフォルト RNG を使うため、`torch.manual_seed` と `DataLoader` ワーカーのシードが通常どおり
-機能します。`SameParams(LoadGlyph(location="random"))` を使うと同じ Font の複数 Glyph に
-一つの位置を選べますが、異なる Font 間で未変換の Axis 値を共有することは拒否します。
+機能します。
 組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
 渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
 `callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
@@ -66,12 +65,11 @@ Dataset Sample に対しては、返される `GlyphData` の並列な `weight`�
 `training` フラグを参照しません。前処理とモデルのモードは別の関心事なので、評価時は
 `eval()` でデータ拡張が止まることに依存せず、決定論的パイプラインを明示的に選びます。
 
-`torchvision.transforms.v2` と同様に、Transform とコンテナーは一つの PyTree または複数の
-位置引数を受け取れます。リーフ間の関係をパラメーターのサンプリング前に確認する
+`torchvision.transforms.v2` と同様に、`Transform` のサブクラスとコンテナーは一つの
+PyTree または複数の位置引数を受け取れます。リーフ間の関係をパラメーターのサンプリング前に確認する
 カスタム Transform のために `check_inputs()` を利用できます。`Compose` は
 `nn.Module` の `Iterable` を即座に `nn.ModuleList` へ具体化し、空の `Iterable` は
-恒等 Transform として扱います。`RandomApply` は一つの
-`nn.Module`、`SameParams` は一つの `Transform` を包みます。複数の Transform を
+恒等 Transform として扱います。`RandomApply` は一つの `nn.Module` を包みます。複数の Transform を
 `RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 
 `RandomApply(transform, p)` は一つの Transform を適用するか制御します。
@@ -83,7 +81,7 @@ Dataset Sample に対しては、返される `GlyphData` の並列な `weight`�
 | 分類 | Transform |
 | --- | --- |
 | 読み込み | `LoadGlyph` |
-| コンテナ | `Compose`, `RandomApply`, `SameParams` |
+| コンテナ | `Compose`, `RandomApply` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |

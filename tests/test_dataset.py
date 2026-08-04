@@ -171,6 +171,19 @@ def test_load_glyph_samples_one_location_reproducibly() -> None:
     assert first.location != LoadGlyph()(sample).location
 
 
+def test_load_glyph_resamples_location_on_each_call() -> None:
+    sample = GlyphDataset(
+        "tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41]
+    )[0]
+    load = LoadGlyph(location="random")
+
+    torch.manual_seed(123)
+    first = load(sample)
+    second = load(sample)
+
+    assert first.location != second.location
+
+
 def test_load_glyph_random_location_on_static_face_is_empty() -> None:
     sample = GlyphDataset(
         "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]

@@ -41,7 +41,7 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` accepts a `GlyphSample` or `GlyphRef`. A sample becomes
+`LoadGlyph` loads one `GlyphSample` or `GlyphRef`. A sample becomes
 `GlyphData[Outline]`, while a bare reference becomes `Outline`.
 `LoadGlyph` uses the face's default location unless `location="random"` is set.
 The random policy samples one location for a `GlyphSample` or `GlyphRef` and
@@ -49,19 +49,16 @@ records it in `GlyphData.location`; on a static face it naturally uses an empty
 location. For dataset samples, it also resolves the parallel `weight`, `width`,
 `italic`, `slant`, and `optical_size` targets on the returned `GlyphData`.
 
-`Transform` flattens nested pytree inputs, samples parameters independently for
-each matching semantic leaf, and restores the input structure. Wrap a transform
-with `SameParams` when corresponding outlines, such as multiple glyphs from the
-same variable font at one location, must receive the same flip, affine parameters, or
-element-level random values. Random transforms use PyTorch's default RNG, so
+`Transform` flattens nested pytree inputs, samples parameters once for all
+matching semantic leaves, and restores the input structure. Thus corresponding
+outlines in one transform call receive the same flip, affine parameters, or
+element-level random values. Apply the transform separately to independent
+samples. Random transforms use PyTorch's default RNG, so
 `torch.manual_seed` and DataLoader worker seeding apply normally.
-`SameParams(LoadGlyph(location="random"))` may likewise select one location for
-multiple glyphs from the same font; sharing raw axis values across different
-fonts is rejected.
 Built-in transforms contain configuration only and remain pickle-friendly.
 `Compose` registers its children in a `torch.nn.ModuleList`, including when it
-is constructed from an ordinary list of modules. `RandomApply` and `SameParams`
-register the single module they wrap. Plain callables are intentionally
+is constructed from an ordinary list of modules. `RandomApply` registers the
+single module it wraps. Plain callables are intentionally
 unsupported: define a small `nn.Module` so its
 behavior, representation, and pickle requirements remain explicit. This keeps
 module traversal, state dictionaries, hooks, and configuration display
@@ -73,13 +70,13 @@ random transforms intentionally do not use the `training` flag: preprocessing
 and model mode are separate concerns. Select a deterministic pipeline explicitly
 for evaluation rather than relying on `eval()` to disable augmentation.
 
-Like `torchvision.transforms.v2`, transforms and containers accept either one pytree or
-multiple positional inputs. `check_inputs()` is available to custom transforms
-that need to check relationships between leaves before sampling parameters.
+Like `torchvision.transforms.v2`, `Transform` subclasses and containers accept
+either one pytree or multiple positional inputs. `check_inputs()` is available
+to custom transforms that need to check relationships between leaves before sampling parameters.
 `Compose` immediately materializes an iterable of `nn.Module` objects into an
 `nn.ModuleList`; an empty iterable is an identity transform. `RandomApply` wraps
-one `nn.Module`, while `SameParams` wraps one `Transform`. Use `Compose` inside
-`RandomApply` when grouping several transforms.
+one `nn.Module`. Use `Compose` inside `RandomApply` when grouping several
+transforms.
 
 `RandomApply(transform, p)` controls whether one transform is applied.
 Probabilities such as `RandomSplitSegments.split_probability` control behavior
@@ -90,7 +87,7 @@ inside an already-applied transform.
 | Category | Transforms |
 | --- | --- |
 | Loading | `LoadGlyph` |
-| Containers | `Compose`, `RandomApply`, `SameParams` |
+| Containers | `Compose`, `RandomApply` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |

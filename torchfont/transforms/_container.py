@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, cast
 import torch
 from torch import nn
 
-from torchfont.transforms._transform import Transform, _share_params
-
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -72,20 +70,4 @@ class RandomApply(nn.Module):
         return f"p={self.p}"
 
 
-class SameParams(nn.Module):
-    """Apply one transform with parameters shared across semantic leaves."""
-
-    def __init__(self, transform: Transform) -> None:
-        super().__init__()
-        if not isinstance(transform, Transform):
-            msg = "transform must be a Transform"
-            raise TypeError(msg)
-        self.transform = transform
-
-    def forward(self, *inputs: object) -> object:
-        """Apply the wrapped transform with one shared parameter sample."""
-        with _share_params(self.transform):
-            return self.transform(*inputs)
-
-
-__all__ = ["Compose", "RandomApply", "SameParams"]
+__all__ = ["Compose", "RandomApply"]
