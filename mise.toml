@@ -37,12 +37,13 @@ run = "uv run ruff format"
 depends = ["rust-format", "python-format"]
 
 [tasks.rust-check]
-sources = ["Cargo.toml", "Cargo.lock", "src/**/*.rs"]
+sources = ["Cargo.toml", "Cargo.lock", "pyproject.toml", "uv.lock", "src/**/*.rs"]
+depends = ["uv-sync"]
 run = [
   "cargo fmt --all -- --check",
-  "cargo clippy --all-targets --all-features -- -D warnings",
-  "cargo check --all-targets --all-features",
-  "cargo test --all-targets --all-features",
+  "uv run cargo clippy --all-targets --all-features -- -D warnings",
+  "uv run cargo check --all-targets --all-features",
+  "uv run cargo test --all-targets --all-features",
 ]
 
 [tasks.python-check]
