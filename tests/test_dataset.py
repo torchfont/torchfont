@@ -45,7 +45,7 @@ def _worker_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
 def test_dataset_indexes_each_face_codepoint_once() -> None:
     dataset = GlyphDataset(
         "tests/fonts",
-        patterns=("roboto/Roboto*.ttf",),
+        patterns=("source-serif/SourceSerif4Variable-Roman.ttf",),
         codepoints=[0x41, 0x42],
     )
 
@@ -60,10 +60,12 @@ def test_dataset_indexes_each_face_codepoint_once() -> None:
 
 def test_dataset_treats_static_and_variable_files_as_one_face_each() -> None:
     variable = GlyphDataset(
-        "tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41]
+        "tests/fonts",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
+        codepoints=[0x41],
     )
     static = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
+        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
     )
 
     assert len(variable) == 1
@@ -79,7 +81,7 @@ def test_dataset_transform_receives_sample() -> None:
 
     dataset = GlyphDataset(
         "tests/fonts",
-        patterns="lato/Lato-Regular.ttf",
+        patterns="source-sans/SourceSans3-Regular.ttf",
         codepoints=[0x41],
         transform=transform,
     )
@@ -90,7 +92,9 @@ def test_dataset_transform_receives_sample() -> None:
 
 def test_load_glyph_returns_outline_tensors() -> None:
     sample = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[ord("o")]
+        "tests/fonts",
+        patterns="source-sans/SourceSans3-Regular.ttf",
+        codepoints=[ord("o")],
     )[0]
 
     outline = _functional.load_glyph(sample.ref)
@@ -126,15 +130,17 @@ def test_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
     with pytest.raises(TypeError, match="cannot be interpreted as an integer"):
         GlyphDataset(
             "tests/fonts",
-            patterns="lato/Lato-Regular.ttf",
+            patterns="source-sans/SourceSans3-Regular.ttf",
             codepoints=[codepoint],  # ty: ignore[invalid-argument-type]
         )
 
 
 def test_explicit_location_validation() -> None:
-    ref = GlyphDataset("tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41])[
-        0
-    ].ref
+    ref = GlyphDataset(
+        "tests/fonts",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
+        codepoints=[0x41],
+    )[0].ref
 
     with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
         _functional.load_glyph(ref, {"xxxx": 1.0})
@@ -146,19 +152,23 @@ def test_explicit_location_validation() -> None:
 
 def test_load_glyph_uses_default_location() -> None:
     dataset = GlyphDataset(
-        "tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41]
+        "tests/fonts",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
+        codepoints=[0x41],
     )
 
     data = LoadGlyph()(dataset[0])
 
     assert isinstance(data, GlyphData)
     assert isinstance(data.data, Outline)
-    assert data.location == {"wdth": 100.0, "wght": 400.0}
+    assert data.location == {"opsz": 20.0, "wght": 400.0}
 
 
 def test_load_glyph_samples_one_location_reproducibly() -> None:
     sample = GlyphDataset(
-        "tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41]
+        "tests/fonts",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
+        codepoints=[0x41],
     )[0]
 
     torch.manual_seed(123)
@@ -167,13 +177,15 @@ def test_load_glyph_samples_one_location_reproducibly() -> None:
     second = LoadGlyph(location="random")(sample)
 
     assert first.location == second.location
-    assert set(first.location) == {"wdth", "wght"}
+    assert set(first.location) == {"opsz", "wght"}
     assert first.location != LoadGlyph()(sample).location
 
 
 def test_load_glyph_resamples_location_on_each_call() -> None:
     sample = GlyphDataset(
-        "tests/fonts", patterns="roboto/Roboto*.ttf", codepoints=[0x41]
+        "tests/fonts",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
+        codepoints=[0x41],
     )[0]
     load = LoadGlyph(location="random")
 
@@ -186,7 +198,7 @@ def test_load_glyph_resamples_location_on_each_call() -> None:
 
 def test_load_glyph_random_location_on_static_face_is_empty() -> None:
     sample = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
+        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
     )[0]
 
     random = LoadGlyph(location="random")(sample)
@@ -200,7 +212,7 @@ def test_load_glyph_random_location_on_static_face_is_empty() -> None:
 def test_dataset_supports_multiprocessing_transform() -> None:
     dataset = GlyphDataset(
         "tests/fonts",
-        patterns="lato/Lato-Regular.ttf",
+        patterns="source-sans/SourceSans3-Regular.ttf",
         codepoints=[0x41, 0x42],
         transform=_outline_pair,
     )
@@ -219,7 +231,7 @@ def test_dataset_supports_multiprocessing_transform() -> None:
 def test_load_glyph_random_location_supports_multiprocessing() -> None:
     dataset = GlyphDataset(
         "tests/fonts",
-        patterns="roboto/Roboto*.ttf",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
         codepoints=[0x41],
         transform=_worker_pair,
     )
@@ -237,7 +249,7 @@ def test_load_glyph_random_location_supports_multiprocessing() -> None:
 
 def test_dataset_is_pickleable() -> None:
     dataset = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
+        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
     )
 
     restored = cast(
@@ -257,7 +269,7 @@ def test_dataset_is_pickleable() -> None:
 @pytest.mark.parametrize("index", [-2, 1])
 def test_dataset_rejects_out_of_range_indices(index: int) -> None:
     dataset = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
+        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
     )
     with pytest.raises(IndexError):
         dataset[index]
@@ -266,7 +278,7 @@ def test_dataset_rejects_out_of_range_indices(index: int) -> None:
 def test_dataset_accepts_negative_index() -> None:
     dataset = GlyphDataset(
         "tests/fonts",
-        patterns="lato/Lato-Regular.ttf",
+        patterns="source-sans/SourceSans3-Regular.ttf",
         codepoints=[0x41, 0x42],
     )
     negative = dataset[-1]
@@ -283,7 +295,9 @@ def test_dataset_rejects_missing_root(tmp_path: Path) -> None:
 
 def test_dataset_ignores_fonts_without_requested_codepoints() -> None:
     dataset = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x10FFFF]
+        "tests/fonts",
+        patterns="source-sans/SourceSans3-Regular.ttf",
+        codepoints=[0x10FFFF],
     )
     assert len(dataset) == 0
 
@@ -291,7 +305,7 @@ def test_dataset_ignores_fonts_without_requested_codepoints() -> None:
 def test_pattern_filter_and_outline_less_fonts_are_empty() -> None:
     missing = GlyphDataset("tests/fonts", patterns="nonexistent*.ttf")
     no_outlines = GlyphDataset(
-        "tests/fonts", patterns="nocolortest/NoOutlines-Regular.ttf"
+        "tests/fonts", patterns="synthetic/NoOutlines-Regular.ttf"
     )
 
     assert len(missing) == 0
@@ -303,19 +317,22 @@ def test_pattern_filter_and_outline_less_fonts_are_empty() -> None:
 def test_dataset_discovers_fonts_in_hidden_directories(tmp_path: Path) -> None:
     hidden = tmp_path / ".fonts"
     hidden.mkdir()
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", hidden / "Lato-Regular.ttf")
+    shutil.copy(
+        "tests/fonts/source-sans/SourceSans3-Regular.ttf",
+        hidden / "SourceSans3-Regular.ttf",
+    )
 
     dataset = GlyphDataset(tmp_path, codepoints=[0x41])
 
     assert len(dataset) == 1
-    assert Path(dataset[0].ref.font.path).name == "Lato-Regular.ttf"
+    assert Path(dataset[0].ref.font.path).name == "SourceSans3-Regular.ttf"
 
 
 def test_dataset_supports_non_utf8_font_paths(tmp_path: Path) -> None:
     if os.name == "nt":
         pytest.skip("Windows paths are Unicode")
-    font_path = tmp_path / os.fsdecode(b"Lato-\xff.ttf")
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", font_path)
+    font_path = tmp_path / os.fsdecode(b"SourceSans-\xff.ttf")
+    shutil.copy("tests/fonts/source-sans/SourceSans3-Regular.ttf", font_path)
 
     sample = GlyphDataset(tmp_path, codepoints=[0x41])[0]
     outline = _functional.load_glyph(sample.ref)
@@ -329,7 +346,10 @@ def test_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
     if git is None:
         pytest.skip("git not installed")
     subprocess.run([git, "init", "-q"], cwd=tmp_path, check=True)  # noqa: S603
-    shutil.copy("tests/fonts/lato/Lato-Regular.ttf", tmp_path / "Lato-Regular.ttf")
+    shutil.copy(
+        "tests/fonts/source-sans/SourceSans3-Regular.ttf",
+        tmp_path / "SourceSans3-Regular.ttf",
+    )
     (tmp_path / ".gitignore").write_text("*.ttf\n", encoding="utf-8")
 
     dataset = GlyphDataset(tmp_path, codepoints=[0x41])
@@ -340,7 +360,7 @@ def test_dataset_ignores_gitignore_for_root_discovery(tmp_path: Path) -> None:
 def test_targets_match_samples() -> None:
     dataset = GlyphDataset(
         "tests/fonts",
-        patterns="lato/Lato-Regular.ttf",
+        patterns="source-sans/SourceSans3-Regular.ttf",
         codepoints=range(0x41, 0x44),
     )
 
@@ -356,7 +376,7 @@ def test_targets_match_samples() -> None:
 
 def test_dataset_repr() -> None:
     dataset = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
+        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
     )
     assert repr(dataset) == (
         f"GlyphDataset(root={str(dataset.root)!r}, samples=1, "
@@ -373,10 +393,12 @@ def test_public_dataset_api_is_exported() -> None:
 
 def test_patterns_accept_string_or_sequence() -> None:
     string = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=[0x41]
+        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
     )
     sequence = GlyphDataset(
-        "tests/fonts", patterns=("lato/Lato-Regular.ttf",), codepoints=[0x41]
+        "tests/fonts",
+        patterns=("source-sans/SourceSans3-Regular.ttf",),
+        codepoints=[0x41],
     )
     string_sample = string[0]
     sequence_sample = sequence[0]
@@ -388,6 +410,8 @@ def test_patterns_accept_string_or_sequence() -> None:
 def test_codepoints_are_normalized_and_deduplicated() -> None:
     codepoints: Sequence[int] = [0x42, 0x41, 0x41]
     dataset = GlyphDataset(
-        "tests/fonts", patterns="lato/Lato-Regular.ttf", codepoints=codepoints
+        "tests/fonts",
+        patterns="source-sans/SourceSans3-Regular.ttf",
+        codepoints=codepoints,
     )
     assert [dataset[i].ref.codepoint for i in range(len(dataset))] == [0x41, 0x42]

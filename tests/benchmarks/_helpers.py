@@ -2,9 +2,9 @@ import shutil
 from pathlib import Path
 
 BENCH_FONT_PATTERNS = (
-    "lato/Lato-Regular.ttf",
-    "ubuntu/Ubuntu-Regular.ttf",
-    "ptsans/PT_Sans-Web-Regular.ttf",
+    "source-sans/SourceSans3-Regular.ttf",
+    "source-sans/SourceSans3-Regular.otf",
+    "source-serif/SourceSerif4Variable-Roman.ttf",
 )
 
 

@@ -12,7 +12,7 @@ from torchfont.transforms import (
 tv_tensors = pytest.importorskip("torchvision.tv_tensors")
 v2 = pytest.importorskip("torchvision.transforms.v2")
 
-FONT = "tests/fonts/roboto/Roboto[wdth,wght].ttf"
+FONT = "tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf"
 
 
 def _render() -> torch.Tensor:

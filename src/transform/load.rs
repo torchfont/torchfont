@@ -72,7 +72,8 @@ mod tests {
     use super::load_glyph_outline;
 
     fn test_font() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fonts/lato/Lato-Regular.ttf")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fonts/source-sans/SourceSans3-Regular.ttf")
     }
 
     #[test]

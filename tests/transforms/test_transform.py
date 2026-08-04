@@ -234,7 +234,7 @@ def test_load_glyph_rejects_invalid_location_policy() -> None:
 
 def _glyph_sample() -> GlyphSample:
     ref = GlyphRef(
-        FontRef("tests/fonts/lato/Lato-Regular.ttf", 0),
+        FontRef("tests/fonts/source-sans/SourceSans3-Regular.ttf", 0),
         ord("A"),
     )
     return GlyphSample(ref, 0, 0)
@@ -272,7 +272,7 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
 
 def test_load_glyph_returns_the_randomly_sampled_location() -> None:
     ref = GlyphRef(
-        FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
+        FontRef("tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf", 0),
         ord("A"),
     )
     sample = GlyphSample(ref, 0, 0)
@@ -283,8 +283,8 @@ def test_load_glyph_returns_the_randomly_sampled_location() -> None:
     assert isinstance(output.data, Outline)
     assert output.ref is sample.ref
     assert output.weight == output.location["wght"]
-    assert output.width == output.location["wdth"]
+    assert output.width == 100.0
     assert output.italic == 0.0
     assert output.slant == 0.0
-    assert math.isnan(output.optical_size)
-    assert set(output.location) == {"wdth", "wght"}
+    assert output.optical_size == output.location["opsz"]
+    assert set(output.location) == {"opsz", "wght"}
