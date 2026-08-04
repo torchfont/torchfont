@@ -25,7 +25,7 @@ References:
 Package Layout:
     Core data types are available directly from ``torchfont``. Other public
     APIs live in submodules such as ``torchfont.datasets``,
-    ``torchfont.glyphsets`` and ``torchfont.transforms``.
+    ``torchfont.glyphsets``, ``torchfont.nn`` and ``torchfont.transforms``.
 
 """
 
@@ -33,7 +33,7 @@ from torchfont._font import FontRef, VariationLocation
 from torchfont._glyph import GlyphData, GlyphRef, GlyphSample
 from torchfont._outline import COORD_DIM, TYPE_DIM, ElementType, Outline
 
-from . import datasets, glyphsets, transforms
+from . import datasets, glyphsets, nn, transforms
 
 __all__ = [
     "COORD_DIM",
@@ -47,5 +47,6 @@ __all__ = [
     "VariationLocation",
     "datasets",
     "glyphsets",
+    "nn",
     "transforms",
 ]
