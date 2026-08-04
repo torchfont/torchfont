@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchfont import ElementType, Outline
-from torchfont.transforms import RandomCoordJitter, SameParams
+from torchfont.transforms import RandomCoordJitter
 from torchfont.transforms.functional import coord_jitter
 
 
@@ -28,19 +28,11 @@ def test_random_coord_jitter_zero_std_is_identity(
     assert torch.equal(output.coords, outline.coords)
 
 
-def test_random_coord_jitter_samples_noise_independently_between_outlines(
+def test_random_coord_jitter_shares_noise_between_outlines(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     outline = Outline(*simple_outline)
     first, second = RandomCoordJitter(0.1)([outline, outline])
-    assert not torch.equal(first.coords, second.coords)
-
-
-def test_random_coord_jitter_can_share_noise_explicitly(
-    simple_outline: tuple[torch.Tensor, torch.Tensor],
-) -> None:
-    outline = Outline(*simple_outline)
-    first, second = SameParams(RandomCoordJitter(0.1))([outline, outline])
     assert torch.equal(first.coords, second.coords)
 
 

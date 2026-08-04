@@ -19,7 +19,6 @@ from torchfont.transforms import (
     RandomApply,
     RandomSplitSegments,
     RenderBitmap,
-    SameParams,
     Transform,
 )
 
@@ -166,35 +165,35 @@ def test_random_split_segments_handles_different_length_outlines() -> None:
     assert output[1].types.numel() == long.types.numel() + 3
 
 
-def test_same_params_shares_randomness_between_outlines() -> None:
+def test_transform_shares_randomness_between_outlines() -> None:
     transform = RandomSplitSegments(split_probability=0.5)
     outline = _line_outline(8)
 
-    first, second = SameParams(transform)([outline, outline])
+    first, second = transform([outline, outline])
 
     assert torch.equal(first.types, second.types)
     assert torch.equal(first.coords, second.coords)
 
 
-def test_same_params_calls_wrapped_module_hooks() -> None:
+def test_transform_calls_module_hooks_once() -> None:
     transform = AddToCoords(1.0)
     calls: list[object] = []
     transform.register_forward_hook(
         lambda _module, _inputs, output: calls.append(output)
     )
 
-    SameParams(transform)([_line_outline(), _line_outline()])
+    transform([_line_outline(), _line_outline()])
 
     assert len(calls) == 1
 
 
-def test_same_params_preserves_wrapped_module_pre_hook_inputs() -> None:
+def test_transform_preserves_module_pre_hook_inputs() -> None:
     transform = AddToCoords(1.0)
     outlines = [_line_outline(), _line_outline()]
     calls: list[tuple[object, ...]] = []
     transform.register_forward_pre_hook(lambda _module, inputs: calls.append(inputs))
 
-    SameParams(transform)(outlines)
+    transform(outlines)
 
     assert len(calls) == 1
     assert calls[0][0] is outlines
@@ -260,21 +259,6 @@ def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
     assert output.location == {}
 
 
-def test_glyph_metadata_is_not_reprocessed_as_pytree_data() -> None:
-    sample = _glyph_sample()
-    first = LoadGlyph()(sample)
-
-    second = LoadGlyph()(first)
-
-    assert isinstance(second, GlyphData)
-    assert second.ref is first.ref
-    assert second.font_idx == first.font_idx
-    assert second.character_idx == first.character_idx
-    assert second.weight == first.weight
-    assert second.location is first.location
-    assert second.data is first.data
-
-
 def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     sample = _glyph_sample()
     bitmap_output = Compose([LoadGlyph(), RenderBitmap(32)])(sample)
@@ -304,40 +288,3 @@ def test_load_glyph_returns_the_randomly_sampled_location() -> None:
     assert output.slant == 0.0
     assert math.isnan(output.optical_size)
     assert set(output.location) == {"wdth", "wght"}
-
-
-def test_load_glyph_samples_multiple_variable_glyphs_independently() -> None:
-    ref = GlyphRef(
-        FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
-        ord("A"),
-    )
-
-    first, second = LoadGlyph(location="random")([ref, ref])
-
-    assert isinstance(first, Outline)
-    assert isinstance(second, Outline)
-
-
-def test_load_glyph_can_share_random_locations_within_one_font() -> None:
-    font = FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0)
-    first_sample = GlyphSample(GlyphRef(font, ord("A")), 0, 0)
-    second_sample = GlyphSample(GlyphRef(font, ord("B")), 0, 1)
-
-    first, second = SameParams(LoadGlyph(location="random"))(
-        [first_sample, second_sample]
-    )
-
-    assert isinstance(first, GlyphData)
-    assert isinstance(second, GlyphData)
-    assert first.location == second.location
-
-
-def test_load_glyph_rejects_shared_random_locations_across_fonts() -> None:
-    first = GlyphRef(
-        FontRef("tests/fonts/roboto/Roboto[wdth,wght].ttf", 0),
-        ord("A"),
-    )
-    second = GlyphRef(FontRef("tests/fonts/lato/Lato-Regular.ttf", 0), ord("A"))
-
-    with pytest.raises(ValueError, match="only within one font"):
-        SameParams(LoadGlyph(location="random"))([first, second])

@@ -39,10 +39,7 @@ class VerticalFlip(Transform):
 
 
 class RandomHorizontalFlip(HorizontalFlip):
-    """Flip each outline independently with probability ``p``.
-
-    Wrap with :class:`SameParams` to share one decision across outlines.
-    """
+    """Flip outlines with probability ``p`` using one shared decision."""
 
     def __init__(self, p: float = 0.5, *, preserve_winding: bool = True) -> None:
         super().__init__(preserve_winding=preserve_winding)
@@ -59,10 +56,7 @@ class RandomHorizontalFlip(HorizontalFlip):
 
 
 class RandomVerticalFlip(VerticalFlip):
-    """Flip each outline independently with probability ``p``.
-
-    Wrap with :class:`SameParams` to share one decision across outlines.
-    """
+    """Flip outlines with probability ``p`` using one shared decision."""
 
     def __init__(self, p: float = 0.5, *, preserve_winding: bool = True) -> None:
         super().__init__(preserve_winding=preserve_winding)
@@ -119,10 +113,7 @@ def _symmetric_range(value: float | tuple[float, float]) -> tuple[float, float]:
 
 
 class RandomAffine(Transform):
-    """Apply independently sampled affine parameters to each outline.
-
-    Wrap with :class:`SameParams` to share one parameter sample across outlines.
-    """
+    """Apply one affine parameter sample to all outlines in the input."""
 
     def __init__(
         self,
