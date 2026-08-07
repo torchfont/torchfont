@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 from torch import Tensor, nn
 
@@ -40,6 +42,15 @@ class OutlineEmbedding(nn.Module):
             device=device,
             dtype=dtype,
         )
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        """Draw both branches from one uniform bound over the combined width."""
+        bound = 1 / math.sqrt(TYPE_DIM + COORD_DIM)
+        nn.init.uniform_(self.type_embedding.weight, -bound, bound)
+        nn.init.uniform_(self.coord_projection.weight, -bound, bound)
+        with torch.no_grad():
+            self.type_embedding.weight[ElementType.PAD.value].zero_()
 
     def forward(self, types: Tensor, coords: Tensor) -> Tensor:
         """Return the sum of element-type and coordinate embeddings."""
