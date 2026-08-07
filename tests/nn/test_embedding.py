@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont import ElementType
+from torchfont import COORD_DIM, TYPE_DIM, ElementType
 from torchfont.nn import OutlineEmbedding
 
 
@@ -86,6 +86,30 @@ def test_outline_embedding_registers_parameters() -> None:
         "coord_projection.weight",
     }
     assert repr(embedding).startswith("OutlineEmbedding(\n  embedding_dim=4")
+
+
+def test_outline_embedding_initializes_both_branches_from_one_bound() -> None:
+    embedding = OutlineEmbedding(1024)
+    bound = (TYPE_DIM + COORD_DIM) ** -0.5
+    expected_std = bound / 3**0.5
+    type_weight = embedding.type_embedding.weight.detach()[1:]
+    coord_weight = embedding.coord_projection.weight.detach()
+
+    assert type_weight.abs().max() <= bound
+    assert coord_weight.abs().max() <= bound
+    assert float(type_weight.std()) == pytest.approx(expected_std, rel=0.1)
+    assert float(coord_weight.std()) == pytest.approx(expected_std, rel=0.1)
+    assert torch.count_nonzero(embedding.type_embedding.weight[0]) == 0
+
+
+def test_outline_embedding_reset_parameters_redraws_and_keeps_padding_zero() -> None:
+    embedding = OutlineEmbedding(128)
+    before = embedding.type_embedding.weight.clone()
+
+    embedding.reset_parameters()
+
+    assert not torch.equal(embedding.type_embedding.weight[1:], before[1:])
+    assert torch.count_nonzero(embedding.type_embedding.weight[0]) == 0
 
 
 def test_outline_embedding_rejects_misaligned_shapes() -> None:
