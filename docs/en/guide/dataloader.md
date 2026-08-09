@@ -34,10 +34,9 @@ dataset = GlyphDataset(
 )
 
 data: GlyphData[Outline] = dataset[0]
-types, coords = data.data.types, data.data.coords
 
-print(types.shape)
-print(coords.shape)
+print(data.data.shape)
+print(data.data.coords.shape)
 ```
 
 With `LoadGlyph`, `dataset[0]` returns `GlyphData[Outline]`. Its `data` field is
@@ -52,22 +51,35 @@ torch.Size([37, 6])
 
 ## Create a DataLoader
 
-Glyph outline sequences are variable-length, so batching requires a `collate_fn`.
-Use `pad_sequence` to align sequences within a batch. Run the following code:
+Glyph outline sequences are variable-length, so define a local `collate_fn` for
+the exact input contract of your model. Use `pad_outlines` for the payload and
+tensorize only the targets the model needs:
 
 ```python
-from torch.nn.utils.rnn import pad_sequence
+import math
+
+import torch
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
-from torchfont import GlyphData, Outline
+from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(batch: list[GlyphData[Outline]]):
-    types = pad_sequence([item.data.types for item in batch], batch_first=True)
-    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
-    return types, coords
+def collate_fn(samples: list[GlyphData[Outline]]):
+    return {
+        "outline": pad_outlines([sample.data for sample in samples]),
+        "font_idx": torch.tensor(
+            [sample.font_idx for sample in samples], dtype=torch.long
+        ),
+        "weight": torch.tensor(
+            [
+                math.nan if sample.weight is None else sample.weight
+                for sample in samples
+            ],
+            dtype=torch.float32,
+        ),
+    }
 
 
 dataset = GlyphDataset(
@@ -81,43 +93,108 @@ dataset = GlyphDataset(
     transform=LoadGlyph(),
 )
 
-loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
-types_t, coords_t = next(iter(loader))
+loader = DataLoader(
+    dataset,
+    batch_size=64,
+    shuffle=True,
+    collate_fn=collate_fn,
+)
+batch = next(iter(loader))
 
-print(types_t.shape)
-print(coords_t.shape)
+print(batch["outline"].shape)
+print(batch["outline"].coords.shape)
+print(batch["weight"].shape)
 ```
 
-`collate_fn` pads each sequence to the length of the longest one in the batch.
-The first dimension is the batch size. The second dimension is the longest
-sequence length in the batch and varies per batch. You will see output like:
+Outlines are padded to the length of the longest one in the batch. The first
+dimension is the batch size; the second is the longest sequence length in the
+batch and varies per batch. Targets become 1-dimensional tensors of length
+`batch_size`. You will see output like:
 
 ```
 torch.Size([64, 369])
 torch.Size([64, 369, 6])
+torch.Size([64])
+```
+
+## Work with a padded batch
+
+Padded elements use `ElementType.PAD`. Rather than recovering them by comparing
+against that value, read `padding_mask`, which is exactly what attention modules
+expect as `key_padding_mask`:
+
+```python
+mask = batch["outline"].padding_mask  # (64, 369), True where padding
+```
+
+`unpad_outlines()` explicitly splits a padded batch back into the single
+outlines that went in. By contrast, `Outline.unbind()` preserves padding just
+like an ordinary tensor operation:
+
+```python
+from torchfont import unpad_outlines
+
+singles = unpad_outlines(batch["outline"])
+
+print(len(singles), singles[0].shape)
+```
+
+`torchfont.nn` modules take an `Outline`, batched or not, so a padded batch goes
+straight into a model:
+
+```python
+from torchfont.nn import OutlineEmbedding
+
+tokens = OutlineEmbedding(embedding_dim=256)(batch["outline"])
+
+print(tokens.shape)  # (64, 369, 256)
+```
+
+## Batch outlines without a DataLoader
+
+`pad_outlines` applies the same padding step directly:
+
+```python
+from torchfont import pad_outlines
+
+batched = pad_outlines([dataset[0].data, dataset[1].data])
+
+print(batched.shape)
 ```
 
 ## Multi-process loading
 
 Set `num_workers` and `prefetch_factor` to load data in parallel worker
-processes. Long sequences increase transfer overhead, so this example's
-`collate_fn` truncates each sequence to the first 512 elements. Use `tqdm` to
-iterate over all batches and measure throughput. Run the following code:
+processes.
+
+Each batch is padded to its longest outline, so a single very large glyph
+inflates the whole batch and the transfer to the training process with it. This
+example caps every outline at 512 elements in its local `collate_fn`. Define it
+at module level: worker processes pickle the `collate_fn`, so a lambda will not
+work.
+
+Use `tqdm` to iterate over all batches and measure throughput. Run the following
+code:
 
 ```python
+import torch
 from tqdm import tqdm
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
+from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.datasets import GlyphDataset
-from torchfont import GlyphData, Outline
 from torchfont.transforms import LoadGlyph
 
+MAX_ELEMENTS = 512
 
-def collate_fn(batch: list[GlyphData[Outline]]):
-    types = pad_sequence([item.data.types[:512] for item in batch], batch_first=True)
-    coords = pad_sequence([item.data.coords[:512] for item in batch], batch_first=True)
-    return types, coords
+
+def collate_fn(samples: list[GlyphData[Outline]]):
+    return {
+        "outline": pad_outlines([sample.data[:MAX_ELEMENTS] for sample in samples]),
+        "font_idx": torch.tensor(
+            [sample.font_idx for sample in samples], dtype=torch.long
+        ),
+    }
 
 
 dataset = GlyphDataset(
@@ -154,3 +231,9 @@ prefetch settings for your storage and training environment.
 len(dataset)=...
 100%|██████████| .../... [..., ...it/s]
 ```
+
+::: tip Padding without truncation
+Truncation drops geometry. To keep whole outlines and still avoid the padding
+cost, group glyphs of similar length with a length-aware `Sampler` instead of
+capping their length.
+:::

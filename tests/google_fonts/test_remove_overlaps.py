@@ -6,11 +6,11 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+from tests._pairs import remove_overlaps
 from torchfont import ElementType, GlyphSample, Outline
 from torchfont.datasets import GlyphDataset
 from torchfont.transforms import functional as _functional
 from torchfont.transforms.functional import render_bitmap
-from torchfont.transforms.functional._outline import _remove_overlaps as remove_overlaps
 
 logger = logging.getLogger(__name__)
 

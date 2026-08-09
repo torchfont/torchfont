@@ -32,7 +32,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["numpy>=1.21.3", "torch>=2.3.0"]
+dependencies = ["numpy>=1.21.3", "torch>=2.5.0"]
 
 [project.urls]
 Repository = "https://github.com/torchfont/torchfont"
@@ -52,7 +52,7 @@ dev = [
     "pytest>=8.4.2",
     "pytest-benchmark>=5.1.0",
     "skia-pathops>=0.9.2",
-    "torchvision>=0.18.0",
+    "torchvision>=0.20.0",
     "tqdm>=4.67.1",
     "ty>=0.0.63",
     "types-tqdm>=4.67.0.20250809",
@@ -84,6 +84,8 @@ ignore = ["COM812", "CPY001", "D203", "D213", "EXE002"]
 
 [tool.ruff.lint.per-file-ignores]
 "examples/**/*.py" = ["D", "T201"]
+# Operator signatures are fixed by the schema each kernel is registered with.
+"torchfont/_ops.py" = ["FBT001", "PLR0913", "PLR0917"]
 "torchfont/transforms/functional/_geometry.py" = ["PLR0913"]
 "tests/**/*.py" = ["D", "PLR2004", "S101"]
 

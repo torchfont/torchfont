@@ -59,11 +59,10 @@ def test_random_affine_rejects_non_pair_ranges(name: str) -> None:
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_random_affine_preserves_cuda_device(
+def test_random_affine_rejects_cuda_input(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    output = RandomAffine(degrees=45.0)(
-        Outline(*(tensor.cuda() for tensor in simple_outline))
-    )
-    assert output.types.device.type == "cuda"
-    assert output.coords.device.type == "cuda"
+    with pytest.raises(NotImplementedError, match="CUDA"):
+        RandomAffine(degrees=45.0)(
+            Outline(*(tensor.cuda() for tensor in simple_outline))
+        )

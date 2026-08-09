@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont import ElementType
+from torchfont import ElementType, Outline
 from torchfont.nn.functional import coordinate_loss
 
 
@@ -24,7 +24,7 @@ def test_coordinate_loss_masks_inactive_coordinates() -> None:
     prediction = torch.zeros((len(types), 6))
     target = torch.ones_like(prediction)
 
-    loss = coordinate_loss(prediction, target, types, reduction="none")
+    loss = coordinate_loss(prediction, Outline(types, target), reduction="none")
 
     expected = torch.tensor(
         [
@@ -51,7 +51,7 @@ def test_coordinate_loss_ignores_nonfinite_inactive_coordinates() -> None:
         ]
     )
 
-    loss = coordinate_loss(prediction, target, types, reduction="none")
+    loss = coordinate_loss(prediction, Outline(types, target), reduction="none")
 
     assert torch.equal(
         loss,
@@ -63,7 +63,7 @@ def test_coordinate_loss_mean_is_zero_without_active_coordinates() -> None:
     types = torch.tensor([ElementType.CLOSE, ElementType.END, ElementType.PAD])
     prediction = torch.zeros((3, 6), requires_grad=True)
 
-    loss = coordinate_loss(prediction, torch.ones_like(prediction), types)
+    loss = coordinate_loss(prediction, Outline(types, torch.ones_like(prediction)))
     loss.backward()
 
     assert loss.item() == 0.0
@@ -76,8 +76,11 @@ def test_coordinate_loss_reductions_count_only_active_coordinates() -> None:
     prediction = torch.zeros((len(types), 6))
     target = torch.ones_like(prediction)
 
-    assert coordinate_loss(prediction, target, types).item() == 1.0
-    assert coordinate_loss(prediction, target, types, reduction="sum").item() == 14.0
+    assert coordinate_loss(prediction, Outline(types, target)).item() == 1.0
+    assert (
+        coordinate_loss(prediction, Outline(types, target), reduction="sum").item()
+        == 14.0
+    )
 
 
 def test_coordinate_loss_backpropagates_only_through_active_coordinates() -> None:
@@ -85,7 +88,7 @@ def test_coordinate_loss_backpropagates_only_through_active_coordinates() -> Non
     prediction = torch.zeros((2, 6), requires_grad=True)
     target = torch.ones_like(prediction)
 
-    coordinate_loss(prediction, target, types, reduction="sum").backward()
+    coordinate_loss(prediction, Outline(types, target), reduction="sum").backward()
 
     grad = prediction.grad
     assert grad is not None
@@ -93,33 +96,17 @@ def test_coordinate_loss_backpropagates_only_through_active_coordinates() -> Non
     assert torch.count_nonzero(grad[1]) == 0
 
 
-@pytest.mark.parametrize(
-    ("prediction_shape", "target_shape", "types_shape", "match"),
-    [
-        ((2, 6), (3, 6), (2,), "same shape"),
-        ((2, 5), (2, 5), (2,), "must have shape"),
-        ((2, 6), (2, 6), (1, 2), "types shape must match"),
-    ],
-)
-def test_coordinate_loss_rejects_misaligned_shapes(
-    prediction_shape: tuple[int, ...],
-    target_shape: tuple[int, ...],
-    types_shape: tuple[int, ...],
-    match: str,
-) -> None:
-    with pytest.raises(ValueError, match=match):
-        coordinate_loss(
-            torch.zeros(prediction_shape),
-            torch.zeros(target_shape),
-            torch.zeros(types_shape, dtype=torch.long),
-        )
+def test_coordinate_loss_rejects_a_prediction_that_does_not_match_the_target() -> None:
+    target = Outline(torch.zeros(3, dtype=torch.long), torch.zeros((3, 6)))
+
+    with pytest.raises(ValueError, match="same shape as the target coordinates"):
+        coordinate_loss(torch.zeros((2, 6)), target)
 
 
 def test_coordinate_loss_rejects_invalid_reduction() -> None:
     with pytest.raises(ValueError, match="not a valid value"):
         coordinate_loss(
             torch.zeros((1, 6)),
-            torch.zeros((1, 6)),
-            torch.tensor([ElementType.MOVE_TO]),
+            Outline(torch.tensor([ElementType.MOVE_TO]), torch.zeros((1, 6))),
             reduction="invalid",  # ty: ignore[invalid-argument-type]
         )

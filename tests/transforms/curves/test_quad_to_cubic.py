@@ -1,13 +1,8 @@
 import pytest
 import torch
 
+from tests._pairs import cubic_to_quad, quad_to_cubic
 from torchfont import ElementType
-from torchfont.transforms.functional._curves import (
-    _cubic_to_quad as cubic_to_quad,
-)
-from torchfont.transforms.functional._curves import (
-    _quad_to_cubic as quad_to_cubic,
-)
 
 from ._helpers import (
     _CUBIC_CURVES,
@@ -103,7 +98,7 @@ def test_quad_to_cubic_rejects_mismatched_coords() -> None:
     )
     coords = torch.zeros(2, 6, dtype=torch.float32)
 
-    with pytest.raises(ValueError, match="coords length"):
+    with pytest.raises(ValueError, match="types shape must match coords"):
         quad_to_cubic(types, coords)
 
 
@@ -128,12 +123,10 @@ def test_quad_to_cubic_merge_curves_runs_even_without_quadratics() -> None:
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_quad_to_cubic_preserves_cuda_device(
+def test_quad_to_cubic_rejects_cuda_input(
     quad_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = (tensor.cuda() for tensor in quad_outline)
 
-    out_types, out_coords = quad_to_cubic(types, coords)
-
-    assert out_types.device.type == "cuda"
-    assert out_coords.device.type == "cuda"
+    with pytest.raises(NotImplementedError, match="CUDA"):
+        quad_to_cubic(types, coords)

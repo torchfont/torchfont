@@ -2,11 +2,11 @@
 
 from typing import Literal
 
-import torch
 from torch import Tensor
 
-from torchfont import _torchfont
+from torchfont import _ops
 from torchfont._outline import Outline
+from torchfont.transforms.functional._utils import _require_no_grad, _require_single
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 FillRule = Literal["winding", "even_odd"]
@@ -43,13 +43,14 @@ def render_bitmap(
         ``"fixed"`` and ``"bbox_square"``, and variable ``(height, width)`` for
         ``"bbox"``.
 
+    Notes:
+        Integer coverage defines no gradient, so an outline that requires grad is
+        rejected.
+
     """
-    types = inpt.types.cpu().contiguous()
-    coords = inpt.coords.cpu().contiguous()
-    raw, width, height = _torchfont.render_bitmap(
-        types.numpy(), coords.reshape(-1).numpy(), size, mode, fill_rule, antialias
-    )
-    return torch.from_numpy(raw).view(height, width)
+    _require_single(inpt, "render_bitmap")
+    _require_no_grad(inpt, "render_bitmap")
+    return _ops.render_bitmap(inpt.types, inpt.coords, size, mode, fill_rule, antialias)
 
 
 __all__ = ["BitmapMode", "FillRule", "render_bitmap"]

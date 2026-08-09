@@ -32,10 +32,9 @@ dataset = GlyphDataset(
 )
 
 data: GlyphData[Outline] = dataset[0]
-types, coords = data.data.types, data.data.coords
 
-print(types.shape)
-print(coords.shape)
+print(data.data.shape)
+print(data.data.coords.shape)
 ```
 
 `LoadGlyph` を渡すと、`dataset[0]` は `GlyphData[Outline]` を返します。`data` Field が
@@ -49,21 +48,35 @@ torch.Size([37, 6])
 
 ## DataLoader を作成する
 
-グリフのアウトライン系列は可変長のため、バッチ化には `collate_fn` が必要です。`pad_sequence` を使ってバッチ内のシーケンスを揃えます。次のコードを実行してください。
+グリフのアウトライン系列は可変長なので、モデルの入力契約に合うローカルな
+`collate_fn` を定義します。Payload には `pad_outlines` を使い、モデルが必要とする
+Target だけを Tensor に変換します。
 
 ```python
-from torch.nn.utils.rnn import pad_sequence
+import math
+
+import torch
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import GlyphDataset
-from torchfont import GlyphData, Outline
+from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(batch: list[GlyphData[Outline]]):
-    types = pad_sequence([item.data.types for item in batch], batch_first=True)
-    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
-    return types, coords
+def collate_fn(samples: list[GlyphData[Outline]]):
+    return {
+        "outline": pad_outlines([sample.data for sample in samples]),
+        "font_idx": torch.tensor(
+            [sample.font_idx for sample in samples], dtype=torch.long
+        ),
+        "weight": torch.tensor(
+            [
+                math.nan if sample.weight is None else sample.weight
+                for sample in samples
+            ],
+            dtype=torch.float32,
+        ),
+    }
 
 
 dataset = GlyphDataset(
@@ -77,38 +90,94 @@ dataset = GlyphDataset(
     transform=LoadGlyph(),
 )
 
-loader = DataLoader(dataset, batch_size=64, shuffle=True, collate_fn=collate_fn)
-types_t, coords_t = next(iter(loader))
+loader = DataLoader(
+    dataset,
+    batch_size=64,
+    shuffle=True,
+    collate_fn=collate_fn,
+)
+batch = next(iter(loader))
 
-print(types_t.shape)
-print(coords_t.shape)
+print(batch["outline"].shape)
+print(batch["outline"].coords.shape)
+print(batch["weight"].shape)
 ```
 
-`collate_fn` はバッチ内の最長シーケンスに合わせてパディングします。実行すると次のような出力が得られます。1 次元目はバッチサイズです。2 次元目はバッチ内の最長シーケンス長で、バッチごとに異なります。
+Outline はバッチ内の最長のものに合わせてパディングされます。1 次元目はバッチサイズです。2 次元目はバッチ内の最長シーケンス長で、バッチごとに異なります。Target は長さ `batch_size` の 1 次元テンソルになります。次のような出力が得られます。
 
 ```
 torch.Size([64, 369])
 torch.Size([64, 369, 6])
+torch.Size([64])
+```
+
+## パディング済みバッチを扱う
+
+パディングされた要素は `ElementType.PAD` です。その値と比較して復元するのではなく、`padding_mask` を読んでください。これは Attention モジュールが `key_padding_mask` として要求するものそのままです。
+
+```python
+mask = batch["outline"].padding_mask  # (64, 369)、パディング位置が True
+```
+
+`unpad_outlines()` は Padding 済み Batch を明示的に分割し、入力した単一 Outline に戻します。一方、`Outline.unbind()` は通常の Tensor 操作と同じく Padding を保持します。
+
+```python
+from torchfont import unpad_outlines
+
+singles = unpad_outlines(batch["outline"])
+
+print(len(singles), singles[0].shape)
+```
+
+`torchfont.nn` のモジュールはバッチ化の有無を問わず `Outline` を受け取るので、パディング済みバッチをそのままモデルに渡せます。
+
+```python
+from torchfont.nn import OutlineEmbedding
+
+tokens = OutlineEmbedding(embedding_dim=256)(batch["outline"])
+
+print(tokens.shape)  # (64, 369, 256)
+```
+
+## DataLoader を使わずにバッチ化する
+
+`pad_outlines` は同じパディング処理を直接呼び出せます。
+
+```python
+from torchfont import pad_outlines
+
+batched = pad_outlines([dataset[0].data, dataset[1].data])
+
+print(batched.shape)
 ```
 
 ## マルチプロセス読み込み
 
-`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。シーケンス長が長いと転送コストが大きくなるため、この例の `collate_fn` で先頭 512 要素に切り詰めます。`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
+`num_workers` と `prefetch_factor` を指定すると、データ読み込みをワーカープロセスで並列化できます。
+
+各バッチはその中の最長 Outline に合わせてパディングされるため、巨大なグリフが 1 つ混ざるとバッチ全体、ひいては学習プロセスへの転送量が膨らみます。次の例ではローカルな `collate_fn` で各 Outline を 512 要素に打ち切ります。ワーカープロセスは `collate_fn` を pickle するため、lambda ではなくモジュールレベルの関数として定義してください。
+
+`tqdm` で全バッチを読み込んでスループットを確認します。次のコードを実行してください。
 
 ```python
+import torch
 from tqdm import tqdm
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
+from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.datasets import GlyphDataset
-from torchfont import GlyphData, Outline
 from torchfont.transforms import LoadGlyph
 
+MAX_ELEMENTS = 512
 
-def collate_fn(batch: list[GlyphData[Outline]]):
-    types = pad_sequence([item.data.types[:512] for item in batch], batch_first=True)
-    coords = pad_sequence([item.data.coords[:512] for item in batch], batch_first=True)
-    return types, coords
+
+def collate_fn(samples: list[GlyphData[Outline]]):
+    return {
+        "outline": pad_outlines([sample.data[:MAX_ELEMENTS] for sample in samples]),
+        "font_idx": torch.tensor(
+            [sample.font_idx for sample in samples], dtype=torch.long
+        ),
+    }
 
 
 dataset = GlyphDataset(
@@ -143,3 +212,7 @@ for batch in tqdm(loader):
 len(dataset)=...
 100%|██████████| .../... [..., ...it/s]
 ```
+
+::: tip 打ち切らずにパディングを抑える
+打ち切りは幾何情報を捨てます。Outline 全体を保ったままパディングのコストを避けるには、長さを打ち切るのではなく、長さを考慮した `Sampler` で近い長さの Glyph をまとめてください。
+:::

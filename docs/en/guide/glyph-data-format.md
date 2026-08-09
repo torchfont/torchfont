@@ -38,7 +38,12 @@ print(data.optical_size)  # optical size in points
 
 The return value is `GlyphData[Outline]`. It keeps the semantic outline,
 deterministic glyph reference, and dataset-local targets in one shallow record.
-Registered-axis targets that are unavailable in the font are `NaN`.
+Registered-axis targets that are unavailable in the font are `None`.
+
+Indices are Python integers and continuous targets are floats. A continuous
+target unavailable in the font is `None`. A training application's local
+`collate_fn` can convert selected targets to tensors and choose its own missing
+value representation, such as `NaN` plus a mask.
 
 ## Outline model
 
@@ -89,7 +94,9 @@ MOVE_TO
 The seven types are `MoveTo`, `LineTo`, `QuadTo`, `CurveTo`, `Close`, `End`, and `Pad`.
 
 - `ElementType.END` marks the end of the sequence
-- `ElementType.PAD` is mainly introduced by `pad_sequence` or custom padding
+- `ElementType.PAD` marks rows introduced by padding a batch. Loading a font
+  never produces it, and a single glyph never contains it. Read
+  `outline.padding_mask` rather than comparing against the value.
 
 ## Coordinates
 

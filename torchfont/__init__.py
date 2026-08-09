@@ -29,9 +29,16 @@ Package Layout:
 
 """
 
-from torchfont._font import FontRef, VariationLocation
+from torchfont._font import FontRef
 from torchfont._glyph import GlyphData, GlyphRef, GlyphSample
-from torchfont._outline import COORD_DIM, TYPE_DIM, ElementType, Outline
+from torchfont._outline import (
+    COORD_DIM,
+    TYPE_DIM,
+    ElementType,
+    Outline,
+    pad_outlines,
+    unpad_outlines,
+)
 
 from . import datasets, glyphsets, nn, transforms
 
@@ -44,9 +51,10 @@ __all__ = [
     "GlyphRef",
     "GlyphSample",
     "Outline",
-    "VariationLocation",
     "datasets",
     "glyphsets",
     "nn",
+    "pad_outlines",
     "transforms",
+    "unpad_outlines",
 ]

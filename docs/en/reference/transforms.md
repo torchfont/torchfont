@@ -1,9 +1,8 @@
 # Transforms
 
-TorchFont transforms follow the TorchVision Transforms v2
-(`torchvision.transforms.v2`) model: semantic data objects,
-class-based stochastic transforms, deterministic functional kernels, and pytree
-composition.
+TorchFont provides composable transforms for loading, modifying, and rendering
+glyphs. TorchVision is optional and can be added when the result should enter an
+image pipeline.
 
 ## Data types
 
@@ -12,11 +11,9 @@ from torchfont import GlyphData, Outline
 ```
 
 `Outline(types, coords)` keeps the two coupled tensors together.
-`GlyphData[T]` keeps a transformed payload, glyph reference, concrete variation
-location, and targets together. Since its payload is generic, a pipeline can
-change it from `Outline` to a plain bitmap tensor without losing metadata. Rasterized
-glyphs do not need a TorchFont-specific tensor subclass: they cross into image
-semantics explicitly through TorchVision's `ToImage()` when required.
+`GlyphData[T]` keeps a transformed payload, glyph reference, variation location,
+and targets together. A pipeline can change its payload from `Outline` to a
+bitmap tensor without losing the other fields.
 
 ## Loading and composition
 
@@ -49,34 +46,17 @@ records it in `GlyphData.location`; on a static face it naturally uses an empty
 location. For dataset samples, it also resolves the parallel `weight`, `width`,
 `italic`, `slant`, and `optical_size` targets on the returned `GlyphData`.
 
-`Transform` flattens nested pytree inputs, samples parameters once for all
-matching semantic leaves, and restores the input structure. Thus corresponding
-outlines in one transform call receive the same flip, affine parameters, or
-element-level random values. Apply the transform separately to independent
-samples. Random transforms use PyTorch's default RNG, so
+Transforms accept nested inputs and preserve their structure. Corresponding
+outlines in one call receive the same randomly sampled parameters. Apply the
+transform separately to independent samples. Random transforms use PyTorch's default RNG, so
 `torch.manual_seed` and DataLoader worker seeding apply normally.
-Built-in transforms contain configuration only and remain pickle-friendly.
-`Compose` registers its children in a `torch.nn.ModuleList`, including when it
-is constructed from an ordinary list of modules. `RandomApply` registers the
-single module it wraps. Plain callables are intentionally
-unsupported: define a small `nn.Module` so its
-behavior, representation, and pickle requirements remain explicit. This keeps
-module traversal, state dictionaries, hooks, and configuration display
-consistent with PyTorch.
+Built-in transforms can be used with multiprocessing data loaders. `Compose`
+accepts `nn.Module` transforms; define custom transforms as `nn.Module`
+subclasses rather than plain callables. An empty `Compose` leaves its input
+unchanged. Use `Compose` inside `RandomApply` to group several transforms.
 
-Containers invoke registered children through the module call path, so forward
-hooks remain effective. `train()` and `eval()` propagate normally, but built-in
-random transforms intentionally do not use the `training` flag: preprocessing
-and model mode are separate concerns. Select a deterministic pipeline explicitly
-for evaluation rather than relying on `eval()` to disable augmentation.
-
-Like `torchvision.transforms.v2`, `Transform` subclasses and containers accept
-either one pytree or multiple positional inputs. `check_inputs()` is available
-to custom transforms that need to check relationships between leaves before sampling parameters.
-`Compose` immediately materializes an iterable of `nn.Module` objects into an
-`nn.ModuleList`; an empty iterable is an identity transform. `RandomApply` wraps
-one `nn.Module`. Use `Compose` inside `RandomApply` when grouping several
-transforms.
+Calling `eval()` does not disable random data augmentation. Use a deterministic
+pipeline for evaluation.
 
 `RandomApply(transform, p)` controls whether one transform is applied.
 Probabilities such as `RandomSplitSegments.split_probability` control behavior
@@ -103,8 +83,8 @@ alongside the converted payload.
 `RenderBitmap` returns a plain grayscale `H x W` tensor. Use
 `torchvision.transforms.v2.ToImage()` as the boundary into an image pipeline:
 it adds the channel
-dimension and returns a `tv_tensors.Image` of shape `1 x H x W`. It preserves
-the enclosing `GlyphData` because both libraries operate on pytrees.
+dimension and returns a `tv_tensors.Image` of shape `1 x H x W`. Fields in an
+enclosing `GlyphData` are preserved.
 `RenderBitmap(antialias=False)` produces binary edge coverage. This controls
 vector rasterization and is independent of the `antialias` option on a later
 `v2.Resize`, which controls image resampling.
@@ -137,7 +117,7 @@ not scale pixel values. `ToPureTensor()` removes the image subclass before the
 payload enters a model. TorchVision remains an optional integration dependency;
 TorchFont's renderer does not require it.
 
-## Functional kernels
+## Functional API
 
 Deterministic operations are available from `torchfont.transforms.functional`:
 
@@ -156,10 +136,76 @@ shape = bitmap.shape
 The functional API does not sample randomness. Random selection and parameter
 sampling belong to the `Random*` transform classes.
 
-These transforms are `nn.Module` objects for composition, registration, PyTorch
-RNG behavior, and pytree processing. Rust-backed outline functionals cross a
-CPU/NumPy boundary and are preprocessing operations: they are not promised to
-participate in autograd, remain on an accelerator, or be captured by
-`torch.compile`. Functionals currently operate on the single semantic input type
-documented by their signatures; TorchFont does not add a kernel registry until
-multiple outline representations require one.
+### Single glyphs only
+
+Every operation in this section accepts a single glyph. Passing a batched
+`Outline` raises:
+
+```python
+F.affine(batch, angle=5.0)
+# ValueError: affine operates on a single outline, got batch shape (64,);
+#             iterate with unpad_outlines() first
+```
+
+Transforms run per sample, before collation. Batch a pipeline's output with
+[`pad_outlines`](./core-types.md#pad-outlines) or a `DataLoader`.
+
+### Differentiability
+
+Gradient support varies by operation:
+
+| Kernel | Differentiable |
+| --- | --- |
+| `affine` | yes |
+| `coord_jitter` | yes, in both the outline and the noise |
+| `horizontal_flip`, `vertical_flip` | only with `preserve_winding=False` |
+| `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | no |
+| `remove_overlaps`, `remove_overlap_groups` | no |
+| `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | no |
+| `render_bitmap` | no |
+
+Passing an outline that requires grad to an operation marked "no" raises:
+
+```python
+outline.coords.requires_grad_()
+F.remove_overlaps(outline)
+# Raises RuntimeError
+```
+
+`affine` and the flips pivot around the tight bounding-box centre. Gradients flow
+through the transformed coordinates but not through that centre.
+
+### Devices
+
+`LoadGlyph` returns CPU `float32` outlines. `Affine`, flip, curve, overlap, and
+subpath transforms, as well as `RenderBitmap`, require CPU `float32` outlines.
+Convert other outlines explicitly before calling them:
+
+```python
+outline = outline.to("cpu", torch.float32)
+```
+
+`RandomCoordJitter` and `functional.coord_jitter` preserve the input device and
+floating point dtype.
+
+### `torch.compile`
+
+Functional pipelines can be used with `torch.compile`:
+
+```python
+import torch
+
+# Required on PyTorch 2.5 when an operation can change the outline length.
+torch._dynamo.config.capture_dynamic_output_shape_ops = True
+
+
+def pipeline(types, coords):
+    outline = Outline(types, coords)
+    outline = F.remove_overlaps(outline)
+    outline = F.cubic_to_quad(outline)
+    outline = F.affine(outline, angle=10.0)
+    return F.render_bitmap(outline, 32)
+
+
+compiled = torch.compile(pipeline)
+```

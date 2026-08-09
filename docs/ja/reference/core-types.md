@@ -2,9 +2,7 @@
 
 ## `torchfont`
 
-変更不可の意味レコードとアウトラインのエンコーディングに使う共通型です。
-テンソルサブクラスの挙動を追加せず、データセットと変換パイプラインの間で
-フォントの意味を保持します。
+フォントデータをデータセットと変換パイプラインの間で受け渡すための型です。
 
 ```python
 from torchfont import (
@@ -14,28 +12,87 @@ from torchfont import (
     GlyphRef,
     GlyphSample,
     Outline,
-    VariationLocation,
+    pad_outlines,
+    unpad_outlines,
 )
 ```
 
-`VariationLocation` は変更不可でハッシュ可能なマッピングで、軸タグを常に
-ソート済みの順序で保持します。イテラブルな入力に正規化後の重複タグがある場合は、
-値を黙って上書きせず拒否します。`FontRef`、グリフ参照、データセットのサンプルは
-変更不可の `dataclass` で、マルチプロセスのデータローダーでも `pickle` 可能です。
+Variation Location には `dict[str, float]` を使います。Font 参照、Glyph 参照、
+Dataset Sample はマルチプロセスの DataLoader でも使用できます。
 
-`Outline` は一つの可変長で、バッチ化されていないグリフを表します。`types` は形状 `(N,)` の
-`torch.long`、`coords` は形状 `(N, 6)` の `torch.float32` で、各行が一対一に対応し、
-同じデバイス上に置かれます。これらの構造的不変条件は `Outline` 構築時に検査されます。
-各要素型で使われない座標、および `CLOSE`、`END`、`PAD` の全座標には意味が
-ありません。`GlyphData` は変換後の Payload、Glyph 参照、確定済みの Variation Location、
-並列な `font_idx`、`character_idx`、`weight`、`width`、`italic`、`slant`、`optical_size`
-Target を浅い一つの Record に保持します。Registered Axis の値を優先し、Axis にない値は
-可能な場合に OS/2、`head`、`post` の同等な Metadata から取得します。取得できない Target
-は `NaN` です。
+### `Outline`
 
-`Outline` と `GlyphData` は意図的に同一性による比較を使います。Tensor Payload には
-`dataclass` が生成する等値比較ではなく、`torch.equal()` などを使います。`GlyphSample` は
-値 Record のままです。
+`Outline` は結合した二つのテンソルを保持します。`types` は形状 `(*batch, N)` の
+`torch.long`、`coords` は形状 `(*batch, N, 6)` の任意の浮動小数点型で、各行が
+一対一に対応し、同じデバイス上に置かれます。各要素型で使われない座標、および
+`CLOSE`、`END`、`PAD` の全座標には意味がありません。
+
+単一グリフの Batch 形状は空です。[`pad_outlines`](#pad-outlines) は単一グリフを
+バッチにまとめます。ほとんどの Transform は単一グリフだけを扱い、バッチ化された
+`Outline` は明示的なエラーで拒否します。
+
+次のプロパティで、中身を取り出さずに Outline を調べられます。
+
+| プロパティ | 意味 |
+| --- | --- |
+| `shape` | `types` の形状、つまり `(*batch, N)` |
+| `batch_shape` | 先頭の Batch 次元。単一グリフでは空 |
+| `num_elements` | パディングを含む 1 グリフあたりの要素数 |
+| `is_batched` | Batch 次元を持つかどうか |
+| `dtype` | `coords` の浮動小数点型 |
+| `device` | 両テンソルが共有するデバイス |
+| `padding_mask` | 要素が `PAD` の位置で `True` になる Boolean Mask |
+
+`to()` と `pin_memory()` は両方のテンソルに同時に適用されます。`to()` に渡す dtype は
+`coords` にのみ適用され、浮動小数点型でなければなりません。それ以外の Tensor 操作は
+`types` または `coords` に直接適用します。Index は座標軸を常に保ったまま論理的な `(*batch, N)` 次元を
+対象にし、最後の要素次元を取り除く Index は使えません。`len()` は最初の論理次元の
+長さを返します。`unbind()` は内容を変更せず、最初の
+Batch 次元だけを分割します。
+
+`Outline` 同士は同一性で比較されます。内容の等値性が必要な場合は `types` と
+`coords` を `torch.equal()` で明示的に比較します。入力テンソルをその場で変更すると、
+その変更は Outline にも反映されます。どちらの属性への代入もエラーになります。
+
+### `pad_outlines`
+
+```python
+pad_outlines(outlines: Sequence[Outline]) -> Outline
+```
+
+単一 Outline を `ElementType.PAD` とゼロ座標でパディングして一つのバッチに
+まとめます。入力はすべて単一グリフで、デバイスと `coords` の dtype が共通で
+なければなりません。パディング位置は `padding_mask` で取得でき、
+[`unpad_outlines`](#unpad-outlines) で元に戻せます。
+
+### `unpad_outlines`
+
+```python
+unpad_outlines(outline: Outline) -> tuple[Outline, ...]
+```
+
+Batch 次元がちょうど一つの `Outline` を分割し、各結果の末尾にある
+`ElementType.PAD` 行を除去します。これは `pad_outlines` の明示的な逆操作です。
+Padding を保持する場合は `Outline.unbind()` を使います。
+
+### `GlyphData`
+
+`GlyphData` は変換後の Payload、Glyph 参照、Variation Location、
+並列な `font_idx`、`character_idx`、`weight`、`width`、`italic`、`slant`、
+`optical_size` Target を保持します。取得できない連続 Target は `None` です。
+
+`location` は Glyph の読み込みに使った OpenType Axis Tag と値を保持する通常の
+`dict[str, float]` です。
+
+Index は Python の整数、連続 Target は Float です。取得できない連続 Target は
+`None` になります。
+
+`GlyphData` 同士は同一性で比較されます。Tensor Payload の内容を比較する場合は、
+明示的な Tensor 比較を使ってください。
+
+モデルの入力契約に合わせてローカルな `DataLoader.collate_fn` を定義し、Payload が可変長 Outline の
+場合は [`pad_outlines`](#pad-outlines) を使います。
+[DataLoader](../guide/dataloader.md) を参照してください。
 
 ### `ElementType: IntEnum`
 
@@ -49,6 +106,9 @@ class ElementType(IntEnum):
     CLOSE = 5
     END = 6
 ```
+
+`PAD` はフォントの読み込みでは生成されません。バッチのパディングで導入された行を
+標識します。
 
 ### `TYPE_DIM: int`
 
