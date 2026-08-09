@@ -3,43 +3,42 @@ layout: home
 
 hero:
   name: TorchFont
-  text: Learn from vector fonts<br>without rasterization
+  text: A Machine Learning Library<br>for Vector Fonts
   tagline:
-    "Convert TTF / OTF / TTC / OTC glyph outlines into PyTorch tensors and plug
-    them into your DataLoader pipeline end-to-end."
+    "Harnessing Rust's high-performance font ecosystem, TorchFont enables fast,
+    on-the-fly font processing without intermediate files."
   image:
     src: /brand/torchfont-logomark.svg
     alt: TorchFont logomark
   actions:
     - theme: brand
       text: Quickstart
-      link: /en/guide/getting-started
+      link: /en/guide/basic/getting-started
     - theme: alt
       text: What is TorchFont?
-      link: /en/guide/what-is-torchfont
+      link: /en/guide/basic/what-is-torchfont
     - theme: alt
       text: GitHub
       link: https://github.com/torchfont/torchfont
 
 features:
-  - icon: ⚙️
-    title: Local-first dataset API
+  - icon: 🗂️
+    title: Fonts as datasets
     details:
-      "Point `GlyphDataset(root=...)` at any local font directory or
-      already-cloned repository checkout."
-  - icon: 🚀
+      "Use font files directly as PyTorch datasets without preprocessing."
+  - icon: ✒️
+    title: Vector-native representation
+    details:
+      "Work directly with glyph outlines as element-type and coordinate
+      tensors."
+  - icon: 🧩
+    title: Composable preprocessing
+    details:
+      "Load, normalize, augment, or render glyphs with reusable Transform
+      pipelines."
+  - icon: 🦀
     title: Rust backend
     details:
-      "A skrifa + PyO3 backend indexes fonts and loads glyph outlines into element
-      type + coordinate tensors on demand."
-  - icon: 🧱
-    title: Reference-first data model
-    details:
-      "`GlyphSample` carries a deterministic glyph reference and target indices,
-      so loading and batching logic can stay in your transform code."
-  - icon: 🧩
-    title: Flexible preprocessing
-    details:
-      "Compose semantic class transforms in `torchvision.transforms.v2`-style pipelines, then
-      shape variable-length tensors in model-specific collate code."
+      "Built on Rust's high-performance font ecosystem for efficient font
+      parsing and outline processing."
 ---

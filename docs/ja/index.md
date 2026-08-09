@@ -3,33 +3,33 @@ layout: home
 
 hero:
   name: TorchFont
-  text: ベクターフォントを<br>そのまま学習データへ
-  tagline: "TTF / OTF / TTC / OTC のグリフアウトラインを PyTorch テンソルへ変換し、DataLoader まで一貫して扱えるライブラリ"
+  text: ベクターフォントのための<br>機械学習ライブラリ
+  tagline: "Rust の高速なフォントエコシステムを活用し、中間ファイルを生成しないフォントデータの高速なオンザフライ処理を実現します。"
   image:
     src: /brand/torchfont-logomark.svg
     alt: TorchFont logomark
   actions:
     - theme: brand
       text: クイックスタート
-      link: /ja/guide/getting-started
+      link: /ja/guide/basic/getting-started
     - theme: alt
       text: TorchFont とは
-      link: /ja/guide/what-is-torchfont
+      link: /ja/guide/basic/what-is-torchfont
     - theme: alt
       text: GitHub
       link: https://github.com/torchfont/torchfont
 
 features:
-  - icon: ⚙️
-    title: ローカルファーストなデータセット API
-    details: "`GlyphDataset(root=...)` を使い、ローカルのフォントディレクトリやクローン済みのリポジトリをそのまま入力にできます。"
-  - icon: 🚀
-    title: Rust バックエンド
-    details: "`skrifa` と PyO3 による実装でフォントをインデックス化し、必要なときにグリフアウトラインを要素型と座標のテンソルへ読み込みます。"
-  - icon: 🧱
-    title: 参照を中心としたデータモデル
-    details: "`GlyphSample` は決定的なグリフ参照とターゲットインデックスを持ち、読み込みやバッチ化の方針は `transform` 側に置けます。"
+  - icon: 🗂️
+    title: フォントをデータセットに
+    details: "フォントファイルを前処理せず、そのまま PyTorch データセットとして利用できます。"
+  - icon: ✒️
+    title: ベクターのまま扱う
+    details: "グリフのアウトラインを、要素型と座標からなるテンソルとして直接扱えます。"
   - icon: 🧩
-    title: 柔軟な前処理
-    details: "`torchvision.transforms.v2` 形式の意味型変換をパイプラインとして組み合わせ、可変長テンソルの整形はモデル固有の `collate_fn` で調整できます。"
+    title: 組み合わせ可能な前処理
+    details: "グリフの読み込み、正規化、データ拡張、レンダリングを再利用可能な Transform パイプラインとして組み合わせられます。"
+  - icon: 🦀
+    title: Rust バックエンド
+    details: "Rust の高速なフォントエコシステムを活用し、フォントの解析とアウトライン処理を効率よく実行します。"
 ---

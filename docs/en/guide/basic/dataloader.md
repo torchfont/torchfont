@@ -2,10 +2,9 @@
 
 ## Why use a DataLoader
 
-Neural network training processes data in batches rather than one sample at a
-time. Batching stabilizes gradient estimates and makes full use of GPU
-parallelism. `DataLoader` is PyTorch's standard utility that handles batch
-construction, shuffling, and parallel loading.
+Neural network training commonly processes several samples as a batch.
+`DataLoader` is PyTorch's standard utility for batch construction, shuffling,
+and parallel loading.
 
 ## Define a `transform`
 
@@ -161,79 +160,3 @@ batched = pad_outlines([dataset[0].data, dataset[1].data])
 
 print(batched.shape)
 ```
-
-## Multi-process loading
-
-Set `num_workers` and `prefetch_factor` to load data in parallel worker
-processes.
-
-Each batch is padded to its longest outline, so a single very large glyph
-inflates the whole batch and the transfer to the training process with it. This
-example caps every outline at 512 elements in its local `collate_fn`. Define it
-at module level: worker processes pickle the `collate_fn`, so a lambda will not
-work.
-
-Use `tqdm` to iterate over all batches and measure throughput. Run the following
-code:
-
-```python
-import torch
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-
-from torchfont import GlyphData, Outline, pad_outlines
-from torchfont.datasets import GlyphDataset
-from torchfont.transforms import LoadGlyph
-
-MAX_ELEMENTS = 512
-
-
-def collate_fn(samples: list[GlyphData[Outline]]):
-    return {
-        "outline": pad_outlines([sample.data[:MAX_ELEMENTS] for sample in samples]),
-        "font_idx": torch.tensor(
-            [sample.font_idx for sample in samples], dtype=torch.long
-        ),
-    }
-
-
-dataset = GlyphDataset(
-    root="data/google/fonts",
-    patterns=(
-        "apache/*/*.ttf",
-        "ofl/*/*.ttf",
-        "ufl/*/*.ttf",
-        "!ofl/adobeblank/AdobeBlank-Regular.ttf",
-    ),
-    transform=LoadGlyph(),
-)
-
-loader = DataLoader(
-    dataset,
-    batch_size=64,
-    shuffle=True,
-    collate_fn=collate_fn,
-    num_workers=8,
-    prefetch_factor=2,
-)
-
-print(f"{len(dataset)=}")
-
-for batch in tqdm(loader):
-    pass
-```
-
-The dataset length depends on the selected font files and their character maps.
-The progress bar reports batch throughput as `it/s`; use it to choose worker and
-prefetch settings for your storage and training environment.
-
-```
-len(dataset)=...
-100%|██████████| .../... [..., ...it/s]
-```
-
-::: tip Padding without truncation
-Truncation drops geometry. To keep whole outlines and still avoid the padding
-cost, group glyphs of similar length with a length-aware `Sampler` instead of
-capping their length.
-:::

@@ -190,22 +190,5 @@ floating point dtype.
 
 ### `torch.compile`
 
-Functional pipelines can be used with `torch.compile`:
-
-```python
-import torch
-
-# Required on PyTorch 2.5 when an operation can change the outline length.
-torch._dynamo.config.capture_dynamic_output_shape_ops = True
-
-
-def pipeline(types, coords):
-    outline = Outline(types, coords)
-    outline = F.remove_overlaps(outline)
-    outline = F.cubic_to_quad(outline)
-    outline = F.affine(outline, angle=10.0)
-    return F.render_bitmap(outline, 32)
-
-
-compiled = torch.compile(pipeline)
-```
+See [Compiling Transform Pipelines](../guide/advanced/torch-compile.md) for a
+complete example, dynamic outline lengths, and the supported boundaries.

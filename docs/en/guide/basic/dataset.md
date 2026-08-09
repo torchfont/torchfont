@@ -66,3 +66,6 @@ dataset = GlyphDataset(
 
 Random locations follow PyTorch RNG seeding. On static faces this produces the
 same empty location as the default policy.
+
+See [Variable Fonts](../advanced/variable-fonts.md) for explicit locations and
+sampling behavior.

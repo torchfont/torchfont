@@ -92,7 +92,7 @@ Index は Python の整数、連続 Target は Float です。取得できない
 
 モデルの入力契約に合わせてローカルな `DataLoader.collate_fn` を定義し、Payload が可変長 Outline の
 場合は [`pad_outlines`](#pad-outlines) を使います。
-[DataLoader](../guide/dataloader.md) を参照してください。
+[DataLoader](../guide/basic/dataloader.md) を参照してください。
 
 ### `ElementType: IntEnum`
 
