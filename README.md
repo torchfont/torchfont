@@ -44,9 +44,6 @@ pip install torchfont
 ## Quickstart
 
 ```python
-import math
-
-import torch
 from torch.utils.data import DataLoader
 
 from torchfont import GlyphData, Outline, pad_outlines
@@ -54,20 +51,8 @@ from torchfont.datasets import GlyphDataset
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(samples: list[GlyphData[Outline]]):
-    return {
-        "outline": pad_outlines([sample.data for sample in samples]),
-        "font_idx": torch.tensor(
-            [sample.font_idx for sample in samples], dtype=torch.long
-        ),
-        "weight": torch.tensor(
-            [
-                math.nan if sample.weight is None else sample.weight
-                for sample in samples
-            ],
-            dtype=torch.float32,
-        ),
-    }
+def collate_fn(samples: list[GlyphData[Outline]]) -> Outline:
+    return pad_outlines([sample.data for sample in samples])
 
 
 dataset = GlyphDataset(
@@ -83,15 +68,14 @@ loader = DataLoader(
     shuffle=True,
     collate_fn=collate_fn,
 )
-batch = next(iter(loader))
+outlines = next(iter(loader))
 
-print(batch["outline"].shape)  # (8, L)
-print(batch["outline"].coords.shape)  # (8, L, 6)
-print(batch["weight"].shape)  # (8,)
+print(outlines.types.shape)  # (8, L)
+print(outlines.coords.shape)  # (8, L, 6)
 ```
 
-Define `collate_fn` locally to choose the targets and missing-value representation
-required by your model. Use `pad_outlines` to pad variable-length outlines.
+Use `pad_outlines` to pad variable-length outlines. A model that also needs
+targets can add them to the batch in its local `collate_fn`.
 
 ## What TorchFont Focuses On
 
