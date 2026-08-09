@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,7 +14,7 @@ from torchfont import ElementType, Outline
 from torchfont.transforms import functional as F  # noqa: N812
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +43,13 @@ def _pipeline(types: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
     outline = F.affine(outline, angle=10.0, scale=1.1)
     outline = F.normalize_subpath_start_points(outline)
     return F.render_bitmap(outline, 32)
+
+
+def _compile_pipeline(
+    *, dynamic: bool | None = None
+) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+    backend = "eager" if sys.platform == "win32" else "inductor"
+    return torch.compile(_pipeline, fullgraph=True, dynamic=dynamic, backend=backend)
 
 
 def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
@@ -105,7 +113,7 @@ def test_pipeline_compiles_into_one_graph() -> None:
 def test_compiled_pipeline_matches_eager() -> None:
     torch._dynamo.reset()  # noqa: SLF001
     outline = _outline()
-    compiled = torch.compile(_pipeline, fullgraph=True)
+    compiled = _compile_pipeline()
 
     result = compiled(outline.types, outline.coords)
 
@@ -116,7 +124,7 @@ def test_compiled_pipeline_matches_eager() -> None:
 def test_compiled_pipeline_handles_varying_element_counts(elements: int) -> None:
     """Outline length is data-dependent, so the fakes must allow it to vary."""
     outline = _outline(elements)
-    compiled = torch.compile(_pipeline, fullgraph=True)
+    compiled = _compile_pipeline()
 
     result = compiled(outline.types, outline.coords)
 
@@ -130,7 +138,7 @@ def test_pipeline_compiles_under_every_dynamic_setting(
     """``dynamic=True`` makes float parameters symbolic, so validation must trace."""
     torch._dynamo.reset()  # noqa: SLF001
     outline = _outline()
-    compiled = torch.compile(_pipeline, fullgraph=True, dynamic=dynamic)
+    compiled = _compile_pipeline(dynamic=dynamic)
 
     result = compiled(outline.types, outline.coords)
 
