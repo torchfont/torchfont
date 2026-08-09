@@ -98,16 +98,8 @@ class Outline:
 
     @classmethod
     def _wrap(cls, types: Tensor, coords: Tensor) -> Outline:
-        """Pair tensors already known to satisfy every structural invariant.
-
-        Kernels that derive an outline from a validated outline use this to
-        avoid re-checking invariants they cannot have broken. Validation stays
-        at the boundary where untrusted tensors enter, in ``__post_init__``.
-        """
-        outline = cls.__new__(cls)
-        object.__setattr__(outline, "types", types)
-        object.__setattr__(outline, "coords", coords)
-        return outline
+        """Pair tensors produced by an operation on a valid outline."""
+        return cls(types, coords)
 
     @property
     def shape(self) -> torch.Size:
