@@ -186,22 +186,5 @@ outline = outline.to("cpu", torch.float32)
 
 ### `torch.compile`
 
-Functional Pipeline は `torch.compile` で使用できます。
-
-```python
-import torch
-
-# Outline の長さが変わる処理を PyTorch 2.5 で使う場合に必要です。
-torch._dynamo.config.capture_dynamic_output_shape_ops = True
-
-
-def pipeline(types, coords):
-    outline = Outline(types, coords)
-    outline = F.remove_overlaps(outline)
-    outline = F.cubic_to_quad(outline)
-    outline = F.affine(outline, angle=10.0)
-    return F.render_bitmap(outline, 32)
-
-
-compiled = torch.compile(pipeline)
-```
+完全な使用例、Outline の動的な長さ、対応範囲については、
+[Transform パイプラインのコンパイル](../guide/advanced/torch-compile.md) を参照してください。

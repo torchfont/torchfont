@@ -26,24 +26,24 @@ data = dataset[0]
 outline = data.data
 types, coords = outline.types, outline.coords
 
-print(data.ref)  # Glyph 参照
+print(data.ref)  # グリフ参照
 print(types)  # 要素型の系列
 print(coords)  # 座標の系列
-print(data.font_idx)  # Font Face の Class ID
-print(data.character_idx)  # Character の Class ID
-print(data.weight)  # OpenType Weight
-print(data.width)  # OpenType Width のパーセント値
-print(data.italic)  # OpenType Italic 値
-print(data.slant)  # Slant 角度
-print(data.optical_size)  # ポイント単位の Optical Size
+print(data.font_idx)  # フォントフェイスのクラス ID
+print(data.character_idx)  # 文字のクラス ID
+print(data.weight)  # OpenType のウェイト
+print(data.width)  # OpenType の幅のパーセント値
+print(data.italic)  # OpenType のイタリック値
+print(data.slant)  # 傾斜角度
+print(data.optical_size)  # ポイント単位のオプティカルサイズ
 ```
 
-返り値の `GlyphData[Outline]` は、意味型の Outline、決定的な Glyph 参照、Dataset
-固有の Target を浅い一つの Record に保持します。
+返り値の `GlyphData[Outline]` は、意味型の `Outline`、決定的なグリフ参照、データセット
+固有のターゲットを 1 つの浅いレコードに保持します。
 
-Index は Python の整数、連続 Target は Float です。フォントに存在しない連続
-Target は `None` になります。学習アプリケーション側のローカルな `collate_fn` で、
-必要な Target だけを Tensor に変換し、`NaN` と Mask の併用など欠損値の表現も
+インデックスは Python の整数、連続ターゲットは浮動小数点数です。フォントに存在しない
+連続ターゲットは `None` になります。学習アプリケーション側のローカルな `collate_fn` で、
+必要なターゲットだけをテンソルに変換し、`NaN` とマスクの併用など欠損値の表現も
 選択できます。
 
 ## アウトラインモデル
@@ -54,8 +54,9 @@ Target は `None` になります。学習アプリケーション側のロー�
 - **サブパス**: グリフを構成する一続きの曲線ひとつを表すパス要素の系列
 - **アウトライン**: グリフ 1 文字分の輪郭を表すパス要素の系列
 
-`types` は要素型を整数で並べた `(seq_len,)` の `LongTensor`、
-`coords` は座標を並べた `(seq_len, 6)` の `FloatTensor` です。
+`types` は要素型を並べた `(seq_len,)` shape、dtype が `torch.long` のテンソルです。
+`LoadGlyph` が返す `coords` は、`(seq_len, 6)` shape、dtype が `torch.float32` の
+テンソルです。
 
 ## 要素型
 
@@ -92,7 +93,8 @@ tensor([1, 2, 3, ..., 5, 6])
 MOVE_TO
 ```
 
-種類は `MoveTo`、`LineTo`、`QuadTo`、`CurveTo`、`Close`、`End`、`Pad` の 7 つです。
+種類は `MOVE_TO`、`LINE_TO`、`QUAD_TO`、`CURVE_TO`、`CLOSE`、`END`、`PAD` の
+7 つです。
 
 - `ElementType.END` はシーケンス終端を表します
 - `ElementType.PAD` はバッチのパディングで導入された行を標識します。フォントの
@@ -135,17 +137,19 @@ tensor([cx0, cy0, cx1, cy1, x, y])
 
 使用する次元は要素型によって異なります。
 
-- **`MoveTo` / `LineTo`**: 終点 `(x, y)` のみ使用。制御点は 0
-- **`QuadTo`**: 制御点 `(cx0, cy0)` と終点 `(x, y)` を使用。`cx1`、`cy1` は 0
-- **`CurveTo`**: 制御点 `(cx0, cy0)`、`(cx1, cy1)` と終点 `(x, y)` をすべて使用
-- **`Close` / `End` / `Pad`**: すべて 0
+- **`MOVE_TO` / `LINE_TO`**: 終点 `(x, y)` を使用
+- **`QUAD_TO`**: 制御点 `(cx0, cy0)` と終点 `(x, y)` を使用
+- **`CURVE_TO`**: 2 つの制御点 `(cx0, cy0)`、`(cx1, cy1)` と終点 `(x, y)` を使用
+- **`CLOSE` / `END` / `PAD`**: 使用する座標なし
 
 ::: info
 座標は `em` 単位です。フォントのデザイン単位を `unitsPerEm` で
 割った値として表されます。
 :::
 
-2 次ベジェは 3 次ベジェへの変換をせず `QuadTo` としてそのまま出力されます。テンソル形状を固定するため、`QuadTo` の座標は `[cx0, cy0, 0, 0, x, y]` です。
+2 次ベジェ曲線は 3 次ベジェ曲線へ変換せず、`QUAD_TO` として出力されます。テンソルの
+shape を固定するため、すべての要素が 6 個の値を持ちます。未使用の位置にある値には
+意味がありません。
 
 ## フォントフェイスと文字のラベル
 

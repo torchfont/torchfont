@@ -38,10 +38,10 @@ export default defineConfig({
     en: {
       label: 'English',
       lang: 'en-US',
-      description: 'A Machine Learning Library for Fonts',
+      description: 'A Machine Learning Library for Vector Fonts',
       themeConfig: {
         nav: [
-          { text: 'Guide', link: '/en/guide/what-is-torchfont' },
+          { text: 'Guide', link: '/en/guide/basic/what-is-torchfont' },
           { text: 'Reference', link: '/en/reference/datasets' },
           { text: 'Examples', link: '/en/examples/' },
         ],
@@ -50,12 +50,45 @@ export default defineConfig({
             {
               text: 'Guide',
               items: [
-                { text: 'What is TorchFont', link: '/en/guide/what-is-torchfont' },
-                { text: 'Quickstart', link: '/en/guide/getting-started' },
-                { text: 'Google Fonts Setup', link: '/en/guide/google-fonts' },
-                { text: 'Building a GlyphDataset', link: '/en/guide/dataset' },
-                { text: 'Glyph Data Format', link: '/en/guide/glyph-data-format' },
-                { text: 'Batching with DataLoader', link: '/en/guide/dataloader' },
+                { text: 'What is TorchFont', link: '/en/guide/basic/what-is-torchfont' },
+                { text: 'Quickstart', link: '/en/guide/basic/getting-started' },
+                { text: 'Google Fonts Setup', link: '/en/guide/basic/google-fonts' },
+                { text: 'Building a GlyphDataset', link: '/en/guide/basic/dataset' },
+                { text: 'Glyph Data Format', link: '/en/guide/basic/glyph-data-format' },
+                { text: 'Batching with DataLoader', link: '/en/guide/basic/dataloader' },
+              ],
+            },
+            {
+              text: 'Advanced Guides',
+              items: [
+                {
+                  text: 'Dataset Integration',
+                  link: '/en/guide/advanced/dataset-integration',
+                },
+                {
+                  text: 'Font Collections',
+                  link: '/en/guide/advanced/font-collections',
+                },
+                {
+                  text: 'Variable Fonts',
+                  link: '/en/guide/advanced/variable-fonts',
+                },
+                {
+                  text: 'glyf and CFF Outlines',
+                  link: '/en/guide/advanced/glyf-and-cff',
+                },
+                {
+                  text: 'TorchVision Integration',
+                  link: '/en/guide/advanced/torchvision',
+                },
+                {
+                  text: 'Multiprocess Data Loading',
+                  link: '/en/guide/advanced/multiprocessing',
+                },
+                {
+                  text: 'torch.compile',
+                  link: '/en/guide/advanced/torch-compile',
+                },
               ],
             },
           ],
@@ -84,10 +117,10 @@ export default defineConfig({
     ja: {
       label: '日本語',
       lang: 'ja-JP',
-      description: 'フォントのための機械学習ライブラリ',
+      description: 'ベクターフォントのための機械学習ライブラリ',
       themeConfig: {
         nav: [
-          { text: 'ガイド', link: '/ja/guide/what-is-torchfont' },
+          { text: 'ガイド', link: '/ja/guide/basic/what-is-torchfont' },
           { text: 'リファレンス', link: '/ja/reference/datasets' },
           { text: 'サンプル', link: '/ja/examples/' },
         ],
@@ -96,12 +129,45 @@ export default defineConfig({
             {
               text: 'ガイド',
               items: [
-                { text: 'TorchFont とは', link: '/ja/guide/what-is-torchfont' },
-                { text: 'クイックスタート', link: '/ja/guide/getting-started' },
-                { text: 'Google Fonts のセットアップ', link: '/ja/guide/google-fonts' },
-                { text: 'GlyphDataset の構築', link: '/ja/guide/dataset' },
-                { text: 'グリフデータ形式', link: '/ja/guide/glyph-data-format' },
-                { text: 'DataLoader によるバッチ処理', link: '/ja/guide/dataloader' },
+                { text: 'TorchFont とは', link: '/ja/guide/basic/what-is-torchfont' },
+                { text: 'クイックスタート', link: '/ja/guide/basic/getting-started' },
+                { text: 'Google Fonts のセットアップ', link: '/ja/guide/basic/google-fonts' },
+                { text: 'GlyphDataset の構築', link: '/ja/guide/basic/dataset' },
+                { text: 'グリフデータ形式', link: '/ja/guide/basic/glyph-data-format' },
+                { text: 'DataLoader によるバッチ処理', link: '/ja/guide/basic/dataloader' },
+              ],
+            },
+            {
+              text: '応用ガイド',
+              items: [
+                {
+                  text: 'データセットとの連携',
+                  link: '/ja/guide/advanced/dataset-integration',
+                },
+                {
+                  text: 'フォントコレクション',
+                  link: '/ja/guide/advanced/font-collections',
+                },
+                {
+                  text: 'バリアブルフォント',
+                  link: '/ja/guide/advanced/variable-fonts',
+                },
+                {
+                  text: 'glyf と CFF のアウトライン',
+                  link: '/ja/guide/advanced/glyf-and-cff',
+                },
+                {
+                  text: 'TorchVision との連携',
+                  link: '/ja/guide/advanced/torchvision',
+                },
+                {
+                  text: 'マルチプロセス読み込み',
+                  link: '/ja/guide/advanced/multiprocessing',
+                },
+                {
+                  text: 'torch.compile',
+                  link: '/ja/guide/advanced/torch-compile',
+                },
               ],
             },
           ],

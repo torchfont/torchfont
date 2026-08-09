@@ -96,7 +96,7 @@ content equality is required.
 
 Define a local `DataLoader.collate_fn` for the model's input contract and use
 [`pad_outlines`](#pad-outlines) when its payloads are variable-length outlines.
-See [DataLoader](../guide/dataloader.md).
+See [DataLoader](../guide/basic/dataloader.md).
 
 ### `ElementType: IntEnum`
 
