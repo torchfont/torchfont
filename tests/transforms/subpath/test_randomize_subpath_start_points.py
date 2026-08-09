@@ -43,12 +43,9 @@ def test_randomize_subpath_start_points_leaves_open_subpaths_unchanged(
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_randomize_subpath_start_points_accepts_cpu_generator_for_cuda_input(
+def test_randomize_subpath_start_points_rejects_cuda_input(
     square: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = (tensor.cuda() for tensor in square)
-    output = RandomizeSubpathStartPoints()(Outline(types, coords))
-    out_types, out_coords = output.types, output.coords
-
-    assert out_types.device.type == "cuda"
-    assert out_coords.device.type == "cuda"
+    with pytest.raises(NotImplementedError, match="CUDA"):
+        RandomizeSubpathStartPoints()(Outline(types, coords))

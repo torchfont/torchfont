@@ -41,6 +41,11 @@ print(data.optical_size)  # ポイント単位の Optical Size
 返り値の `GlyphData[Outline]` は、意味型の Outline、決定的な Glyph 参照、Dataset
 固有の Target を浅い一つの Record に保持します。
 
+Index は Python の整数、連続 Target は Float です。フォントに存在しない連続
+Target は `None` になります。学習アプリケーション側のローカルな `collate_fn` で、
+必要な Target だけを Tensor に変換し、`NaN` と Mask の併用など欠損値の表現も
+選択できます。
+
 ## アウトラインモデル
 
 グリフのアウトラインは、パス要素の系列として表現されます。
@@ -90,7 +95,9 @@ MOVE_TO
 種類は `MoveTo`、`LineTo`、`QuadTo`、`CurveTo`、`Close`、`End`、`Pad` の 7 つです。
 
 - `ElementType.END` はシーケンス終端を表します
-- `ElementType.PAD` は `pad_sequence` や独自のパディングで出現します
+- `ElementType.PAD` はバッチのパディングで導入された行を標識します。フォントの
+  読み込みでは生成されず、単一グリフには含まれません。値と比較するのではなく
+  `outline.padding_mask` を読んでください
 
 ## 座標
 

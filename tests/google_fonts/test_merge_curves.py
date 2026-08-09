@@ -5,11 +5,11 @@ import pytest
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+from tests._pairs import merge_curves
 from torchfont import GlyphSample, Outline
 from torchfont.datasets import GlyphDataset
 from torchfont.transforms import functional as _functional
 from torchfont.transforms.functional import render_bitmap
-from torchfont.transforms.functional._curves import _merge_curves as merge_curves
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,3 @@
-import math
 import pickle
 
 import pytest
@@ -255,7 +254,7 @@ def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
     assert output.width == 100.0
     assert output.italic == 0.0
     assert output.slant == 0.0
-    assert math.isnan(output.optical_size)
+    assert output.optical_size is None
     assert output.location == {}
 
 

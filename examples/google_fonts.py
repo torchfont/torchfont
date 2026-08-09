@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -49,7 +50,7 @@ class GlyphPipeline(torch.nn.Module):
 
     def forward(
         self, sample: GlyphSample
-    ) -> tuple[Tensor, Tensor, Tensor, int, int, float]:
+    ) -> tuple[Tensor, Tensor, Tensor, int, int, float | None]:
         data = cast("GlyphData[Outline]", self.prepare_outline(sample))
         image_data = cast("GlyphData[Tensor]", self.rasterize(data))
         return (
@@ -63,7 +64,7 @@ class GlyphPipeline(torch.nn.Module):
 
 
 def collate_fn(
-    batch: list[tuple[Tensor, Tensor, Tensor, int, int, float]],
+    batch: list[tuple[Tensor, Tensor, Tensor, int, int, float | None]],
 ) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
     types, coords, images, fonts, characters, weights = zip(*batch, strict=True)
     return (
@@ -72,7 +73,10 @@ def collate_fn(
         torch.stack(images),
         torch.tensor(fonts, dtype=torch.long),
         torch.tensor(characters, dtype=torch.long),
-        torch.tensor(weights, dtype=torch.float32),
+        torch.tensor(
+            [math.nan if weight is None else weight for weight in weights],
+            dtype=torch.float32,
+        ),
     )
 
 

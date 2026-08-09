@@ -15,11 +15,8 @@ def test_random_vertical_flip_probability_boundaries(
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_random_vertical_flip_preserves_cuda_device(
+def test_random_vertical_flip_rejects_cuda_input(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
-    output = RandomVerticalFlip(1.0)(
-        Outline(*(tensor.cuda() for tensor in simple_outline))
-    )
-    assert output.types.device.type == "cuda"
-    assert output.coords.device.type == "cuda"
+    with pytest.raises(NotImplementedError, match="CUDA"):
+        RandomVerticalFlip(1.0)(Outline(*(tensor.cuda() for tensor in simple_outline)))

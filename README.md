@@ -15,7 +15,7 @@
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/torchfont?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/torchfont)
 [![PyPI version](https://img.shields.io/pypi/v/torchfont)](https://pypi.org/project/torchfont/)
 [![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)](https://www.rust-lang.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.3+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.4+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
 
 TorchFont is an **unofficial** library based on PyTorch for deep learning with vector fonts.
 It is not affiliated with or endorsed by the PyTorch project.
@@ -27,7 +27,7 @@ in your transform pipeline when tensors are needed.
 
 ## Installation
 
-The package requires Python 3.10+ and PyTorch 2.3+.
+The package requires Python 3.10+ and PyTorch 2.4+.
 
 Install TorchFont with **uv**:
 
@@ -44,18 +44,30 @@ pip install torchfont
 ## Quickstart
 
 ```python
-from torch.utils.data import DataLoader
-from torch.nn.utils.rnn import pad_sequence
+import math
 
+import torch
+from torch.utils.data import DataLoader
+
+from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.datasets import GlyphDataset
-from torchfont import GlyphData, Outline
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(batch: list[GlyphData[Outline]]):
-    types = pad_sequence([item.data.types for item in batch], batch_first=True)
-    coords = pad_sequence([item.data.coords for item in batch], batch_first=True)
-    return types, coords
+def collate_fn(samples: list[GlyphData[Outline]]):
+    return {
+        "outline": pad_outlines([sample.data for sample in samples]),
+        "font_idx": torch.tensor(
+            [sample.font_idx for sample in samples], dtype=torch.long
+        ),
+        "weight": torch.tensor(
+            [
+                math.nan if sample.weight is None else sample.weight
+                for sample in samples
+            ],
+            dtype=torch.float32,
+        ),
+    }
 
 
 dataset = GlyphDataset(
@@ -65,19 +77,28 @@ dataset = GlyphDataset(
     transform=LoadGlyph(),
 )
 
-loader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=collate_fn)
-types_t, coords_t = next(iter(loader))
+loader = DataLoader(
+    dataset,
+    batch_size=8,
+    shuffle=True,
+    collate_fn=collate_fn,
+)
+batch = next(iter(loader))
 
-print(types_t.shape)  # (8, L)
-print(coords_t.shape)  # (8, L, 6)
+print(batch["outline"].shape)  # (8, L)
+print(batch["outline"].coords.shape)  # (8, L, 6)
+print(batch["weight"].shape)  # (8,)
 ```
+
+Define `collate_fn` locally to choose the targets and missing-value representation
+required by your model. Use `pad_outlines` to pad variable-length outlines.
 
 ## What TorchFont Focuses On
 
 - local font directories and repository checkouts as the input boundary
-- Rust-backed indexing plus explicit outline loading through lightweight glyph references
+- local font indexing plus explicit outline loading through lightweight glyph references
 - `torchvision.transforms.v2`-style semantic pipelines for adapting glyph samples
-- PyTorch `DataLoader` integration through ordinary user-defined `collate_fn` functions
+- PyTorch `DataLoader` integration through an explicit, customizable `collate_fn`
 
 Manage font repository synchronization with Git or another tool, then point
 `GlyphDataset(root=...)` at the resulting directory.

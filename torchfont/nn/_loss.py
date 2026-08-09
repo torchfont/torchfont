@@ -11,6 +11,8 @@ from torchfont.nn import functional
 if TYPE_CHECKING:
     from torch import Tensor
 
+    from torchfont._outline import Outline
+
 
 class OutlineLoss(nn.Module):
     """Combine element-type and active-coordinate losses.
@@ -33,15 +35,13 @@ class OutlineLoss(nn.Module):
         self,
         type_logits: Tensor,
         coordinate_prediction: Tensor,
-        target_types: Tensor,
-        target_coords: Tensor,
+        target: Outline,
     ) -> Tensor:
         """Return the weighted mean outline loss."""
         return functional.outline_loss(
             type_logits,
             coordinate_prediction,
-            target_types,
-            target_coords,
+            target,
             type_weight=self.type_weight,
             coordinate_weight=self.coordinate_weight,
         )

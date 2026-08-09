@@ -98,7 +98,9 @@ def test_affine_quad_pair1_stays_zero(
     assert out[quad_idx, 3].item() == pytest.approx(0.0)
 
 
-@pytest.mark.parametrize("scale", [0.0, float("nan"), float("inf")])
+@pytest.mark.parametrize(
+    "scale", [0.0, -1.0, float("nan"), float("inf"), float("-inf")]
+)
 def test_affine_invalid_scale_raises(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
     scale: float,
@@ -126,7 +128,12 @@ def test_affine_rejects_nan_shear(
 
 @pytest.mark.parametrize(
     "translate",
-    [(float("nan"), 0.0), (0.0, float("inf"))],
+    [
+        (float("nan"), 0.0),
+        (0.0, float("nan")),
+        (0.0, float("inf")),
+        (float("-inf"), 0.0),
+    ],
 )
 def test_affine_rejects_non_finite_translate(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
@@ -138,12 +145,10 @@ def test_affine_rejects_non_finite_translate(
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_affine_preserves_cuda_device(
+def test_affine_rejects_cuda_input(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = (tensor.cuda() for tensor in simple_outline)
 
-    out_types, out_coords = affine(types, coords, angle=15.0)
-
-    assert out_types.device.type == "cuda"
-    assert out_coords.device.type == "cuda"
+    with pytest.raises(NotImplementedError, match="CUDA"):
+        affine(types, coords, angle=15.0)

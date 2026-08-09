@@ -1,8 +1,7 @@
 # Transform
 
-TorchFont の Transform は TorchVision Transforms v2（`torchvision.transforms.v2`）と同様に、意味を持つデータ型、
-クラスベースの確率的 Transform、決定論的な Functional カーネル、PyTree の合成を
-基本にします。
+TorchFont は Glyph の読み込み、変形、描画を組み合わせるための Transform を提供します。
+結果を画像パイプラインへ渡す場合は、任意で TorchVision を組み合わせられます。
 
 ## データ型
 
@@ -11,11 +10,8 @@ from torchfont import GlyphData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
-`GlyphData[T]` は変換中の Payload、Glyph 参照、実際に使用した Variation Location、Target
-を保持します。Payload は Generic なので、Metadata を失わずに
-`Outline` から通常のビットマップテンソルへ変換できます。ラスタライズしたグリフには
-TorchFont 固有のテンソルサブクラスを設けず、画像として扱う必要がある境界で TorchVision の
-`ToImage()` を明示的に適用します。
+`GlyphData[T]` は変換中の Payload、Glyph 参照、Variation Location、Target を保持します。
+他の Field を失わずに、Payload を `Outline` からビットマップテンソルへ変換できます。
 
 ## 読み込みと合成
 
@@ -48,29 +44,18 @@ Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点
 Dataset Sample に対しては、返される `GlyphData` の並列な `weight`、`width`、`italic`、
 `slant`、`optical_size` Target も解決します。
 
-`Transform` はネストした PyTree を平坦化し、一致するすべての意味的なリーフに対して
-パラメーターを一度だけ生成し、元の構造を復元します。そのため、一回の呼び出しに含まれる
-対応する複数アウトラインには、同じ反転、アフィンパラメーター、要素単位の乱数が適用されます。
+Transform はネストした入力を受け取り、その構造を保ちます。一回の呼び出しに含まれる
+対応する複数 Outline には、同じランダムパラメーターが適用されます。
 独立したサンプルには Transform を個別に適用します。確率的 Transform は PyTorch の
 デフォルト RNG を使うため、`torch.manual_seed` と `DataLoader` ワーカーのシードが通常どおり
 機能します。
-組み込み Transform は設定のみを保持し、`pickle` 可能です。`Compose` に通常のリストを
-渡した場合も、子 Transform は内部の `torch.nn.ModuleList` に登録されます。通常の
-`callable` には意図的に対応しません。小さな `nn.Module` を定義し、挙動、表示、`pickle`
-要件を明示します。これによりモジュールの走査、状態辞書、フック、設定表示を PyTorch の
-規則に揃えます。
+組み込み Transform はマルチプロセスの DataLoader でも使用できます。`Compose` には
+`nn.Module` の Transform を渡します。独自 Transform も通常の Callable ではなく
+`nn.Module` の Subclass として定義してください。空の `Compose` は入力を変更しません。
+複数の Transform を `RandomApply` でまとめる場合は、内側に `Compose` を置きます。
 
-コンテナーは登録した子をモジュール呼び出し経路で呼ぶため、`forward` フックも機能します。
-`train()` と `eval()` は通常どおり伝播しますが、組み込みの確率的 Transform は意図的に
-`training` フラグを参照しません。前処理とモデルのモードは別の関心事なので、評価時は
-`eval()` でデータ拡張が止まることに依存せず、決定論的パイプラインを明示的に選びます。
-
-`torchvision.transforms.v2` と同様に、`Transform` のサブクラスとコンテナーは一つの
-PyTree または複数の位置引数を受け取れます。リーフ間の関係をパラメーターのサンプリング前に確認する
-カスタム Transform のために `check_inputs()` を利用できます。`Compose` は
-`nn.Module` の `Iterable` を即座に `nn.ModuleList` へ具体化し、空の `Iterable` は
-恒等 Transform として扱います。`RandomApply` は一つの `nn.Module` を包みます。複数の Transform を
-`RandomApply` でまとめる場合は、内側に `Compose` を置きます。
+`eval()` を呼んでもランダムな Data Augmentation は無効になりません。評価時には
+決定論的な Pipeline を使用してください。
 
 `RandomApply(transform, p)` は一つの Transform を適用するか制御します。
 `RandomSplitSegments.split_probability` などは、適用された Transform 内部の挙動を
@@ -95,8 +80,8 @@ PyTree または複数の位置引数を受け取れます。リーフ間の関�
 
 `RenderBitmap` はグレースケールの通常の `H x W` テンソルを返します。
 `torchvision.transforms.v2.ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
-形状が `1 x H x W` の `tv_tensors.Image` になります。両ライブラリが PyTree を処理するため、
-外側の `GlyphData` も維持されます。
+形状が `1 x H x W` の `tv_tensors.Image` になります。外側の `GlyphData` の Field も
+維持されます。
 `RenderBitmap(antialias=False)` は Edge Coverage を二値化します。これは Vector の
 Rasterization を制御するもので、後段の `v2.Resize` における画像の Resampling を制御する
 `antialias` Option とは独立しています。
@@ -128,7 +113,7 @@ image = data.data  # Tensor, (1, 64, 64), float32, range [0, 1]
 スケーリングしません。`ToPureTensor()` はモデルへ渡す前に `Image` サブクラスを取り除きます。
 TorchVision は任意の統合先であり、TorchFont のレンダラーには不要です。
 
-## Functional カーネル
+## Functional API
 
 決定論的な処理は `torchfont.transforms.functional` から利用できます。
 
@@ -147,8 +132,70 @@ shape = bitmap.shape
 Functional API は乱数を生成しません。ランダムな選択とパラメーターのサンプリングは
 `Random*` Transform クラスの責務です。
 
-これらの Transform が `nn.Module` なのは、合成、モジュール登録、PyTorch RNG、PyTree
-処理のためです。Rust バックエンドのアウトライン用 Functional は CPU / NumPy 境界を通る
-前処理であり、自動微分への参加、アクセラレーター上での実行維持、`torch.compile` による
-キャプチャーは保証しません。現在の Functional はシグネチャーに記載した単一の意味型を
-処理します。複数のアウトライン表現が必要になるまではカーネルレジストリを導入しません。
+### 単一グリフのみを扱う
+
+この節の各処理は単一グリフを対象とします。バッチ化された `Outline` を渡すと
+エラーになります。
+
+```python
+F.affine(batch, angle=5.0)
+# ValueError: affine operates on a single outline, got batch shape (64,);
+#             iterate with unpad_outlines() first
+```
+
+Transform は Collate の前にサンプルごとに実行されます。パイプラインの出力は
+[`pad_outlines`](./core-types.md#pad-outlines) または `DataLoader` でバッチ化してください。
+
+### 微分可能性
+
+勾配への対応は処理ごとに異なります。
+
+| カーネル | 微分可能 |
+| --- | --- |
+| `affine` | はい |
+| `coord_jitter` | はい。Outline と Noise の両方について |
+| `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
+| `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
+| `remove_overlaps`, `remove_overlap_groups` | いいえ |
+| `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
+| `render_bitmap` | いいえ |
+
+「いいえ」の処理に勾配を要求する Outline を渡すとエラーになります。
+
+```python
+outline.coords.requires_grad_()
+F.remove_overlaps(outline)
+# RuntimeError が発生
+```
+
+`affine` と Flip は Tight Bounding Box の中心を軸に変換します。勾配は変換後の
+座標を通って流れますが、この中心を通っては流れません。
+
+### デバイス
+
+`LoadGlyph` は CPU の `float32` Outline を返します。`Affine`、Flip、Curve、Overlap、
+Subpath の各 Transform と `RenderBitmap` は、CPU の `float32` Outline を必要とします。
+それ以外の Outline は呼び出す前に明示的に変換してください。
+
+```python
+outline = outline.to("cpu", torch.float32)
+```
+
+`RandomCoordJitter` と `functional.coord_jitter` は入力の Device と浮動小数点 dtype を
+維持します。
+
+### `torch.compile`
+
+Functional Pipeline は `torch.compile` で使用できます。
+
+```python
+def pipeline(types, coords):
+    outline = Outline(types, coords)
+    outline = F.remove_overlaps(outline)
+    outline = F.cubic_to_quad(outline)
+    outline = F.affine(outline, angle=10.0)
+    return F.render_bitmap(outline, 32)
+
+
+compiled = torch.compile(pipeline)
+```

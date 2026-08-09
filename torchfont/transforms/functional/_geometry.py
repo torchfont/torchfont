@@ -22,8 +22,32 @@ import math
 import torch
 from torch import Tensor
 
-from torchfont import _torchfont
+from torchfont import _ops
 from torchfont._outline import ElementType, Outline
+from torchfont.transforms.functional._utils import (
+    _require_no_grad,
+    _require_single,
+    _same_types,
+)
+
+
+def _is_nan(value: float) -> bool:
+    """Return whether ``value`` is NaN, without calling :func:`math.isnan`.
+
+    Dynamo treats ``math.isnan`` as an operator returning a non-Tensor and cannot
+    trace it once ``torch.compile`` runs with ``dynamic=True``, which makes these
+    float parameters symbolic. NaN is the only float that compares false against
+    both zero comparisons.
+    """
+    return not (value <= 0.0 or value > 0.0)
+
+
+def _is_infinite(value: float) -> bool:
+    """Return whether ``value`` is infinite, without calling :func:`math.isfinite`.
+
+    Traceable for the same reason as :func:`_is_nan`.
+    """
+    return abs(value) == math.inf
 
 
 def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
@@ -39,20 +63,18 @@ def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
 
 
 def _bbox_center(types: Tensor, coords: Tensor) -> Tensor:
-    """Return the tight bounding-box centre via the Rust ``tight_bbox`` implementation.
+    """Return the tight bounding-box centre as a ``(2,)`` tensor.
 
-    Delegates to :func:`torchfont._torchfont.tight_bbox`, which evaluates true
+    Delegates to the ``torchfont::bbox_center`` operator, which evaluates true
     curve extrema for QUAD_TO and CURVE_TO segments rather than bounding the
     control-point hull.
+
+    The centre is the reference frame a transform is applied around, not a
+    differentiable output, so it is computed from detached coordinates. Gradients
+    therefore flow through the transformed coordinates but not through the choice
+    of centre.
     """
-    result = _torchfont.tight_bbox(
-        types.cpu().contiguous().numpy(),
-        coords.cpu().contiguous().reshape(-1).numpy(),
-    )
-    if result is None:
-        return coords.new_zeros(2)
-    x_min, y_min, x_max, y_max = result
-    return coords.new_tensor([(x_min + x_max) / 2.0, (y_min + y_max) / 2.0])
+    return _ops.bbox_center(types.detach(), coords.detach())
 
 
 def _apply_matrix(
@@ -94,14 +116,7 @@ def _preserve_closed_subpath_winding(
     types: Tensor,
     coords: Tensor,
 ) -> tuple[Tensor, Tensor]:
-    out_types, out_coords = _torchfont.reverse_closed_subpaths(
-        types.cpu().contiguous().numpy(),
-        coords.cpu().contiguous().reshape(-1).numpy(),
-    )
-    return (
-        torch.from_numpy(out_types).to(device=types.device),
-        torch.from_numpy(out_coords).view(-1, 6).to(device=coords.device),
-    )
+    return _ops.reverse_closed_subpaths(types.detach(), coords.detach())
 
 
 def _horizontal_flip(
@@ -117,7 +132,7 @@ def _horizontal_flip(
 
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+        coords: 2-D floating point tensor of shape ``(N, 6)``.
         preserve_winding: Reverse closed subpaths after reflection so their
             winding direction matches the input. Default: ``True``.
 
@@ -145,7 +160,7 @@ def _vertical_flip(
 
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+        coords: 2-D floating point tensor of shape ``(N, 6)``.
         preserve_winding: Reverse closed subpaths after reflection so their
             winding direction matches the input. Default: ``True``.
 
@@ -181,7 +196,7 @@ def _affine(
 
     Args:
         types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
+        coords: 2-D floating point tensor of shape ``(N, 6)``.
         angle: Counter-clockwise rotation in degrees.
         translate: Translation ``(tx, ty)`` in em units applied
             after rotation and scaling. Values must be finite.
@@ -193,16 +208,16 @@ def _affine(
         ``types`` is returned unchanged (same object).
 
     """
-    if not math.isfinite(scale) or scale <= 0:
+    if _is_nan(scale) or _is_infinite(scale) or scale <= 0:
         msg = "scale must be positive and finite"
         raise ValueError(msg)
-    if math.isnan(angle):
+    if _is_nan(angle):
         msg = "angle must be finite"
         raise ValueError(msg)
-    if math.isnan(shear):
+    if _is_nan(shear):
         msg = "shear must be finite"
         raise ValueError(msg)
-    if not all(math.isfinite(value) for value in translate):
+    if any(_is_nan(value) or _is_infinite(value) for value in translate):
         msg = "translate values must be finite"
         raise ValueError(msg)
     matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
@@ -211,17 +226,33 @@ def _affine(
 
 
 def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
-    """Flip an outline horizontally around its tight bounding-box centre."""
-    return Outline(
-        *_horizontal_flip(inpt.types, inpt.coords, preserve_winding=preserve_winding)
+    """Flip an outline horizontally around its tight bounding-box centre.
+
+    Differentiable only when ``preserve_winding`` is ``False``; reversing
+    subpaths reorders elements in Rust and defines no gradient.
+    """
+    _require_single(inpt, "horizontal_flip")
+    if preserve_winding:
+        _require_no_grad(inpt, "horizontal_flip(preserve_winding=True)")
+    out_types, out_coords = _horizontal_flip(
+        inpt.types, inpt.coords, preserve_winding=preserve_winding
     )
+    return Outline._wrap(out_types, out_coords)  # noqa: SLF001
 
 
 def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
-    """Flip an outline vertically around its tight bounding-box centre."""
-    return Outline(
-        *_vertical_flip(inpt.types, inpt.coords, preserve_winding=preserve_winding)
+    """Flip an outline vertically around its tight bounding-box centre.
+
+    Differentiable only when ``preserve_winding`` is ``False``; reversing
+    subpaths reorders elements in Rust and defines no gradient.
+    """
+    _require_single(inpt, "vertical_flip")
+    if preserve_winding:
+        _require_no_grad(inpt, "vertical_flip(preserve_winding=True)")
+    out_types, out_coords = _vertical_flip(
+        inpt.types, inpt.coords, preserve_winding=preserve_winding
     )
+    return Outline._wrap(out_types, out_coords)  # noqa: SLF001
 
 
 def affine(
@@ -232,21 +263,31 @@ def affine(
     scale: float = 1.0,
     shear: float = 0.0,
 ) -> Outline:
-    """Apply a deterministic affine transformation."""
-    return Outline(
-        *_affine(
+    """Apply a deterministic affine transformation.
+
+    Differentiable with respect to ``coords``. The bounding-box centre the
+    transform pivots around is treated as a constant reference frame.
+    """
+    _require_single(inpt, "affine")
+    return _same_types(
+        inpt,
+        _affine(
             inpt.types,
             inpt.coords,
             angle=angle,
             translate=translate,
             scale=scale,
             shear=shear,
-        )
+        )[1],
     )
 
 
 def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
-    """Add caller-provided noise to active coordinate pairs."""
+    """Add caller-provided noise to active coordinate pairs.
+
+    Differentiable with respect to both ``coords`` and ``noise``.
+    """
+    _require_single(inpt, "coord_jitter")
     types, coords = inpt.types, inpt.coords
     noise_tail_shape = (3, 2)
     if (
@@ -261,8 +302,8 @@ def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
     active = torch.stack(_active_pairs(types), dim=1).unsqueeze(-1)
     points = coords.reshape(-1, 3, 2)
     noise = noise[: types.size(0)].to(device=coords.device, dtype=coords.dtype)
-    return Outline(
-        types, torch.where(active, points + noise, points).reshape_as(coords)
+    return _same_types(
+        inpt, torch.where(active, points + noise, points).reshape_as(coords)
     )
 
 

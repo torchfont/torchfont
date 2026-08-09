@@ -3,13 +3,8 @@ from collections.abc import Callable
 import pytest
 import torch
 
+from tests._pairs import cubic_to_quad, merge_curves
 from torchfont import ElementType
-from torchfont.transforms.functional._curves import (
-    _cubic_to_quad as cubic_to_quad,
-)
-from torchfont.transforms.functional._curves import (
-    _merge_curves as merge_curves,
-)
 
 from ._helpers import (
     _CUBIC_CURVES,
@@ -228,7 +223,7 @@ def test_variable_length_transforms_reject_mismatched_coords(
     )
     coords = torch.zeros(1, 6, dtype=torch.float32)
 
-    with pytest.raises(ValueError, match="coords length"):
+    with pytest.raises(ValueError, match="types shape must match coords"):
         transform(types, coords)
 
 

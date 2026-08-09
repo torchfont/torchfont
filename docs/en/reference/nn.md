@@ -1,8 +1,9 @@
 # Neural Network Building Blocks
 
 TorchFont provides small font-specific building blocks in `torchfont.nn`.
-They operate on ordinary tensors so they compose with standard PyTorch modules,
-devices, dtypes, autograd, and serialization.
+They take an [`Outline`](./core-types.md#outline), batched or not, and return
+ordinary tensors, so they compose with standard PyTorch modules, devices, dtypes,
+autograd, and serialization.
 
 ## `OutlineEmbedding`
 
@@ -12,16 +13,19 @@ token features:
 ```python
 import torch
 
-from torchfont import ElementType
+from torchfont import ElementType, Outline
 from torchfont.nn import OutlineEmbedding
 
 embedding = OutlineEmbedding(embedding_dim=256)
-types = torch.tensor(
-    [[ElementType.MOVE_TO, ElementType.LINE_TO, ElementType.END, ElementType.PAD]]
+outline = Outline(
+    torch.tensor(
+        [[ElementType.MOVE_TO, ElementType.LINE_TO, ElementType.END, ElementType.PAD]]
+    ),
+    torch.zeros((1, 4, 6)),  # (batch, sequence, 6)
 )
-coords = torch.zeros((1, 4, 6))  # (batch, sequence, 6)
-tokens = embedding(types, coords)  # (batch, sequence, 256)
-padding_mask = types == ElementType.PAD
+
+tokens = embedding(outline)  # (1, 4, 256)
+padding_mask = outline.padding_mask  # (1, 4)
 ```
 
 The module adds a learned element-type embedding to a bias-free linear
@@ -45,7 +49,7 @@ meaning for the target element type:
 ```python
 from torchfont.nn import functional as F
 
-loss = F.coordinate_loss(predicted_coords, target_coords, target_types)
+loss = F.coordinate_loss(predicted_coords, target_outline)
 ```
 
 - `MOVE_TO` and `LINE_TO`: endpoint only
@@ -53,8 +57,8 @@ loss = F.coordinate_loss(predicted_coords, target_coords, target_types)
 - `CURVE_TO`: both control points and endpoint
 - `CLOSE`, `END`, and `PAD`: no coordinates
 
-Inputs and targets have shape `(..., N, 6)`, while element types have shape
-`(..., N)`. Supported reductions are `"none"`, `"mean"`, and `"sum"`.
+Predictions have shape `(..., N, 6)`, matching the target's coordinates.
+Supported reductions are `"none"`, `"mean"`, and `"sum"`.
 The mean is taken over active coordinate scalars rather than padded storage.
 If there are no active coordinates, the mean is a differentiable zero.
 Non-finite values in inactive coordinate slots are ignored.
@@ -68,16 +72,11 @@ into one training objective:
 from torchfont.nn import OutlineLoss
 
 criterion = OutlineLoss(type_weight=1.0, coordinate_weight=0.5)
-loss = criterion(
-    type_logits,
-    predicted_coords,
-    target_types,
-    target_coords,
-)
+loss = criterion(type_logits, predicted_coords, target_outline)
 ```
 
-`type_logits` has shape `(..., N, TYPE_DIM)`. The other tensors have the same
-shapes accepted by `coordinate_loss`. Cross entropy is averaged over non-padding
+`type_logits` has shape `(..., N, TYPE_DIM)`. Cross entropy is averaged over
+non-padding
 elements, while coordinate error is averaged independently over active
 coordinate scalars. The two means are then combined using `type_weight` and
 `coordinate_weight`. This keeps their relative weighting stable across outline

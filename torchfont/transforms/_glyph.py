@@ -8,8 +8,12 @@ import torch
 from torch import nn
 
 from torchfont import _torchfont
-from torchfont._font import VariationLocation
-from torchfont._glyph import GlyphData, GlyphRef, GlyphSample
+from torchfont._glyph import (
+    GlyphData,
+    GlyphRef,
+    GlyphSample,
+    _glyph_data_targets,
+)
 from torchfont.transforms import functional as _functional
 
 if TYPE_CHECKING:
@@ -37,20 +41,16 @@ class LoadGlyph(nn.Module):
         outline = _functional.load_glyph(ref, location)
         if not isinstance(inpt, GlyphSample):
             return outline
-        weight, width, italic, slant, optical_size = _torchfont.glyph_targets(
-            ref.font.path, ref.font.ttc_index, location
-        )
+        metrics = _torchfont.glyph_targets(ref.font.path, ref.font.ttc_index, location)
         return GlyphData(
             data=outline,
             ref=ref,
-            location=VariationLocation(location),
-            font_idx=inpt.font_idx,
-            character_idx=inpt.character_idx,
-            weight=weight,
-            width=width,
-            italic=italic,
-            slant=slant,
-            optical_size=optical_size,
+            location=location,
+            **_glyph_data_targets(
+                font_idx=inpt.font_idx,
+                character_idx=inpt.character_idx,
+                metrics=metrics,
+            ),
         )
 
     def extra_repr(self) -> str:

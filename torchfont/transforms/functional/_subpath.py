@@ -1,48 +1,45 @@
-"""Functional subpath kernels."""
+"""Functional subpath kernels.
 
-import torch
-from torch import Tensor
+Every kernel here reorders or re-encodes path elements in Rust, so none of them
+define a gradient. Subpath boundaries are derived from the ``CLOSE`` and ``END``
+element types rather than stored alongside the outline.
+"""
 
-from torchfont import _torchfont
-from torchfont._outline import Outline
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from torchfont import _ops
 from torchfont.transforms.functional._utils import _native_outline
 
+if TYPE_CHECKING:
+    from torch import Tensor
 
-def _normalize_subpath_start_points(
-    types: Tensor,
-    coords: Tensor,
-) -> tuple[Tensor, Tensor]:
-    """Move each subpath start to its lexicographically smallest endpoint.
-
-    ``(x, y)`` endpoint order is used as the deterministic key. Open subpaths
-    (those without a closing ``Close``), ``END``, and ``PAD`` element types are
-    returned unchanged. When rotation crosses the old closing edge, that implicit
-    edge is materialised as ``LINE_TO`` so the represented geometry is preserved.
-    """
-    types_device = types.device
-    coords_device = coords.device
-    types = types.cpu().contiguous()
-    coords = coords.cpu().contiguous()
-    out_types, out_coords = _torchfont.normalize_subpath_start_points(
-        types.numpy(), coords.reshape(-1).numpy()
-    )
-    return (
-        torch.from_numpy(out_types).to(device=types_device),
-        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
-    )
+    from torchfont._outline import Outline
 
 
 def normalize_subpath_start_points(inpt: Outline) -> Outline:
-    """Choose a deterministic start point for each closed subpath."""
-    return Outline(*_normalize_subpath_start_points(inpt.types, inpt.coords))
+    """Choose a deterministic start point for each closed subpath.
+
+    Each subpath start moves to its lexicographically smallest ``(x, y)``
+    endpoint. Open subpaths, ``END``, and ``PAD`` elements are unchanged. When
+    rotation crosses the old closing edge, that implicit edge is materialised as
+    ``LINE_TO`` so the represented geometry is preserved.
+    """
+    return _native_outline(
+        inpt,
+        _ops.normalize_subpath_start_points,
+        name="normalize_subpath_start_points",
+    )
 
 
 def set_subpath_start_points(inpt: Outline, selection_values: Tensor) -> Outline:
     """Set closed-subpath start points from explicit unit-interval values."""
     return _native_outline(
         inpt,
-        _torchfont.randomize_subpath_start_points,
-        selection_values.cpu().contiguous().numpy(),
+        _ops.set_subpath_start_points,
+        selection_values,
+        name="set_subpath_start_points",
     )
 
 
@@ -50,8 +47,9 @@ def reorder_subpaths(inpt: Outline, keys: Tensor) -> Outline:
     """Order subpaths by explicit sort keys."""
     return _native_outline(
         inpt,
-        _torchfont.randomize_subpath_order,
-        keys.cpu().contiguous().numpy(),
+        _ops.reorder_subpaths,
+        keys,
+        name="reorder_subpaths",
     )
 
 

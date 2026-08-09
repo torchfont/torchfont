@@ -1,51 +1,34 @@
 """Functional whole-outline kernels."""
 
-import torch
-from torch import Tensor
+from __future__ import annotations
 
-from torchfont import _torchfont
-from torchfont._outline import Outline
+from typing import TYPE_CHECKING
+
+from torchfont import _ops
 from torchfont.transforms.functional._utils import _native_outline
 
+if TYPE_CHECKING:
+    from torch import Tensor
 
-def _remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Merge overlapping subpaths using Skia PathOps winding simplification.
-
-    Args:
-        types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D ``torch.float32`` tensor of shape ``(N, 6)``.
-
-    Returns:
-        A new variable-length outline tuple ``(types, coords)`` with overlapping
-        subpath edges removed when Skia PathOps can resolve the outline. If
-        PathOps cannot simplify an otherwise valid outline, the original outline
-        is returned unchanged.
-
-    """
-    types_device = types.device
-    coords_device = coords.device
-    types = types.cpu().contiguous()
-    coords = coords.cpu().contiguous()
-    out_types, out_coords = _torchfont.remove_overlaps(
-        types.numpy(), coords.reshape(-1).numpy()
-    )
-    return (
-        torch.from_numpy(out_types).to(device=types_device),
-        torch.from_numpy(out_coords).view(-1, 6).to(device=coords_device),
-    )
+    from torchfont._outline import Outline
 
 
 def remove_overlaps(inpt: Outline) -> Outline:
-    """Merge overlapping subpaths."""
-    return Outline(*_remove_overlaps(inpt.types, inpt.coords))
+    """Merge overlapping subpaths using Skia PathOps winding simplification.
+
+    If PathOps cannot simplify an otherwise valid outline, the original outline
+    is returned unchanged.
+    """
+    return _native_outline(inpt, _ops.remove_overlaps, name="remove_overlaps")
 
 
 def remove_overlap_groups(inpt: Outline, selection_values: Tensor) -> Outline:
     """Simplify overlap groups according to explicit selection values."""
     return _native_outline(
         inpt,
-        _torchfont.random_remove_overlaps,
-        selection_values.cpu().contiguous().numpy(),
+        _ops.remove_overlap_groups,
+        selection_values,
+        name="remove_overlap_groups",
     )
 
 

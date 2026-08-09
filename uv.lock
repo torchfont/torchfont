@@ -1601,7 +1601,7 @@ lint = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=1.21.3" },
-    { name = "torch", specifier = ">=2.3.0", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", specifier = ">=2.4.0", index = "https://download.pytorch.org/whl/cpu" },
 ]
 
 [package.metadata.requires-dev]

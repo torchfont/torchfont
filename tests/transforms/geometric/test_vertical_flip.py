@@ -72,12 +72,10 @@ def test_vertical_flip_can_leave_reflected_winding(
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
-def test_vertical_flip_preserves_cuda_device(
+def test_vertical_flip_rejects_cuda_input(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = (tensor.cuda() for tensor in simple_outline)
 
-    out_types, out_coords = vertical_flip(types, coords)
-
-    assert out_types.device.type == "cuda"
-    assert out_coords.device.type == "cuda"
+    with pytest.raises(NotImplementedError, match="CUDA"):
+        vertical_flip(types, coords)

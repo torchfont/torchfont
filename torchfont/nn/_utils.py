@@ -1,5 +1,7 @@
 """Shared neural network helpers for outline tensors."""
 
+from __future__ import annotations
+
 import torch
 from torch import Tensor
 
