@@ -2,10 +2,14 @@
 
 ## Architecture
 
-- TorchFont is a beta Python + Rust library for font-focused PyTorch workflows; prefer better architecture over backward compatibility.
+- TorchFont is beta; ignore backward compatibility. Add no shims, deprecated aliases, version branches, or fallbacks. Raise minimum dependencies instead.
+- Follow current public PyTorch and TorchVision design, including autograd, `torch.compile`, device/dtype, `nn.Module`, and `Dataset`/`DataLoader` conventions where applicable. Add no abstraction, implicit behavior, or convenience API without a clear analogue.
+- Prefer standard PyTorch types and protocols. Add custom types only for otherwise inexpressible font invariants. Never mutate global PyTorch registries or prescribe collation.
+- Return bitmaps as ordinary Tensor data usable by TorchVision, but never import or depend on TorchVision at runtime. Development and interoperability tests may use it.
+- Follow current PyTorch and TorchVision naming, visibility, modules, and directory layout; ignore legacy structure kept for compatibility.
 - Keep Python thin and pickle-friendly; put font parsing and computation in deterministic Rust using crates such as `skrifa` and `read-fonts`.
 - Avoid mutable Rust runtime state unless the design clearly requires it.
-- Add validation only to prevent **silent data corruption** at real external boundaries (user files and arguments). Do not validate when: invalid input would trigger a loud error in a dependency or subsequent operation; a dependency already rejects the value; or the documented behavior for invalid input is a reasonable empty/no-op result. Validate once at the entry point.
+- Validate once at external boundaries only to prevent **silent data corruption**. Rely on dependencies and downstream operations to raise; allow documented empty/no-op results.
 
 ## Workflow
 
@@ -13,7 +17,7 @@
 - Prefer existing `mise` tasks over ad hoc commands.
 - Use `uv` for all Python operations; never invoke `python` or `pip` directly.
 - Run formatting, checks, and relevant tests after code changes.
-- Docs use VitePress. Keep `docs/en/` and `docs/ja/` aligned.
+- Docs use VitePress. Document only the current public API for users—never history, internals, compatibility notes, or maintainer guidance. Keep `docs/en/` and `docs/ja/` aligned.
 
 ## GitHub
 
