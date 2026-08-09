@@ -81,7 +81,10 @@ def _selection(values: Tensor) -> np.ndarray:
 
 
 @torch.library.custom_op(
-    "torchfont::quad_to_cubic", mutates_args=(), device_types="cpu"
+    "torchfont::quad_to_cubic",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords, bool merge_curves) -> (Tensor, Tensor)",
 )
 def quad_to_cubic(
     types: Tensor, coords: Tensor, merge_curves: bool
@@ -99,7 +102,10 @@ def _(types: Tensor, coords: Tensor, merge_curves: bool) -> tuple[Tensor, Tensor
 
 
 @torch.library.custom_op(
-    "torchfont::cubic_to_quad", mutates_args=(), device_types="cpu"
+    "torchfont::cubic_to_quad",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords) -> (Tensor, Tensor)",
 )
 def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Convert cubic segments to sequences of quadratic segments."""
@@ -112,7 +118,12 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _dynamic_outline(types, coords)
 
 
-@torch.library.custom_op("torchfont::merge_curves", mutates_args=(), device_types="cpu")
+@torch.library.custom_op(
+    "torchfont::merge_curves",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords) -> (Tensor, Tensor)",
+)
 def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Merge adjacent pieces of the same parent curve or line."""
     out = _torchfont.merge_curves(*_arrays(types, coords))
@@ -125,7 +136,14 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 
 
 @torch.library.custom_op(
-    "torchfont::split_segments", mutates_args=(), device_types="cpu"
+    "torchfont::split_segments",
+    mutates_args=(),
+    device_types="cpu",
+    schema=(
+        "(Tensor types, Tensor coords, Tensor selection_values, "
+        "Tensor position_values, float split_probability, float[] split_range) "
+        "-> (Tensor, Tensor)"
+    ),
 )
 def split_segments(
     types: Tensor,
@@ -165,7 +183,10 @@ def _(
 
 
 @torch.library.custom_op(
-    "torchfont::remove_overlaps", mutates_args=(), device_types="cpu"
+    "torchfont::remove_overlaps",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords) -> (Tensor, Tensor)",
 )
 def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Merge overlapping subpaths with Skia PathOps winding simplification."""
@@ -179,7 +200,12 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 
 
 @torch.library.custom_op(
-    "torchfont::remove_overlap_groups", mutates_args=(), device_types="cpu"
+    "torchfont::remove_overlap_groups",
+    mutates_args=(),
+    device_types="cpu",
+    schema=(
+        "(Tensor types, Tensor coords, Tensor selection_values) -> (Tensor, Tensor)"
+    ),
 )
 def remove_overlap_groups(
     types: Tensor, coords: Tensor, selection_values: Tensor
@@ -201,6 +227,7 @@ def _(types: Tensor, coords: Tensor, selection_values: Tensor) -> tuple[Tensor, 
     "torchfont::normalize_subpath_start_points",
     mutates_args=(),
     device_types="cpu",
+    schema="(Tensor types, Tensor coords) -> (Tensor, Tensor)",
 )
 def normalize_subpath_start_points(
     types: Tensor, coords: Tensor
@@ -216,7 +243,12 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 
 
 @torch.library.custom_op(
-    "torchfont::set_subpath_start_points", mutates_args=(), device_types="cpu"
+    "torchfont::set_subpath_start_points",
+    mutates_args=(),
+    device_types="cpu",
+    schema=(
+        "(Tensor types, Tensor coords, Tensor selection_values) -> (Tensor, Tensor)"
+    ),
 )
 def set_subpath_start_points(
     types: Tensor, coords: Tensor, selection_values: Tensor
@@ -235,7 +267,10 @@ def _(types: Tensor, coords: Tensor, selection_values: Tensor) -> tuple[Tensor, 
 
 
 @torch.library.custom_op(
-    "torchfont::reorder_subpaths", mutates_args=(), device_types="cpu"
+    "torchfont::reorder_subpaths",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords, Tensor keys) -> (Tensor, Tensor)",
 )
 def reorder_subpaths(
     types: Tensor, coords: Tensor, keys: Tensor
@@ -252,7 +287,10 @@ def _(types: Tensor, coords: Tensor, keys: Tensor) -> tuple[Tensor, Tensor]:
 
 
 @torch.library.custom_op(
-    "torchfont::reverse_closed_subpaths", mutates_args=(), device_types="cpu"
+    "torchfont::reverse_closed_subpaths",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords) -> (Tensor, Tensor)",
 )
 def reverse_closed_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     """Reverse the winding direction of every closed subpath."""
@@ -265,7 +303,12 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _dynamic_outline(types, coords)
 
 
-@torch.library.custom_op("torchfont::bbox_center", mutates_args=(), device_types="cpu")
+@torch.library.custom_op(
+    "torchfont::bbox_center",
+    mutates_args=(),
+    device_types="cpu",
+    schema="(Tensor types, Tensor coords) -> Tensor",
+)
 def bbox_center(types: Tensor, coords: Tensor) -> Tensor:
     """Return the tight bounding-box centre as a ``(2,)`` tensor.
 
@@ -286,7 +329,13 @@ def _(types: Tensor, coords: Tensor) -> Tensor:
 
 
 @torch.library.custom_op(
-    "torchfont::render_bitmap", mutates_args=(), device_types="cpu"
+    "torchfont::render_bitmap",
+    mutates_args=(),
+    device_types="cpu",
+    schema=(
+        "(Tensor types, Tensor coords, int size, str mode, str fill_rule, "
+        "bool antialias) -> Tensor"
+    ),
 )
 def render_bitmap(
     types: Tensor,
