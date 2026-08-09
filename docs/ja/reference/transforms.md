@@ -191,7 +191,7 @@ Functional Pipeline は `torch.compile` で使用できます。
 ```python
 import torch
 
-# Outline の長さが変わる処理を PyTorch 2.4 で使う場合に必要です。
+# Outline の長さが変わる処理を PyTorch 2.5 で使う場合に必要です。
 torch._dynamo.config.capture_dynamic_output_shape_ops = True
 
 

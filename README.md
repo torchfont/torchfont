@@ -15,7 +15,7 @@
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/torchfont?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/torchfont)
 [![PyPI version](https://img.shields.io/pypi/v/torchfont)](https://pypi.org/project/torchfont/)
 [![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)](https://www.rust-lang.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.4+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.5+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
 
 TorchFont is an **unofficial** library based on PyTorch for deep learning with vector fonts.
 It is not affiliated with or endorsed by the PyTorch project.
@@ -27,7 +27,7 @@ in your transform pipeline when tensors are needed.
 
 ## Installation
 
-The package requires Python 3.10+ and PyTorch 2.4+.
+The package requires Python 3.10+ and PyTorch 2.5+.
 
 Install TorchFont with **uv**:
 

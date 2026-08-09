@@ -1601,7 +1601,7 @@ lint = [
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=1.21.3" },
-    { name = "torch", specifier = ">=2.4.0", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", specifier = ">=2.5.0", index = "https://download.pytorch.org/whl/cpu" },
 ]
 
 [package.metadata.requires-dev]
@@ -1614,7 +1614,7 @@ dev = [
     { name = "pytest-benchmark", specifier = ">=5.1.0" },
     { name = "ruff", specifier = ">=0.16.0" },
     { name = "skia-pathops", specifier = ">=0.9.2" },
-    { name = "torchvision", specifier = ">=0.18.0", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torchvision", specifier = ">=0.20.0", index = "https://download.pytorch.org/whl/cpu" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "ty", specifier = ">=0.0.63" },
     { name = "types-tqdm", specifier = ">=4.67.0.20250809" },
