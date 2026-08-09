@@ -7,44 +7,37 @@ import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
-from torchvision.transforms import v2
+from torchvision.transforms import v2 as T
 from tqdm import tqdm
 
+from torchfont import transforms as FT
 from torchfont.datasets import GlyphDataset
 from torchfont.glyphsets import LATIN_CORE
-from torchfont.transforms import (
-    Compose,
-    LoadGlyph,
-    QuadToCubic,
-    RandomAffine,
-    RemoveOverlaps,
-    RenderBitmap,
-)
 
 if TYPE_CHECKING:
     from torchfont import GlyphData, GlyphSample, Outline
 
 
-class GlyphPipeline(torch.nn.Module):
+class TransformPipeline(torch.nn.Module):
     """Build two model inputs from one shared outline pipeline."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.prepare_outline = Compose(
+        self.prepare_outline = FT.Compose(
             [
-                LoadGlyph(location="random"),
-                RemoveOverlaps(),
-                QuadToCubic(merge_curves=True),
-                RandomAffine(degrees=5.0, translate=(0.05, 0.05)),
+                FT.LoadGlyph(location="random"),
+                FT.RemoveOverlaps(),
+                FT.QuadToCubic(merge_curves=True),
+                FT.RandomAffine(degrees=5.0, translate=(0.05, 0.05)),
             ]
         )
-        self.rasterize = Compose(
+        self.rasterize = FT.Compose(
             [
-                RenderBitmap(size=96),
-                v2.ToImage(),
-                v2.Resize((64, 64), antialias=True),
-                v2.ToDtype(torch.float32, scale=True),
-                v2.ToPureTensor(),
+                FT.RenderBitmap(size=96),
+                T.ToImage(),
+                T.Resize((64, 64), antialias=True),
+                T.ToDtype(torch.float32, scale=True),
+                T.ToPureTensor(),
             ]
         )
 
@@ -90,7 +83,7 @@ def main() -> None:
             "ufl/*/*.ttf",
             "!ofl/adobeblank/*.ttf",
         ),
-        transform=GlyphPipeline(),
+        transform=TransformPipeline(),
     )
 
     dataloader = DataLoader(
