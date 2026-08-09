@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 import torch
 from torch.library import CustomOpDef, opcheck
@@ -9,6 +11,16 @@ from torch.library import CustomOpDef, opcheck
 import torchfont._ops as ops
 from torchfont import ElementType, Outline
 from torchfont.transforms import functional as F  # noqa: N812
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+
+@pytest.fixture(autouse=True)
+def _capture_dynamic_output_shapes() -> Iterator[None]:
+    """Enable data-dependent custom-op outputs on every supported PyTorch."""
+    with torch._dynamo.config.patch(capture_dynamic_output_shape_ops=True):  # noqa: SLF001
+        yield
 
 
 def _outline(elements: int = 5) -> Outline:

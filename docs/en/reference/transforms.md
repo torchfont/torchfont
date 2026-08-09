@@ -193,6 +193,12 @@ floating point dtype.
 Functional pipelines can be used with `torch.compile`:
 
 ```python
+import torch
+
+# Required on PyTorch 2.4 when an operation can change the outline length.
+torch._dynamo.config.capture_dynamic_output_shape_ops = True
+
+
 def pipeline(types, coords):
     outline = Outline(types, coords)
     outline = F.remove_overlaps(outline)
