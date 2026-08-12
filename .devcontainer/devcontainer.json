@@ -29,12 +29,14 @@
 		}
 	],
 	"containerEnv": {
-		"MISE_TRUSTED_CONFIG_PATHS": "/workspaces",
-		"MISE_UV_VERSION": "latest",
+		"MISE_TRUSTED_CONFIG_PATHS": "${containerWorkspaceFolder}",
 		"UV_LINK_MODE": "copy"
 	},
+	"remoteEnv": {
+		"MISE_UV_VERSION": "latest"
+	},
 	"onCreateCommand": "sudo chown -R vscode:vscode /mise /home/vscode/.cache/uv .venv target node_modules data",
-	"postCreateCommand": "mise run setup",
+	"postCreateCommand": "mise run sync",
 	"customizations": {
 		"vscode": {
 			"extensions": [

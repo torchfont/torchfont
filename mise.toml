@@ -1,103 +1,174 @@
+min_version = "2026.6.14"
+
 [tools]
 uv = "latest"
-rust = { version = "stable", profile = "default", components = "rust-src" }
+rust = { version = "1.96.0", profile = "default", components = "rust-src,rustfmt,clippy" }
 npm = "latest"
-node = "lts"
+node = "24"
 
 [settings]
 lockfile = true
 
-[tasks.setup]
-sources = ["mise.toml", "mise.lock"]
-run = "mise install"
-
 [tasks.uv-sync]
-sources = ["pyproject.toml", "uv.lock"]
-depends = ["setup"]
-run = "uv sync"
+description = "Sync Python dependencies from uv.lock"
+run = "uv sync --locked --no-install-project"
 
 [tasks.npm-sync]
-sources = ["package.json", "package-lock.json"]
-depends = ["setup"]
+description = "Sync the Node.js dependencies from package-lock.json"
+sources = ["package.json", "package-lock.json", "mise.lock"]
+outputs = ["node_modules/.package-lock.json"]
 run = "npm ci"
 
 [tasks.sync]
+description = "Sync all project dependencies"
 depends = ["uv-sync", "npm-sync"]
 
 [tasks.rust-format]
-sources = ["src/**/*.rs"]
+description = "Format Rust sources"
+sources = ["Cargo.toml", "mise.lock", "src/**/*.rs"]
 run = "cargo fmt --all"
 
 [tasks.python-format]
-sources = ["examples/**/*.py", "tests/**/*.py", "torchfont/**/*.py"]
-depends = ["uv-sync"]
-run = "uv run ruff format"
-
-[tasks.format]
-depends = ["rust-format", "python-format"]
-
-[tasks.rust-check]
-sources = ["Cargo.toml", "Cargo.lock", "pyproject.toml", "uv.lock", "src/**/*.rs"]
-depends = ["uv-sync"]
-run = [
-  "cargo fmt --all -- --check",
-  "uv run cargo clippy --all-targets --all-features -- -D warnings",
-  "uv run cargo check --all-targets --all-features",
-  "uv run cargo test --all-targets --all-features",
-]
-
-[tasks.python-check]
+description = "Format Python sources"
 sources = [
+  ".python-version",
   "pyproject.toml",
   "uv.lock",
+  "mise.lock",
+  "examples/**/*.py",
+  "tests/**/*.py",
+  "torchfont/**/*.py",
+]
+run = "uv run --isolated --locked --only-group lint ruff format"
+
+[tasks.format]
+description = "Format all sources"
+depends = ["rust-format", "python-format"]
+
+[tasks.rust-format-check]
+description = "Check Rust formatting"
+sources = ["Cargo.toml", "mise.lock", "src/**/*.rs"]
+run = "cargo fmt --all -- --check"
+
+[tasks.rust-lint]
+description = "Lint Rust targets with Clippy"
+sources = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "mise.lock",
+  "src/**/*.rs",
+]
+run = "cargo clippy --all-targets --all-features -- -D warnings"
+
+[tasks.rust-test]
+description = "Run the Rust test suite"
+sources = [
+  "Cargo.toml",
+  "Cargo.lock",
+  "mise.lock",
+  "src/**/*.rs",
+  "tests/fonts/**",
+]
+run = "cargo test --all-targets --all-features"
+
+[tasks.rust-check]
+description = "Run all Rust checks"
+run = [
+  { task = "rust-format-check" },
+  { task = "rust-lint" },
+  { task = "rust-test" },
+]
+
+[tasks.python-lint]
+description = "Check Python formatting and lint with Ruff"
+sources = [
+  ".python-version",
+  "pyproject.toml",
+  "uv.lock",
+  "mise.lock",
+  "examples/**/*.py",
+  "tests/**/*.py",
+  "torchfont/**/*.py",
+]
+run = [
+  "uv run --isolated --locked --only-group lint ruff format --check",
+  "uv run --isolated --locked --only-group lint ruff check",
+]
+
+[tasks.python-typecheck]
+description = "Type-check Python sources"
+sources = [
+  ".python-version",
+  "pyproject.toml",
+  "uv.lock",
+  "mise.lock",
   "examples/**/*.py",
   "tests/**/*.py",
   "torchfont/**/*.py",
 ]
 depends = ["uv-sync"]
-run = ["uv run ruff format --check", "uv run ruff check", "uv run ty check"]
+run = "uv run --no-sync ty check"
+
+[tasks.python-check]
+description = "Run all Python checks"
+depends = ["python-lint", "python-typecheck"]
 
 [tasks.check]
+description = "Run all static checks and Rust tests"
 depends = ["rust-check", "python-check"]
 
 [tasks.build]
+description = "Build and install the native extension"
 sources = [
   "Cargo.toml",
   "Cargo.lock",
   "pyproject.toml",
   "uv.lock",
+  "mise.lock",
+  ".python-version",
   "src/**/*.rs",
 ]
-outputs = ["target/maturin/lib_torchfont.so"]
+outputs = [
+  'torchfont/_torchfont*.{% if os() == "windows" %}pyd{% else %}so{% endif %}',
+]
 depends = ["check"]
-run = ["uv run maturin develop --release"]
+run = "uv run --no-sync maturin develop --release"
 
 [tasks.test]
+description = "Run the Python test suite"
 depends = ["build"]
-run = "uv run pytest tests"
-
-[tasks.test-google-fonts]
-depends = ["build", "data-sync"]
-run = "uv run pytest tests/google_fonts --google-fonts -s"
-
-[tasks.docs-build]
-sources = [
-  "docs/**/*",
-  "!docs/.vitepress/dist/**",
-  "package.json",
-  "package-lock.json",
-]
-depends = ["npm-sync"]
-run = "npm run docs:build"
+run = "uv run --no-sync pytest tests"
 
 [tasks.data-sync]
+description = "Initialize the repository data submodules"
 run = [
   "git submodule sync --recursive",
   "git submodule update --init --depth 1 --recursive",
 ]
 
 [tasks.data-update]
+description = "Update the repository data submodules"
 run = [
   "git submodule sync --recursive",
   "git submodule update --remote --depth 1 --recursive",
 ]
+
+[tasks.test-google-fonts]
+description = "Run tests against the Google Fonts checkout"
+depends = ["build", "data-sync"]
+run = "uv run --no-sync pytest tests/google_fonts --google-fonts -s"
+
+[tasks.docs-build]
+description = "Build the documentation site"
+sources = [
+  "docs/**/*.md",
+  "docs/.vitepress/config.mts",
+  "docs/.vitepress/theme/**/*",
+  "docs/public/**/*",
+  "package.json",
+  "package-lock.json",
+  "mise.lock",
+]
+outputs = ["docs/.vitepress/dist/index.html"]
+depends = ["npm-sync"]
+run = "npm run docs:build"
