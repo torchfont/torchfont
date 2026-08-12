@@ -8,7 +8,8 @@ hero:
     "Harnessing Rust's high-performance font ecosystem, TorchFont enables fast,
     on-the-fly font processing without intermediate files."
   image:
-    src: /brand/torchfont-logomark.svg
+    light: /brand/torchfont-logomark-light.svg
+    dark: /brand/torchfont-logomark-dark.svg
     alt: TorchFont logomark
   actions:
     - theme: brand

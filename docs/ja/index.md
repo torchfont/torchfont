@@ -6,7 +6,8 @@ hero:
   text: ベクターフォントのための<br>機械学習ライブラリ
   tagline: "Rust の高速なフォントエコシステムを活用し、中間ファイルを生成しないフォントデータの高速なオンザフライ処理を実現します。"
   image:
-    src: /brand/torchfont-logomark.svg
+    light: /brand/torchfont-logomark-light.svg
+    dark: /brand/torchfont-logomark-dark.svg
     alt: TorchFont logomark
   actions:
     - theme: brand
