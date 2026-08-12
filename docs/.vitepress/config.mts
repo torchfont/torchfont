@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 const rtdBase = process.env.READTHEDOCS_CANONICAL_URL
   ? new URL(process.env.READTHEDOCS_CANONICAL_URL).pathname.replace(/\/$/, '')
   : ''
-const faviconPath = `${rtdBase}/brand/torchfont-logomark-light.svg`
+const faviconPath = `${rtdBase}/brand/torchfont-icon-light.svg`
 
 export default defineConfig({
   base: rtdBase,
@@ -23,8 +23,8 @@ export default defineConfig({
 
   themeConfig: {
     logo: {
-      light: '/brand/torchfont-logomark-light.svg',
-      dark: '/brand/torchfont-logomark-dark.svg',
+      light: '/brand/torchfont-icon-light.svg',
+      dark: '/brand/torchfont-icon-dark.svg',
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/torchfont/torchfont' },
