@@ -50,7 +50,6 @@ dev = [
     "maturin[patchelf]>=1.12.6; sys_platform == 'linux'",
     "maturin>=1.12.6; sys_platform != 'linux'",
     "pytest>=8.4.2",
-    "pytest-benchmark>=5.1.0",
     "skia-pathops>=0.9.2",
     "torchvision>=0.20.0",
     "tqdm>=4.67.1",
@@ -69,7 +68,7 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.pytest.ini_options]
-addopts = ["--benchmark-skip", "-rs"]
+addopts = ["-rs"]
 filterwarnings = ["ignore:.*fork.*:DeprecationWarning"]
 markers = ["google_fonts: tests that require a local Google Fonts checkout"]
 testpaths = ["tests"]
