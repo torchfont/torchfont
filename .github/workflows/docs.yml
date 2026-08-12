@@ -8,12 +8,18 @@ on:
       - 'docs/**'
       - 'package.json'
       - 'package-lock.json'
+      - '.readthedocs.yaml'
+      - 'mise.toml'
+      - 'mise.lock'
       - '.github/workflows/docs.yml'
   pull_request:
     paths:
       - 'docs/**'
       - 'package.json'
       - 'package-lock.json'
+      - '.readthedocs.yaml'
+      - 'mise.toml'
+      - 'mise.lock'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
