@@ -8,8 +8,8 @@ authors:
     given-names: "Takumu"
     email: "fjktkm@gmail.com"
     orcid: "https://orcid.org/0009-0005-0691-414X"
-version: 0.12.3
-date-released: 2026-08-09
+version: 0.12.4
+date-released: 2026-08-12
 license: MIT
 repository-code: "https://github.com/torchfont/torchfont"
 url: "https://torchfont.readthedocs.io/"
