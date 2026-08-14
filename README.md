@@ -87,14 +87,14 @@ targets can add them to the batch in its local `collate_fn`.
 Manage font repository synchronization with Git or another tool, then point
 `GlyphDataset(root=...)` at the resulting directory.
 
-## Citation
+## Citing TorchFont
 
 If you find TorchFont useful in your work, please consider citing the following BibTeX entry:
 
 ```bibtex
 @software{fujioka2025torchfont,
     author = {Fujioka, Takumu},
-    title  = {{TorchFont: A Machine Learning library for Vector Fonts}},
+    title  = {{TorchFont}: A Machine Learning Library for Vector Fonts},
     year   = {2025},
     url    = {https://github.com/torchfont/torchfont}
 }
