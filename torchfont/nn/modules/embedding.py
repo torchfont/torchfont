@@ -26,6 +26,7 @@ class OutlineEmbedding(nn.Module):
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ) -> None:
+        """Initialize the element-type embedding and coordinate projection."""
         super().__init__()
         self.embedding_dim = embedding_dim
         self.type_embedding = nn.Embedding(
@@ -60,6 +61,7 @@ class OutlineEmbedding(nn.Module):
         return torch.where((types != ElementType.PAD.value).unsqueeze(-1), embedded, 0)
 
     def extra_repr(self) -> str:
+        """Return the module configuration for :func:`repr`."""
         return f"embedding_dim={self.embedding_dim}"
 
 

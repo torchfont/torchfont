@@ -27,6 +27,7 @@ class OutlineLoss(nn.Module):
         type_weight: float = 1.0,
         coordinate_weight: float = 1.0,
     ) -> None:
+        """Initialize the weights applied to both loss components."""
         super().__init__()
         self.type_weight = type_weight
         self.coordinate_weight = coordinate_weight
@@ -47,6 +48,7 @@ class OutlineLoss(nn.Module):
         )
 
     def extra_repr(self) -> str:
+        """Return the module configuration for :func:`repr`."""
         return (
             f"type_weight={self.type_weight}, "
             f"coordinate_weight={self.coordinate_weight}"
