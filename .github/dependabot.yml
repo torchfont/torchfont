@@ -1,5 +1,14 @@
 version: 2
 updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
+
   - package-ecosystem: "devcontainers"
     directory: "/"
     schedule:
@@ -14,21 +23,12 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: "pip"
+  - package-ecosystem: "gitsubmodule"
     directory: "/"
     schedule:
       interval: weekly
     groups:
-      python-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "cargo"
-    directory: "/"
-    schedule:
-      interval: weekly
-    groups:
-      rust-dependencies:
+      submodule-dependencies:
         patterns:
           - "*"
 
@@ -38,5 +38,14 @@ updates:
       interval: weekly
     groups:
       npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      python-dependencies:
         patterns:
           - "*"
