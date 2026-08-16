@@ -25,7 +25,7 @@ class OutlineLoss(nn.Module):
         self,
         *,
         type_weight: float = 1.0,
-        coordinate_weight: float = 1.0,
+        coordinate_weight: float = 100.0,
     ) -> None:
         """Initialize the weights applied to both loss components."""
         super().__init__()
