@@ -55,7 +55,7 @@ def outline_loss(
     target: Outline,
     *,
     type_weight: float = 1.0,
-    coordinate_weight: float = 1.0,
+    coordinate_weight: float = 100.0,
 ) -> Tensor:
     """Combine element-type classification and active-coordinate regression.
 
