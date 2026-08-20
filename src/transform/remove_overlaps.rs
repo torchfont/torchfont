@@ -129,23 +129,52 @@ fn simplify(outline: &BezPath) -> Option<BezPath> {
 
 fn build_skia_path(outline: &BezPath) -> Option<Path> {
     let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
-    for element in outline.elements() {
-        match *element {
-            PathEl::MoveTo(point) => builder.move_to((point.x as f32, point.y as f32)),
-            PathEl::LineTo(point) => builder.line_to((point.x as f32, point.y as f32)),
-            PathEl::QuadTo(control, end) => builder.quad_to(
+    for &element in outline.elements() {
+        push_skia_element(&mut builder, element);
+    }
+    (!builder.is_empty()).then(|| builder.detach())
+}
+
+// Explicitly close every contour, matching close_subpath's rationale: a
+// contour is a fill boundary regardless of whether PathOps happened to emit
+// a trailing Close. EvenOdd (rather than build_skia_path's Winding) is safe
+// here only because every caller passes a single, simple, non-self-
+// intersecting contour from Skia's own simplify() output; both fill rules
+// agree for such a shape.
+fn subpath_skia_path(subpath: &[PathEl]) -> Option<Path> {
+    let mut builder = PathBuilder::new_with_fill_type(PathFillType::EvenOdd);
+    for &element in subpath {
+        push_skia_element(&mut builder, element);
+    }
+    builder.close();
+    (!builder.is_empty()).then(|| builder.detach())
+}
+
+fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
+    match element {
+        PathEl::MoveTo(point) => {
+            builder.move_to((point.x as f32, point.y as f32));
+        }
+        PathEl::LineTo(point) => {
+            builder.line_to((point.x as f32, point.y as f32));
+        }
+        PathEl::QuadTo(control, end) => {
+            builder.quad_to(
                 (control.x as f32, control.y as f32),
                 (end.x as f32, end.y as f32),
-            ),
-            PathEl::CurveTo(control0, control1, end) => builder.cubic_to(
+            );
+        }
+        PathEl::CurveTo(control0, control1, end) => {
+            builder.cubic_to(
                 (control0.x as f32, control0.y as f32),
                 (control1.x as f32, control1.y as f32),
                 (end.x as f32, end.y as f32),
-            ),
-            PathEl::ClosePath => builder.close(),
-        };
-    }
-    (!builder.is_empty()).then(|| builder.detach())
+            );
+        }
+        PathEl::ClosePath => {
+            builder.close();
+        }
+    };
 }
 
 fn outline_from_path(path: &Path) -> Option<BezPath> {
@@ -200,16 +229,13 @@ fn point(point: skia_safe::Point) -> Point {
 fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     // skia-pathops uses nesting depth instead of Skia's AsWinding operation;
     // keep that behavior while using TorchFont's native outline types.
-    // Contours are treated as implicitly closed for area/winding purposes
-    // regardless of whether PathOps happened to emit a trailing Close: kurbo
-    // only synthesizes the closing edge when ClosePath is present, but an
-    // open polyline isn't a meaningful fill boundary.
+    // Contours are treated as implicitly closed for area purposes regardless
+    // of whether PathOps happened to emit a trailing Close: kurbo only
+    // synthesizes the closing edge when ClosePath is present, but an open
+    // polyline isn't a meaningful fill boundary.
     let mut contours: Vec<_> = outline
         .subpaths()
-        .map(|subpath| {
-            let closed = close_subpath(subpath);
-            (closed.area(), subpath, closed)
-        })
+        .map(|subpath| (close_subpath(subpath).area(), subpath))
         .collect();
     contours.sort_by(|a, b| {
         b.0.abs()
@@ -219,14 +245,25 @@ fn winding_from_even_odd(outline: &BezPath) -> BezPath {
 
     let bounding_boxes: Vec<_> = contours
         .iter()
-        .map(|(_, subpath, _)| subpath.bounding_box())
+        .map(|(_, subpath)| subpath.bounding_box())
+        .collect();
+    // The nesting loop below queries, for every candidate outer/inner pair,
+    // whether the inner contour's points fall inside the outer one. Skia's
+    // Path::contains is markedly faster per query than kurbo's analytic
+    // per-segment winding, so build each contour's Skia path once up front
+    // rather than converting it on every query.
+    let skia_paths: Vec<_> = contours
+        .iter()
+        .map(|(_, subpath)| subpath_skia_path(subpath))
         .collect();
 
     let mut nesting = vec![0usize; contours.len()];
     for inner in 0..contours.len() {
         for outer in 0..inner {
             let is_inside = bounding_boxes[outer].contains_rect(bounding_boxes[inner])
-                && contour_is_inside(contours[outer].2.elements(), contours[inner].1);
+                && skia_paths[outer]
+                    .as_ref()
+                    .is_some_and(|path| contour_is_inside(path, contours[inner].1));
             if is_inside {
                 nesting[inner] += 1;
             }
@@ -234,7 +271,7 @@ fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     }
 
     let mut result = BezPath::new();
-    for ((area, subpath, _), depth) in contours.into_iter().zip(nesting) {
+    for ((area, subpath), depth) in contours.into_iter().zip(nesting) {
         let is_clockwise = area < 0.0;
         let is_outer = depth.is_multiple_of(2);
         if is_clockwise == is_outer {
@@ -260,14 +297,15 @@ fn path_is_inside(outer: &[PathEl], inner: &[PathEl]) -> bool {
     // contour whose tight bounds fit and whose on-curve points are inside is
     // nested. Checking tight-bound containment also catches curves that bulge
     // outside the candidate parent while keeping their endpoints inside.
-    outer.bounding_box().contains_rect(inner.bounding_box()) && contour_is_inside(outer, inner)
+    outer.bounding_box().contains_rect(inner.bounding_box())
+        && subpath_skia_path(outer).is_some_and(|path| contour_is_inside(&path, inner))
 }
 
-fn contour_is_inside(outer: &[PathEl], inner: &[PathEl]) -> bool {
+fn contour_is_inside(outer: &Path, inner: &[PathEl]) -> bool {
     inner
         .iter()
         .filter_map(kurbo::PathEl::end_point)
-        .all(|point| outer.winding(point) != 0)
+        .all(|point| outer.contains((point.x as f32, point.y as f32)))
 }
 
 #[cfg(test)]
@@ -300,24 +338,18 @@ mod tests {
     }
 
     #[test]
-    fn contour_is_inside_treats_open_outer_as_implicitly_closed() {
+    fn subpath_skia_path_fills_open_subpath_interior() {
+        // No close_path(): the edge back to (0.0, 0.0) is only implicit in
+        // the input, but subpath_skia_path closes every contour explicitly.
         let mut outer = BezPath::new();
         outer.move_to((0.0, 0.0));
         outer.line_to((10.0, 0.0));
         outer.line_to((10.0, 10.0));
         outer.line_to((0.0, 10.0));
-        // No close_path(): the edge back to (0.0, 0.0) is only implicit.
 
-        let mut inner = BezPath::new();
-        inner.move_to((1.0, 5.0));
-        inner.close_path();
+        let path = super::subpath_skia_path(outer.elements()).expect("subpath has segments");
 
-        let raw_inside = super::contour_is_inside(outer.elements(), inner.elements());
-        let closed = super::close_subpath(outer.elements());
-        let closed_inside = super::contour_is_inside(closed.elements(), inner.elements());
-
-        assert_ne!(raw_inside, closed_inside);
-        assert!(closed_inside);
+        assert!(path.contains((5.0, 5.0)));
     }
 
     #[test]
