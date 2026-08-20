@@ -1,32 +1,28 @@
-use crate::outline::{Outline, PathElement, Subpath};
+use kurbo::QuadBez;
 
-pub(crate) fn quad_to_cubic(outline: &Outline) -> Outline {
-    let subpaths = outline
-        .subpaths()
-        .iter()
-        .map(|subpath| {
-            let mut prev = subpath.start();
-            let elements = subpath
-                .elements()
-                .iter()
-                .map(|&el| {
-                    let converted = if let PathElement::QuadTo { control, end } = el {
-                        let c1 = prev.lerp(control, 2.0 / 3.0);
-                        let c2 = end.lerp(control, 2.0 / 3.0);
-                        PathElement::CurveTo {
-                            control0: c1,
-                            control1: c2,
-                            end,
-                        }
-                    } else {
-                        el
-                    };
-                    prev = converted.end();
-                    converted
-                })
-                .collect();
-            Subpath::new(subpath.start(), elements, subpath.is_closed())
-        })
-        .collect();
-    Outline::new(subpaths)
+use crate::outline::{
+    BezPath, PathEl, path_element_end, subpath_elements, subpath_is_closed, subpath_start,
+};
+
+pub(crate) fn quad_to_cubic(outline: &BezPath) -> BezPath {
+    let mut result = BezPath::new();
+    for subpath in outline.subpaths() {
+        let start = subpath_start(subpath);
+        result.move_to(start);
+        let mut prev = start;
+        result.extend(subpath_elements(subpath).iter().map(|&el| {
+            let converted = if let PathEl::QuadTo(control, end) = el {
+                let cubic = QuadBez::new(prev, control, end).raise();
+                PathEl::CurveTo(cubic.p1, cubic.p2, cubic.p3)
+            } else {
+                el
+            };
+            prev = path_element_end(converted);
+            converted
+        }));
+        if subpath_is_closed(subpath) {
+            result.close_path();
+        }
+    }
+    result
 }

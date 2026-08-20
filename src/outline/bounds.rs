@@ -1,4 +1,6 @@
-use super::{Outline, PathElement, Point};
+use kurbo::Shape;
+
+use super::{BezPath, PathEl, Point, subpath_start};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Bounds {
@@ -11,18 +13,30 @@ pub(crate) struct Bounds {
 impl Bounds {
     pub(crate) fn new(point: Point) -> Self {
         Self {
-            x_min: point.x,
-            y_min: point.y,
-            x_max: point.x,
-            y_max: point.y,
+            x_min: round_down(point.x),
+            y_min: round_down(point.y),
+            x_max: round_up(point.x),
+            y_max: round_up(point.y),
         }
     }
 
     pub(crate) fn include(&mut self, point: Point) {
-        self.x_min = self.x_min.min(point.x);
-        self.y_min = self.y_min.min(point.y);
-        self.x_max = self.x_max.max(point.x);
-        self.y_max = self.y_max.max(point.y);
+        self.x_min = self.x_min.min(round_down(point.x));
+        self.y_min = self.y_min.min(round_down(point.y));
+        self.x_max = self.x_max.max(round_up(point.x));
+        self.y_max = self.y_max.max(round_up(point.y));
+    }
+
+    fn include_rect(&mut self, rect: kurbo::Rect) {
+        self.include(Point::new(rect.x0, rect.y0));
+        self.include(Point::new(rect.x1, rect.y1));
+    }
+
+    fn include_bounds(&mut self, other: Self) {
+        self.x_min = self.x_min.min(other.x_min);
+        self.y_min = self.y_min.min(other.y_min);
+        self.x_max = self.x_max.max(other.x_max);
+        self.y_max = self.y_max.max(other.y_max);
     }
 
     pub(crate) fn width(self) -> f32 {
@@ -34,154 +48,45 @@ impl Bounds {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct BoundsPen {
-    bounds: Option<Bounds>,
-    current: Option<Point>,
-    subpath_start: Option<Point>,
-}
-
-impl BoundsPen {
-    pub(crate) fn finish(self) -> Option<Bounds> {
-        self.bounds
-    }
-
-    pub(crate) fn move_to(&mut self, point: Point) {
-        self.include(point);
-        self.current = Some(point);
-        self.subpath_start = Some(point);
-    }
-
-    pub(crate) fn line_to(&mut self, point: Point) {
-        self.include(point);
-        self.current = Some(point);
-    }
-
-    pub(crate) fn quad_to(&mut self, control: Point, end: Point) {
-        let start = self.current.unwrap_or(end);
-        self.include_quad(start, control, end);
-        self.current = Some(end);
-    }
-
-    pub(crate) fn curve_to(&mut self, control0: Point, control1: Point, end: Point) {
-        let start = self.current.unwrap_or(end);
-        self.include_cubic(start, control0, control1, end);
-        self.current = Some(end);
-    }
-
-    pub(crate) fn close(&mut self) {
-        self.current = self.subpath_start;
-    }
-
-    pub(crate) fn path_element(&mut self, element: PathElement) {
-        match element {
-            PathElement::LineTo(point) => self.line_to(point),
-            PathElement::QuadTo { control, end } => self.quad_to(control, end),
-            PathElement::CurveTo {
-                control0,
-                control1,
-                end,
-            } => self.curve_to(control0, control1, end),
-        }
-    }
-
-    fn include(&mut self, point: Point) {
-        self.bounds
-            .get_or_insert_with(|| Bounds::new(point))
-            .include(point);
-    }
-
-    fn include_quad(&mut self, start: Point, control: Point, end: Point) {
-        self.include(end);
-        for t in [
-            quad_extremum(start.x, control.x, end.x),
-            quad_extremum(start.y, control.y, end.y),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            self.include(Point::new(
-                quad_at(start.x, control.x, end.x, t),
-                quad_at(start.y, control.y, end.y, t),
-            ));
-        }
-    }
-
-    fn include_cubic(&mut self, start: Point, control0: Point, control1: Point, end: Point) {
-        self.include(end);
-        let x_ts = cubic_extrema(start.x, control0.x, control1.x, end.x);
-        let y_ts = cubic_extrema(start.y, control0.y, control1.y, end.y);
-        for t in x_ts.into_iter().chain(y_ts).flatten() {
-            self.include(Point::new(
-                cubic_at(start.x, control0.x, control1.x, end.x, t),
-                cubic_at(start.y, control0.y, control1.y, end.y, t),
-            ));
-        }
+fn round_down(value: f64) -> f32 {
+    let rounded = value as f32;
+    if rounded.is_finite() && f64::from(rounded) > value {
+        rounded.next_down()
+    } else {
+        rounded
     }
 }
 
-pub(crate) fn bounds_from_outline(outline: &Outline) -> Option<Bounds> {
-    let mut pen = BoundsPen::default();
-    for subpath in outline.subpaths() {
-        let start = subpath.start();
-        pen.move_to(start);
-        for element in subpath.elements() {
-            pen.path_element(*element);
-        }
-        if subpath.is_closed() {
-            pen.close();
-        }
+fn round_up(value: f64) -> f32 {
+    let rounded = value as f32;
+    if rounded.is_finite() && f64::from(rounded) < value {
+        rounded.next_up()
+    } else {
+        rounded
     }
-    pen.finish()
 }
 
-fn quad_extremum(p0: f32, p1: f32, p2: f32) -> Option<f32> {
-    let denom = p0 - 2.0 * p1 + p2;
-    if denom.abs() <= f32::EPSILON {
-        return None;
+pub(crate) fn bounds_from_outline(outline: &BezPath) -> Option<Bounds> {
+    let mut subpaths = outline.subpaths();
+    let mut bounds = bounds_from_subpath(subpaths.next()?);
+    for subpath in subpaths {
+        bounds.include_bounds(bounds_from_subpath(subpath));
     }
-    let t = (p0 - p1) / denom;
-    (t > 0.0 && t < 1.0).then_some(t)
+    Some(bounds)
 }
 
-fn cubic_extrema(p0: f32, p1: f32, p2: f32, p3: f32) -> [Option<f32>; 2] {
-    let a = -p0 + 3.0 * p1 - 3.0 * p2 + p3;
-    let b = 2.0 * (p0 - 2.0 * p1 + p2);
-    let c = p1 - p0;
-    solve_quadratic(a, b, c).map(|t| t.filter(|t| *t > 0.0 && *t < 1.0))
-}
-
-fn solve_quadratic(a: f32, b: f32, c: f32) -> [Option<f32>; 2] {
-    if a.abs() <= f32::EPSILON {
-        if b.abs() <= f32::EPSILON {
-            return [None, None];
-        }
-        return [Some(-c / b), None];
+pub(crate) fn bounds_from_subpath(subpath: &[PathEl]) -> Bounds {
+    let mut bounds = Bounds::new(subpath_start(subpath));
+    if !super::subpath_elements(subpath).is_empty() {
+        bounds.include_rect(subpath.bounding_box());
     }
-    let disc = b.mul_add(b, -4.0 * a * c);
-    if disc < 0.0 {
-        return [None, None];
-    }
-    if disc <= f32::EPSILON {
-        return [Some(-b / (2.0 * a)), None];
-    }
-    let root = disc.sqrt();
-    [Some((-b + root) / (2.0 * a)), Some((-b - root) / (2.0 * a))]
-}
-
-fn quad_at(p0: f32, p1: f32, p2: f32, t: f32) -> f32 {
-    let mt = 1.0 - t;
-    mt * mt * p0 + 2.0 * mt * t * p1 + t * t * p2
-}
-
-fn cubic_at(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
-    let mt = 1.0 - t;
-    mt * mt * mt * p0 + 3.0 * mt * mt * t * p1 + 3.0 * mt * t * t * p2 + t * t * t * p3
+    bounds
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::outline::{PathEl, outline_from_subpaths, subpath_from_elements};
 
     fn close_enough(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-5, "{a} != {b}");
@@ -189,11 +94,12 @@ mod tests {
 
     #[test]
     fn computes_quadratic_tight_bounds() {
-        let mut pen = BoundsPen::default();
-        pen.move_to(Point::new(0.0, 0.0));
-        pen.quad_to(Point::new(1.0, 2.0), Point::new(2.0, 0.0));
-
-        let bounds = pen.finish().unwrap();
+        let outline = outline_from_subpaths([subpath_from_elements(
+            Point::new(0.0, 0.0),
+            [PathEl::QuadTo(Point::new(1.0, 2.0), Point::new(2.0, 0.0))],
+            false,
+        )]);
+        let bounds = bounds_from_outline(&outline).unwrap();
 
         close_enough(bounds.x_min, 0.0);
         close_enough(bounds.y_min, 0.0);
@@ -203,19 +109,65 @@ mod tests {
 
     #[test]
     fn computes_cubic_tight_bounds() {
-        let mut pen = BoundsPen::default();
-        pen.move_to(Point::new(0.0, 0.0));
-        pen.curve_to(
-            Point::new(0.0, 3.0),
-            Point::new(3.0, 3.0),
-            Point::new(3.0, 0.0),
-        );
-
-        let bounds = pen.finish().unwrap();
+        let outline = outline_from_subpaths([subpath_from_elements(
+            Point::new(0.0, 0.0),
+            [PathEl::CurveTo(
+                Point::new(0.0, 3.0),
+                Point::new(3.0, 3.0),
+                Point::new(3.0, 0.0),
+            )],
+            false,
+        )]);
+        let bounds = bounds_from_outline(&outline).unwrap();
 
         close_enough(bounds.x_min, 0.0);
         close_enough(bounds.y_min, 0.0);
         close_enough(bounds.x_max, 3.0);
         close_enough(bounds.y_max, 2.25);
+    }
+
+    #[test]
+    fn f32_bounds_enclose_f64_coordinates() {
+        let value = 1.0 + f64::EPSILON;
+        let bounds = Bounds::new(Point::new(value, -value));
+
+        assert!(f64::from(bounds.x_min) <= value);
+        assert!(f64::from(bounds.x_max) >= value);
+        assert!(f64::from(bounds.y_min) <= -value);
+        assert!(f64::from(bounds.y_max) >= -value);
+    }
+
+    #[test]
+    fn move_only_bounds_do_not_include_origin() {
+        let mut outline = BezPath::new();
+        outline.move_to((10.0, 20.0));
+
+        assert_eq!(
+            bounds_from_outline(&outline),
+            Some(Bounds {
+                x_min: 10.0,
+                y_min: 20.0,
+                x_max: 10.0,
+                y_max: 20.0,
+            })
+        );
+    }
+
+    #[test]
+    fn combines_drawn_and_move_only_subpaths() {
+        let mut outline = BezPath::new();
+        outline.move_to((10.0, 20.0));
+        outline.move_to((-2.0, -3.0));
+        outline.line_to((4.0, 5.0));
+
+        assert_eq!(
+            bounds_from_outline(&outline),
+            Some(Bounds {
+                x_min: -2.0,
+                y_min: -3.0,
+                x_max: 10.0,
+                y_max: 20.0,
+            })
+        );
     }
 }

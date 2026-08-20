@@ -1,56 +1,69 @@
-use crate::outline::{Outline, PathElement, Point, Subpath};
-use crate::transform::curves::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
+use kurbo::{CubicBez, ParamCurve, QuadBez};
+use smallvec::{SmallVec, smallvec};
 
-type Quad = (Point, Point, Point);
+use crate::outline::{
+    BezPath, PathEl, Point, Vec2, path_element_end, subpath_elements, subpath_is_closed,
+    subpath_start,
+};
+use crate::transform::curves::{TOLERANCE, cubic_farthest_fit_inside, finite_hypot};
 
-pub(crate) fn merge_curves(outline: &Outline) -> Outline {
-    let subpaths = outline
-        .subpaths()
-        .iter()
-        .map(|subpath| {
-            let elements = merge_subpath_elements(subpath.start(), subpath.elements());
-            Subpath::new(subpath.start(), elements, subpath.is_closed())
-        })
-        .collect();
-    Outline::new(subpaths)
+pub(crate) fn merge_curves(outline: &BezPath) -> BezPath {
+    let mut result = BezPath::new();
+    for subpath in outline.subpaths() {
+        let start = subpath_start(subpath);
+        result.move_to(start);
+        result.extend(merge_subpath_elements(start, subpath_elements(subpath)));
+        if subpath_is_closed(subpath) {
+            result.close_path();
+        }
+    }
+    result
 }
 
-fn merge_subpath_elements(start: Point, elements: &[PathElement]) -> Vec<PathElement> {
+fn merge_subpath_elements(start: Point, elements: &[PathEl]) -> Vec<PathEl> {
     let n = elements.len();
     let mut result = Vec::with_capacity(n);
     let mut i = 0;
 
     while i < n {
         let element = elements[i];
-        let seg_start = result.last().map_or(start, |e: &PathElement| e.end());
+        let seg_start = result
+            .last()
+            .map_or(start, |e: &PathEl| path_element_end(*e));
 
         match element {
-            PathElement::CurveTo { .. } | PathElement::QuadTo { .. } | PathElement::LineTo(_) => {
+            PathEl::CurveTo(..) | PathEl::QuadTo(..) | PathEl::LineTo(_) => {
                 let (merged, len) = match element {
-                    PathElement::CurveTo { .. } => try_merge_run(
+                    PathEl::CurveTo(..) => try_merge_run(
                         seg_start,
                         elements,
                         i,
-                        |e| matches!(e, PathElement::CurveTo { .. }),
+                        |e| matches!(e, PathEl::CurveTo(..)),
                         try_merge_cubics_n,
                     ),
-                    PathElement::QuadTo { .. } => try_merge_run(
+                    PathEl::QuadTo(..) => try_merge_run(
                         seg_start,
                         elements,
                         i,
-                        |e| matches!(e, PathElement::QuadTo { .. }),
+                        |e| matches!(e, PathEl::QuadTo(..)),
                         try_merge_quads_n,
                     ),
-                    PathElement::LineTo(_) => try_merge_run(
+                    PathEl::LineTo(_) => try_merge_run(
                         seg_start,
                         elements,
                         i,
-                        |e| matches!(e, PathElement::LineTo(_)),
+                        |e| matches!(e, PathEl::LineTo(_)),
                         try_merge_lines_n,
                     ),
+                    PathEl::MoveTo(_) | PathEl::ClosePath => {
+                        unreachable!("subpath elements contain only drawing elements")
+                    }
                 };
                 result.push(merged);
                 i += len;
+            }
+            PathEl::MoveTo(_) | PathEl::ClosePath => {
+                unreachable!("subpath elements contain only drawing elements")
             }
         }
     }
@@ -59,11 +72,11 @@ fn merge_subpath_elements(start: Point, elements: &[PathElement]) -> Vec<PathEle
 
 fn try_merge_run(
     seg_start: Point,
-    elements: &[PathElement],
+    elements: &[PathEl],
     i: usize,
-    is_same: impl Fn(PathElement) -> bool,
-    try_merge: fn(Point, &[PathElement]) -> Option<PathElement>,
-) -> (PathElement, usize) {
+    is_same: impl Fn(PathEl) -> bool,
+    try_merge: fn(Point, &[PathEl]) -> Option<PathEl>,
+) -> (PathEl, usize) {
     let mut run_end = i + 1;
     while run_end < elements.len() && is_same(elements[run_end]) {
         run_end += 1;
@@ -75,20 +88,16 @@ fn try_merge_run(
         .unwrap_or((elements[i], 1))
 }
 
-fn quad_points(element: PathElement) -> (Point, Point) {
+fn quad_points(element: PathEl) -> (Point, Point) {
     match element {
-        PathElement::QuadTo { control, end } => (control, end),
+        PathEl::QuadTo(control, end) => (control, end),
         _ => unreachable!("quadratic run contains only quadratic elements"),
     }
 }
 
-fn cubic_points(element: PathElement) -> (Point, Point, Point) {
+fn cubic_points(element: PathEl) -> (Point, Point, Point) {
     match element {
-        PathElement::CurveTo {
-            control0,
-            control1,
-            end,
-        } => (control0, control1, end),
+        PathEl::CurveTo(control0, control1, end) => (control0, control1, end),
         _ => unreachable!("cubic run contains only cubic elements"),
     }
 }
@@ -99,16 +108,16 @@ fn cubic_points(element: PathElement) -> (Point, Point, Point) {
 // Returns None if any junction tangent is degenerate or forms a cusp.
 fn compute_split_ts(
     n: usize,
-    junction_tangents: impl Fn(usize) -> (Point, Point),
-) -> Option<Vec<f32>> {
-    let mut prod_ratio = 1.0_f32;
-    let mut sum_ratio = 1.0_f32;
-    let mut ts_unnorm = vec![1.0_f32];
+    junction_tangents: impl Fn(usize) -> (Vec2, Vec2),
+) -> Option<SmallVec<[f64; 8]>> {
+    let mut prod_ratio = 1.0_f64;
+    let mut sum_ratio = 1.0_f64;
+    let mut ts_unnorm: SmallVec<[f64; 8]> = smallvec![1.0_f64];
 
     for k in 1..n {
         let (end_tan, start_tan) = junction_tangents(k);
-        let len_end = end_tan.norm();
-        let len_start = start_tan.norm();
+        let len_end = end_tan.hypot();
+        let len_start = start_tan.hypot();
         if len_end < 1e-10 {
             return None;
         }
@@ -133,7 +142,7 @@ fn compute_split_ts(
 }
 
 // Attempt to merge n consecutive quadratic segments into one.
-fn try_merge_quads_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
+fn try_merge_quads_n(p0: Point, segs: &[PathEl]) -> Option<PathEl> {
     let n = segs.len();
     debug_assert!(n >= 2);
 
@@ -156,35 +165,34 @@ fn try_merge_quads_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
         return None;
     }
 
-    Some(PathElement::QuadTo {
-        control: p1,
-        end: p2,
-    })
+    Some(PathEl::QuadTo(p1, p2))
 }
 
-fn validate_quad_merge(p0: Point, p1: Point, p2: Point, segs: &[PathElement], ts: &[f32]) -> bool {
+fn validate_quad_merge(p0: Point, p1: Point, p2: Point, segs: &[PathEl], ts: &[f64]) -> bool {
     let pieces = split_quad_at_ts(p0, p1, p2, ts);
-    for ((_rp0, rp1, rp2), seg) in pieces.iter().zip(segs) {
+    for (piece, seg) in pieces.iter().zip(segs) {
         let (orig_h, orig_end) = quad_points(*seg);
-        if (*rp1 - orig_h).norm() > TOLERANCE || (*rp2 - orig_end).norm() > TOLERANCE {
+        if finite_hypot(piece.p1 - orig_h) > TOLERANCE
+            || finite_hypot(piece.p2 - orig_end) > TOLERANCE
+        {
             return false;
         }
     }
     true
 }
 
-fn split_quad_at_ts(p0: Point, p1: Point, p2: Point, ts: &[f32]) -> Vec<Quad> {
+fn split_quad_at_ts(p0: Point, p1: Point, p2: Point, ts: &[f64]) -> Vec<QuadBez> {
     let mut pieces = Vec::with_capacity(ts.len() + 1);
-    let mut current = (p0, p1, p2);
-    let mut t_prev = 0.0_f32;
+    let mut current = QuadBez::new(p0, p1, p2);
+    let mut t_prev = 0.0_f64;
     for &t in ts {
         let remaining = 1.0 - t_prev;
         if remaining < 1e-10 {
             return pieces;
         }
         let t_rel = (t - t_prev) / remaining;
-        let (p0, p1, p2) = current;
-        let (left, right) = split_quad_at_t(p0, p1, p2, t_rel);
+        let left = current.subsegment(0.0..t_rel);
+        let right = current.subsegment(t_rel..1.0);
         pieces.push(left);
         current = right;
         t_prev = t;
@@ -193,19 +201,12 @@ fn split_quad_at_ts(p0: Point, p1: Point, p2: Point, ts: &[f32]) -> Vec<Quad> {
     pieces
 }
 
-fn split_quad_at_t(p0: Point, p1: Point, p2: Point, t: f32) -> (Quad, Quad) {
-    let q1 = p0.lerp(p1, t);
-    let q2 = p1.lerp(p2, t);
-    let s = q1.lerp(q2, t);
-    ((p0, q1, s), (s, q2, p2))
-}
-
 // Attempt to merge n consecutive cubic segments into one.
 //
 // Uses the fonttools qu2cu approach: reconstruct t-parameters from cumulative
 // ratios of adjacent junction tangent lengths, then recover the outer control
 // points P1/P2. Validity is confirmed by re-splitting and measuring curve error.
-fn try_merge_cubics_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
+fn try_merge_cubics_n(p0: Point, segs: &[PathEl]) -> Option<PathEl> {
     let n = segs.len();
     debug_assert!(n >= 2);
 
@@ -235,11 +236,7 @@ fn try_merge_cubics_n(p0: Point, segs: &[PathElement]) -> Option<PathElement> {
         return None;
     }
 
-    Some(PathElement::CurveTo {
-        control0: p1,
-        control1: p2,
-        end: p3,
-    })
+    Some(PathEl::CurveTo(p1, p2, p3))
 }
 
 fn validate_cubic_merge(
@@ -247,24 +244,24 @@ fn validate_cubic_merge(
     p1: Point,
     p2: Point,
     p3: Point,
-    segs: &[PathElement],
-    ts: &[f32],
+    segs: &[PathEl],
+    ts: &[f64],
 ) -> bool {
     let pieces = split_cubic_at_ts(p0, p1, p2, p3, ts);
     let mut prev_end = p0;
 
-    for ((rp0, rp1, rp2, rp3), seg) in pieces.iter().zip(segs) {
+    for (piece, seg) in pieces.iter().zip(segs) {
         let (orig_h1, orig_h2, orig_end) = cubic_points(*seg);
 
-        if (*rp3 - orig_end).norm() > TOLERANCE {
+        if finite_hypot(piece.p3 - orig_end) > TOLERANCE {
             return false;
         }
 
         // Check that the difference cubic lies within TOLERANCE of the origin.
-        let d0 = *rp0 - prev_end;
-        let d1 = *rp1 - orig_h1;
-        let d2 = *rp2 - orig_h2;
-        let d3 = *rp3 - orig_end;
+        let d0 = piece.p0 - prev_end;
+        let d1 = piece.p1 - orig_h1;
+        let d2 = piece.p2 - orig_h2;
+        let d3 = piece.p3 - orig_end;
 
         if !cubic_farthest_fit_inside(d0, d1, d2, d3, TOLERANCE) {
             return false;
@@ -278,10 +275,10 @@ fn validate_cubic_merge(
 
 // Split cubic (P0,P1,P2,P3) at each t in ts (ascending), returning n+1 pieces.
 // Each subsequent split uses the reparametrized t relative to the remaining curve.
-fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f32]) -> Vec<Cubic> {
+fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f64]) -> Vec<CubicBez> {
     let mut pieces = Vec::with_capacity(ts.len() + 1);
-    let mut current = (p0, p1, p2, p3);
-    let mut t_prev = 0.0_f32;
+    let mut current = CubicBez::new(p0, p1, p2, p3);
+    let mut t_prev = 0.0_f64;
 
     for &t in ts {
         let remaining = 1.0 - t_prev;
@@ -289,8 +286,8 @@ fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f32]) -> 
             return pieces;
         }
         let t_rel = (t - t_prev) / remaining;
-        let (p0, p1, p2, p3) = current;
-        let (left, right) = split_cubic_at(p0, p1, p2, p3, t_rel);
+        let left = current.subsegment(0.0..t_rel);
+        let right = current.subsegment(t_rel..1.0);
         pieces.push(left);
         current = right;
         t_prev = t;
@@ -299,19 +296,19 @@ fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f32]) -> 
     pieces
 }
 
-fn try_merge_lines_n(start: Point, segs: &[PathElement]) -> Option<PathElement> {
-    let end = segs.last()?.end();
+fn try_merge_lines_n(start: Point, segs: &[PathEl]) -> Option<PathEl> {
+    let end = path_element_end(*segs.last()?);
     let total = end - start;
     if total.x == 0.0 && total.y == 0.0 {
         return segs
             .iter()
-            .all(|seg| seg.end() == start)
-            .then_some(PathElement::LineTo(end));
+            .all(|seg| path_element_end(*seg) == start)
+            .then_some(PathEl::LineTo(end));
     }
 
     let mut previous = start;
     for seg in segs {
-        let point = seg.end();
+        let point = path_element_end(*seg);
         let direction = point - previous;
         if !points_are_collinear(start, point, end) || direction.dot(total) < 0.0 {
             return None;
@@ -319,7 +316,7 @@ fn try_merge_lines_n(start: Point, segs: &[PathElement]) -> Option<PathElement> 
         previous = point;
     }
 
-    Some(PathElement::LineTo(end))
+    Some(PathEl::LineTo(end))
 }
 
 fn points_are_collinear(a: Point, b: Point, c: Point) -> bool {
@@ -328,5 +325,7 @@ fn points_are_collinear(a: Point, b: Point, c: Point) -> bool {
     let cross = ab.cross(ac).abs();
     let product_scale = (ab.x * ac.y).abs() + (ab.y * ac.x).abs();
 
-    cross <= 8.0 * f32::EPSILON * product_scale
+    // Public coordinates are f32, so permit the rounding already present at the
+    // tensor boundary even though the internal geometry uses f64.
+    cross <= 8.0 * f64::from(f32::EPSILON) * product_scale
 }

@@ -1,157 +1,88 @@
-use crate::outline::{Outline, PathElement, Point, Subpath};
-use crate::transform::curves::{Cubic, TOLERANCE, cubic_farthest_fit_inside, split_cubic_at};
+use kurbo::{CubicBez, cubics_to_quadratic_splines};
 
-// Keep this aligned with fonttools.cu2qu.MAX_N.
-const MAX_N: usize = 100;
+use crate::outline::{
+    BezPath, PathEl, Point, Vec2, path_element_end, subpath_elements, subpath_is_closed,
+    subpath_start,
+};
+use crate::transform::curves::{TOLERANCE, cubic_farthest_fit_inside};
 
 pub(crate) enum CubicToQuadError {
     ApproximationFailed,
 }
 
-pub(crate) fn cubic_to_quad(outline: &Outline) -> Result<Outline, CubicToQuadError> {
-    let mut subpaths = Vec::with_capacity(outline.subpaths().len());
+pub(crate) fn cubic_to_quad(outline: &BezPath) -> Result<BezPath, CubicToQuadError> {
+    let mut result = BezPath::new();
 
     for subpath in outline.subpaths() {
-        let mut elements = Vec::with_capacity(subpath.elements().len());
-        let mut prev = subpath.start();
-        for element in subpath.elements() {
+        let start = subpath_start(subpath);
+        result.move_to(start);
+        let mut prev = start;
+        for element in subpath_elements(subpath) {
             match *element {
-                PathElement::CurveTo {
-                    control0,
-                    control1,
-                    end,
-                } => {
-                    elements.extend(
-                        cubic_to_quads(prev, control0, control1, end)?
-                            .into_iter()
-                            .map(|(control, end)| PathElement::QuadTo { control, end }),
-                    );
+                PathEl::CurveTo(control0, control1, end) => {
+                    append_cubic_as_quads(&mut result, prev, control0, control1, end)?;
                     prev = end;
                 }
                 other => {
-                    elements.push(other);
-                    prev = other.end();
+                    result.push(other);
+                    prev = path_element_end(other);
                 }
             }
         }
-        subpaths.push(Subpath::new(subpath.start(), elements, subpath.is_closed()));
+        if subpath_is_closed(subpath) {
+            result.close_path();
+        }
     }
-    Ok(Outline::new(subpaths))
+    Ok(result)
 }
 
 // Port of fonttools.cu2qu's all_quadratic=True path.  The returned pairs encode
 // the quadratic spline as explicit path elements, with implied on-curves materialized
 // at midpoints between adjacent off-curves.
-fn cubic_to_quads(
+fn append_cubic_as_quads(
+    result: &mut BezPath,
     p0: Point,
     p1: Point,
     p2: Point,
     p3: Point,
-) -> Result<Vec<(Point, Point)>, CubicToQuadError> {
-    (1..=MAX_N)
-        .find_map(|n| {
-            cubic_approx_spline(p0, p1, p2, p3, n).map(|spline| {
-                (0..n)
-                    .map(|i| {
-                        let end = if i + 1 < n {
-                            spline[i + 1].midpoint(spline[i + 2])
-                        } else {
-                            p3
-                        };
-                        (spline[i + 1], end)
-                    })
-                    .collect()
-            })
-        })
-        .ok_or(CubicToQuadError::ApproximationFailed)
+) -> Result<(), CubicToQuadError> {
+    let cubic = CubicBez::new(p0, p1, p2, p3);
+    // Kurbo's recursive fitting assumes finite coordinates.
+    if !cubic.is_finite() {
+        return Err(CubicToQuadError::ApproximationFailed);
+    }
+    // Preserve a single quadratic for degree-reduced cubics. A cubic that is
+    // an exact degree elevation of a quadratic has tangent lines at p0/p3
+    // that are exactly parallel, which Kurbo's crossing-point fit cannot
+    // resolve (it only special-cases fully coincident controls), so it would
+    // otherwise emit two segments for input this crate's own quad-to-cubic
+    // conversion produces.
+    if let Some(control) = degree_reduced_control(p0, p1, p2, p3) {
+        result.quad_to(control, p3);
+        return Ok(());
+    }
+    let spline = cubics_to_quadratic_splines(&[cubic], TOLERANCE)
+        .ok_or(CubicToQuadError::ApproximationFailed)?
+        .pop()
+        .expect("one cubic produces one spline");
+    result.extend(
+        spline
+            .to_quads()
+            .map(|quad| PathEl::QuadTo(quad.p1, quad.p2)),
+    );
+    Ok(())
 }
 
-fn cubic_approx_spline(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> Option<Vec<Point>> {
-    if n == 1 {
-        let q1 = cubic_approx_quadratic(p0, p1, p2, p3)?;
-        return Some(vec![p0, q1, p3]);
-    }
-
-    let cubics = split_cubic_into_n(p0, p1, p2, p3, n);
-    let mut spline = Vec::with_capacity(n + 2);
-    let mut next_q1 = cubic_approx_control(0.0, cubics[0]);
-    let mut q2 = p0;
-    let mut d1 = Point::default();
-    spline.push(p0);
-    spline.push(next_q1);
-
-    for i in 1..=n {
-        let (_c0, c1, c2, c3) = cubics[i - 1];
-        let q0 = q2;
-        let q1 = next_q1;
-        if i < n {
-            next_q1 = cubic_approx_control(i as f32 / (n - 1) as f32, cubics[i]);
-            spline.push(next_q1);
-            q2 = q1.midpoint(next_q1);
-        } else {
-            q2 = c3;
-        }
-
-        let d0 = d1;
-        d1 = q2 - c3;
-        let e1 = q0.lerp(q1, 2.0 / 3.0) - c1;
-        let e2 = q2.lerp(q1, 2.0 / 3.0) - c2;
-        if d1.norm() > TOLERANCE || !cubic_farthest_fit_inside(d0, e1, e2, d1, TOLERANCE) {
-            return None;
-        }
-    }
-    spline.push(p3);
-    Some(spline)
-}
-
-fn cubic_approx_quadratic(p0: Point, p1: Point, p2: Point, p3: Point) -> Option<Point> {
-    // Most reducible cubics recover their quadratic control from the endpoint
-    // tangent intersection. When both tangents are parallel (notably straight
-    // degree-elevated quadratics), the intersection is at infinity, so recover
-    // the same control from each cubic handle and let the fit test below decide.
-    let q1 = line_intersection(p0, p1, p2, p3)
-        .unwrap_or_else(|| p0.lerp(p1, 1.5).midpoint(p3.lerp(p2, 1.5)));
-    let c1 = p0.lerp(q1, 2.0 / 3.0);
-    let c2 = p3.lerp(q1, 2.0 / 3.0);
-    cubic_farthest_fit_inside(
-        Point::default(),
-        c1 - p1,
-        c2 - p2,
-        Point::default(),
-        TOLERANCE,
-    )
-    .then_some(q1)
-}
-
-fn cubic_approx_control(t: f32, (p0, p1, p2, p3): Cubic) -> Point {
-    let a = p0.lerp(p1, 1.5);
-    let b = p3.lerp(p2, 1.5);
-    a.lerp(b, t)
-}
-
-fn line_intersection(a: Point, b: Point, c: Point, d: Point) -> Option<Point> {
-    let ab = b - a;
-    let cd = d - c;
-    let den = ab.cross(cd);
-    if den.abs() < 1e-15 {
-        return (b == c && (a == b || c == d)).then_some(b);
-    }
-    let h = (c - a).cross(ab) / den;
-    Some(c.lerp(d, h))
-}
-
-fn split_cubic_into_n(p0: Point, p1: Point, p2: Point, p3: Point, n: usize) -> Vec<Cubic> {
-    if n == 1 {
-        return vec![(p0, p1, p2, p3)];
-    }
-    let mut result = Vec::with_capacity(n);
-    let mut current = (p0, p1, p2, p3);
-    for k in 0..n - 1 {
-        let (p0, p1, p2, p3) = current;
-        let (left, right) = split_cubic_at(p0, p1, p2, p3, 1.0 / (n - k) as f32);
-        result.push(left);
-        current = right;
-    }
-    result.push(current);
-    result
+fn degree_reduced_control(p0: Point, p1: Point, p2: Point, p3: Point) -> Option<Point> {
+    let from_start = p0.lerp(p1, 1.5);
+    let from_end = p3.lerp(p2, 1.5);
+    let control = from_start.midpoint(from_end);
+    let cubic_control0 = p0.lerp(control, 2.0 / 3.0);
+    let cubic_control1 = p3.lerp(control, 2.0 / 3.0);
+    // Validate the round trip the same way merge_curves does: as a
+    // difference cubic that must lie within tolerance everywhere, not just
+    // at the handles.
+    let d1 = cubic_control0 - p1;
+    let d2 = cubic_control1 - p2;
+    cubic_farthest_fit_inside(Vec2::ZERO, d1, d2, Vec2::ZERO, TOLERANCE).then_some(control)
 }

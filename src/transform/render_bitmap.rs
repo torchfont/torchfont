@@ -1,6 +1,6 @@
 use tiny_skia::{FillRule, Mask, Path, PathBuilder, Transform};
 
-use crate::outline::{Bounds, BoundsPen, Outline, PathElement};
+use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline};
 
 const FIXED_MIN: f32 = -0.25;
 const FIXED_MAX: f32 = 1.25;
@@ -24,14 +24,18 @@ pub(crate) enum RenderBitmapError {
 }
 
 pub(crate) fn render_bitmap(
-    outline: &Outline,
+    outline: &BezPath,
     size: u32,
     mode: RenderMode,
     fill_rule: FillRule,
     antialias: bool,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let track_bounds = !matches!(mode, RenderMode::Fixed);
-    let (path, bounds) = build_path(outline, track_bounds);
+    let path = build_path(outline);
+    let bounds = if matches!(mode, RenderMode::Fixed) {
+        None
+    } else {
+        bounds_from_outline(outline)
+    };
     let Some(path) = path else {
         return Ok(blank_for_mode(size, mode));
     };
@@ -49,49 +53,30 @@ pub(crate) fn render_bitmap(
     })
 }
 
-fn build_path(outline: &Outline, track_bounds: bool) -> (Option<Path>, Option<Bounds>) {
+fn build_path(outline: &BezPath) -> Option<Path> {
     let mut builder = PathBuilder::new();
-    let mut pen = track_bounds.then(BoundsPen::default);
-    for subpath in outline.subpaths() {
-        let start = subpath.start();
-        builder.move_to(start.x, start.y);
-        if let Some(p) = &mut pen {
-            p.move_to(start);
-        }
-        for element in subpath.elements() {
-            match *element {
-                PathElement::LineTo(point) => {
-                    builder.line_to(point.x, point.y);
-                    if let Some(p) = &mut pen {
-                        p.line_to(point);
-                    }
-                }
-                PathElement::QuadTo { control, end } => {
-                    builder.quad_to(control.x, control.y, end.x, end.y);
-                    if let Some(p) = &mut pen {
-                        p.quad_to(control, end);
-                    }
-                }
-                PathElement::CurveTo {
-                    control0,
-                    control1,
-                    end,
-                } => {
-                    builder.cubic_to(control0.x, control0.y, control1.x, control1.y, end.x, end.y);
-                    if let Some(p) = &mut pen {
-                        p.curve_to(control0, control1, end);
-                    }
-                }
-            }
-        }
-        if subpath.is_closed() {
-            builder.close();
-            if let Some(p) = &mut pen {
-                p.close();
-            }
+    for element in outline.elements() {
+        match *element {
+            PathEl::MoveTo(point) => builder.move_to(point.x as f32, point.y as f32),
+            PathEl::LineTo(point) => builder.line_to(point.x as f32, point.y as f32),
+            PathEl::QuadTo(control, end) => builder.quad_to(
+                control.x as f32,
+                control.y as f32,
+                end.x as f32,
+                end.y as f32,
+            ),
+            PathEl::CurveTo(control0, control1, end) => builder.cubic_to(
+                control0.x as f32,
+                control0.y as f32,
+                control1.x as f32,
+                control1.y as f32,
+                end.x as f32,
+                end.y as f32,
+            ),
+            PathEl::ClosePath => builder.close(),
         }
     }
-    (builder.finish(), pen.and_then(BoundsPen::finish))
+    builder.finish()
 }
 
 fn draw_alpha_path(
