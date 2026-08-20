@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 ignore = "0.4.28"
+kurbo = "0.13.1"
 memmap2 = "0.9.11"
 numpy = "0.29.0"
 shellexpand = "3.1.2"

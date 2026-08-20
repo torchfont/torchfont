@@ -1,31 +1,31 @@
 use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
 use super::subpath::reverse_subpath;
-use crate::outline::{Bounds, BoundsPen, Outline, PathElement, Point, Subpath};
+use crate::outline::{BezPath, Bounds, PathEl, Point, bounds_from_subpath, subpath_is_closed};
+use kurbo::Shape;
 
 // TorchFont outlines are normalized to roughly em-sized coordinates. PathOps is
 // more reliable at conventional font-unit magnitudes, so simplify a scaled copy.
 const PATHOPS_SCALE: f32 = 131_072.0;
 
-pub(crate) fn remove_overlaps(outline: &Outline) -> Outline {
+pub(crate) fn remove_overlaps(outline: &BezPath) -> BezPath {
     simplify(outline).unwrap_or_else(|| outline.clone())
 }
 
-pub(crate) fn random_remove_overlaps(outline: &Outline, random_values: &[f32]) -> Outline {
-    let subpaths = outline.subpaths();
-    let bounds: Vec<_> = subpaths.iter().map(bounds_from_subpath).collect();
-    let mut parent: Vec<_> = (0..subpaths.len()).collect();
+pub(crate) fn random_remove_overlaps(outline: &BezPath, random_values: &[f32]) -> BezPath {
+    let source: Vec<_> = outline.subpaths().collect();
+    let bounds: Vec<_> = source
+        .iter()
+        .map(|subpath| bounds_from_subpath(subpath))
+        .collect();
+    let mut parent: Vec<_> = (0..source.len()).collect();
 
-    for left in 0..subpaths.len() {
-        if !subpaths[left].is_closed() {
+    for left in 0..source.len() {
+        if !subpath_is_closed(source[left]) {
             continue;
         }
-        for right in left + 1..subpaths.len() {
-            if subpaths[right].is_closed()
-                && bounds[left]
-                    .zip(bounds[right])
-                    .is_some_and(|(a, b)| bounds_overlap(a, b))
-            {
+        for right in left + 1..source.len() {
+            if subpath_is_closed(source[right]) && bounds_overlap(bounds[left], bounds[right]) {
                 union(&mut parent, left, right);
             }
         }
@@ -34,13 +34,12 @@ pub(crate) fn random_remove_overlaps(outline: &Outline, random_values: &[f32]) -
         parent[index] = find(&mut parent, index);
     }
 
-    let groups: Vec<Vec<_>> = (0..subpaths.len())
-        .filter(|&root| parent[root] == root)
-        .map(|root| {
-            (0..subpaths.len())
-                .filter(|&index| parent[index] == root)
-                .collect()
-        })
+    let mut members = vec![Vec::new(); source.len()];
+    for (index, &root) in parent.iter().enumerate() {
+        members[root].push(index);
+    }
+    let groups: Vec<Vec<_>> = members
+        .into_iter()
         .filter(|group: &Vec<_>| group.len() > 1)
         .collect();
 
@@ -52,52 +51,48 @@ pub(crate) fn random_remove_overlaps(outline: &Outline, random_values: &[f32]) -
     let mut selected: Vec<_> = groups
         .iter()
         .enumerate()
-        .filter_map(|(index, _)| (values[index] < 0.5).then_some(index))
+        .map(|(index, _)| values[index] < 0.5)
         .collect();
-    if selected.is_empty() {
+    if !selected.iter().any(|&value| value) {
         let index = values
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| a.total_cmp(b))
             .map_or(0, |(index, _)| index);
-        selected.push(index);
+        selected[index] = true;
     }
 
-    let mut result = Vec::new();
-    for index in 0..subpaths.len() {
-        let Some((group_index, group)) = groups
-            .iter()
-            .enumerate()
-            .find(|(_, group)| group.contains(&index))
-        else {
-            result.push(subpaths[index].clone());
+    let mut group_of = vec![None; source.len()];
+    for (group_index, group) in groups.iter().enumerate() {
+        for &index in group {
+            group_of[index] = Some(group_index);
+        }
+    }
+
+    let mut result = BezPath::new();
+    for index in 0..source.len() {
+        let Some(group_index) = group_of[index] else {
+            result.extend(source[index].iter().copied());
             continue;
         };
+        let group = &groups[group_index];
         if group[0] != index {
             continue;
         }
-        let component: Vec<_> = group.iter().map(|&other| subpaths[other].clone()).collect();
-        if selected.contains(&group_index) {
-            let component = Outline::new(component);
+        if selected[group_index] {
+            let mut component = BezPath::new();
+            for &other in group {
+                component.extend(source[other].iter().copied());
+            }
             let simplified = simplify(&component).unwrap_or(component);
-            result.extend(simplified.subpaths().iter().cloned());
+            result.extend(simplified.elements().iter().copied());
         } else {
-            result.extend(component);
+            for &other in group {
+                result.extend(source[other].iter().copied());
+            }
         }
     }
-    Outline::new(result)
-}
-
-fn bounds_from_subpath(subpath: &Subpath) -> Option<Bounds> {
-    let mut pen = BoundsPen::default();
-    pen.move_to(subpath.start());
-    for element in subpath.elements() {
-        pen.path_element(*element);
-    }
-    if subpath.is_closed() {
-        pen.close();
-    }
-    pen.finish()
+    result
 }
 
 fn bounds_overlap(a: Bounds, b: Bounds) -> bool {
@@ -120,256 +115,255 @@ fn union(parent: &mut [usize], left: usize, right: usize) {
     }
 }
 
-fn simplify(outline: &Outline) -> Option<Outline> {
-    let (path, _) = build_skia_path(outline.subpaths(), false, PathFillType::Winding)?;
+fn simplify(outline: &BezPath) -> Option<BezPath> {
+    let path = build_skia_path(outline)?;
     let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;
     let simplified = scaled.simplify()?;
 
     // Simplify emits an even-odd path. Reorient nested contours before
     // returning to TorchFont, whose outlines use non-zero winding semantics.
     let simplified = outline_from_path(&simplified)?;
-    let winding = winding_from_even_odd(&simplified)?;
-    Some(scale_outline(&winding, PATHOPS_SCALE.recip()))
+    let winding = winding_from_even_odd(&simplified);
+    Some(kurbo::Affine::scale(f64::from(PATHOPS_SCALE.recip())) * &winding)
 }
 
-fn build_skia_path(
-    subpaths: &[Subpath],
-    track_bounds: bool,
-    fill_type: PathFillType,
-) -> Option<(Path, Option<Bounds>)> {
-    let mut builder = PathBuilder::new_with_fill_type(fill_type);
-    let mut bounds = track_bounds.then(BoundsPen::default);
-    for subpath in subpaths {
-        let start = subpath.start();
-        if let Some(bounds) = &mut bounds {
-            bounds.move_to(start);
-        }
-        builder.move_to((start.x, start.y));
-        for element in subpath.elements() {
-            if let Some(bounds) = &mut bounds {
-                bounds.path_element(*element);
-            }
-            match *element {
-                PathElement::LineTo(point) => builder.line_to((point.x, point.y)),
-                PathElement::QuadTo { control, end } => {
-                    builder.quad_to((control.x, control.y), (end.x, end.y))
-                }
-                PathElement::CurveTo {
-                    control0,
-                    control1,
-                    end,
-                } => builder.cubic_to(
-                    (control0.x, control0.y),
-                    (control1.x, control1.y),
-                    (end.x, end.y),
-                ),
-            };
-        }
-        if subpath.is_closed() {
-            if let Some(bounds) = &mut bounds {
-                bounds.close();
-            }
-            builder.close();
-        }
+fn build_skia_path(outline: &BezPath) -> Option<Path> {
+    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
+    for element in outline.elements() {
+        match *element {
+            PathEl::MoveTo(point) => builder.move_to((point.x as f32, point.y as f32)),
+            PathEl::LineTo(point) => builder.line_to((point.x as f32, point.y as f32)),
+            PathEl::QuadTo(control, end) => builder.quad_to(
+                (control.x as f32, control.y as f32),
+                (end.x as f32, end.y as f32),
+            ),
+            PathEl::CurveTo(control0, control1, end) => builder.cubic_to(
+                (control0.x as f32, control0.y as f32),
+                (control1.x as f32, control1.y as f32),
+                (end.x as f32, end.y as f32),
+            ),
+            PathEl::ClosePath => builder.close(),
+        };
     }
-    (!builder.is_empty()).then(|| (builder.detach(), bounds.and_then(BoundsPen::finish)))
+    (!builder.is_empty()).then(|| builder.detach())
 }
 
-fn outline_from_path(path: &Path) -> Option<Outline> {
-    let mut subpaths = Vec::new();
+fn outline_from_path(path: &Path) -> Option<BezPath> {
+    let mut outline = BezPath::new();
     let mut start = None;
-    let mut elements = Vec::new();
+    let mut elements: Vec<PathEl> = Vec::new();
 
     for record in path.iter() {
         let points = record.points();
         match record.verb() {
             PathVerb::Move => {
-                commit_subpath(&mut start, &mut elements, &mut subpaths, false);
+                commit_subpath(&mut outline, &mut start, &mut elements, false);
                 start = Some(point(points[0]));
             }
-            PathVerb::Line => elements.push(PathElement::LineTo(point(points[1]))),
-            PathVerb::Quad => elements.push(PathElement::QuadTo {
-                control: point(points[1]),
-                end: point(points[2]),
-            }),
-            PathVerb::Cubic => elements.push(PathElement::CurveTo {
-                control0: point(points[1]),
-                control1: point(points[2]),
-                end: point(points[3]),
-            }),
-            PathVerb::Close => {
-                commit_subpath(&mut start, &mut elements, &mut subpaths, true);
-            }
+            PathVerb::Line => elements.push(PathEl::LineTo(point(points[1]))),
+            PathVerb::Quad => elements.push(PathEl::QuadTo(point(points[1]), point(points[2]))),
+            PathVerb::Cubic => elements.push(PathEl::CurveTo(
+                point(points[1]),
+                point(points[2]),
+                point(points[3]),
+            )),
+            PathVerb::Close => commit_subpath(&mut outline, &mut start, &mut elements, true),
             PathVerb::Conic => return None,
         }
     }
-    commit_subpath(&mut start, &mut elements, &mut subpaths, false);
+    commit_subpath(&mut outline, &mut start, &mut elements, false);
 
-    (!subpaths.is_empty()).then(|| Outline::new(subpaths))
+    (!outline.elements().is_empty()).then_some(outline)
 }
 
 fn commit_subpath(
+    outline: &mut BezPath,
     start: &mut Option<Point>,
-    elements: &mut Vec<PathElement>,
-    subpaths: &mut Vec<Subpath>,
+    elements: &mut Vec<PathEl>,
     closed: bool,
 ) {
     if let Some(start) = start.take()
         && !elements.is_empty()
     {
-        subpaths.push(Subpath::new(start, std::mem::take(elements), closed));
+        outline.move_to(start);
+        outline.extend(std::mem::take(elements));
+        if closed {
+            outline.close_path();
+        }
     }
 }
 
 fn point(point: skia_safe::Point) -> Point {
-    Point::new(point.x, point.y)
+    Point::new(point.x.into(), point.y.into())
 }
 
-fn winding_from_even_odd(outline: &Outline) -> Option<Outline> {
+fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     // skia-pathops uses nesting depth instead of Skia's AsWinding operation;
     // keep that behavior while using TorchFont's native outline types.
+    // Contours are treated as implicitly closed for area/winding purposes
+    // regardless of whether PathOps happened to emit a trailing Close: kurbo
+    // only synthesizes the closing edge when ClosePath is present, but an
+    // open polyline isn't a meaningful fill boundary.
     let mut contours: Vec<_> = outline
         .subpaths()
-        .iter()
         .map(|subpath| {
-            let path = subpath_path(subpath)?;
-            Some((subpath_area(subpath), path, subpath))
+            let closed = close_subpath(subpath);
+            (closed.area(), subpath, closed)
         })
-        .collect::<Option<_>>()?;
+        .collect();
     contours.sort_by(|a, b| {
         b.0.abs()
             .partial_cmp(&a.0.abs())
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
+    let bounding_boxes: Vec<_> = contours
+        .iter()
+        .map(|(_, subpath, _)| subpath.bounding_box())
+        .collect();
+
     let mut nesting = vec![0usize; contours.len()];
     for inner in 0..contours.len() {
         for outer in 0..inner {
-            if path_is_inside(&contours[outer].1, &contours[inner].1) {
+            let is_inside = bounding_boxes[outer].contains_rect(bounding_boxes[inner])
+                && contour_is_inside(contours[outer].2.elements(), contours[inner].1);
+            if is_inside {
                 nesting[inner] += 1;
             }
         }
     }
 
-    let subpaths = contours
-        .into_iter()
-        .zip(nesting)
-        .map(|((area, _, subpath), depth)| {
-            let is_clockwise = area < 0.0;
-            let is_outer = depth.is_multiple_of(2);
-            if is_clockwise == is_outer {
-                reverse_subpath(subpath)
-            } else {
-                subpath.clone()
-            }
-        })
-        .collect();
-    Some(Outline::new(subpaths))
-}
-
-fn subpath_path(subpath: &Subpath) -> Option<Path> {
-    build_skia_path(std::slice::from_ref(subpath), false, PathFillType::EvenOdd)
-        .map(|(path, _)| path)
-}
-
-fn path_is_inside(outer: &Path, inner: &Path) -> bool {
-    if !outer
-        .compute_tight_bounds()
-        .intersects(inner.compute_tight_bounds())
-    {
-        return false;
-    }
-
-    inner.iter().all(|record| {
-        let points = record.points();
-        match record.verb() {
-            PathVerb::Move => outer.contains(points[0]),
-            PathVerb::Line => outer.contains(points[1]),
-            PathVerb::Quad => outer.contains(points[2]),
-            PathVerb::Cubic => outer.contains(points[3]),
-            PathVerb::Close => true,
-            PathVerb::Conic => false,
-        }
-    })
-}
-
-fn subpath_area(subpath: &Subpath) -> f64 {
-    let start = subpath.start();
-    let mut previous = start;
-    let mut area = 0.0f64;
-
-    for element in subpath.elements() {
-        match *element {
-            PathElement::LineTo(end) => {
-                area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
-                previous = end;
-            }
-            PathElement::QuadTo { control, end } => {
-                let control = control - previous;
-                let end_offset = end - previous;
-                area -= (end_offset.x as f64 * control.y as f64
-                    - control.x as f64 * end_offset.y as f64)
-                    / 3.0;
-                area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
-                previous = end;
-            }
-            PathElement::CurveTo {
-                control0,
-                control1,
-                end,
-            } => {
-                let control0 = control0 - previous;
-                let control1 = control1 - previous;
-                let end_offset = end - previous;
-                let (c0x, c0y) = (control0.x as f64, control0.y as f64);
-                let (c1x, c1y) = (control1.x as f64, control1.y as f64);
-                let (ex, ey) = (end_offset.x as f64, end_offset.y as f64);
-                area -=
-                    (c0x * (-c1y - ey) + c1x * (c0y - 2.0 * ey) + ex * (c0y + 2.0 * c1y)) * 0.15;
-                area -= (end.x - previous.x) as f64 * (end.y + previous.y) as f64 * 0.5;
-                previous = end;
-            }
+    let mut result = BezPath::new();
+    for ((area, subpath, _), depth) in contours.into_iter().zip(nesting) {
+        let is_clockwise = area < 0.0;
+        let is_outer = depth.is_multiple_of(2);
+        if is_clockwise == is_outer {
+            result.extend(reverse_subpath(subpath).elements().iter().copied());
+        } else {
+            result.extend(subpath.iter().copied());
         }
     }
-    area - (start.x - previous.x) as f64 * (start.y + previous.y) as f64 * 0.5
+    result
 }
 
-fn scale_outline(outline: &Outline, scale: f32) -> Outline {
-    Outline::new(
-        outline
-            .subpaths()
-            .iter()
-            .map(|subpath| {
-                let elements = subpath
-                    .elements()
-                    .iter()
-                    .map(|element| match *element {
-                        PathElement::LineTo(end) => PathElement::LineTo(scale_point(end, scale)),
-                        PathElement::QuadTo { control, end } => PathElement::QuadTo {
-                            control: scale_point(control, scale),
-                            end: scale_point(end, scale),
-                        },
-                        PathElement::CurveTo {
-                            control0,
-                            control1,
-                            end,
-                        } => PathElement::CurveTo {
-                            control0: scale_point(control0, scale),
-                            control1: scale_point(control1, scale),
-                            end: scale_point(end, scale),
-                        },
-                    })
-                    .collect();
-                Subpath::new(
-                    scale_point(subpath.start(), scale),
-                    elements,
-                    subpath.is_closed(),
-                )
-            })
-            .collect(),
-    )
+fn close_subpath(subpath: &[PathEl]) -> BezPath {
+    let mut path = BezPath::from_vec(subpath.to_vec());
+    if !subpath_is_closed(subpath) {
+        path.close_path();
+    }
+    path
 }
 
-fn scale_point(point: Point, scale: f32) -> Point {
-    Point::new(point.x * scale, point.y * scale)
+#[cfg(test)]
+fn path_is_inside(outer: &[PathEl], inner: &[PathEl]) -> bool {
+    // PathOps simplification has already split intersecting contours, so a
+    // contour whose tight bounds fit and whose on-curve points are inside is
+    // nested. Checking tight-bound containment also catches curves that bulge
+    // outside the candidate parent while keeping their endpoints inside.
+    outer.bounding_box().contains_rect(inner.bounding_box()) && contour_is_inside(outer, inner)
+}
+
+fn contour_is_inside(outer: &[PathEl], inner: &[PathEl]) -> bool {
+    inner
+        .iter()
+        .filter_map(kurbo::PathEl::end_point)
+        .all(|point| outer.winding(point) != 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use kurbo::{BezPath, Rect, Shape};
+    use skia_safe::{PathBuilder, PathFillType};
+
+    use super::{outline_from_path, path_is_inside};
+
+    fn rectangle(rect: Rect) -> BezPath {
+        rect.to_path(0.1)
+    }
+
+    #[test]
+    fn close_subpath_treats_open_subpath_as_implicitly_closed_for_area() {
+        // Offset from the origin: kurbo's raw (unclosed) area only matches
+        // the true polygon area when the missing closing edge happens to
+        // pass through the origin, so this triangle is chosen to actually
+        // exercise the implicit-closure behavior rather than mask it.
+        let mut open = BezPath::new();
+        open.move_to((1.0, 1.0));
+        open.line_to((5.0, 1.0));
+        open.line_to((1.0, 5.0));
+
+        let raw_area = open.elements().area();
+        let closed_area = super::close_subpath(open.elements()).area();
+
+        assert_ne!(raw_area, closed_area);
+        assert!((closed_area.abs() - 8.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn contour_is_inside_treats_open_outer_as_implicitly_closed() {
+        let mut outer = BezPath::new();
+        outer.move_to((0.0, 0.0));
+        outer.line_to((10.0, 0.0));
+        outer.line_to((10.0, 10.0));
+        outer.line_to((0.0, 10.0));
+        // No close_path(): the edge back to (0.0, 0.0) is only implicit.
+
+        let mut inner = BezPath::new();
+        inner.move_to((1.0, 5.0));
+        inner.close_path();
+
+        let raw_inside = super::contour_is_inside(outer.elements(), inner.elements());
+        let closed = super::close_subpath(outer.elements());
+        let closed_inside = super::contour_is_inside(closed.elements(), inner.elements());
+
+        assert_ne!(raw_inside, closed_inside);
+        assert!(closed_inside);
+    }
+
+    #[test]
+    fn drops_degenerate_move_only_subpath() {
+        let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
+        builder.move_to((5.0, 5.0));
+        builder.move_to((0.0, 0.0));
+        builder.line_to((10.0, 0.0));
+        builder.line_to((10.0, 10.0));
+        builder.close();
+        let path = builder.detach();
+
+        let outline = outline_from_path(&path).expect("path has real segments");
+        let subpath_count = outline.subpaths().count();
+
+        assert_eq!(subpath_count, 1);
+    }
+
+    #[test]
+    fn recognizes_contained_path() {
+        let outer = rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
+        let inner = rectangle(Rect::new(2.0, 2.0, 8.0, 8.0));
+
+        assert!(path_is_inside(outer.elements(), inner.elements()));
+    }
+
+    #[test]
+    fn rejects_path_with_only_start_inside() {
+        let outer = rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
+        let mut crossing = BezPath::new();
+        crossing.move_to((5.0, 5.0));
+        crossing.line_to((12.0, 5.0));
+        crossing.line_to((12.0, 8.0));
+        crossing.close_path();
+
+        assert!(!path_is_inside(outer.elements(), crossing.elements()));
+    }
+
+    #[test]
+    fn rejects_curve_with_endpoints_inside_but_body_outside() {
+        let outer = rectangle(Rect::new(0.0, 0.0, 10.0, 10.0));
+        let mut crossing = BezPath::new();
+        crossing.move_to((2.0, 5.0));
+        crossing.curve_to((2.0, 20.0), (8.0, 20.0), (8.0, 5.0));
+        crossing.close_path();
+
+        assert!(!path_is_inside(outer.elements(), crossing.elements()));
+    }
 }

@@ -1,104 +1,59 @@
-use super::point::Point;
+use kurbo::{BezPath, CubicBez, Line, PathEl, PathSeg, Point, QuadBez};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[allow(clippy::enum_variant_names)]
-pub(crate) enum PathElement {
-    LineTo(Point),
-    QuadTo {
-        control: Point,
-        end: Point,
-    },
-    CurveTo {
-        control0: Point,
-        control1: Point,
-        end: Point,
-    },
+#[cfg(test)]
+pub(crate) fn outline_from_subpaths(subpaths: impl IntoIterator<Item = BezPath>) -> BezPath {
+    let mut outline = BezPath::new();
+    for subpath in subpaths {
+        outline.extend(subpath.elements().iter().copied());
+    }
+    outline
 }
 
-impl PathElement {
-    pub(crate) fn end(self) -> Point {
-        match self {
-            Self::LineTo(end) | Self::QuadTo { end, .. } | Self::CurveTo { end, .. } => end,
+pub(crate) fn subpath_from_elements(
+    start: Point,
+    elements: impl IntoIterator<Item = PathEl>,
+    closed: bool,
+) -> BezPath {
+    let mut subpath = BezPath::new();
+    subpath.move_to(start);
+    subpath.extend(elements);
+    if closed {
+        subpath.close_path();
+    }
+    subpath
+}
+
+pub(crate) fn subpath_start(subpath: &[PathEl]) -> Point {
+    let Some(PathEl::MoveTo(start)) = subpath.first() else {
+        unreachable!("kurbo subpaths must start with MoveTo");
+    };
+    *start
+}
+
+pub(crate) fn subpath_elements(subpath: &[PathEl]) -> &[PathEl] {
+    let closed = matches!(subpath.last(), Some(PathEl::ClosePath));
+    &subpath[1..subpath.len() - usize::from(closed)]
+}
+
+pub(crate) fn subpath_is_closed(subpath: &[PathEl]) -> bool {
+    matches!(subpath.last(), Some(PathEl::ClosePath))
+}
+
+pub(crate) fn path_element_end(element: PathEl) -> Point {
+    element
+        .end_point()
+        .expect("drawing elements always have an end point")
+}
+
+pub(crate) fn path_seg(start: Point, element: PathEl) -> PathSeg {
+    match element {
+        PathEl::LineTo(end) => PathSeg::Line(Line::new(start, end)),
+        PathEl::QuadTo(control, end) => PathSeg::Quad(QuadBez::new(start, control, end)),
+        PathEl::CurveTo(control0, control1, end) => {
+            PathSeg::Cubic(CubicBez::new(start, control0, control1, end))
         }
-    }
-
-    pub(crate) fn reversed_to(self, end: Point) -> Self {
-        match self {
-            Self::LineTo(_) => Self::LineTo(end),
-            Self::QuadTo { control, .. } => Self::QuadTo { control, end },
-            Self::CurveTo {
-                control0, control1, ..
-            } => Self::CurveTo {
-                control0: control1,
-                control1: control0,
-                end,
-            },
+        PathEl::MoveTo(_) | PathEl::ClosePath => {
+            unreachable!("subpath elements contain only drawing elements")
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Subpath {
-    pub(super) start: Point,
-    pub(super) elements: Vec<PathElement>,
-    pub(super) closed: bool,
-}
-
-impl Subpath {
-    pub(crate) fn new(start: Point, elements: Vec<PathElement>, closed: bool) -> Self {
-        Self {
-            start,
-            elements,
-            closed,
-        }
-    }
-
-    pub(crate) fn start(&self) -> Point {
-        self.start
-    }
-    pub(crate) fn elements(&self) -> &[PathElement] {
-        &self.elements
-    }
-    pub(crate) fn is_closed(&self) -> bool {
-        self.closed
-    }
-
-    pub(crate) fn nodes(&self) -> Vec<Point> {
-        std::iter::once(self.start)
-            .chain(self.elements.iter().map(|e| e.end()))
-            .collect()
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct Outline {
-    pub(super) subpaths: Vec<Subpath>,
-}
-
-impl Outline {
-    pub(crate) fn new(subpaths: Vec<Subpath>) -> Self {
-        Self { subpaths }
-    }
-
-    pub(crate) fn subpaths(&self) -> &[Subpath] {
-        &self.subpaths
-    }
-}
-
-pub(crate) struct SubpathBuilder {
-    pub(crate) start: Point,
-    pub(crate) elements: Vec<PathElement>,
-}
-
-impl SubpathBuilder {
-    pub(crate) fn new(start: Point) -> Self {
-        Self {
-            start,
-            elements: Vec::new(),
-        }
-    }
-
-    pub(crate) fn finish(self, closed: bool) -> Subpath {
-        Subpath::new(self.start, self.elements, closed)
     }
 }

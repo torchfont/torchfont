@@ -10,7 +10,7 @@ use skrifa::{
 use crate::{
     error::Error,
     font::{canonicalize_location, extract_glyph_outline, map_font, parse_font_ref},
-    outline::Outline,
+    outline::BezPath,
 };
 
 pub(crate) fn load_glyph_outline(
@@ -18,7 +18,7 @@ pub(crate) fn load_glyph_outline(
     ttc_index: u32,
     codepoint: u32,
     location: Option<&BTreeMap<String, f32>>,
-) -> Result<Outline, Error> {
+) -> Result<BezPath, Error> {
     let data = map_font(path)?;
     let font = parse_font_ref(&data[..], path, ttc_index)?;
     let units_per_em = font
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn loads_outline_without_python() {
         let outline = load_glyph_outline(&test_font(), 0, 'A' as u32, None).unwrap();
-        assert!(!outline.subpaths().is_empty());
+        assert!(outline.subpaths().next().is_some());
     }
 
     #[test]

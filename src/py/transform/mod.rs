@@ -2,7 +2,7 @@ use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 use tiny_skia::FillRule;
 
-use crate::outline::{DecodeError, Outline};
+use crate::outline::{BezPath, DecodeError};
 use crate::transform::render_bitmap::RenderMode;
 use crate::transform::{curves, subpath};
 
@@ -10,8 +10,8 @@ mod load;
 
 type OutlineArrays<'py> = (Bound<'py, PyArray1<i64>>, Bound<'py, PyArray1<f32>>);
 
-fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
-    Outline::try_from((types, coords)).map_err(|e| match e {
+fn decode(types: &[i64], coords: &[f32]) -> PyResult<BezPath> {
+    crate::outline::decode(types, coords).map_err(|e| match e {
         DecodeError::CoordsLen => {
             pyo3::exceptions::PyValueError::new_err("coords length must equal types length times 6")
         }
@@ -33,8 +33,8 @@ fn decode(types: &[i64], coords: &[f32]) -> PyResult<Outline> {
     })
 }
 
-fn encode<'py>(py: Python<'py>, outline: &Outline) -> OutlineArrays<'py> {
-    let (types, coords) = outline.encode();
+fn encode<'py>(py: Python<'py>, outline: &BezPath) -> OutlineArrays<'py> {
+    let (types, coords) = crate::outline::encode(outline);
     (types.into_pyarray(py), coords.into_pyarray(py))
 }
 
@@ -68,7 +68,7 @@ pub(crate) fn cubic_to_quad<'py>(
         .map(|outline| encode(py, &outline))
         .map_err(|_| {
             pyo3::exceptions::PyValueError::new_err(
-                "cubic_to_quad could not approximate a curve within MAX_N segments",
+                "cubic_to_quad could not approximate a curve within tolerance",
             )
         })
 }
