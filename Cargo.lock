@@ -1292,6 +1292,7 @@ dependencies = [
  "shellexpand",
  "skia-safe",
  "skrifa",
+ "smallvec",
  "tiny-skia",
 ]
 

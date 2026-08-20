@@ -1,4 +1,5 @@
 use kurbo::{CubicBez, ParamCurve, QuadBez};
+use smallvec::{SmallVec, smallvec};
 
 use crate::outline::{
     BezPath, PathEl, Point, Vec2, path_element_end, subpath_elements, subpath_is_closed,
@@ -108,10 +109,10 @@ fn cubic_points(element: PathEl) -> (Point, Point, Point) {
 fn compute_split_ts(
     n: usize,
     junction_tangents: impl Fn(usize) -> (Vec2, Vec2),
-) -> Option<Vec<f64>> {
+) -> Option<SmallVec<[f64; 8]>> {
     let mut prod_ratio = 1.0_f64;
     let mut sum_ratio = 1.0_f64;
-    let mut ts_unnorm = vec![1.0_f64];
+    let mut ts_unnorm: SmallVec<[f64; 8]> = smallvec![1.0_f64];
 
     for k in 1..n {
         let (end_tan, start_tan) = junction_tangents(k);
