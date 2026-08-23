@@ -9,6 +9,7 @@ pub(crate) struct DiscoveredFont {
     path: PathBuf,
     ttc_index: u32,
     codepoints: Vec<u32>,
+    glyph_ids: Vec<u32>,
 }
 
 impl DiscoveredFont {
@@ -38,8 +39,8 @@ impl DiscoveredFont {
         Ok(entries)
     }
 
-    pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>) {
-        (self.path, self.ttc_index, self.codepoints)
+    pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>, Vec<u32>) {
+        (self.path, self.ttc_index, self.codepoints, self.glyph_ids)
     }
 
     pub(crate) fn codepoint_count(&self) -> usize {
@@ -62,13 +63,15 @@ impl DiscoveredFont {
             .filter(|(_, glyph_id)| outline_glyphs.get(*glyph_id).is_some())
             .collect();
         mappings.sort_unstable_by_key(|entry| entry.0);
+        let (codepoints, glyph_ids) = mappings
+            .into_iter()
+            .map(|(codepoint, glyph_id)| (codepoint, glyph_id.to_u32()))
+            .unzip();
         Self {
             path: path.to_path_buf(),
             ttc_index,
-            codepoints: mappings
-                .into_iter()
-                .map(|(codepoint, _)| codepoint)
-                .collect(),
+            codepoints,
+            glyph_ids,
         }
     }
 }

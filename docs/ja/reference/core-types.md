@@ -78,8 +78,8 @@ Padding を保持する場合は `Outline.unbind()` を使います。
 ### `GlyphData`
 
 `GlyphData` は変換後の Payload、Glyph 参照、Variation Location、
-並列な `font_idx`、`character_idx`、`weight`、`width`、`italic`、`slant`、
-`optical_size` Target を保持します。取得できない連続 Target は `None` です。
+並列な `codepoint`、`font_idx`、`character_idx`、`weight`、`width`、`italic`、
+`slant`、`optical_size` Target を保持します。取得できない連続 Target は `None` です。
 
 `location` は Glyph の読み込みに使った OpenType Axis Tag と値を保持する通常の
 `dict[str, float]` です。

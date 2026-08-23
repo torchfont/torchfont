@@ -19,8 +19,8 @@ dataset = GlyphDataset(
 | 型 | フィールド |
 |---|---|
 | `FontRef` | `path: str`, `ttc_index: int` |
-| `GlyphRef` | `font: FontRef`, `codepoint: int` |
-| `GlyphSample` | `ref: GlyphRef`, `font_idx: int`, `character_idx: int` |
+| `GlyphRef` | `font: FontRef`, `glyph_id: int` |
+| `GlyphSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
 
 ## `GlyphDataset`
 

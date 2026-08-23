@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 _TARGET_FIELDS = (
+    "codepoint",
     "font_idx",
     "character_idx",
     "weight",
@@ -27,6 +28,7 @@ _TARGET_FIELDS = (
 
 
 class _GlyphDataTargets(TypedDict):
+    codepoint: int
     font_idx: int
     character_idx: int
     weight: float | None
@@ -38,10 +40,10 @@ class _GlyphDataTargets(TypedDict):
 
 @dataclass(frozen=True)
 class GlyphRef:
-    """Reference to one glyph face and codepoint before choosing a location."""
+    """Reference to one glyph of one font face before choosing a location."""
 
     font: FontRef
-    codepoint: int
+    glyph_id: int
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,7 @@ class GlyphSample:
     """Dataset-local sample for one font face and codepoint."""
 
     ref: GlyphRef
+    codepoint: int
     font_idx: int
     character_idx: int
 
@@ -67,6 +70,7 @@ class GlyphData(Generic[T]):
     data: T
     ref: GlyphRef
     location: dict[str, float]
+    codepoint: int
     font_idx: int
     character_idx: int
     weight: float | None
@@ -94,6 +98,7 @@ register_pytree_node(GlyphData, _flatten_glyph_data, _unflatten_glyph_data)
 
 def _glyph_data_targets(
     *,
+    codepoint: int,
     font_idx: int,
     character_idx: int,
     metrics: tuple[float, float, float, float, float],
@@ -105,6 +110,7 @@ def _glyph_data_targets(
     """
     weight, width, italic, slant, optical_size = metrics
     return {
+        "codepoint": codepoint,
         "font_idx": font_idx,
         "character_idx": character_idx,
         "weight": _optional_metric(weight),

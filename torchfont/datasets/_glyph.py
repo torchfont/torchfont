@@ -76,8 +76,9 @@ class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
         sample = GlyphSample(
             ref=GlyphRef(
                 self._font_refs[font_idx],
-                int(self._character_codepoints[character_idx]),
+                int(self._glyph_ids[sample_idx]),
             ),
+            codepoint=int(self._character_codepoints[character_idx]),
             font_idx=font_idx,
             character_idx=character_idx,
         )

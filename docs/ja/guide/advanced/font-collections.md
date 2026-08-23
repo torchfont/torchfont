@@ -32,7 +32,7 @@ from torchfont.transforms import LoadGlyph
 
 ref = GlyphRef(
     font=FontRef("data/fonts/example.ttc", ttc_index=2),
-    codepoint=ord("A"),
+    glyph_id=36,
 )
 outline = LoadGlyph()(ref)
 ```

@@ -27,6 +27,7 @@ types, coords = outline.types, outline.coords
 print(data.ref)  # glyph reference
 print(types)  # element type sequence
 print(coords)  # coordinates sequence
+print(data.codepoint)  # Unicode codepoint
 print(data.font_idx)  # font face class ID
 print(data.character_idx)  # character class ID
 print(data.weight)  # OpenType weight

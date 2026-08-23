@@ -29,6 +29,7 @@ types, coords = outline.types, outline.coords
 print(data.ref)  # グリフ参照
 print(types)  # 要素型の系列
 print(coords)  # 座標の系列
+print(data.codepoint)  # Unicode コードポイント
 print(data.font_idx)  # フォントフェイスのクラス ID
 print(data.character_idx)  # 文字のクラス ID
 print(data.weight)  # OpenType のウェイト

@@ -48,7 +48,7 @@ def _transform(sample: GlyphSample) -> Tensor:
         logger.warning(
             "merge_curves bitmap mismatch: %s U+%04X",
             sample.ref.font.path,
-            sample.ref.codepoint,
+            sample.codepoint,
         )
     return failed
 

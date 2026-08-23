@@ -7,14 +7,12 @@ Load the glyph first, then compile the tensor-only part of the pipeline:
 ```python
 import torch
 
-from torchfont import FontRef, GlyphRef, Outline
+from torchfont import Outline
+from torchfont.datasets import GlyphDataset
 from torchfont.transforms import functional as F
 
-ref = GlyphRef(
-    font=FontRef("path/to/font.ttf", ttc_index=0),
-    codepoint=ord("A"),
-)
-outline = F.load_glyph(ref)
+dataset = GlyphDataset("data/fonts", codepoints=[ord("A")])
+outline = F.load_glyph(dataset[0].ref)
 
 
 def pipeline(types: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:

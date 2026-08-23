@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 import torchfont
 import torchfont.datasets as datasets_module
 import torchfont.transforms as transforms_module
+from tests._glyphs import glyph_id
 from torchfont import (
     ElementType,
     FontRef,
@@ -77,7 +78,7 @@ def test_dataset_transform_receives_sample() -> None:
 
     def transform(sample: GlyphSample) -> int:
         seen.append(sample)
-        return sample.ref.codepoint
+        return sample.codepoint
 
     dataset = GlyphDataset(
         "tests/fonts",
@@ -106,6 +107,26 @@ def test_load_glyph_returns_outline_tensors() -> None:
     assert not (outline.types == ElementType.CURVE_TO.value).any().item()
 
 
+def test_dataset_resolves_glyph_ids_per_face() -> None:
+    path = "static-collection/Metropolis.ttc"
+    dataset = GlyphDataset("tests/fonts", patterns=path, codepoints=[ord("A")])
+
+    resolved = [dataset[idx].ref.glyph_id for idx in range(len(dataset))]
+
+    assert resolved == [
+        glyph_id(f"tests/fonts/{path}", "A", ttc_index)
+        for ttc_index in range(len(dataset.font_classes))
+    ]
+
+
+def test_load_glyph_reports_missing_glyph_id() -> None:
+    path = "tests/fonts/source-sans/SourceSans3-Regular.ttf"
+    ref = GlyphRef(FontRef(path, 0), 0xFFFF)
+
+    with pytest.raises(IndexError, match="glyph id 65535 missing"):
+        _functional.load_glyph(ref)
+
+
 def test_dataset_reports_corrupt_font(tmp_path: Path) -> None:
     (tmp_path / "broken.ttf").write_bytes(b"not a font")
 
@@ -114,7 +135,7 @@ def test_dataset_reports_corrupt_font(tmp_path: Path) -> None:
 
 
 def test_load_glyph_reports_missing_font(tmp_path: Path) -> None:
-    ref = GlyphRef(FontRef(str(tmp_path / "missing.ttf"), 0), ord("A"))
+    ref = GlyphRef(FontRef(str(tmp_path / "missing.ttf"), 0), 36)
 
     with pytest.raises(FileNotFoundError, match="failed to open"):
         _functional.load_glyph(ref)
@@ -260,6 +281,7 @@ def test_dataset_is_pickleable() -> None:
     restored_sample = restored[0]
     sample = dataset[0]
     assert restored_sample.ref == sample.ref
+    assert restored_sample.codepoint == sample.codepoint
     assert restored_sample.font_idx == sample.font_idx
     assert restored_sample.character_idx == sample.character_idx
     assert torch.equal(restored.font_targets, dataset.font_targets)
@@ -284,6 +306,7 @@ def test_dataset_accepts_negative_index() -> None:
     negative = dataset[-1]
     positive = dataset[1]
     assert negative.ref == positive.ref
+    assert negative.codepoint == positive.codepoint
     assert negative.font_idx == positive.font_idx
     assert negative.character_idx == positive.character_idx
 
@@ -389,7 +412,7 @@ def test_targets_match_samples_across_faces_with_unequal_coverage() -> None:
         sample = dataset[idx]
         assert font_targets[idx] == sample.font_idx
         assert character_targets[idx] == sample.character_idx
-        assert character_class_to_idx[chr(sample.ref.codepoint)] == sample.character_idx
+        assert character_class_to_idx[chr(sample.codepoint)] == sample.character_idx
         assert load(sample).data.types.numel() > 0
         coverage[sample.font_idx] = (
             *coverage.get(sample.font_idx, ()),
@@ -429,6 +452,7 @@ def test_patterns_accept_string_or_sequence() -> None:
     string_sample = string[0]
     sequence_sample = sequence[0]
     assert string_sample.ref == sequence_sample.ref
+    assert string_sample.codepoint == sequence_sample.codepoint
     assert string_sample.font_idx == sequence_sample.font_idx
     assert string_sample.character_idx == sequence_sample.character_idx
 
@@ -440,4 +464,4 @@ def test_codepoints_are_normalized_and_deduplicated() -> None:
         patterns="source-sans/SourceSans3-Regular.ttf",
         codepoints=codepoints,
     )
-    assert [dataset[i].ref.codepoint for i in range(len(dataset))] == [0x41, 0x42]
+    assert [dataset[i].codepoint for i in range(len(dataset))] == [0x41, 0x42]

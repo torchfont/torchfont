@@ -81,9 +81,9 @@ Splits an `Outline` with exactly one batch dimension and removes trailing
 ### `GlyphData`
 
 `GlyphData` contains a transformed payload, glyph
-reference, resolved variation location, and the parallel `font_idx`,
-`character_idx`, `weight`, `width`, `italic`, `slant`, and `optical_size`
-targets. Unavailable continuous targets are `None`.
+reference, resolved variation location, and the parallel `codepoint`,
+`font_idx`, `character_idx`, `weight`, `width`, `italic`, `slant`, and
+`optical_size` targets. Unavailable continuous targets are `None`.
 
 `location` is an ordinary `dict[str, float]` mapping OpenType axis tags to the
 values used to load the glyph.
