@@ -9,13 +9,10 @@ EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
 @pytest.mark.parametrize(
     "script_name",
     [
-        "google_fonts.py",
-        "local_fonts.py",
-        "source_han_code_jp.py",
-        "subset_by_targets.py",
-        "variable_glyphs.py",
-        "font_awesome.py",
-        "material_design_icons.py",
+        "dataloader.py",
+        "dataset.py",
+        "torchvision_transform.py",
+        "transform.py",
     ],
 )
 def test_examples_are_import_safe(
@@ -33,14 +30,3 @@ def test_examples_are_import_safe(
     assert callable(namespace.get("main")), (
         f"{script_name} must define a callable main()"
     )
-
-
-@pytest.mark.parametrize(
-    "script_name",
-    [
-        "local_fonts.py",
-        "subset_by_targets.py",
-    ],
-)
-def test_local_examples_run_as_scripts(script_name: str) -> None:
-    runpy.run_path(str(EXAMPLES_DIR / script_name), run_name="__main__")

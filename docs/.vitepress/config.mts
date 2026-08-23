@@ -46,7 +46,6 @@ export default defineConfig({
         nav: [
           { text: 'Guide', link: '/en/guide/basic/what-is-torchfont' },
           { text: 'Reference', link: '/en/reference/datasets' },
-          { text: 'Examples', link: '/en/examples/' },
         ],
         sidebar: {
           '/en/guide/': [
@@ -107,12 +106,6 @@ export default defineConfig({
               ],
             },
           ],
-          '/en/examples/': [
-            {
-              text: 'Examples',
-              items: [{ text: 'Example Gallery', link: '/en/examples/' }],
-            },
-          ],
         },
       },
     },
@@ -125,7 +118,6 @@ export default defineConfig({
         nav: [
           { text: 'ガイド', link: '/ja/guide/basic/what-is-torchfont' },
           { text: 'リファレンス', link: '/ja/reference/datasets' },
-          { text: 'サンプル', link: '/ja/examples/' },
         ],
         sidebar: {
           '/ja/guide/': [
@@ -184,12 +176,6 @@ export default defineConfig({
                 { text: 'ニューラルネットワーク', link: '/ja/reference/nn' },
                 { text: '基本型', link: '/ja/reference/core-types' },
               ],
-            },
-          ],
-          '/ja/examples/': [
-            {
-              text: 'サンプル',
-              items: [{ text: 'サンプル集', link: '/ja/examples/' }],
             },
           ],
         },

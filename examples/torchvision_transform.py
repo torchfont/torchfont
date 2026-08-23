@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 from typing import TYPE_CHECKING, cast
 
@@ -10,12 +8,13 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import v2 as T
 from tqdm import tqdm
 
+from torchfont import GlyphSample
 from torchfont import transforms as FT
 from torchfont.datasets import GlyphDataset
 from torchfont.glyphsets import LATIN_CORE
 
 if TYPE_CHECKING:
-    from torchfont import GlyphData, GlyphSample, Outline
+    from torchfont import GlyphData, Outline
 
 
 class TransformPipeline(torch.nn.Module):
