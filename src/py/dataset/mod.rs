@@ -1,25 +1,12 @@
-mod build;
-mod glyph;
+mod index;
 
 use pyo3::{
-    Bound, PyErr, PyResult,
+    Bound, PyResult,
     types::{PyModule, PyModuleMethods},
+    wrap_pyfunction,
 };
 
-use crate::dataset::IndexOverflow;
-
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<glyph::GlyphIndex>()?;
+    m.add_function(wrap_pyfunction!(index::index_fonts, m)?)?;
     Ok(())
-}
-
-fn index_error(idx: usize, len: usize) -> PyErr {
-    pyo3::exceptions::PyIndexError::new_err(format!("sample index {idx} out of range (len={len})"))
-}
-
-fn overflow_error(kind: IndexOverflow) -> PyErr {
-    let message = match kind {
-        IndexOverflow::SampleCount => "dataset sample count overflowed usize",
-    };
-    pyo3::exceptions::PyOverflowError::new_err(message)
 }

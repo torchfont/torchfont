@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
+from bisect import bisect_right
 from typing import TYPE_CHECKING, Generic, SupportsIndex, TypeVar, cast, overload
 
-from torchfont import _torchfont
-from torchfont._font import FontRef
 from torchfont._glyph import GlyphRef, GlyphSample
 from torchfont.datasets._base import _BaseGlyphDataset
 from torchfont.datasets._utils import normalize_index
@@ -20,8 +18,6 @@ T = TypeVar("T")
 
 class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
     """Map-style dataset yielding one sample per font face and codepoint."""
-
-    _index: _torchfont.GlyphIndex
 
     @overload
     def __init__(
@@ -57,9 +53,6 @@ class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
             patterns=patterns,
             transform=cast("Callable[[object], T] | None", transform),
         )
-        self._index = _torchfont.GlyphIndex.from_root(
-            str(self.root), self.codepoints, self.patterns
-        )
 
     def __repr__(self) -> str:
         return (
@@ -77,21 +70,14 @@ class GlyphDataset(_BaseGlyphDataset[T], Generic[T]):
     def __getitem__(self, idx: SupportsIndex) -> T: ...
 
     def __getitem__(self, idx: SupportsIndex) -> T:
-        return self._prepare_sample(self._index.locate(normalize_index(idx, len(self))))
-
-    def _prepare_sample(
-        self,
-        located: tuple[Path, int, int, int, int],
-    ) -> T:
-        (
-            path,
-            ttc_index,
-            font_idx,
-            codepoint,
-            character_idx,
-        ) = located
+        sample_idx = normalize_index(idx, len(self))
+        font_idx = bisect_right(self._offsets, sample_idx) - 1
+        character_idx = int(self._character_index[sample_idx])
         sample = GlyphSample(
-            ref=GlyphRef(FontRef(os.fspath(path), ttc_index), codepoint),
+            ref=GlyphRef(
+                self._font_refs[font_idx],
+                int(self._character_codepoints[character_idx]),
+            ),
             font_idx=font_idx,
             character_idx=character_idx,
         )

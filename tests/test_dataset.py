@@ -374,6 +374,32 @@ def test_targets_match_samples() -> None:
         assert dataset.character_targets[idx].item() == sample.character_idx
 
 
+def test_targets_match_samples_across_faces_with_unequal_coverage() -> None:
+    dataset = GlyphDataset(
+        "tests/fonts",
+        codepoints=[0x41, 0x42, 0xA9, 0x03A9, 0x0416, 0x2665, 0x3042, 0x4E00, 0xFB01],
+    )
+    font_targets = dataset.font_targets.tolist()
+    character_targets = dataset.character_targets.tolist()
+    character_class_to_idx = dataset.character_class_to_idx
+    load = LoadGlyph()
+
+    coverage: dict[int, tuple[int, ...]] = {}
+    for idx in range(len(dataset)):
+        sample = dataset[idx]
+        assert font_targets[idx] == sample.font_idx
+        assert character_targets[idx] == sample.character_idx
+        assert character_class_to_idx[chr(sample.ref.codepoint)] == sample.character_idx
+        assert load(sample).data.types.numel() > 0
+        coverage[sample.font_idx] = (
+            *coverage.get(sample.font_idx, ()),
+            sample.character_idx,
+        )
+
+    assert sorted(coverage) == list(range(len(dataset.font_classes)))
+    assert any(indices != tuple(range(len(indices))) for indices in coverage.values())
+
+
 def test_dataset_repr() -> None:
     dataset = GlyphDataset(
         "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
@@ -388,7 +414,7 @@ def test_public_dataset_api_is_exported() -> None:
     assert datasets_module.GlyphDataset is GlyphDataset
     assert torchfont.GlyphSample is GlyphSample
     assert transforms_module.LoadGlyph is LoadGlyph
-    assert hasattr(_torchfont, "GlyphIndex")
+    assert hasattr(_torchfont, "index_fonts")
 
 
 def test_patterns_accept_string_or_sequence() -> None:

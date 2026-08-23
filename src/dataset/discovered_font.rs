@@ -38,16 +38,8 @@ impl DiscoveredFont {
         Ok(entries)
     }
 
-    pub(crate) fn path(&self) -> &Path {
-        &self.path
-    }
-
-    pub(crate) fn ttc_index(&self) -> u32 {
-        self.ttc_index
-    }
-
-    pub(crate) fn codepoints(&self) -> &[u32] {
-        &self.codepoints
+    pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>) {
+        (self.path, self.ttc_index, self.codepoints)
     }
 
     pub(crate) fn codepoint_count(&self) -> usize {
