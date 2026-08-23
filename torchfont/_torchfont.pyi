@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Literal, TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 
 _BitmapMode: TypeAlias = Literal["fixed", "bbox", "bbox_square"]
 _FillRule: TypeAlias = Literal["winding", "even_odd"]
@@ -53,22 +54,16 @@ def quad_to_cubic(
 def tight_bbox(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[float, float, float, float] | None: ...
-
-class GlyphIndex:
-    sample_count: int
-    @classmethod
-    def from_root(
-        cls,
-        root: str,
-        codepoints: Sequence[int] | None,
-        patterns: Sequence[str] | None,
-    ) -> GlyphIndex: ...
-    def font_refs(self) -> list[tuple[Path, int]]: ...
-    def character_codepoints(self) -> list[int]: ...
-    def locate(self, idx: int) -> tuple[Path, int, int, int, int]: ...
-    def font_targets(self) -> np.ndarray: ...
-    def character_targets(self) -> np.ndarray: ...
-
+def index_fonts(
+    root: str,
+    codepoints: Sequence[int] | None,
+    patterns: Sequence[str] | None,
+) -> tuple[
+    list[tuple[Path, int]],
+    list[int],
+    npt.NDArray[np.uint32],
+    npt.NDArray[np.uint32],
+]: ...
 def load_glyph(
     path: str,
     ttc_index: int,
