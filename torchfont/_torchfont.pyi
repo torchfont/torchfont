@@ -63,11 +63,12 @@ def index_fonts(
     list[int],
     npt.NDArray[np.uint32],
     npt.NDArray[np.uint32],
+    npt.NDArray[np.uint32],
 ]: ...
 def load_glyph(
     path: str,
     ttc_index: int,
-    codepoint: int,
+    glyph_id: int,
     location: dict[str, float] | None = ...,
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def variation_axes(

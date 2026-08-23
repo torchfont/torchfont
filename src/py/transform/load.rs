@@ -52,10 +52,10 @@ pub(crate) fn load_glyph<'py>(
     py: Python<'py>,
     path: PathBuf,
     ttc_index: u32,
-    codepoint: u32,
+    glyph_id: u32,
     location: Option<BTreeMap<String, f32>>,
 ) -> PyResult<super::OutlineArrays<'py>> {
     let outline =
-        py.detach(|| load_glyph_outline(&path, ttc_index, codepoint, location.as_ref()))?;
+        py.detach(|| load_glyph_outline(&path, ttc_index, glyph_id, location.as_ref()))?;
     Ok(super::encode(py, &outline))
 }

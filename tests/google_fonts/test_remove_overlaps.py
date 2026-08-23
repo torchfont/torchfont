@@ -120,7 +120,7 @@ def _transform(sample: GlyphSample) -> Tensor:
             "remove_overlaps failure [%s]: %s U+%04X",
             ",".join(reasons),
             sample.ref.font.path,
-            sample.ref.codepoint,
+            sample.codepoint,
         )
     return failed
 

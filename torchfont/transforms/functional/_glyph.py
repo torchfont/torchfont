@@ -28,7 +28,7 @@ def load_glyph(
     raw_types, raw_coords = _torchfont.load_glyph(
         ref.font.path,
         ref.font.ttc_index,
-        ref.codepoint,
+        ref.glyph_id,
         normalized_location,
     )
     return Outline._wrap(  # noqa: SLF001

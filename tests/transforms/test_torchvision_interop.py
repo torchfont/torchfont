@@ -1,6 +1,7 @@
 import pytest
 import torch
 
+from tests._glyphs import glyph_id
 from torchfont import FontRef, GlyphData, GlyphRef, GlyphSample
 from torchfont.transforms import (
     Compose,
@@ -13,11 +14,12 @@ tv_tensors = pytest.importorskip("torchvision.tv_tensors")
 v2 = pytest.importorskip("torchvision.transforms.v2")
 
 FONT = "tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf"
+GLYPH_A = glyph_id(FONT, "A")
 
 
 def _render() -> torch.Tensor:
     pipeline = Compose([LoadGlyph(), HorizontalFlip(), RenderBitmap(size=64)])
-    return pipeline(GlyphRef(FontRef(FONT, 0), ord("A")))
+    return pipeline(GlyphRef(FontRef(FONT, 0), GLYPH_A))
 
 
 def test_to_image_converts_bitmap_to_channel_first_tv_image() -> None:
@@ -41,8 +43,8 @@ def test_render_bitmap_returns_a_plain_tensor() -> None:
 
 
 def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
-    ref = GlyphRef(FontRef(FONT, 0), ord("A"))
-    sample = GlyphSample(ref, font_idx=3, character_idx=5)
+    ref = GlyphRef(FontRef(FONT, 0), GLYPH_A)
+    sample = GlyphSample(ref, codepoint=ord("A"), font_idx=3, character_idx=5)
     pipeline = Compose(
         [
             LoadGlyph(),
@@ -58,6 +60,7 @@ def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
 
     assert isinstance(out, GlyphData)
     assert out.ref is sample.ref
+    assert out.codepoint == sample.codepoint
     assert out.font_idx == sample.font_idx
     assert out.character_idx == sample.character_idx
     assert type(out.data) is torch.Tensor

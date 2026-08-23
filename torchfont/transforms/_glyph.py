@@ -47,6 +47,7 @@ class LoadGlyph(nn.Module):
             ref=ref,
             location=location,
             **_glyph_data_targets(
+                codepoint=inpt.codepoint,
                 font_idx=inpt.font_idx,
                 character_idx=inpt.character_idx,
                 metrics=metrics,

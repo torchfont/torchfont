@@ -28,7 +28,7 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
 def _transform(sample: GlyphSample) -> Tensor:
     outline = _functional.load_glyph(sample.ref)
     types, coords = outline.types, outline.coords
-    torch.manual_seed(sample.ref.codepoint)
+    torch.manual_seed(sample.codepoint)
     simplified = RandomRemoveOverlaps()(Outline(types, coords))
     simplified_types, simplified_coords = simplified.types, simplified.coords
 
@@ -50,7 +50,7 @@ def _transform(sample: GlyphSample) -> Tensor:
         logger.warning(
             "random_remove_overlaps bitmap mismatch: %s U+%04X",
             sample.ref.font.path,
-            sample.ref.codepoint,
+            sample.codepoint,
         )
     changed = not (
         torch.equal(types, simplified_types) and torch.equal(coords, simplified_coords)

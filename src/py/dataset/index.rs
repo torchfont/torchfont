@@ -10,6 +10,7 @@ type FontIndexArrays = (
     Vec<i64>,
     Py<PyArray1<u32>>,
     Py<PyArray1<u32>>,
+    Py<PyArray1<u32>>,
 );
 
 #[pyfunction]
@@ -34,6 +35,7 @@ pub(super) fn index_fonts(
             .into_pyarray(py)
             .unbind(),
         index.character_index.into_pyarray(py).unbind(),
+        index.glyph_ids.into_pyarray(py).unbind(),
     ))
 }
 

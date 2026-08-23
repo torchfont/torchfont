@@ -3,6 +3,7 @@ import pickle
 import pytest
 import torch
 
+from tests._glyphs import glyph_id
 from torchfont import (
     ElementType,
     FontRef,
@@ -232,11 +233,9 @@ def test_load_glyph_rejects_invalid_location_policy() -> None:
 
 
 def _glyph_sample() -> GlyphSample:
-    ref = GlyphRef(
-        FontRef("tests/fonts/source-sans/SourceSans3-Regular.ttf", 0),
-        ord("A"),
-    )
-    return GlyphSample(ref, 0, 0)
+    path = "tests/fonts/source-sans/SourceSans3-Regular.ttf"
+    ref = GlyphRef(FontRef(path, 0), glyph_id(path, "A"))
+    return GlyphSample(ref, ord("A"), 0, 0)
 
 
 def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
@@ -248,6 +247,7 @@ def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
     assert isinstance(output, GlyphData)
     assert isinstance(output.data, Outline)
     assert output.ref is sample.ref
+    assert output.codepoint == sample.codepoint
     assert output.font_idx == sample.font_idx
     assert output.character_idx == sample.character_idx
     assert output.weight == 400.0
@@ -270,11 +270,9 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
 
 
 def test_load_glyph_returns_the_randomly_sampled_location() -> None:
-    ref = GlyphRef(
-        FontRef("tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf", 0),
-        ord("A"),
-    )
-    sample = GlyphSample(ref, 0, 0)
+    path = "tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf"
+    ref = GlyphRef(FontRef(path, 0), glyph_id(path, "A"))
+    sample = GlyphSample(ref, ord("A"), 0, 0)
 
     output = LoadGlyph(location="random")(sample)
 

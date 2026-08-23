@@ -26,10 +26,10 @@ def test_core_types_are_exported_from_package_root() -> None:
     assert torchfont.Outline is Outline
 
 
-def test_glyph_ref_identifies_face_and_codepoint() -> None:
-    ref = GlyphRef(FontRef("font.ttf", 0), ord("A"))
+def test_glyph_ref_identifies_face_and_glyph() -> None:
+    ref = GlyphRef(FontRef("font.ttf", 0), 36)
 
-    assert ref.codepoint == ord("A")
+    assert ref.glyph_id == 36
 
 
 @pytest.mark.parametrize(
@@ -117,13 +117,14 @@ def test_outline_keeps_identity_equality() -> None:
 def test_glyph_data_keeps_identity_equality() -> None:
     types = torch.tensor([1, 6], dtype=torch.long)
     coords = torch.zeros((2, 6))
-    sample = GlyphSample(GlyphRef(FontRef("font.ttf", 0), 0x41), 0, 0)
+    sample = GlyphSample(GlyphRef(FontRef("font.ttf", 0), 36), 0x41, 0, 0)
 
     def build(outline: Outline) -> GlyphData[Outline]:
         return GlyphData(
             outline,
             sample.ref,
             {},
+            codepoint=sample.codepoint,
             font_idx=0,
             character_idx=0,
             weight=400.0,
@@ -141,12 +142,13 @@ def test_glyph_data_keeps_identity_equality() -> None:
 
 
 def test_glyph_data_targets_are_pytree_children() -> None:
-    ref = GlyphRef(FontRef("font.ttf", 0), 0x41)
+    ref = GlyphRef(FontRef("font.ttf", 0), 36)
     location = {"wght": 400.0}
     data = GlyphData(
         torch.tensor([1.0]),
         ref,
         location,
+        codepoint=0x41,
         font_idx=2,
         character_idx=3,
         weight=400.0,
@@ -159,15 +161,16 @@ def test_glyph_data_targets_are_pytree_children() -> None:
     leaves, spec = pytree.tree_flatten(data)
     rebuilt = pytree.tree_unflatten(leaves, spec)
 
-    assert leaves[1:] == [2, 3, 400.0, None, 0.0, None, 12.0]
+    assert leaves[1:] == [0x41, 2, 3, 400.0, None, 0.0, None, 12.0]
     assert rebuilt.ref is ref
     assert rebuilt.location is location
+    assert rebuilt.codepoint == 0x41
     assert rebuilt.font_idx == 2
     assert rebuilt.width is None
 
 
 def test_glyph_data_pytree_structure_does_not_depend_on_target_values() -> None:
-    ref = GlyphRef(FontRef("font.ttf", 0), 0x41)
+    ref = GlyphRef(FontRef("font.ttf", 0), 36)
     location: dict[str, float] = {}
 
     def make(weight: float | None) -> GlyphData[torch.Tensor]:
@@ -175,6 +178,7 @@ def test_glyph_data_pytree_structure_does_not_depend_on_target_values() -> None:
             torch.tensor([1.0]),
             ref,
             location,
+            codepoint=0x41,
             font_idx=0,
             character_idx=0,
             weight=weight,

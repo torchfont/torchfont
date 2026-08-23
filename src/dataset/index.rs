@@ -1,29 +1,38 @@
 use std::path::PathBuf;
 
+/// One discovered face: its file, TTC index, and the codepoint/glyph id pairs
+/// it contributes, sorted by codepoint.
+pub(crate) type IndexedFace = (PathBuf, u32, Vec<u32>, Vec<u32>);
+
 /// Flat sample index over discovered font faces.
 ///
 /// Samples are laid out face by face: face `i` owns the half-open sample range
 /// `offsets[i]..offsets[i + 1]`, so `offsets` has one more element than `fonts`
-/// and its last element is the total sample count. The codepoint of sample `s`
-/// is `character_codepoints[character_index[s]]`.
+/// and its last element is the total sample count. Sample `s` draws glyph
+/// `glyph_ids[s]`, whose codepoint is `character_codepoints[character_index[s]]`.
 pub(crate) struct FontIndex {
     pub(crate) fonts: Vec<(PathBuf, u32)>,
     pub(crate) offsets: Vec<i64>,
     pub(crate) character_codepoints: Vec<u32>,
     pub(crate) character_index: Vec<u32>,
+    pub(crate) glyph_ids: Vec<u32>,
 }
 
 impl FontIndex {
     /// Builds an index from faces whose codepoints are sorted in ascending order.
-    pub(crate) fn build(faces: Vec<(PathBuf, u32, Vec<u32>)>) -> Self {
+    pub(crate) fn build(faces: Vec<IndexedFace>) -> Self {
         let mut fonts = Vec::with_capacity(faces.len());
         let mut offsets = Vec::with_capacity(faces.len() + 1);
-        let mut codepoints = Vec::with_capacity(faces.iter().map(|face| face.2.len()).sum());
+        let sample_count = faces.iter().map(|face| face.2.len()).sum();
+        let mut codepoints = Vec::with_capacity(sample_count);
+        let mut glyph_ids = Vec::with_capacity(sample_count);
         offsets.push(0);
-        for (path, ttc_index, face_codepoints) in faces {
+        for (path, ttc_index, face_codepoints, face_glyph_ids) in faces {
             debug_assert!(face_codepoints.is_sorted());
+            debug_assert_eq!(face_codepoints.len(), face_glyph_ids.len());
             fonts.push((path, ttc_index));
             codepoints.extend(face_codepoints);
+            glyph_ids.extend(face_glyph_ids);
             offsets.push(i64::try_from(codepoints.len()).expect("Vec length fits in i64"));
         }
         let mut character_codepoints = codepoints.clone();
@@ -43,6 +52,7 @@ impl FontIndex {
             offsets,
             character_codepoints,
             character_index,
+            glyph_ids,
         }
     }
 }
@@ -56,8 +66,8 @@ mod tests {
     #[test]
     fn indexes_each_face_codepoint_once() {
         let index = FontIndex::build(vec![
-            (PathBuf::from("a.ttf"), 0, vec![65, 67]),
-            (PathBuf::from("b.ttf"), 1, vec![66]),
+            (PathBuf::from("a.ttf"), 0, vec![65, 67], vec![36, 38]),
+            (PathBuf::from("b.ttf"), 1, vec![66], vec![5]),
         ]);
         assert_eq!(
             index.fonts,
@@ -66,6 +76,7 @@ mod tests {
         assert_eq!(index.offsets, vec![0, 2, 3]);
         assert_eq!(index.character_codepoints, vec![65, 66, 67]);
         assert_eq!(index.character_index, vec![0, 2, 1]);
+        assert_eq!(index.glyph_ids, vec![36, 38, 5]);
     }
 
     #[test]
@@ -75,5 +86,6 @@ mod tests {
         assert_eq!(index.offsets, vec![0]);
         assert!(index.character_codepoints.is_empty());
         assert!(index.character_index.is_empty());
+        assert!(index.glyph_ids.is_empty());
     }
 }

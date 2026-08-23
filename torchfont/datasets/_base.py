@@ -28,14 +28,16 @@ class _BaseGlyphDataset(Dataset[T], Generic[T]):
 
     Samples are laid out face by face: face ``i`` owns the half-open sample
     range ``_offsets[i]:_offsets[i + 1]``, so ``_offsets`` holds one more
-    element than ``_font_refs`` and ends with the sample count. The codepoint
-    of sample ``s`` is ``_character_codepoints[_character_index[s]]``.
+    element than ``_font_refs`` and ends with the sample count. Sample ``s``
+    draws glyph ``_glyph_ids[s]``, whose codepoint is
+    ``_character_codepoints[_character_index[s]]``.
     """
 
     _font_refs: tuple[FontRef, ...]
     _offsets: tuple[int, ...]
     _character_codepoints: npt.NDArray[np.uint32]
     _character_index: npt.NDArray[np.uint32]
+    _glyph_ids: npt.NDArray[np.uint32]
 
     def __init__(
         self,
@@ -54,9 +56,11 @@ class _BaseGlyphDataset(Dataset[T], Generic[T]):
             offsets,
             self._character_codepoints,
             self._character_index,
+            self._glyph_ids,
         ) = _torchfont.index_fonts(str(self.root), self.codepoints, self.patterns)
         self._character_codepoints.flags.writeable = False
         self._character_index.flags.writeable = False
+        self._glyph_ids.flags.writeable = False
         self._font_refs = tuple(
             FontRef(path, ttc_index) for path, ttc_index in font_refs
         )

@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, path::Path};
 
 use skrifa::{
-    MetadataProvider,
+    GlyphId, MetadataProvider,
     instance::{LocationRef, Size},
     outline::DrawSettings,
     raw::TableProvider,
@@ -16,7 +16,7 @@ use crate::{
 pub(crate) fn load_glyph_outline(
     path: &Path,
     ttc_index: u32,
-    codepoint: u32,
+    glyph_id: u32,
     location: Option<&BTreeMap<String, f32>>,
 ) -> Result<BezPath, Error> {
     let data = map_font(path)?;
@@ -36,20 +36,16 @@ pub(crate) fn load_glyph_outline(
             path.display()
         )));
     }
-    let glyph_id = font.charmap().map(codepoint).ok_or_else(|| {
-        Error::OutOfRange(format!(
-            "codepoint U+{codepoint:04X} missing from '{}'",
-            path.display()
-        ))
-    })?;
     let user_location = canonicalize_location(&font, path, ttc_index, location)?;
-    let glyph = font.outline_glyphs().get(glyph_id).ok_or_else(|| {
-        Error::Parse(format!(
-            "glyph id {} missing from '{}'",
-            glyph_id.to_u32(),
-            path.display()
-        ))
-    })?;
+    let glyph = font
+        .outline_glyphs()
+        .get(GlyphId::new(glyph_id))
+        .ok_or_else(|| {
+            Error::OutOfRange(format!(
+                "glyph id {glyph_id} missing from '{}' (ttc_index {ttc_index})",
+                path.display()
+            ))
+        })?;
     let location = font.axes().location(
         user_location
             .iter()
@@ -65,9 +61,14 @@ pub(crate) fn load_glyph_outline(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
-    use crate::error::Error;
+    use skrifa::MetadataProvider as _;
+
+    use crate::{
+        error::Error,
+        font::{map_font, parse_font_ref},
+    };
 
     use super::load_glyph_outline;
 
@@ -76,15 +77,22 @@ mod tests {
             .join("tests/fonts/source-sans/SourceSans3-Regular.ttf")
     }
 
+    fn glyph_id_for(path: &Path, codepoint: u32) -> u32 {
+        let data = map_font(path).unwrap();
+        let font = parse_font_ref(&data[..], path, 0).unwrap();
+        font.charmap().map(codepoint).unwrap().to_u32()
+    }
+
     #[test]
     fn loads_outline_without_python() {
-        let outline = load_glyph_outline(&test_font(), 0, 'A' as u32, None).unwrap();
+        let glyph_id = glyph_id_for(&test_font(), 'A' as u32);
+        let outline = load_glyph_outline(&test_font(), 0, glyph_id, None).unwrap();
         assert!(outline.subpaths().next().is_some());
     }
 
     #[test]
-    fn reports_missing_codepoint_as_out_of_range() {
-        let error = load_glyph_outline(&test_font(), 0, 0x10ffff, None).unwrap_err();
+    fn reports_missing_glyph_id_as_out_of_range() {
+        let error = load_glyph_outline(&test_font(), 0, u32::MAX, None).unwrap_err();
         assert!(matches!(error, Error::OutOfRange(_)));
     }
 }
