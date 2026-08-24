@@ -8,7 +8,7 @@ and parallel loading.
 
 ## Define a `transform`
 
-`GlyphSample` carries a glyph reference and target indices. Use `LoadGlyph` as
+`CodepointSample` carries a glyph reference and target indices. Use `LoadGlyph` as
 the first pipeline transform to load its semantic `Outline` while retaining the
 sample metadata.
 
@@ -17,7 +17,7 @@ transformation to each item. Pass `LoadGlyph()` directly and verify the output:
 
 ```python
 from torchfont.datasets import CodepointDataset
-from torchfont import GlyphData, Outline
+from torchfont import CodepointData, Outline
 from torchfont.transforms import LoadGlyph
 
 
@@ -32,13 +32,13 @@ dataset = CodepointDataset(
     transform=LoadGlyph(),
 )
 
-data: GlyphData[Outline] = dataset[0]
+data: CodepointData[Outline] = dataset[0]
 
 print(data.data.shape)
 print(data.data.coords.shape)
 ```
 
-With `LoadGlyph`, `dataset[0]` returns `GlyphData[Outline]`. Its `data` field is
+With `LoadGlyph`, `dataset[0]` returns `CodepointData[Outline]`. Its `data` field
 the outline, while its other fields retain the reference, location, and targets.
 The first shape is `(N,)` and the second is `(N, 6)`, where `N` varies by glyph.
 For example:
@@ -61,11 +61,11 @@ import torch
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import CodepointDataset
-from torchfont import GlyphData, Outline, pad_outlines
+from torchfont import CodepointData, Outline, pad_outlines
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(samples: list[GlyphData[Outline]]):
+def collate_fn(samples: list[CodepointData[Outline]]):
     return {
         "outline": pad_outlines([sample.data for sample in samples]),
         "font_idx": torch.tensor(

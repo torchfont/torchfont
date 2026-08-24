@@ -136,7 +136,7 @@ dimension, and `T.ToDtype(..., scale=True)` converts pixel values from
 `[0, 255]` to `[0, 1]`. `T.ToPureTensor` removes the TorchVision image wrapper at
 the model boundary.
 
-The pipeline preserves the `GlyphData` metadata and replaces only its `data`
+The pipeline preserves the `CodepointData` metadata and replaces only its `data`
 payload. A local `collate_fn` can stack the image payloads and select the targets
 required by the model:
 

@@ -49,12 +49,12 @@ pip install torchfont
 ```python
 from torch.utils.data import DataLoader
 
-from torchfont import GlyphData, Outline, pad_outlines
+from torchfont import CodepointData, Outline, pad_outlines
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(samples: list[GlyphData[Outline]]) -> Outline:
+def collate_fn(samples: list[CodepointData[Outline]]) -> Outline:
     return pad_outlines([sample.data for sample in samples])
 
 

@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from torchfont import ElementType, GlyphSample, Outline
+from torchfont import CodepointSample, ElementType, Outline
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import RandomRemoveOverlaps
 from torchfont.transforms import functional as _functional
@@ -25,7 +25,7 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
     return ((a == 255) & (b == 0)) | ((a == 0) & (b == 255))
 
 
-def _transform(sample: GlyphSample) -> Tensor:
+def _transform(sample: CodepointSample) -> Tensor:
     outline = _functional.load_glyph(sample.ref)
     types, coords = outline.types, outline.coords
     torch.manual_seed(sample.codepoint)

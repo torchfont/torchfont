@@ -16,14 +16,14 @@ import torch
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
-from torchfont import GlyphData, Outline, pad_outlines
+from torchfont import CodepointData, Outline, pad_outlines
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 MAX_ELEMENTS = 512
 
 
-def collate_fn(samples: list[GlyphData[Outline]]):
+def collate_fn(samples: list[CodepointData[Outline]]):
     return {
         "outline": pad_outlines([sample.data[:MAX_ELEMENTS] for sample in samples]),
         "font_idx": torch.tensor(

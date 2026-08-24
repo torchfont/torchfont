@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from tests._pairs import merge_curves
-from torchfont import GlyphSample, Outline
+from torchfont import CodepointSample, Outline
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import functional as _functional
 from torchfont.transforms.functional import render_bitmap
@@ -25,7 +25,7 @@ def _hard_diff(a: Tensor, b: Tensor) -> Tensor:
     return ((a == 255) & (b == 0)) | ((a == 0) & (b == 255))
 
 
-def _transform(sample: GlyphSample) -> Tensor:
+def _transform(sample: CodepointSample) -> Tensor:
     outline = _functional.load_glyph(sample.ref)
     types, coords = outline.types, outline.coords
     merged_types, merged_coords = merge_curves(types, coords)

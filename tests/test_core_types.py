@@ -6,13 +6,13 @@ import torchfont
 from torchfont import (
     COORD_DIM,
     TYPE_DIM,
+    CodepointData,
+    CodepointSample,
     ElementType,
     FontRef,
-    GlyphData,
     GlyphIdData,
     GlyphIdSample,
     GlyphRef,
-    GlyphSample,
     Outline,
 )
 
@@ -22,11 +22,11 @@ def test_core_types_are_exported_from_package_root() -> None:
     assert torchfont.TYPE_DIM == TYPE_DIM
     assert torchfont.ElementType is ElementType
     assert torchfont.FontRef is FontRef
-    assert torchfont.GlyphData is GlyphData
+    assert torchfont.CodepointData is CodepointData
     assert torchfont.GlyphIdData is GlyphIdData
     assert torchfont.GlyphIdSample is GlyphIdSample
     assert torchfont.GlyphRef is GlyphRef
-    assert torchfont.GlyphSample is GlyphSample
+    assert torchfont.CodepointSample is CodepointSample
     assert torchfont.Outline is Outline
 
 
@@ -121,10 +121,10 @@ def test_outline_keeps_identity_equality() -> None:
 def test_glyph_data_keeps_identity_equality() -> None:
     types = torch.tensor([1, 6], dtype=torch.long)
     coords = torch.zeros((2, 6))
-    sample = GlyphSample(GlyphRef(FontRef("font.ttf", 0), 36), 0x41, 0, 0)
+    sample = CodepointSample(GlyphRef(FontRef("font.ttf", 0), 36), 0x41, 0, 0)
 
-    def build(outline: Outline) -> GlyphData[Outline]:
-        return GlyphData(
+    def build(outline: Outline) -> CodepointData[Outline]:
+        return CodepointData(
             outline,
             sample.ref,
             {},
@@ -148,7 +148,7 @@ def test_glyph_data_keeps_identity_equality() -> None:
 def test_glyph_data_targets_are_pytree_children() -> None:
     ref = GlyphRef(FontRef("font.ttf", 0), 36)
     location = {"wght": 400.0}
-    data = GlyphData(
+    data = CodepointData(
         torch.tensor([1.0]),
         ref,
         location,
@@ -177,8 +177,8 @@ def test_glyph_data_pytree_structure_does_not_depend_on_target_values() -> None:
     ref = GlyphRef(FontRef("font.ttf", 0), 36)
     location: dict[str, float] = {}
 
-    def make(weight: float | None) -> GlyphData[torch.Tensor]:
-        return GlyphData(
+    def make(weight: float | None) -> CodepointData[torch.Tensor]:
+        return CodepointData(
             torch.tensor([1.0]),
             ref,
             location,

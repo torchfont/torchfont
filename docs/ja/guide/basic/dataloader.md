@@ -9,7 +9,7 @@
 
 ## `transform` を定義する
 
-`GlyphSample` はグリフ参照とターゲットインデックスを持ちます。パイプラインの最初に
+`CodepointSample` はグリフ参照とターゲットインデックスを持ちます。パイプラインの最初に
 `LoadGlyph` を使うと、サンプルのメタデータを保持したまま意味型 `Outline` を読み込めます。
 
 `CodepointDataset` には、PyTorch のデータセットと同様にアイテムごとに変換を適用する
@@ -17,7 +17,7 @@
 
 ```python
 from torchfont.datasets import CodepointDataset
-from torchfont import GlyphData, Outline
+from torchfont import CodepointData, Outline
 from torchfont.transforms import LoadGlyph
 
 
@@ -32,13 +32,13 @@ dataset = CodepointDataset(
     transform=LoadGlyph(),
 )
 
-data: GlyphData[Outline] = dataset[0]
+data: CodepointData[Outline] = dataset[0]
 
 print(data.data.shape)
 print(data.data.coords.shape)
 ```
 
-`LoadGlyph` を渡すと、`dataset[0]` は `GlyphData[Outline]` を返します。`data` フィールドが
+`LoadGlyph` を渡すと、`dataset[0]` は `CodepointData[Outline]` を返します。`data` フィールドが
 `Outline` で、ほかのフィールドが参照、バリエーション位置、ターゲットを保持します。
 最初の shape は `(N,)`、次は `(N, 6)` で、`N` はグリフごとに異なります。
 例えば次のようになります。
@@ -61,11 +61,11 @@ import torch
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import CodepointDataset
-from torchfont import GlyphData, Outline, pad_outlines
+from torchfont import CodepointData, Outline, pad_outlines
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(samples: list[GlyphData[Outline]]):
+def collate_fn(samples: list[CodepointData[Outline]]):
     return {
         "outline": pad_outlines([sample.data for sample in samples]),
         "font_idx": torch.tensor(

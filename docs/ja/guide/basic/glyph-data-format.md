@@ -39,7 +39,7 @@ print(data.slant)  # 傾斜角度
 print(data.optical_size)  # ポイント単位のオプティカルサイズ
 ```
 
-返り値の `GlyphData[Outline]` は、意味型の `Outline`、決定的なグリフ参照、データセット
+返り値の `CodepointData[Outline]` は、意味型の `Outline`、決定的なグリフ参照、データセット
 固有のターゲットを 1 つの浅いレコードに保持します。
 
 インデックスは Python の整数、連続ターゲットは浮動小数点数です。フォントに存在しない

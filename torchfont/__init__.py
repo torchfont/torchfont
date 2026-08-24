@@ -32,11 +32,11 @@ Package Layout:
 
 from torchfont._font import FontRef
 from torchfont._glyph import (
-    GlyphData,
+    CodepointData,
+    CodepointSample,
     GlyphIdData,
     GlyphIdSample,
     GlyphRef,
-    GlyphSample,
 )
 from torchfont._outline import (
     COORD_DIM,
@@ -52,13 +52,13 @@ from . import datasets, glyphsets, nn, transforms
 __all__ = [
     "COORD_DIM",
     "TYPE_DIM",
+    "CodepointData",
+    "CodepointSample",
     "ElementType",
     "FontRef",
-    "GlyphData",
     "GlyphIdData",
     "GlyphIdSample",
     "GlyphRef",
-    "GlyphSample",
     "Outline",
     "datasets",
     "glyphsets",

@@ -37,7 +37,7 @@ print(data.slant)  # slant angle
 print(data.optical_size)  # optical size in points
 ```
 
-The return value is `GlyphData[Outline]`. It keeps the semantic outline,
+The return value is `CodepointData[Outline]`. It keeps the semantic outline,
 deterministic glyph reference, and dataset-local targets in one shallow record.
 Indices are Python integers and continuous targets are floats. A continuous
 target unavailable in the font is `None`. A training application's local

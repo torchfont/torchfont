@@ -8,7 +8,7 @@ variation locations when loading outlines.
 
 | Dataset | One element per | Sample | Filters |
 |---|---|---|---|
-| `CodepointDataset` | face and codepoint | `GlyphSample` | `codepoints`, `max_length`, `patterns` |
+| `CodepointDataset` | face and codepoint | `CodepointSample` | `codepoints`, `max_length`, `patterns` |
 | `GlyphIdDataset` | face and glyph id | `GlyphIdSample` | `max_length`, `patterns` |
 
 Without a transform, `dataset[i]` returns a pickle-friendly sample:
@@ -17,7 +17,7 @@ Without a transform, `dataset[i]` returns a pickle-friendly sample:
 |---|---|
 | `FontRef` | `path: str`, `ttc_index: int` |
 | `GlyphRef` | `font: FontRef`, `glyph_id: int` |
-| `GlyphSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
+| `CodepointSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
 | `GlyphIdSample` | `ref: GlyphRef`, `font_idx: int` |
 
 ## `CodepointDataset`
@@ -29,7 +29,7 @@ CodepointDataset(
     codepoints: Sequence[SupportsIndex] | None = None,
     max_length: SupportsIndex | None = None,
     patterns: str | Sequence[str] | None = None,
-    transform: Callable[[GlyphSample], T] | None = None,
+    transform: Callable[[CodepointSample], T] | None = None,
 )
 ```
 
@@ -126,10 +126,11 @@ evaluation = CodepointDataset(root, transform=LoadGlyph())
 training = CodepointDataset(root, transform=LoadGlyph(location="random"))
 ```
 
-`LoadGlyph` returns a `GlyphData` for a `GlyphSample` and a `GlyphIdData` for a
-`GlyphIdSample`. Both carry the loaded payload, the glyph reference, the
-resolved location, and the continuous targets; only `GlyphData` carries the
-codepoint targets. See [Core Types](./core-types.md).
+`LoadGlyph` returns a `CodepointData` for a `CodepointSample` and a
+`GlyphIdData` for a `GlyphIdSample`. Both carry the loaded payload, the glyph
+reference, the resolved location, and the continuous targets; only
+`CodepointData` carries the codepoint targets. See
+[Core Types](./core-types.md).
 
 ## Loading explicit locations
 

@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from tests._glyphs import glyph_id
-from torchfont import FontRef, GlyphData, GlyphRef, GlyphSample
+from torchfont import CodepointData, CodepointSample, FontRef, GlyphRef
 from torchfont.transforms import (
     Compose,
     HorizontalFlip,
@@ -44,7 +44,7 @@ def test_render_bitmap_returns_a_plain_tensor() -> None:
 
 def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
     ref = GlyphRef(FontRef(FONT, 0), GLYPH_A)
-    sample = GlyphSample(ref, codepoint=ord("A"), font_idx=3, character_idx=5)
+    sample = CodepointSample(ref, codepoint=ord("A"), font_idx=3, character_idx=5)
     pipeline = Compose(
         [
             LoadGlyph(),
@@ -58,7 +58,7 @@ def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
 
     out = pipeline(sample)
 
-    assert isinstance(out, GlyphData)
+    assert isinstance(out, CodepointData)
     assert out.ref is sample.ref
     assert out.codepoint == sample.codepoint
     assert out.font_idx == sample.font_idx

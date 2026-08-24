@@ -6,13 +6,13 @@
 
 ```python
 from torchfont import (
+    CodepointData,
+    CodepointSample,
     ElementType,
     FontRef,
-    GlyphData,
     GlyphIdData,
     GlyphIdSample,
     GlyphRef,
-    GlyphSample,
     Outline,
     pad_outlines,
     unpad_outlines,
@@ -77,9 +77,9 @@ Batch 次元がちょうど一つの `Outline` を分割し、各結果の末尾
 `ElementType.PAD` 行を除去します。これは `pad_outlines` の明示的な逆操作です。
 Padding を保持する場合は `Outline.unbind()` を使います。
 
-### `GlyphData`
+### `CodepointData`
 
-`GlyphData` は変換後の Payload、Glyph 参照、Variation Location、
+`CodepointData` は変換後の Payload、Glyph 参照、Variation Location、
 並列な `codepoint`、`font_idx`、`character_idx`、`weight`、`width`、`italic`、
 `slant`、`optical_size` Target を保持します。取得できない連続 Target は `None` です。
 
@@ -89,7 +89,7 @@ Padding を保持する場合は `Outline.unbind()` を使います。
 Index は Python の整数、連続 Target は Float です。取得できない連続 Target は
 `None` になります。
 
-`GlyphData` 同士は同一性で比較されます。Tensor Payload の内容を比較する場合は、
+`CodepointData` 同士は同一性で比較されます。Tensor Payload の内容を比較する場合は、
 明示的な Tensor 比較を使ってください。
 
 モデルの入力契約に合わせてローカルな `DataLoader.collate_fn` を定義し、Payload が可変長 Outline の
@@ -98,13 +98,13 @@ Index は Python の整数、連続 Target は Float です。取得できない
 
 ### `GlyphIdData`
 
-`GlyphIdData` は `GlyphIdSample` に `LoadGlyph` を適用した結果です。`GlyphData` と同じ
+`GlyphIdData` は `GlyphIdSample` に `LoadGlyph` を適用した結果です。`CodepointData` と同じ
 Payload、Glyph 参照、Variation Location、`font_idx`、`weight`、`width`、`italic`、`slant`、
 `optical_size` Target を保持します。どの文字も対応しないグリフが持てない `codepoint` と
 `character_idx` の Target はありません。
 
 同一性による比較、Python の整数 Index、取得できない連続 Target が `None` になる点は
-`GlyphData` と同じです。
+`CodepointData` と同じです。
 
 ### `ElementType: IntEnum`
 

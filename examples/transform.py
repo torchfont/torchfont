@@ -1,12 +1,12 @@
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from torchfont import GlyphData, Outline, pad_outlines
+from torchfont import CodepointData, Outline, pad_outlines
 from torchfont import transforms as T
 from torchfont.datasets import CodepointDataset
 
 
-def collate_fn(batch: list[GlyphData[Outline]]) -> Outline:
+def collate_fn(batch: list[CodepointData[Outline]]) -> Outline:
     return pad_outlines([data.data for data in batch])
 
 
