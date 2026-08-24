@@ -17,6 +17,7 @@ from torchfont.datasets._utils import (
     font_targets_from_offsets,
     normalize_codepoints,
     normalize_index,
+    normalize_max_length,
     normalize_patterns,
 )
 
@@ -37,6 +38,9 @@ class CodepointDataset(Dataset[T], Generic[T]):
     alternates, are unreachable here; index them with
     :class:`~torchfont.datasets.GlyphIdDataset` instead.
 
+    ``max_length`` keeps only glyphs whose outline is at most that many elements
+    long.
+
     Samples are laid out face by face: face ``i`` owns the half-open sample
     range ``_offsets[i]:_offsets[i + 1]``, so ``_offsets`` holds one more
     element than ``_font_refs`` and ends with the sample count. Sample ``s``
@@ -56,6 +60,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
+        max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
         transform: None = None,
     ) -> None: ...
@@ -66,6 +71,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
+        max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
         transform: Callable[[GlyphSample], T],
     ) -> None: ...
@@ -75,6 +81,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
+        max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
         transform: Callable[[GlyphSample], T] | None = None,
     ) -> None:
@@ -82,13 +89,16 @@ class CodepointDataset(Dataset[T], Generic[T]):
         self.transform = transform
         self.patterns = normalize_patterns(patterns)
         self.codepoints = normalize_codepoints(codepoints)
+        self.max_length = normalize_max_length(max_length)
         (
             font_refs,
             offsets,
             self._character_codepoints,
             self._character_index,
             self._glyph_ids,
-        ) = _torchfont.index_codepoints(str(self.root), self.codepoints, self.patterns)
+        ) = _torchfont.index_codepoints(
+            str(self.root), self.codepoints, self.max_length, self.patterns
+        )
         self._character_codepoints.flags.writeable = False
         self._character_index.flags.writeable = False
         self._glyph_ids.flags.writeable = False

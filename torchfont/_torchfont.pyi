@@ -57,6 +57,7 @@ def tight_bbox(
 def index_codepoints(
     root: str,
     codepoints: Sequence[int] | None,
+    max_length: int | None,
     patterns: Sequence[str] | None,
 ) -> tuple[
     list[tuple[Path, int]],
@@ -67,6 +68,7 @@ def index_codepoints(
 ]: ...
 def index_glyphs(
     root: str,
+    max_length: int | None,
     patterns: Sequence[str] | None,
 ) -> tuple[
     list[tuple[Path, int]],

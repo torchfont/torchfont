@@ -32,6 +32,12 @@ def normalize_codepoints(
     return tuple(sorted({index(codepoint) for codepoint in codepoints}))
 
 
+def normalize_max_length(max_length: SupportsIndex | None) -> int | None:
+    if max_length is None:
+        return None
+    return index(max_length)
+
+
 def normalize_index(idx: SupportsIndex, dataset_len: int) -> int:
     resolved_idx = index(idx)
     original_idx = resolved_idx

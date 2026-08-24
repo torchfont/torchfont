@@ -44,6 +44,19 @@ dataset = CodepointDataset(
 重複したコードポイントは除去され、インデックスは決定的に構築されます。指定した
 アウトライングリフを 1 つも持たないフォントは除外されます。
 
+## 系列長のフィルター
+
+`max_length` は、アウトラインの要素数が指定値以下のグリフだけを残します。
+
+```python
+dataset = CodepointDataset(
+    root="data/google/fonts",
+    max_length=128,
+)
+```
+
+条件を満たすグリフが 1 つも残らないフォントは除外されます。
+
 ## コードポイントから辿れないグリフの利用
 
 `CodepointDataset` は `cmap` テーブルの対応関係をインデックスするため、リガチャや異体字など
@@ -61,8 +74,8 @@ print(len(dataset.font_classes))
 
 各要素は、フォントフェイスとグリフ ID 1 つの組を表します。`.notdef` から始まり、グリフ ID の
 昇順に並びます。グリフ ID はフェイスごとのローカルな値なので、`codepoints` フィルターはなく、
-サンプルは文字のターゲットを持ちません。`patterns` と `transform`、`LoadGlyph` の使い方は
-上と同じです。
+サンプルは文字のターゲットを持ちません。`patterns` と `max_length`、`transform`、`LoadGlyph`
+の使い方は上と同じです。
 
 ## バリエーション位置の選択
 
