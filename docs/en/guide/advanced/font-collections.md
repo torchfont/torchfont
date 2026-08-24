@@ -15,12 +15,12 @@ dataset = CodepointDataset(
 )
 
 for font in dataset.font_classes:
-    print(font.path, font.ttc_index)
+    print(font.path, font.face_index)
 ```
 
-Each face receives its own `font_idx`. `FontRef.ttc_index` identifies the face
-within the file, beginning at zero; it is also zero for an ordinary single-face
-font. A collection face otherwise behaves like any other font in the dataset.
+Each face receives its own `font_idx`. `FontRef.face_index` identifies the face
+within the file, beginning at zero. A collection face otherwise behaves like any
+other font in the dataset.
 
 ## Selecting one face directly
 
@@ -31,14 +31,14 @@ from torchfont import FontRef, GlyphRef
 from torchfont.transforms import LoadGlyph
 
 ref = GlyphRef(
-    font=FontRef("data/fonts/example.ttc", ttc_index=2),
+    font=FontRef("data/fonts/example.ttc", face_index=2),
     glyph_id=36,
 )
 outline = LoadGlyph()(ref)
 ```
 
 An OpenType Collection may also contain variable faces. Face selection and
-variation-location selection are independent: `ttc_index` selects a face, then
+variation-location selection are independent: `face_index` selects a face, then
 `LoadGlyph(location="random")` samples that face's variation axes.
 
 See [Variable Fonts](./variable-fonts.md) for location sampling and explicit

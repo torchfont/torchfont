@@ -36,7 +36,7 @@ pub(crate) fn default_location(font: &skrifa::FontRef<'_>) -> Location {
 pub(crate) fn canonicalize_location(
     font: &skrifa::FontRef<'_>,
     path: &Path,
-    ttc_index: u32,
+    face_index: u32,
     location: Option<&BTreeMap<String, f32>>,
 ) -> Result<Location, Error> {
     let Some(location) = location else {
@@ -46,7 +46,7 @@ pub(crate) fn canonicalize_location(
     for (tag, value) in location {
         let Some(axis) = axes.iter().find(|axis| axis.tag == *tag) else {
             return Err(Error::Parse(format!(
-                "font '{}' (ttc_index {ttc_index}) has no variation axis '{tag}'",
+                "font '{}' (face_index {face_index}) has no variation axis '{tag}'",
                 path.display(),
             )));
         };

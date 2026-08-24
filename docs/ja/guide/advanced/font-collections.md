@@ -15,12 +15,12 @@ dataset = CodepointDataset(
 )
 
 for font in dataset.font_classes:
-    print(font.path, font.ttc_index)
+    print(font.path, font.face_index)
 ```
 
-各フェイスには個別の `font_idx` が割り当てられます。`FontRef.ttc_index` はファイル内の
-フェイスを 0 から始まる番号で表します。通常の単一フェイスフォントでは 0 です。
-それ以外の扱いは、データセット内のほかのフォントと同じです。
+各フェイスには個別の `font_idx` が割り当てられます。`FontRef.face_index` はファイル内の
+フェイスを 0 から始まる番号で表します。それ以外の扱いは、データセット内のほかの
+フォントと同じです。
 
 ## フェイスを直接選択する
 
@@ -31,14 +31,14 @@ from torchfont import FontRef, GlyphRef
 from torchfont.transforms import LoadGlyph
 
 ref = GlyphRef(
-    font=FontRef("data/fonts/example.ttc", ttc_index=2),
+    font=FontRef("data/fonts/example.ttc", face_index=2),
     glyph_id=36,
 )
 outline = LoadGlyph()(ref)
 ```
 
 OpenType Collection にはバリアブルフォントのフェイスを含めることもできます。フェイスと
-バリエーション位置は独立して選択されます。`ttc_index` でフェイスを選び、そのフェイスの
+バリエーション位置は独立して選択されます。`face_index` でフェイスを選び、そのフェイスの
 バリエーション軸を `LoadGlyph(location="random")` でサンプリングできます。
 
 位置のサンプリングと明示的な軸の値については、

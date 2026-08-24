@@ -77,17 +77,17 @@ def index_glyphs(
 ]: ...
 def load_glyph(
     path: str,
-    ttc_index: int,
+    face_index: int,
     glyph_id: int,
     location: dict[str, float] | None = ...,
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def variation_axes(
     path: str,
-    ttc_index: int,
+    face_index: int,
 ) -> list[tuple[str, float, float, float]]: ...
 def glyph_targets(
     path: str,
-    ttc_index: int,
+    face_index: int,
     location: dict[str, float],
 ) -> tuple[
     float,

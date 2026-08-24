@@ -15,7 +15,7 @@ TorchFont はローカルのフォントディレクトリを 2 通りにイン�
 
 | 型 | フィールド |
 |---|---|
-| `FontRef` | `path: str`, `ttc_index: int` |
+| `FontRef` | `path: str`, `face_index: int` |
 | `GlyphRef` | `font: FontRef`, `glyph_id: int` |
 | `CodepointSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
 | `GlyphIdSample` | `ref: GlyphRef`, `font_idx: int` |

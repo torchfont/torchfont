@@ -114,8 +114,8 @@ def test_dataset_resolves_glyph_ids_per_face() -> None:
     resolved = [dataset[idx].ref.glyph_id for idx in range(len(dataset))]
 
     assert resolved == [
-        glyph_id(f"tests/fonts/{path}", "A", ttc_index)
-        for ttc_index in range(len(dataset.font_classes))
+        glyph_id(f"tests/fonts/{path}", "A", face_index)
+        for face_index in range(len(dataset.font_classes))
     ]
 
 
