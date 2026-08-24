@@ -105,7 +105,7 @@ import torch
 from torchvision.transforms import v2 as T
 
 from torchfont import transforms as FT
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
 transform = FT.Compose(
     [
@@ -120,7 +120,7 @@ transform = FT.Compose(
     ]
 )
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
     transform=transform,

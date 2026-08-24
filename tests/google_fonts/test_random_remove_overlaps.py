@@ -7,7 +7,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from torchfont import ElementType, GlyphSample, Outline
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import RandomRemoveOverlaps
 from torchfont.transforms import functional as _functional
 
@@ -72,7 +72,7 @@ def test_random_remove_overlaps_google_fonts(
 
     limit: int | None = request.config.getoption("--limit")
 
-    dataset = GlyphDataset(
+    dataset = CodepointDataset(
         root=GOOGLE_FONTS_ROOT,
         patterns=(
             "apache/*/*.ttf",

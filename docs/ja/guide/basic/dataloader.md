@@ -12,16 +12,16 @@
 `GlyphSample` はグリフ参照とターゲットインデックスを持ちます。パイプラインの最初に
 `LoadGlyph` を使うと、サンプルのメタデータを保持したまま意味型 `Outline` を読み込めます。
 
-`GlyphDataset` には、PyTorch のデータセットと同様にアイテムごとに変換を適用する
+`CodepointDataset` には、PyTorch のデータセットと同様にアイテムごとに変換を適用する
 `transform` 引数があります。`LoadGlyph()` を直接渡して動作を確認します。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont import GlyphData, Outline
 from torchfont.transforms import LoadGlyph
 
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -60,7 +60,7 @@ import math
 import torch
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.transforms import LoadGlyph
 
@@ -81,7 +81,7 @@ def collate_fn(samples: list[GlyphData[Outline]]):
     }
 
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",

@@ -7,10 +7,10 @@
 前の章で作成したデータセットからサンプルを取得します。次のコードを実行してください。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -64,11 +64,11 @@ print(data.optical_size)  # ポイント単位のオプティカルサイズ
 要素型は `ElementType` で定義されています。次のコードで値と名前の対応を確認できます。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 from torchfont import ElementType
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -107,10 +107,10 @@ MOVE_TO
 各パス要素の座標は 6 次元のベクトルです。次のコードで形状と内容を確認できます。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -159,9 +159,9 @@ shape を固定するため、すべての要素が 6 個の値を持ちます�
 `font_idx` はフォントフェイスのクラス ID です。次のコードで永続的なフェイス参照を確認できます。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -188,9 +188,9 @@ FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
 `character_idx` は文字のクラス ID です。`character_classes` から対応する文字を取得できます。次のコードで確認できます。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",

@@ -99,8 +99,8 @@ uv add torch torchfont
 This creates a dataset by scanning the current directory for fonts and prints the number of samples. With no fonts present it prints `0`. If it runs without error, the installation is complete.
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(root=".")
+dataset = CodepointDataset(root=".")
 print(len(dataset))
 ```

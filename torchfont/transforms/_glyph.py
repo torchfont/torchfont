@@ -10,9 +10,11 @@ from torch import nn
 from torchfont import _torchfont
 from torchfont._glyph import (
     GlyphData,
+    GlyphIdData,
+    GlyphIdSample,
     GlyphRef,
     GlyphSample,
-    _glyph_data_targets,
+    _metric_targets,
 )
 from torchfont.transforms import functional as _functional
 
@@ -30,28 +32,36 @@ class LoadGlyph(nn.Module):
             raise ValueError(msg)
         self.location = location
 
-    def forward(self, inpt: GlyphSample | GlyphRef) -> GlyphData | Outline:
+    def forward(
+        self, inpt: GlyphSample | GlyphIdSample | GlyphRef
+    ) -> GlyphData | GlyphIdData | Outline:
         """Load the referenced glyph."""
-        ref = inpt.ref if isinstance(inpt, GlyphSample) else inpt
+        ref = inpt if isinstance(inpt, GlyphRef) else inpt.ref
         location = (
             _default_location(ref)
             if self.location == "default"
             else _random_location(ref)
         )
         outline = _functional.load_glyph(ref, location)
-        if not isinstance(inpt, GlyphSample):
+        if isinstance(inpt, GlyphRef):
             return outline
         metrics = _torchfont.glyph_targets(ref.font.path, ref.font.ttc_index, location)
+        if isinstance(inpt, GlyphIdSample):
+            return GlyphIdData(
+                data=outline,
+                ref=ref,
+                location=location,
+                font_idx=inpt.font_idx,
+                **_metric_targets(metrics),
+            )
         return GlyphData(
             data=outline,
             ref=ref,
             location=location,
-            **_glyph_data_targets(
-                codepoint=inpt.codepoint,
-                font_idx=inpt.font_idx,
-                character_idx=inpt.character_idx,
-                metrics=metrics,
-            ),
+            codepoint=inpt.codepoint,
+            font_idx=inpt.font_idx,
+            character_idx=inpt.character_idx,
+            **_metric_targets(metrics),
         )
 
     def extra_repr(self) -> str:

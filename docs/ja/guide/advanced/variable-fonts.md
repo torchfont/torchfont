@@ -7,10 +7,10 @@
 再現可能な評価にはデフォルト位置を使用します。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-evaluation = GlyphDataset(
+evaluation = CodepointDataset(
     root="data/fonts",
     patterns=("**/*.ttf", "**/*.otf", "**/*.ttc", "**/*.otc"),
     transform=LoadGlyph(),
@@ -22,7 +22,7 @@ evaluation = GlyphDataset(
 学習時のデータ拡張として利用できます。
 
 ```python
-training = GlyphDataset(
+training = CodepointDataset(
     root="data/fonts",
     transform=LoadGlyph(location="random"),
 )

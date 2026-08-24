@@ -20,10 +20,13 @@
 TorchFont is an **unofficial** library based on PyTorch for deep learning with vector fonts.
 It is not affiliated with or endorsed by the PyTorch project.
 
-TorchFont is local-first: point `GlyphDataset` at a font directory or a
-repository checkout that already exists on disk, and TorchFont turns font files
-into lightweight glyph references. Load outlines explicitly with `LoadGlyph`
-in your transform pipeline when tensors are needed.
+TorchFont is local-first: point `CodepointDataset` or `GlyphIdDataset` at a font
+directory or a repository checkout that already exists on disk, and TorchFont
+turns font files into lightweight glyph references. `CodepointDataset` indexes one
+sample per face and codepoint, while `GlyphIdDataset` indexes one sample per
+face and glyph, reaching ligatures and alternates no codepoint maps to. Load
+outlines explicitly with `LoadGlyph` in your transform pipeline when tensors are
+needed.
 
 ## Installation
 
@@ -47,7 +50,7 @@ pip install torchfont
 from torch.utils.data import DataLoader
 
 from torchfont import GlyphData, Outline, pad_outlines
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 
@@ -55,7 +58,7 @@ def collate_fn(samples: list[GlyphData[Outline]]) -> Outline:
     return pad_outlines([sample.data for sample in samples])
 
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="~/fonts",  # or "tests/fonts" in this repository
     patterns=("*.ttf",),
     codepoints=range(0x20, 0x7F),  # printable ASCII
@@ -80,12 +83,13 @@ targets can add them to the batch in its local `collate_fn`.
 ## What TorchFont Focuses On
 
 - local font directories and repository checkouts as the input boundary
-- local font indexing plus explicit outline loading through lightweight glyph references
+- local font indexing by codepoint or by glyph id, plus explicit outline loading through lightweight glyph references
 - `torchvision.transforms.v2`-style semantic pipelines for adapting glyph samples
 - PyTorch `DataLoader` integration through an explicit, customizable `collate_fn`
 
 Manage font repository synchronization with Git or another tool, then point
-`GlyphDataset(root=...)` at the resulting directory.
+`CodepointDataset(root=...)` or `GlyphIdDataset(root=...)` at the resulting
+directory.
 
 ## Citing TorchFont
 

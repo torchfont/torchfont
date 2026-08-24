@@ -1,11 +1,11 @@
-# Building a GlyphDataset
+# Building a Dataset
 
-Point `GlyphDataset` at a local font directory:
+Point `CodepointDataset` at a local font directory:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(root="data/google/fonts")
+dataset = CodepointDataset(root="data/google/fonts")
 
 print(len(dataset))
 print(len(dataset.font_classes))
@@ -20,7 +20,7 @@ Every face contributes one element per supported codepoint.
 `patterns` accepts one gitignore-style pattern or a sequence:
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -36,7 +36,7 @@ dataset = GlyphDataset(
 Use integer Unicode codepoints:
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     codepoints=range(0x41, 0x5B),
 )
@@ -45,6 +45,26 @@ dataset = GlyphDataset(
 Duplicate codepoints are removed and the index is deterministic. Fonts that do
 not contain any requested outline glyph are omitted.
 
+## Reaching glyphs no codepoint maps to
+
+`CodepointDataset` indexes what the `cmap` table maps, so ligatures, alternates, and
+other glyphs an OpenType feature substitutes into never appear in it. Index
+every glyph a face draws with `GlyphIdDataset` instead:
+
+```python
+from torchfont.datasets import GlyphIdDataset
+
+dataset = GlyphIdDataset(root="data/google/fonts")
+
+print(len(dataset))
+print(len(dataset.font_classes))
+```
+
+Each element represents one font face and one glyph id, in ascending order and
+starting at `.notdef`. Glyph ids are face-local, so this dataset takes no
+`codepoints` filter and its samples carry no character target. `patterns`,
+`transform`, and `LoadGlyph` work exactly as they do above.
+
 ## Choosing variation locations
 
 Raw samples are deterministic. Load default locations for evaluation:
@@ -52,13 +72,13 @@ Raw samples are deterministic. Load default locations for evaluation:
 ```python
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(root="data/google/fonts", transform=LoadGlyph())
+dataset = CodepointDataset(root="data/google/fonts", transform=LoadGlyph())
 ```
 
 Draw one location per access for training:
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     transform=LoadGlyph(location="random"),
 )

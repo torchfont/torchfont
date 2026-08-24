@@ -1,31 +1,29 @@
 # データセット
 
-TorchFont のインデックス規則は一つです。各フォントフェイスと、そのフェイスが収録する各 Unicode
-コードポイントを 1 要素として数えます。アウトラインをロードするときに `transform` がバリエーション
-位置を選択します。
+TorchFont はローカルのフォントディレクトリを 2 通りにインデックスします。`CodepointDataset` は
+各フォントフェイスと、そのフェイスが収録する各 Unicode コードポイントを 1 要素として数えます。
+`GlyphIdDataset` は各フォントフェイスと、そのフェイスがアウトラインを持つ各グリフを 1 要素として
+数え、どのコードポイントからも辿れないグリフも含めます。どちらのインデックスも決定的で、
+アウトラインをロードするときに `transform` がバリエーション位置を選択します。
 
-```python
-from torchfont.datasets import GlyphDataset
+| データセット | 1 要素の単位 | サンプル | フィルター |
+|---|---|---|---|
+| `CodepointDataset` | フェイスとコードポイント | `GlyphSample` | `codepoints`, `patterns` |
+| `GlyphIdDataset` | フェイスとグリフ ID | `GlyphIdSample` | `patterns` |
 
-dataset = GlyphDataset(
-    root="data/google/fonts",
-    codepoints=[0x41, 0x42],
-    patterns="ofl/*/*.ttf",
-)
-```
-
-`transform` を指定しない場合、`dataset[i]` は `pickle` 可能な `GlyphSample` を返します。
+`transform` を指定しない場合、`dataset[i]` は `pickle` 可能なサンプルを返します。
 
 | 型 | フィールド |
 |---|---|
 | `FontRef` | `path: str`, `ttc_index: int` |
 | `GlyphRef` | `font: FontRef`, `glyph_id: int` |
 | `GlyphSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
+| `GlyphIdSample` | `ref: GlyphRef`, `font_idx: int` |
 
-## `GlyphDataset`
+## `CodepointDataset`
 
 ```python
-GlyphDataset(
+CodepointDataset(
     root: Path | str,
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
@@ -34,16 +32,19 @@ GlyphDataset(
 )
 ```
 
-インデックスと未変換の Sample は決定的です。各 Face の Default Location を読むには
-`LoadGlyph()`、変換のたびに位置を 1 点抽出するには `location="random"` を指定します。
-Static Face では両方の Policy が空の位置を使うため、同じ Outline になります。
-
 ```python
-from torchfont.transforms import LoadGlyph
+from torchfont.datasets import CodepointDataset
 
-evaluation = GlyphDataset(root, transform=LoadGlyph())
-training = GlyphDataset(root, transform=LoadGlyph(location="random"))
+dataset = CodepointDataset(
+    root="data/google/fonts",
+    codepoints=[0x41, 0x42],
+    patterns="ofl/*/*.ttf",
+)
 ```
+
+各要素は、1 つのフェイスと、その `cmap` がアウトライングリフへ対応付けるコードポイント 1 つの
+組です。リガチャや異体字など、どのコードポイントからも辿れないグリフはこのインデックスに
+含まれません。
 
 プロパティ:
 
@@ -55,6 +56,62 @@ training = GlyphDataset(root, transform=LoadGlyph(location="random"))
 
 サンプリング分布は各フェイスが収録するコードポイント数に比例します。異なる分布が必要な用途では
 PyTorch のサンプラーで学習時の重みを調整してください。
+
+## `GlyphIdDataset`
+
+```python
+GlyphIdDataset(
+    root: Path | str,
+    *,
+    patterns: str | Sequence[str] | None = None,
+    transform: Callable[[GlyphIdSample], T] | None = None,
+)
+```
+
+```python
+from torchfont.datasets import GlyphIdDataset
+
+dataset = GlyphIdDataset(
+    root="data/google/fonts",
+    patterns="ofl/*/*.ttf",
+)
+```
+
+各要素は、1 つのフェイスと、そのフェイスがアウトラインを持つグリフ 1 つの組です。`.notdef` から
+始まり、グリフ ID の昇順に並びます。リガチャや異体字など、OpenType の機能で置換されるグリフにも
+ここから到達できます。
+
+グリフ ID はフェイスごとのローカルな値です。そのため `codepoints` フィルターは持たず、サンプルは
+コードポイントや文字のターゲットを持ちません。
+
+プロパティ:
+
+- `font_classes -> list[FontRef]`
+- `font_targets -> LongTensor (N,)`
+- `glyph_ids -> LongTensor (N,)`
+
+`glyph_ids` は各サンプルのフェイスローカルなグリフ ID です。フェイスをまたいで比較できる値では
+ないため、学習ターゲットではなくサンプル選択のためのデータとして使ってください。
+
+サンプリング分布は各フェイスが収録するアウトライングリフ数に比例します。
+
+## グリフのロード
+
+インデックスと未変換の Sample は決定的です。各 Face の Default Location を読むには
+`LoadGlyph()`、変換のたびに位置を 1 点抽出するには `location="random"` を指定します。
+Static Face では両方の Policy が空の位置を使うため、同じ Outline になります。
+
+```python
+from torchfont.transforms import LoadGlyph
+
+evaluation = CodepointDataset(root, transform=LoadGlyph())
+training = CodepointDataset(root, transform=LoadGlyph(location="random"))
+```
+
+`LoadGlyph` は `GlyphSample` に対しては `GlyphData` を、`GlyphIdSample` に対しては
+`GlyphIdData` を返します。どちらもロードしたペイロード、グリフ参照、解決済みの位置、連続値の
+ターゲットを持ち、コードポイントのターゲットを持つのは `GlyphData` だけです。
+[基本型](./core-types.md) を参照してください。
 
 ## 明示的な位置のロード
 

@@ -3,7 +3,7 @@ from tqdm import tqdm
 
 from torchfont import GlyphData, Outline, pad_outlines
 from torchfont import transforms as T
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
 
 def collate_fn(batch: list[GlyphData[Outline]]) -> Outline:
@@ -19,7 +19,7 @@ def main() -> None:
         ]
     )
 
-    dataset = GlyphDataset(
+    dataset = CodepointDataset(
         root="data/google/fonts",
         patterns=(
             "apache/*/*.ttf",

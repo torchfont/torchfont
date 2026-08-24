@@ -5,38 +5,26 @@ use skrifa::{MetadataProvider, raw::FileRef};
 use crate::error::Error;
 use crate::font::map_font;
 
-pub(crate) struct DiscoveredFont {
+/// One discovered face and the codepoint/glyph id pairs its `cmap` contributes.
+pub(crate) struct DiscoveredCodepoints {
     path: PathBuf,
     ttc_index: u32,
     codepoints: Vec<u32>,
     glyph_ids: Vec<u32>,
 }
 
-impl DiscoveredFont {
+/// One discovered face and every glyph id it draws an outline for.
+pub(crate) struct DiscoveredGlyphs {
+    path: PathBuf,
+    ttc_index: u32,
+    glyph_ids: Vec<u32>,
+}
+
+impl DiscoveredCodepoints {
     pub(crate) fn from_file(path: &Path, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
-        let mapped = map_font(path)?;
-        let parsed = FileRef::new(&mapped[..])
-            .map_err(|err| Error::Parse(format!("failed to parse '{}': {err}", path.display())))?;
-        let entries = parsed
-            .fonts()
-            .enumerate()
-            .map(|(ttc_index, font_result)| {
-                let font = font_result.map_err(|err| {
-                    Error::Parse(format!(
-                        "failed to parse '{}' (ttc_index {ttc_index}): {err}",
-                        path.display()
-                    ))
-                })?;
-                Ok(Self::from_font(path, ttc_index as u32, &font, filter))
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
-        if entries.is_empty() {
-            return Err(Error::Parse(format!(
-                "font file '{}' does not contain any fonts",
-                path.display()
-            )));
-        }
-        Ok(entries)
+        read_faces(path, |ttc_index, font| {
+            Self::from_font(path, ttc_index, font, filter)
+        })
     }
 
     pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>, Vec<u32>) {
@@ -74,4 +62,63 @@ impl DiscoveredFont {
             glyph_ids,
         }
     }
+}
+
+impl DiscoveredGlyphs {
+    pub(crate) fn from_file(path: &Path) -> Result<Vec<Self>, Error> {
+        read_faces(path, |ttc_index, font| {
+            Self::from_font(path, ttc_index, font)
+        })
+    }
+
+    pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>) {
+        (self.path, self.ttc_index, self.glyph_ids)
+    }
+
+    pub(crate) fn glyph_count(&self) -> usize {
+        self.glyph_ids.len()
+    }
+
+    fn from_font(path: &Path, ttc_index: u32, font: &skrifa::FontRef<'_>) -> Self {
+        let glyph_ids = font
+            .outline_glyphs()
+            .iter()
+            .map(|(glyph_id, _)| glyph_id.to_u32())
+            .collect();
+        Self {
+            path: path.to_path_buf(),
+            ttc_index,
+            glyph_ids,
+        }
+    }
+}
+
+/// Parses every face in one font file and builds one entry per face.
+fn read_faces<T>(
+    path: &Path,
+    build: impl Fn(u32, &skrifa::FontRef<'_>) -> T,
+) -> Result<Vec<T>, Error> {
+    let mapped = map_font(path)?;
+    let parsed = FileRef::new(&mapped[..])
+        .map_err(|err| Error::Parse(format!("failed to parse '{}': {err}", path.display())))?;
+    let entries = parsed
+        .fonts()
+        .enumerate()
+        .map(|(ttc_index, font_result)| {
+            let font = font_result.map_err(|err| {
+                Error::Parse(format!(
+                    "failed to parse '{}' (ttc_index {ttc_index}): {err}",
+                    path.display()
+                ))
+            })?;
+            Ok(build(ttc_index as u32, &font))
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    if entries.is_empty() {
+        return Err(Error::Parse(format!(
+            "font file '{}' does not contain any fonts",
+            path.display()
+        )));
+    }
+    Ok(entries)
 }

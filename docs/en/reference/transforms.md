@@ -7,13 +7,15 @@ image pipeline.
 ## Data types
 
 ```python
-from torchfont import GlyphData, Outline
+from torchfont import GlyphData, GlyphIdData, Outline
 ```
 
 `Outline(types, coords)` keeps the two coupled tensors together.
 `GlyphData[T]` keeps a transformed payload, glyph reference, variation location,
-and targets together. A pipeline can change its payload from `Outline` to a
-bitmap tensor without losing the other fields.
+and targets together. `GlyphIdData[T]` is its counterpart for glyph id samples,
+carrying the same fields without the codepoint targets. A pipeline can change
+either payload from `Outline` to a bitmap tensor without losing the other
+fields.
 
 ## Loading and composition
 
@@ -38,13 +40,14 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` loads one `GlyphSample` or `GlyphRef`. A sample becomes
-`GlyphData[Outline]`, while a bare reference becomes `Outline`.
+`LoadGlyph` loads one `GlyphSample`, `GlyphIdSample`, or `GlyphRef`. A
+`GlyphSample` becomes `GlyphData[Outline]`, a `GlyphIdSample` becomes
+`GlyphIdData[Outline]`, and a bare reference becomes `Outline`.
 `LoadGlyph` uses the face's default location unless `location="random"` is set.
-The random policy samples one location for a `GlyphSample` or `GlyphRef` and
-records it in `GlyphData.location`; on a static face it naturally uses an empty
+The random policy samples one location for any of these inputs and records it in
+the returned payload's `location`; on a static face it naturally uses an empty
 location. For dataset samples, it also resolves the parallel `weight`, `width`,
-`italic`, `slant`, and `optical_size` targets on the returned `GlyphData`.
+`italic`, `slant`, and `optical_size` targets.
 
 Transforms accept nested inputs and preserve their structure. Corresponding
 outlines in one call receive the same randomly sampled parameters. Apply the
@@ -75,8 +78,8 @@ inside an already-applied transform.
 | Output | `RenderBitmap` |
 
 `RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
-these leaves are inside `GlyphData`, its reference, location, and targets remain
-alongside the converted payload.
+these leaves are inside `GlyphData` or `GlyphIdData`, its reference, location,
+and targets remain alongside the converted payload.
 
 ### Using rendered glyphs with TorchVision
 

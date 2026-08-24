@@ -1,14 +1,14 @@
 # Font Collections
 
 TrueType Collections (`.ttc`) and OpenType Collections (`.otc`) store multiple
-font faces in one file. `GlyphDataset` indexes every face in a collection
+font faces in one file. `CodepointDataset` indexes every face in a collection
 automatically:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/fonts",
     patterns=("**/*.ttc", "**/*.otc"),
     transform=LoadGlyph(),

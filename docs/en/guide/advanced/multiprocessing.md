@@ -17,7 +17,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from torchfont import GlyphData, Outline, pad_outlines
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 MAX_ELEMENTS = 512
@@ -32,7 +32,7 @@ def collate_fn(samples: list[GlyphData[Outline]]):
     }
 
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
