@@ -49,18 +49,31 @@ impl CodepointIndex {
             glyph_ids.extend(face_glyph_ids);
             offsets.push(i64::try_from(codepoints.len()).expect("Vec length fits in i64"));
         }
-        let mut character_codepoints = codepoints.clone();
-        character_codepoints.sort_unstable();
-        character_codepoints.dedup();
-        let mut character_index = Vec::with_capacity(codepoints.len());
-        for face in offsets.windows(2) {
-            let mut base = 0;
-            for &codepoint in &codepoints[face[0] as usize..face[1] as usize] {
-                base += character_codepoints[base..].partition_point(|&other| other < codepoint);
-                character_index
-                    .push(u32::try_from(base).expect("unique u32 codepoint index fits in u32"));
+        // Rank every codepoint through a table indexed by the codepoint itself.
+        // `skrifa` limits `cmap` codepoints to `char::MAX`, so the table costs
+        // at most a few megabytes, and sizing it from the codepoints present
+        // keeps every lookup in bounds.
+        let table_len = codepoints
+            .iter()
+            .copied()
+            .max()
+            .map_or(0, |highest| highest as usize + 1);
+        let mut ranks = vec![u32::MAX; table_len];
+        for &codepoint in &codepoints {
+            ranks[codepoint as usize] = 0;
+        }
+        let mut character_codepoints = Vec::new();
+        for (codepoint, rank) in ranks.iter_mut().enumerate() {
+            if *rank != u32::MAX {
+                *rank = u32::try_from(character_codepoints.len())
+                    .expect("unique u32 codepoint index fits in u32");
+                character_codepoints.push(codepoint as u32);
             }
         }
+        let character_index: Vec<u32> = codepoints
+            .iter()
+            .map(|&codepoint| ranks[codepoint as usize])
+            .collect();
         Self {
             fonts,
             offsets,

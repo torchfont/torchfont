@@ -1,9 +1,14 @@
 use std::path::{Path, PathBuf};
 
-use skrifa::{MetadataProvider, raw::FileRef};
+use skrifa::{
+    GlyphId, MetadataProvider,
+    instance::{LocationRef, Size},
+    outline::{DrawSettings, OutlineGlyph},
+    raw::FileRef,
+};
 
 use crate::error::Error;
-use crate::font::map_font;
+use crate::font::{count_glyph_elements, map_font};
 
 /// One discovered face and the codepoint/glyph id pairs its `cmap` contributes.
 pub(crate) struct DiscoveredCodepoints {
@@ -21,9 +26,13 @@ pub(crate) struct DiscoveredGlyphs {
 }
 
 impl DiscoveredCodepoints {
-    pub(crate) fn from_file(path: &Path, filter: Option<&[u32]>) -> Result<Vec<Self>, Error> {
+    pub(crate) fn from_file(
+        path: &Path,
+        filter: Option<&[u32]>,
+        max_length: Option<usize>,
+    ) -> Result<Vec<Self>, Error> {
         read_faces(path, |ttc_index, font| {
-            Self::from_font(path, ttc_index, font, filter)
+            Self::from_font(path, ttc_index, font, filter, max_length)
         })
     }
 
@@ -40,34 +49,42 @@ impl DiscoveredCodepoints {
         ttc_index: u32,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
-    ) -> Self {
+        max_length: Option<usize>,
+    ) -> Result<Self, Error> {
         let outline_glyphs = font.outline_glyphs();
-        let mut mappings: Vec<_> = font
-            .charmap()
-            .mappings()
-            .filter(|(codepoint, _)| {
-                filter.is_none_or(|values| values.binary_search(codepoint).is_ok())
-            })
-            .filter(|(_, glyph_id)| outline_glyphs.get(*glyph_id).is_some())
-            .collect();
+        let mut mappings = Vec::new();
+        for (codepoint, glyph_id) in font.charmap().mappings() {
+            if filter.is_some_and(|values| values.binary_search(&codepoint).is_err()) {
+                continue;
+            }
+            let Some(glyph) = outline_glyphs.get(glyph_id) else {
+                continue;
+            };
+            if let Some(max_length) = max_length
+                && !fits_max_length(path, ttc_index, glyph_id, &glyph, max_length)?
+            {
+                continue;
+            }
+            mappings.push((codepoint, glyph_id));
+        }
         mappings.sort_unstable_by_key(|entry| entry.0);
         let (codepoints, glyph_ids) = mappings
             .into_iter()
             .map(|(codepoint, glyph_id)| (codepoint, glyph_id.to_u32()))
             .unzip();
-        Self {
+        Ok(Self {
             path: path.to_path_buf(),
             ttc_index,
             codepoints,
             glyph_ids,
-        }
+        })
     }
 }
 
 impl DiscoveredGlyphs {
-    pub(crate) fn from_file(path: &Path) -> Result<Vec<Self>, Error> {
+    pub(crate) fn from_file(path: &Path, max_length: Option<usize>) -> Result<Vec<Self>, Error> {
         read_faces(path, |ttc_index, font| {
-            Self::from_font(path, ttc_index, font)
+            Self::from_font(path, ttc_index, font, max_length)
         })
     }
 
@@ -79,24 +96,58 @@ impl DiscoveredGlyphs {
         self.glyph_ids.len()
     }
 
-    fn from_font(path: &Path, ttc_index: u32, font: &skrifa::FontRef<'_>) -> Self {
-        let glyph_ids = font
-            .outline_glyphs()
-            .iter()
-            .map(|(glyph_id, _)| glyph_id.to_u32())
-            .collect();
-        Self {
+    fn from_font(
+        path: &Path,
+        ttc_index: u32,
+        font: &skrifa::FontRef<'_>,
+        max_length: Option<usize>,
+    ) -> Result<Self, Error> {
+        let mut glyph_ids = Vec::new();
+        for (glyph_id, glyph) in font.outline_glyphs().iter() {
+            if let Some(max_length) = max_length
+                && !fits_max_length(path, ttc_index, glyph_id, &glyph, max_length)?
+            {
+                continue;
+            }
+            glyph_ids.push(glyph_id.to_u32());
+        }
+        Ok(Self {
             path: path.to_path_buf(),
             ttc_index,
             glyph_ids,
-        }
+        })
     }
+}
+
+/// Whether the encoded sequence of one glyph fits within `max_length`.
+///
+/// The elements are counted at the face default location, where variations
+/// move points without changing how many elements a glyph draws.
+fn fits_max_length(
+    path: &Path,
+    ttc_index: u32,
+    glyph_id: GlyphId,
+    glyph: &OutlineGlyph<'_>,
+    max_length: usize,
+) -> Result<bool, Error> {
+    let length = count_glyph_elements(
+        glyph,
+        DrawSettings::unhinted(Size::unscaled(), LocationRef::default()),
+    )
+    .map_err(|err| {
+        Error::Parse(format!(
+            "failed to draw glyph id {} of '{}' (ttc_index {ttc_index}): {err}",
+            glyph_id.to_u32(),
+            path.display()
+        ))
+    })?;
+    Ok(length <= max_length)
 }
 
 /// Parses every face in one font file and builds one entry per face.
 fn read_faces<T>(
     path: &Path,
-    build: impl Fn(u32, &skrifa::FontRef<'_>) -> T,
+    build: impl Fn(u32, &skrifa::FontRef<'_>) -> Result<T, Error>,
 ) -> Result<Vec<T>, Error> {
     let mapped = map_font(path)?;
     let parsed = FileRef::new(&mapped[..])
@@ -111,7 +162,7 @@ fn read_faces<T>(
                     path.display()
                 ))
             })?;
-            Ok(build(ttc_index as u32, &font))
+            build(ttc_index as u32, &font)
         })
         .collect::<Result<Vec<_>, Error>>()?;
     if entries.is_empty() {

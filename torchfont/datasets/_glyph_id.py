@@ -16,6 +16,7 @@ from torchfont._glyph import GlyphIdSample, GlyphRef
 from torchfont.datasets._utils import (
     font_targets_from_offsets,
     normalize_index,
+    normalize_max_length,
     normalize_patterns,
 )
 
@@ -35,6 +36,9 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
     including ligatures, alternates, and other glyphs no codepoint maps to.
     Glyph ids are face-local, so samples carry no character target.
 
+    ``max_length`` keeps only glyphs whose outline is at most that many elements
+    long.
+
     Samples are laid out face by face: face ``i`` owns the half-open sample
     range ``_offsets[i]:_offsets[i + 1]``, so ``_offsets`` holds one more
     element than ``_font_refs`` and ends with the sample count. Sample ``s``
@@ -50,6 +54,7 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
         self: GlyphIdDataset[GlyphIdSample],
         root: Path | str,
         *,
+        max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
         transform: None = None,
     ) -> None: ...
@@ -59,6 +64,7 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
         self: GlyphIdDataset[T],
         root: Path | str,
         *,
+        max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
         transform: Callable[[GlyphIdSample], T],
     ) -> None: ...
@@ -67,14 +73,16 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
         self,
         root: Path | str,
         *,
+        max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
         transform: Callable[[GlyphIdSample], T] | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         self.transform = transform
         self.patterns = normalize_patterns(patterns)
+        self.max_length = normalize_max_length(max_length)
         (font_refs, offsets, self._glyph_ids) = _torchfont.index_glyphs(
-            str(self.root), self.patterns
+            str(self.root), self.max_length, self.patterns
         )
         self._glyph_ids.flags.writeable = False
         self._font_refs = tuple(

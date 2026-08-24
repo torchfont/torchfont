@@ -219,3 +219,30 @@ def test_public_dataset_api_is_exported() -> None:
     assert torchfont.GlyphIdSample is GlyphIdSample
     assert torchfont.GlyphIdData is GlyphIdData
     assert hasattr(_torchfont, "index_glyphs")
+
+
+def test_max_length_keeps_only_short_glyph_sequences() -> None:
+    max_length = 12
+    full = GlyphIdDataset("tests/fonts", patterns=STATIC_FONT, transform=LoadGlyph())
+    expected = [
+        glyph.ref.glyph_id
+        for glyph in (full[i] for i in range(len(full)))
+        if glyph.data.num_elements <= max_length
+    ]
+    dataset = GlyphIdDataset(
+        "tests/fonts",
+        patterns=STATIC_FONT,
+        max_length=max_length,
+        transform=LoadGlyph(),
+    )
+
+    assert 0 < len(expected) < len(full)
+    assert dataset.glyph_ids.tolist() == expected
+    assert all(dataset[i].data.num_elements <= max_length for i in range(len(dataset)))
+
+
+def test_max_length_below_every_glyph_is_empty() -> None:
+    dataset = GlyphIdDataset("tests/fonts", patterns=STATIC_FONT, max_length=0)
+
+    assert len(dataset) == 0
+    assert dataset.font_classes == []

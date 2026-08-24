@@ -8,8 +8,8 @@ TorchFont はローカルのフォントディレクトリを 2 通りにイン�
 
 | データセット | 1 要素の単位 | サンプル | フィルター |
 |---|---|---|---|
-| `CodepointDataset` | フェイスとコードポイント | `GlyphSample` | `codepoints`, `patterns` |
-| `GlyphIdDataset` | フェイスとグリフ ID | `GlyphIdSample` | `patterns` |
+| `CodepointDataset` | フェイスとコードポイント | `GlyphSample` | `codepoints`, `max_length`, `patterns` |
+| `GlyphIdDataset` | フェイスとグリフ ID | `GlyphIdSample` | `max_length`, `patterns` |
 
 `transform` を指定しない場合、`dataset[i]` は `pickle` 可能なサンプルを返します。
 
@@ -27,6 +27,7 @@ CodepointDataset(
     root: Path | str,
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
+    max_length: SupportsIndex | None = None,
     patterns: str | Sequence[str] | None = None,
     transform: Callable[[GlyphSample], T] | None = None,
 )
@@ -63,6 +64,7 @@ PyTorch のサンプラーで学習時の重みを調整してください。
 GlyphIdDataset(
     root: Path | str,
     *,
+    max_length: SupportsIndex | None = None,
     patterns: str | Sequence[str] | None = None,
     transform: Callable[[GlyphIdSample], T] | None = None,
 )
@@ -94,6 +96,17 @@ dataset = GlyphIdDataset(
 ないため、学習ターゲットではなくサンプル選択のためのデータとして使ってください。
 
 サンプリング分布は各フェイスが収録するアウトライングリフ数に比例します。
+
+## 系列長のフィルター
+
+どちらのデータセットも `max_length` を受け取ります。アウトラインの要素数が指定値以下の
+グリフだけを残します。
+
+```python
+dataset = GlyphIdDataset(root="data/google/fonts", max_length=128)
+```
+
+条件を満たすグリフが 1 つも残らないフェイスは、他のフィルターと同様に除外されます。
 
 ## グリフのロード
 

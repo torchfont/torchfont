@@ -8,8 +8,8 @@ variation locations when loading outlines.
 
 | Dataset | One element per | Sample | Filters |
 |---|---|---|---|
-| `CodepointDataset` | face and codepoint | `GlyphSample` | `codepoints`, `patterns` |
-| `GlyphIdDataset` | face and glyph id | `GlyphIdSample` | `patterns` |
+| `CodepointDataset` | face and codepoint | `GlyphSample` | `codepoints`, `max_length`, `patterns` |
+| `GlyphIdDataset` | face and glyph id | `GlyphIdSample` | `max_length`, `patterns` |
 
 Without a transform, `dataset[i]` returns a pickle-friendly sample:
 
@@ -27,6 +27,7 @@ CodepointDataset(
     root: Path | str,
     *,
     codepoints: Sequence[SupportsIndex] | None = None,
+    max_length: SupportsIndex | None = None,
     patterns: str | Sequence[str] | None = None,
     transform: Callable[[GlyphSample], T] | None = None,
 )
@@ -64,6 +65,7 @@ application requires a different distribution.
 GlyphIdDataset(
     root: Path | str,
     *,
+    max_length: SupportsIndex | None = None,
     patterns: str | Sequence[str] | None = None,
     transform: Callable[[GlyphIdSample], T] | None = None,
 )
@@ -97,6 +99,18 @@ class indices to train against.
 
 The sampling distribution is proportional to the number of outline glyphs in
 each face.
+
+## Filtering by sequence length
+
+Both datasets take `max_length`. It keeps only glyphs whose outline is at most
+that many elements long.
+
+```python
+dataset = GlyphIdDataset(root="data/google/fonts", max_length=128)
+```
+
+Faces left without a fitting glyph are omitted, as they are for the other
+filters.
 
 ## Loading glyphs
 

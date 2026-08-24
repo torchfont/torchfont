@@ -2,6 +2,48 @@ use skrifa::outline::{DrawError, DrawSettings, OutlineGlyph, OutlinePen};
 
 use crate::outline::{BezPath, Point};
 
+/// Counts the elements one glyph draws, guarding drawing calls made with no
+/// open subpath exactly as [`OutlineEncodingPen`] does so both pens agree.
+struct ElementCountingPen {
+    count: usize,
+    has_open_subpath: bool,
+}
+
+impl ElementCountingPen {
+    fn new() -> Self {
+        Self {
+            count: 0,
+            has_open_subpath: false,
+        }
+    }
+}
+
+impl OutlinePen for ElementCountingPen {
+    fn move_to(&mut self, _x: f32, _y: f32) {
+        self.count += 1;
+        self.has_open_subpath = true;
+    }
+
+    fn line_to(&mut self, _x: f32, _y: f32) {
+        self.count += usize::from(self.has_open_subpath);
+    }
+
+    fn quad_to(&mut self, _cx0: f32, _cy0: f32, _x: f32, _y: f32) {
+        self.count += usize::from(self.has_open_subpath);
+    }
+
+    fn curve_to(&mut self, _cx0: f32, _cy0: f32, _cx1: f32, _cy1: f32, _x: f32, _y: f32) {
+        self.count += usize::from(self.has_open_subpath);
+    }
+
+    fn close(&mut self) {
+        if self.has_open_subpath {
+            self.count += 1;
+            self.has_open_subpath = false;
+        }
+    }
+}
+
 struct OutlineEncodingPen {
     outline: BezPath,
     scale: f64,
@@ -61,6 +103,17 @@ impl OutlinePen for OutlineEncodingPen {
     }
 }
 
+/// Counts the encoded sequence elements of one glyph, including the trailing
+/// `End` marker, without building its outline.
+pub(crate) fn count_glyph_elements<'a>(
+    glyph: &OutlineGlyph<'a>,
+    settings: DrawSettings<'a>,
+) -> Result<usize, DrawError> {
+    let mut pen = ElementCountingPen::new();
+    glyph.draw(settings, &mut pen)?;
+    Ok(pen.count + 1)
+}
+
 pub(crate) fn extract_glyph_outline<'a>(
     glyph: &OutlineGlyph<'a>,
     settings: DrawSettings<'a>,
@@ -69,4 +122,38 @@ pub(crate) fn extract_glyph_outline<'a>(
     let mut pen = OutlineEncodingPen::new(units_per_em);
     glyph.draw(settings, &mut pen)?;
     Ok(pen.outline)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use skrifa::{
+        MetadataProvider as _,
+        instance::{LocationRef, Size},
+        outline::DrawSettings,
+        raw::TableProvider as _,
+    };
+
+    use crate::font::{map_font, parse_font_ref};
+    use crate::outline::encode;
+
+    use super::{count_glyph_elements, extract_glyph_outline};
+
+    #[test]
+    fn counts_the_elements_the_encoder_emits() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fonts/source-sans/SourceSans3-Regular.ttf");
+        let data = map_font(&path).unwrap();
+        let font = parse_font_ref(&data[..], &path, 0).unwrap();
+        let units_per_em = f32::from(font.head().unwrap().units_per_em());
+        let settings = || DrawSettings::unhinted(Size::unscaled(), LocationRef::default());
+        for (_, glyph) in font.outline_glyphs().iter() {
+            let outline = extract_glyph_outline(&glyph, settings(), units_per_em).unwrap();
+            assert_eq!(
+                count_glyph_elements(&glyph, settings()).unwrap(),
+                encode(&outline).0.len()
+            );
+        }
+    }
 }

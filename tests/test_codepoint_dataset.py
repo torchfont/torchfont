@@ -465,3 +465,58 @@ def test_codepoints_are_normalized_and_deduplicated() -> None:
         codepoints=codepoints,
     )
     assert [dataset[i].codepoint for i in range(len(dataset))] == [0x41, 0x42]
+
+
+def test_max_length_keeps_only_short_glyph_sequences() -> None:
+    max_length = 12
+    patterns = "source-sans/SourceSans3-Regular.ttf"
+    codepoints = range(0x21, 0x7F)
+    full = CodepointDataset(
+        "tests/fonts",
+        patterns=patterns,
+        codepoints=codepoints,
+        transform=LoadGlyph(),
+    )
+    expected = [
+        (glyph.codepoint, glyph.ref.glyph_id)
+        for glyph in (full[i] for i in range(len(full)))
+        if glyph.data.num_elements <= max_length
+    ]
+    dataset = CodepointDataset(
+        "tests/fonts",
+        patterns=patterns,
+        codepoints=codepoints,
+        max_length=max_length,
+        transform=LoadGlyph(),
+    )
+
+    assert 0 < len(expected) < len(full)
+    assert [
+        (glyph.codepoint, glyph.ref.glyph_id)
+        for glyph in (dataset[i] for i in range(len(dataset)))
+    ] == expected
+
+
+def test_max_length_counts_the_end_element() -> None:
+    dataset = CodepointDataset(
+        "tests/fonts",
+        patterns="source-sans/SourceSans3-Regular.ttf",
+        max_length=1,
+        transform=LoadGlyph(),
+    )
+
+    assert len(dataset) > 0
+    assert all(
+        dataset[i].data.types.tolist() == [ElementType.END] for i in range(len(dataset))
+    )
+
+
+def test_max_length_below_every_glyph_is_empty() -> None:
+    dataset = CodepointDataset(
+        "tests/fonts",
+        patterns="source-sans/SourceSans3-Regular.ttf",
+        max_length=0,
+    )
+
+    assert len(dataset) == 0
+    assert dataset.font_classes == []

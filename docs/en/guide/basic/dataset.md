@@ -45,6 +45,19 @@ dataset = CodepointDataset(
 Duplicate codepoints are removed and the index is deterministic. Fonts that do
 not contain any requested outline glyph are omitted.
 
+## Filtering by sequence length
+
+`max_length` keeps only glyphs whose outline is at most that many elements long:
+
+```python
+dataset = CodepointDataset(
+    root="data/google/fonts",
+    max_length=128,
+)
+```
+
+Fonts left without a fitting glyph are omitted.
+
 ## Reaching glyphs no codepoint maps to
 
 `CodepointDataset` indexes what the `cmap` table maps, so ligatures, alternates, and
@@ -63,7 +76,7 @@ print(len(dataset.font_classes))
 Each element represents one font face and one glyph id, in ascending order and
 starting at `.notdef`. Glyph ids are face-local, so this dataset takes no
 `codepoints` filter and its samples carry no character target. `patterns`,
-`transform`, and `LoadGlyph` work exactly as they do above.
+`max_length`, `transform`, and `LoadGlyph` work exactly as they do above.
 
 ## Choosing variation locations
 
