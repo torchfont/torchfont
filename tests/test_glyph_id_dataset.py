@@ -64,7 +64,7 @@ def test_dataset_reaches_glyphs_no_codepoint_maps_to() -> None:
 def test_dataset_indexes_each_face_of_a_collection() -> None:
     dataset = GlyphIdDataset("tests/fonts", patterns=COLLECTION_FONT)
 
-    assert [ref.ttc_index for ref in dataset.font_classes] == list(
+    assert [ref.face_index for ref in dataset.font_classes] == list(
         range(len(dataset.font_classes))
     )
     assert {PurePath(ref.path).name for ref in dataset.font_classes} == {

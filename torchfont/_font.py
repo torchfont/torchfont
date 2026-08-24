@@ -16,11 +16,11 @@ class FontRef:
     """Persistent file-local reference to one font."""
 
     path: str
-    ttc_index: int
+    face_index: int
 
-    def __init__(self, path: str | PathLike[str], ttc_index: int) -> None:
+    def __init__(self, path: str | PathLike[str], face_index: int) -> None:
         object.__setattr__(self, "path", os.fspath(Path(path)))
-        object.__setattr__(self, "ttc_index", ttc_index)
+        object.__setattr__(self, "face_index", face_index)
 
 
 __all__ = ["FontRef"]

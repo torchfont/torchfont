@@ -25,11 +25,11 @@ pub(crate) fn map_font(path: &Path) -> Result<Mmap, Error> {
 pub(crate) fn parse_font_ref<'a>(
     data: &'a [u8],
     path: &Path,
-    ttc_index: u32,
+    face_index: u32,
 ) -> Result<skrifa::FontRef<'a>, Error> {
-    skrifa::FontRef::from_index(data, ttc_index).map_err(|err| {
+    skrifa::FontRef::from_index(data, face_index).map_err(|err| {
         Error::Parse(format!(
-            "failed to parse '{}' (ttc_index {ttc_index}): {err}",
+            "failed to parse '{}' (face_index {face_index}): {err}",
             path.display()
         ))
     })

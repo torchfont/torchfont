@@ -45,7 +45,7 @@ class LoadGlyph(nn.Module):
         outline = _functional.load_glyph(ref, location)
         if isinstance(inpt, GlyphRef):
             return outline
-        metrics = _torchfont.glyph_targets(ref.font.path, ref.font.ttc_index, location)
+        metrics = _torchfont.glyph_targets(ref.font.path, ref.font.face_index, location)
         if isinstance(inpt, GlyphIdSample):
             return GlyphIdData(
                 data=outline,
@@ -71,7 +71,7 @@ class LoadGlyph(nn.Module):
 def _random_location(ref: GlyphRef) -> dict[str, float]:
     location: dict[str, float] = {}
     for tag, minimum, _default, maximum in _torchfont.variation_axes(
-        ref.font.path, ref.font.ttc_index
+        ref.font.path, ref.font.face_index
     ):
         location[str(tag)] = torch.empty(()).uniform_(minimum, maximum).item()
     return location
@@ -81,7 +81,7 @@ def _default_location(ref: GlyphRef) -> dict[str, float]:
     return {
         str(tag): float(default)
         for tag, _minimum, default, _maximum in _torchfont.variation_axes(
-            ref.font.path, ref.font.ttc_index
+            ref.font.path, ref.font.face_index
         )
     }
 

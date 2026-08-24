@@ -13,7 +13,7 @@ use crate::font::{count_glyph_elements, map_font};
 /// One discovered face and the codepoint/glyph id pairs its `cmap` contributes.
 pub(crate) struct DiscoveredCodepoints {
     path: PathBuf,
-    ttc_index: u32,
+    face_index: u32,
     codepoints: Vec<u32>,
     glyph_ids: Vec<u32>,
 }
@@ -21,7 +21,7 @@ pub(crate) struct DiscoveredCodepoints {
 /// One discovered face and every glyph id it draws an outline for.
 pub(crate) struct DiscoveredGlyphs {
     path: PathBuf,
-    ttc_index: u32,
+    face_index: u32,
     glyph_ids: Vec<u32>,
 }
 
@@ -31,13 +31,13 @@ impl DiscoveredCodepoints {
         filter: Option<&[u32]>,
         max_length: Option<usize>,
     ) -> Result<Vec<Self>, Error> {
-        read_faces(path, |ttc_index, font| {
-            Self::from_font(path, ttc_index, font, filter, max_length)
+        read_faces(path, |face_index, font| {
+            Self::from_font(path, face_index, font, filter, max_length)
         })
     }
 
     pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>, Vec<u32>) {
-        (self.path, self.ttc_index, self.codepoints, self.glyph_ids)
+        (self.path, self.face_index, self.codepoints, self.glyph_ids)
     }
 
     pub(crate) fn codepoint_count(&self) -> usize {
@@ -46,7 +46,7 @@ impl DiscoveredCodepoints {
 
     fn from_font(
         path: &Path,
-        ttc_index: u32,
+        face_index: u32,
         font: &skrifa::FontRef<'_>,
         filter: Option<&[u32]>,
         max_length: Option<usize>,
@@ -61,7 +61,7 @@ impl DiscoveredCodepoints {
                 continue;
             };
             if let Some(max_length) = max_length
-                && !fits_max_length(path, ttc_index, glyph_id, &glyph, max_length)?
+                && !fits_max_length(path, face_index, glyph_id, &glyph, max_length)?
             {
                 continue;
             }
@@ -74,7 +74,7 @@ impl DiscoveredCodepoints {
             .unzip();
         Ok(Self {
             path: path.to_path_buf(),
-            ttc_index,
+            face_index,
             codepoints,
             glyph_ids,
         })
@@ -83,13 +83,13 @@ impl DiscoveredCodepoints {
 
 impl DiscoveredGlyphs {
     pub(crate) fn from_file(path: &Path, max_length: Option<usize>) -> Result<Vec<Self>, Error> {
-        read_faces(path, |ttc_index, font| {
-            Self::from_font(path, ttc_index, font, max_length)
+        read_faces(path, |face_index, font| {
+            Self::from_font(path, face_index, font, max_length)
         })
     }
 
     pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>) {
-        (self.path, self.ttc_index, self.glyph_ids)
+        (self.path, self.face_index, self.glyph_ids)
     }
 
     pub(crate) fn glyph_count(&self) -> usize {
@@ -98,14 +98,14 @@ impl DiscoveredGlyphs {
 
     fn from_font(
         path: &Path,
-        ttc_index: u32,
+        face_index: u32,
         font: &skrifa::FontRef<'_>,
         max_length: Option<usize>,
     ) -> Result<Self, Error> {
         let mut glyph_ids = Vec::new();
         for (glyph_id, glyph) in font.outline_glyphs().iter() {
             if let Some(max_length) = max_length
-                && !fits_max_length(path, ttc_index, glyph_id, &glyph, max_length)?
+                && !fits_max_length(path, face_index, glyph_id, &glyph, max_length)?
             {
                 continue;
             }
@@ -113,7 +113,7 @@ impl DiscoveredGlyphs {
         }
         Ok(Self {
             path: path.to_path_buf(),
-            ttc_index,
+            face_index,
             glyph_ids,
         })
     }
@@ -125,7 +125,7 @@ impl DiscoveredGlyphs {
 /// move points without changing how many elements a glyph draws.
 fn fits_max_length(
     path: &Path,
-    ttc_index: u32,
+    face_index: u32,
     glyph_id: GlyphId,
     glyph: &OutlineGlyph<'_>,
     max_length: usize,
@@ -136,7 +136,7 @@ fn fits_max_length(
     )
     .map_err(|err| {
         Error::Parse(format!(
-            "failed to draw glyph id {} of '{}' (ttc_index {ttc_index}): {err}",
+            "failed to draw glyph id {} of '{}' (face_index {face_index}): {err}",
             glyph_id.to_u32(),
             path.display()
         ))
@@ -155,14 +155,14 @@ fn read_faces<T>(
     let entries = parsed
         .fonts()
         .enumerate()
-        .map(|(ttc_index, font_result)| {
+        .map(|(face_index, font_result)| {
             let font = font_result.map_err(|err| {
                 Error::Parse(format!(
-                    "failed to parse '{}' (ttc_index {ttc_index}): {err}",
+                    "failed to parse '{}' (face_index {face_index}): {err}",
                     path.display()
                 ))
             })?;
-            build(ttc_index as u32, &font)
+            build(face_index as u32, &font)
         })
         .collect::<Result<Vec<_>, Error>>()?;
     if entries.is_empty() {

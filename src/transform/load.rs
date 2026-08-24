@@ -15,34 +15,34 @@ use crate::{
 
 pub(crate) fn load_glyph_outline(
     path: &Path,
-    ttc_index: u32,
+    face_index: u32,
     glyph_id: u32,
     location: Option<&BTreeMap<String, f32>>,
 ) -> Result<BezPath, Error> {
     let data = map_font(path)?;
-    let font = parse_font_ref(&data[..], path, ttc_index)?;
+    let font = parse_font_ref(&data[..], path, face_index)?;
     let units_per_em = font
         .head()
         .map_err(|err| {
             Error::Parse(format!(
-                "font '{}' (ttc_index {ttc_index}) 'head' table error: {err}",
+                "font '{}' (face_index {face_index}) 'head' table error: {err}",
                 path.display()
             ))
         })?
         .units_per_em();
     if units_per_em == 0 {
         return Err(Error::Parse(format!(
-            "font '{}' (ttc_index {ttc_index}) has zero units per em",
+            "font '{}' (face_index {face_index}) has zero units per em",
             path.display()
         )));
     }
-    let user_location = canonicalize_location(&font, path, ttc_index, location)?;
+    let user_location = canonicalize_location(&font, path, face_index, location)?;
     let glyph = font
         .outline_glyphs()
         .get(GlyphId::new(glyph_id))
         .ok_or_else(|| {
             Error::OutOfRange(format!(
-                "glyph id {glyph_id} missing from '{}' (ttc_index {ttc_index})",
+                "glyph id {glyph_id} missing from '{}' (face_index {face_index})",
                 path.display()
             ))
         })?;

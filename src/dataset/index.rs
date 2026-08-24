@@ -41,10 +41,10 @@ impl CodepointIndex {
         let mut codepoints = Vec::with_capacity(sample_count);
         let mut glyph_ids = Vec::with_capacity(sample_count);
         offsets.push(0);
-        for (path, ttc_index, face_codepoints, face_glyph_ids) in faces {
+        for (path, face_index, face_codepoints, face_glyph_ids) in faces {
             debug_assert!(face_codepoints.is_sorted());
             debug_assert_eq!(face_codepoints.len(), face_glyph_ids.len());
-            fonts.push((path, ttc_index));
+            fonts.push((path, face_index));
             codepoints.extend(face_codepoints);
             glyph_ids.extend(face_glyph_ids);
             offsets.push(i64::try_from(codepoints.len()).expect("Vec length fits in i64"));
@@ -91,9 +91,9 @@ impl GlyphIndex {
         let mut offsets = Vec::with_capacity(faces.len() + 1);
         let mut glyph_ids = Vec::with_capacity(faces.iter().map(|face| face.2.len()).sum());
         offsets.push(0);
-        for (path, ttc_index, face_glyph_ids) in faces {
+        for (path, face_index, face_glyph_ids) in faces {
             debug_assert!(face_glyph_ids.is_sorted());
-            fonts.push((path, ttc_index));
+            fonts.push((path, face_index));
             glyph_ids.extend(face_glyph_ids);
             offsets.push(i64::try_from(glyph_ids.len()).expect("Vec length fits in i64"));
         }

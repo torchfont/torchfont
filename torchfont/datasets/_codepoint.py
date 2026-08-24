@@ -103,7 +103,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         self._character_index.flags.writeable = False
         self._glyph_ids.flags.writeable = False
         self._font_refs = tuple(
-            FontRef(path, ttc_index) for path, ttc_index in font_refs
+            FontRef(path, face_index) for path, face_index in font_refs
         )
         self._offsets = tuple(offsets)
 

@@ -27,7 +27,7 @@ def load_glyph(
     )
     raw_types, raw_coords = _torchfont.load_glyph(
         ref.font.path,
-        ref.font.ttc_index,
+        ref.font.face_index,
         ref.glyph_id,
         normalized_location,
     )

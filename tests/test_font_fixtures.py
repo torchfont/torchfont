@@ -66,7 +66,7 @@ def test_collection_fixtures_expose_every_face(
     dataset = CodepointDataset(FONT_ROOT, patterns=path, codepoints=[codepoint])
 
     assert len(dataset) == face_count
-    assert [font.ttc_index for font in dataset.font_classes] == list(range(face_count))
+    assert [font.face_index for font in dataset.font_classes] == list(range(face_count))
     for sample in dataset:
         glyph = LoadGlyph()(sample)
         assert glyph.data.types.numel() > 0

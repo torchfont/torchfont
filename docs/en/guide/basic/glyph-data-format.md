@@ -178,7 +178,7 @@ print(dataset.font_classes[sample.font_idx])
 You will see output like:
 
 ```
-FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
+FontRef(path='.../Aclonica-Regular.ttf', face_index=0)
 ```
 
 ### `character_idx`
