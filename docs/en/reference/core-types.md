@@ -9,6 +9,8 @@ from torchfont import (
     ElementType,
     FontRef,
     GlyphData,
+    GlyphIdData,
+    GlyphIdSample,
     GlyphRef,
     GlyphSample,
     Outline,
@@ -97,6 +99,17 @@ content equality is required.
 Define a local `DataLoader.collate_fn` for the model's input contract and use
 [`pad_outlines`](#pad-outlines) when its payloads are variable-length outlines.
 See [DataLoader](../guide/basic/dataloader.md).
+
+### `GlyphIdData`
+
+`GlyphIdData` is what `LoadGlyph` returns for a `GlyphIdSample`. It carries the
+same payload, glyph reference, resolved variation location, and `font_idx`,
+`weight`, `width`, `italic`, `slant`, and `optical_size` targets as
+`GlyphData`, without the `codepoint` and `character_idx` targets that a glyph
+no character maps to cannot have.
+
+It follows the same rules as `GlyphData`: identity equality, integer indices,
+and `None` for an unavailable continuous target.
 
 ### `ElementType: IntEnum`
 

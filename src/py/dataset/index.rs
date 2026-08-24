@@ -3,9 +3,12 @@ use std::path::PathBuf;
 use numpy::{IntoPyArray as _, PyArray1};
 use pyo3::{Py, PyResult, Python, pyfunction};
 
-use crate::dataset::{DiscoveredFont, FontIndex, canonicalize_root, discover_font_files};
+use crate::dataset::{
+    CodepointIndex, DiscoveredCodepoints, DiscoveredGlyphs, GlyphIndex, canonicalize_root,
+    discover_font_files,
+};
 
-type FontIndexArrays = (
+type CodepointIndexArrays = (
     Vec<(PathBuf, u32)>,
     Vec<i64>,
     Py<PyArray1<u32>>,
@@ -13,17 +16,22 @@ type FontIndexArrays = (
     Py<PyArray1<u32>>,
 );
 
+type GlyphIndexArrays = (Vec<(PathBuf, u32)>, Vec<i64>, Py<PyArray1<u32>>);
+
 #[pyfunction]
-pub(super) fn index_fonts(
+pub(super) fn index_codepoints(
     py: Python<'_>,
     root: &str,
     codepoints: Option<Vec<u32>>,
     patterns: Option<Vec<String>>,
-) -> PyResult<FontIndexArrays> {
+) -> PyResult<CodepointIndexArrays> {
     let index = py.detach(|| {
-        let fonts = discover_fonts(root, codepoints, patterns)?;
-        Ok::<_, pyo3::PyErr>(FontIndex::build(
-            fonts.into_iter().map(DiscoveredFont::into_parts).collect(),
+        let fonts = discover_codepoint_fonts(root, codepoints, patterns)?;
+        Ok::<_, pyo3::PyErr>(CodepointIndex::build(
+            fonts
+                .into_iter()
+                .map(DiscoveredCodepoints::into_parts)
+                .collect(),
         ))
     })?;
     Ok((
@@ -39,11 +47,33 @@ pub(super) fn index_fonts(
     ))
 }
 
-fn discover_fonts(
+#[pyfunction]
+pub(super) fn index_glyphs(
+    py: Python<'_>,
+    root: &str,
+    patterns: Option<Vec<String>>,
+) -> PyResult<GlyphIndexArrays> {
+    let index = py.detach(|| {
+        let fonts = discover_glyph_fonts(root, patterns)?;
+        Ok::<_, pyo3::PyErr>(GlyphIndex::build(
+            fonts
+                .into_iter()
+                .map(DiscoveredGlyphs::into_parts)
+                .collect(),
+        ))
+    })?;
+    Ok((
+        index.fonts,
+        index.offsets,
+        index.glyph_ids.into_pyarray(py).unbind(),
+    ))
+}
+
+fn discover_codepoint_fonts(
     root: &str,
     codepoints: Option<Vec<u32>>,
     patterns: Option<Vec<String>>,
-) -> PyResult<Vec<DiscoveredFont>> {
+) -> PyResult<Vec<DiscoveredCodepoints>> {
     let filter = codepoints.map(|mut values| {
         values.sort_unstable();
         values.dedup();
@@ -53,9 +83,25 @@ fn discover_fonts(
     let mut entries = Vec::new();
     for path in discover_font_files(&root, patterns.as_deref())? {
         entries.extend(
-            DiscoveredFont::from_file(&path, filter.as_deref())?
+            DiscoveredCodepoints::from_file(&path, filter.as_deref())?
                 .into_iter()
                 .filter(|entry| entry.codepoint_count() > 0),
+        );
+    }
+    Ok(entries)
+}
+
+fn discover_glyph_fonts(
+    root: &str,
+    patterns: Option<Vec<String>>,
+) -> PyResult<Vec<DiscoveredGlyphs>> {
+    let root = canonicalize_root(root)?;
+    let mut entries = Vec::new();
+    for path in discover_font_files(&root, patterns.as_deref())? {
+        entries.extend(
+            DiscoveredGlyphs::from_file(&path)?
+                .into_iter()
+                .filter(|entry| entry.glyph_count() > 0),
         );
     }
     Ok(entries)

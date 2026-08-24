@@ -1,14 +1,14 @@
 # フォントコレクション
 
 TrueType Collection（`.ttc`）と OpenType Collection（`.otc`）は、1 つのファイルに
-複数のフォントフェイスを格納します。`GlyphDataset` はコレクション内のすべてのフェイスを
+複数のフォントフェイスを格納します。`CodepointDataset` はコレクション内のすべてのフェイスを
 自動的にインデックスへ登録します。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/fonts",
     patterns=("**/*.ttc", "**/*.otc"),
     transform=LoadGlyph(),

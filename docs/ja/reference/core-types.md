@@ -9,6 +9,8 @@ from torchfont import (
     ElementType,
     FontRef,
     GlyphData,
+    GlyphIdData,
+    GlyphIdSample,
     GlyphRef,
     GlyphSample,
     Outline,
@@ -93,6 +95,16 @@ Index は Python の整数、連続 Target は Float です。取得できない
 モデルの入力契約に合わせてローカルな `DataLoader.collate_fn` を定義し、Payload が可変長 Outline の
 場合は [`pad_outlines`](#pad-outlines) を使います。
 [DataLoader](../guide/basic/dataloader.md) を参照してください。
+
+### `GlyphIdData`
+
+`GlyphIdData` は `GlyphIdSample` に `LoadGlyph` を適用した結果です。`GlyphData` と同じ
+Payload、Glyph 参照、Variation Location、`font_idx`、`weight`、`width`、`italic`、`slant`、
+`optical_size` Target を保持します。どの文字も対応しないグリフが持てない `codepoint` と
+`character_idx` の Target はありません。
+
+同一性による比較、Python の整数 Index、取得できない連続 Target が `None` になる点は
+`GlyphData` と同じです。
 
 ### `ElementType: IntEnum`
 

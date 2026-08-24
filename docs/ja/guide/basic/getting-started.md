@@ -101,8 +101,8 @@ uv add torch torchfont
 カレントディレクトリのフォントを走査してデータセットを作成し、そのサンプル数を表示します。フォントがなければ `0` が表示されます。エラーなく実行できればインストール完了です。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(root=".")
+dataset = CodepointDataset(root=".")
 print(len(dataset))
 ```

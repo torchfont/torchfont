@@ -5,8 +5,13 @@ from __future__ import annotations
 from operator import index
 from typing import TYPE_CHECKING, SupportsIndex
 
+import numpy as np
+import torch
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from torch import Tensor
 
 
 def normalize_patterns(
@@ -38,3 +43,10 @@ def normalize_index(idx: SupportsIndex, dataset_len: int) -> int:
         )
         raise IndexError(msg)
     return resolved_idx
+
+
+def font_targets_from_offsets(offsets: tuple[int, ...]) -> Tensor:
+    """Repeat each face index across the sample range that face owns."""
+    bounds = np.asarray(offsets, dtype=np.int64)
+    faces = np.arange(len(offsets) - 1, dtype=np.int64)
+    return torch.from_numpy(np.repeat(faces, np.diff(bounds)))

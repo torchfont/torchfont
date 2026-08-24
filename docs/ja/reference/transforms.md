@@ -6,12 +6,14 @@ TorchFont は Glyph の読み込み、変形、描画を組み合わせるため
 ## データ型
 
 ```python
-from torchfont import GlyphData, Outline
+from torchfont import GlyphData, GlyphIdData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
 `GlyphData[T]` は変換中の Payload、Glyph 参照、Variation Location、Target を保持します。
-他の Field を失わずに、Payload を `Outline` からビットマップテンソルへ変換できます。
+`GlyphIdData[T]` はグリフ ID の Sample に対応する型で、コードポイントの Target を除いた
+同じ Field を保持します。どちらも他の Field を失わずに、Payload を `Outline` から
+ビットマップテンソルへ変換できます。
 
 ## 読み込みと合成
 
@@ -36,12 +38,13 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` は一つの `GlyphSample` または `GlyphRef` を読み込みます。サンプルは
-`GlyphData[Outline]` に、参照単体は `Outline` になります。
+`LoadGlyph` は一つの `GlyphSample`、`GlyphIdSample`、`GlyphRef` を読み込みます。
+`GlyphSample` は `GlyphData[Outline]` に、`GlyphIdSample` は `GlyphIdData[Outline]` に、
+参照単体は `Outline` になります。
 `LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
-Random Policy は `GlyphSample` または `GlyphRef` に対して位置を 1 点抽出し、
-`GlyphData.location` に保存します。Static Face では空の位置になります。
-Dataset Sample に対しては、返される `GlyphData` の並列な `weight`、`width`、`italic`、
+Random Policy はいずれの入力に対しても位置を 1 点抽出し、返り値の `location` に保存します。
+Static Face では空の位置になります。
+Dataset Sample に対しては、返り値の並列な `weight`、`width`、`italic`、
 `slant`、`optical_size` Target も解決します。
 
 Transform はネストした入力を受け取り、その構造を保ちます。一回の呼び出しに含まれる
@@ -74,7 +77,8 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | 出力 | `RenderBitmap` |
 
 `RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
-`GlyphData` 内にある場合も、参照、Location、Target は変換後の Payload とともに維持されます。
+`GlyphData` や `GlyphIdData` の中にある場合も、参照、Location、Target は変換後の Payload と
+ともに維持されます。
 
 ### レンダリングしたグリフを TorchVision で使う
 

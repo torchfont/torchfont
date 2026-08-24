@@ -12,16 +12,16 @@ and parallel loading.
 the first pipeline transform to load its semantic `Outline` while retaining the
 sample metadata.
 
-Like PyTorch datasets, `GlyphDataset` has a `transform` argument that applies a
+Like PyTorch datasets, `CodepointDataset` has a `transform` argument that applies a
 transformation to each item. Pass `LoadGlyph()` directly and verify the output:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont import GlyphData, Outline
 from torchfont.transforms import LoadGlyph
 
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -60,7 +60,7 @@ import math
 import torch
 from torch.utils.data import DataLoader
 
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont import GlyphData, Outline, pad_outlines
 from torchfont.transforms import LoadGlyph
 
@@ -81,7 +81,7 @@ def collate_fn(samples: list[GlyphData[Outline]]):
     }
 
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",

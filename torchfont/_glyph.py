@@ -15,22 +15,10 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-_TARGET_FIELDS = (
-    "codepoint",
-    "font_idx",
-    "character_idx",
-    "weight",
-    "width",
-    "italic",
-    "slant",
-    "optical_size",
-)
+_METRIC_FIELDS = ("weight", "width", "italic", "slant", "optical_size")
 
 
-class _GlyphDataTargets(TypedDict):
-    codepoint: int
-    font_idx: int
-    character_idx: int
+class _MetricTargets(TypedDict):
     weight: float | None
     width: float | None
     italic: float | None
@@ -54,6 +42,14 @@ class GlyphSample:
     codepoint: int
     font_idx: int
     character_idx: int
+
+
+@dataclass(frozen=True)
+class GlyphIdSample:
+    """Dataset-local sample for one font face and glyph id."""
+
+    ref: GlyphRef
+    font_idx: int
 
 
 @dataclass(frozen=True, eq=False)
@@ -80,39 +76,62 @@ class GlyphData(Generic[T]):
     optical_size: float | None
 
 
-def _flatten_glyph_data(value: GlyphData[Any]) -> tuple[list[Any], object]:
-    children = [value.data, *(getattr(value, name) for name in _TARGET_FIELDS)]
-    return children, (value.ref, value.location)
+@dataclass(frozen=True, eq=False)
+class GlyphIdData(Generic[T]):
+    """A loaded glyph payload identified by glyph id rather than codepoint.
+
+    Carries the same reference, location, and continuous targets as
+    :class:`GlyphData`, without the codepoint targets that a glyph no character
+    maps to cannot have.
+    """
+
+    data: T
+    ref: GlyphRef
+    location: dict[str, float]
+    font_idx: int
+    weight: float | None
+    width: float | None
+    italic: float | None
+    slant: float | None
+    optical_size: float | None
 
 
-def _unflatten_glyph_data(
-    children: Iterable[Any], context: tuple[Any, ...]
-) -> GlyphData[Any]:
-    data, *targets = children
-    ref, location = context
-    return GlyphData(data, ref, location, *targets)
+def _register_glyph_data(
+    cls: type[GlyphData[Any] | GlyphIdData[Any]],
+    target_fields: tuple[str, ...],
+) -> None:
+    """Register one payload class as a pytree whose targets are children."""
+
+    def flatten(value: GlyphData[Any] | GlyphIdData[Any]) -> tuple[list[Any], object]:
+        children = [value.data, *(getattr(value, name) for name in target_fields)]
+        return children, (value.ref, value.location)
+
+    def unflatten(
+        children: Iterable[Any], context: tuple[Any, ...]
+    ) -> GlyphData[Any] | GlyphIdData[Any]:
+        data, *targets = children
+        ref, location = context
+        return cls(data, ref, location, *targets)
+
+    register_pytree_node(cls, flatten, unflatten)
 
 
-register_pytree_node(GlyphData, _flatten_glyph_data, _unflatten_glyph_data)
+_register_glyph_data(
+    GlyphData, ("codepoint", "font_idx", "character_idx", *_METRIC_FIELDS)
+)
+_register_glyph_data(GlyphIdData, ("font_idx", *_METRIC_FIELDS))
 
 
-def _glyph_data_targets(
-    *,
-    codepoint: int,
-    font_idx: int,
-    character_idx: int,
+def _metric_targets(
     metrics: tuple[float, float, float, float, float],
-) -> _GlyphDataTargets:
-    """Build the scalar targets carried by :class:`GlyphData`.
+) -> _MetricTargets:
+    """Build the continuous targets carried by a loaded glyph payload.
 
     ``metrics`` is the ``(weight, width, italic, slant, optical_size)`` tuple
     returned by the Rust ``glyph_targets`` helper, in that order.
     """
     weight, width, italic, slant, optical_size = metrics
     return {
-        "codepoint": codepoint,
-        "font_idx": font_idx,
-        "character_idx": character_idx,
         "weight": _optional_metric(weight),
         "width": _optional_metric(width),
         "italic": _optional_metric(italic),
@@ -128,6 +147,8 @@ def _optional_metric(value: float) -> float | None:
 
 __all__ = [
     "GlyphData",
+    "GlyphIdData",
+    "GlyphIdSample",
     "GlyphRef",
     "GlyphSample",
 ]

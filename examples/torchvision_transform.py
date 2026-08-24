@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from torchfont import GlyphSample
 from torchfont import transforms as FT
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.glyphsets import LATIN_CORE
 
 if TYPE_CHECKING:
@@ -73,7 +73,7 @@ def collate_fn(
 
 
 def main() -> None:
-    dataset = GlyphDataset(
+    dataset = CodepointDataset(
         codepoints=LATIN_CORE,
         root="data/google/fonts",
         patterns=(

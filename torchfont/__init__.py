@@ -6,7 +6,8 @@ Notes:
     suitable for PyTorch training code.
 
 Features:
-    * A primary ``GlyphDataset`` API for local font directories and checkouts.
+    * A ``CodepointDataset`` API indexing every codepoint each face supports,
+      and a ``GlyphIdDataset`` API indexing every glyph each face draws.
     * A Rust backend that renders glyph outlines directly into PyTorch-ready
       tensors.
     * Semantic, composable transform pipelines for adapting glyph samples.
@@ -14,9 +15,9 @@ Features:
 Examples:
     Assemble a dataset from local fonts::
 
-        from torchfont.datasets import GlyphDataset
+        from torchfont.datasets import CodepointDataset
 
-        ds = GlyphDataset(root="~/fonts")
+        ds = CodepointDataset(root="~/fonts")
 
 References:
     The project README covers installation, advanced usage, and contribution
@@ -30,7 +31,13 @@ Package Layout:
 """
 
 from torchfont._font import FontRef
-from torchfont._glyph import GlyphData, GlyphRef, GlyphSample
+from torchfont._glyph import (
+    GlyphData,
+    GlyphIdData,
+    GlyphIdSample,
+    GlyphRef,
+    GlyphSample,
+)
 from torchfont._outline import (
     COORD_DIM,
     TYPE_DIM,
@@ -48,6 +55,8 @@ __all__ = [
     "ElementType",
     "FontRef",
     "GlyphData",
+    "GlyphIdData",
+    "GlyphIdSample",
     "GlyphRef",
     "GlyphSample",
     "Outline",

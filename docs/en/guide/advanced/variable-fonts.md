@@ -7,10 +7,10 @@ an axis location while loading each glyph.
 Use the default location for deterministic evaluation:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-evaluation = GlyphDataset(
+evaluation = CodepointDataset(
     root="data/fonts",
     patterns=("**/*.ttf", "**/*.otf", "**/*.ttc", "**/*.otc"),
     transform=LoadGlyph(),
@@ -22,7 +22,7 @@ maximum on each access. This makes the font's design space available as training
 augmentation without creating separate files for the instances:
 
 ```python
-training = GlyphDataset(
+training = CodepointDataset(
     root="data/fonts",
     transform=LoadGlyph(location="random"),
 )

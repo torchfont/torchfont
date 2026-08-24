@@ -19,12 +19,12 @@ Initialize the checkout after cloning the parent repository:
 git submodule update --init --depth 1
 ```
 
-Point `GlyphDataset` at the submodule and select its font files with `patterns`:
+Point `CodepointDataset` at the submodule and select its font files with `patterns`:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
 )
@@ -39,7 +39,7 @@ collection of font families. Its top-level `apache`, `ofl`, and `ufl`
 directories group binary font files by license.
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
 )
@@ -58,7 +58,7 @@ git submodule add --depth 1 \
 ```
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/material-design-icons",
     patterns=("font/*.ttf", "font/*.otf", "variablefont/*.ttf"),
 )
@@ -76,7 +76,7 @@ git submodule add --depth 1 \
 ```
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/fortawesome/font-awesome",
     patterns=("otfs/*.otf",),
 )
@@ -86,7 +86,7 @@ dataset = GlyphDataset(
 
 [Source Han Code JP](https://github.com/adobe-fonts/source-han-code-jp) provides
 Japanese fonts as individual OpenType fonts and as an OpenType Collection.
-`GlyphDataset` expands every face in the collection; see
+`CodepointDataset` expands every face in the collection; see
 [Font Collections](./font-collections.md) for details.
 
 ```bash
@@ -96,7 +96,7 @@ git submodule add --depth 1 \
 ```
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/adobe/source-han-code-jp",
     patterns=("OTC/*.ttc",),
 )

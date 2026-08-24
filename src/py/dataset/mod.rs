@@ -7,6 +7,7 @@ use pyo3::{
 };
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(index::index_fonts, m)?)?;
+    m.add_function(wrap_pyfunction!(index::index_codepoints, m)?)?;
+    m.add_function(wrap_pyfunction!(index::index_glyphs, m)?)?;
     Ok(())
 }

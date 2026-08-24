@@ -18,13 +18,13 @@ git submodule add --depth 1 https://github.com/google/fonts.git data/google/font
 git submodule update --init --depth 1
 ```
 
-`GlyphDataset` の `root` にサブモジュールのパスを渡し、`patterns` でフォントファイルを
+`CodepointDataset` の `root` にサブモジュールのパスを渡し、`patterns` でフォントファイルを
 選択します。
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
 )
@@ -39,7 +39,7 @@ dataset = GlyphDataset(
 分類されたバイナリフォントがあります。
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
 )
@@ -58,7 +58,7 @@ git submodule add --depth 1 \
 ```
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/material-design-icons",
     patterns=("font/*.ttf", "font/*.otf", "variablefont/*.ttf"),
 )
@@ -76,7 +76,7 @@ git submodule add --depth 1 \
 ```
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/fortawesome/font-awesome",
     patterns=("otfs/*.otf",),
 )
@@ -85,7 +85,7 @@ dataset = GlyphDataset(
 ### Source Han Code JP
 
 [Source Han Code JP](https://github.com/adobe-fonts/source-han-code-jp) は、日本語フォントを
-個別の OpenType フォントと OpenType Collection で提供しています。`GlyphDataset` は
+個別の OpenType フォントと OpenType Collection で提供しています。`CodepointDataset` は
 コレクション内の各フェイスを展開します。詳しくは
 [フォントコレクション](./font-collections.md) を参照してください。
 
@@ -96,7 +96,7 @@ git submodule add --depth 1 \
 ```
 
 ```python
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/adobe/source-han-code-jp",
     patterns=("OTC/*.ttc",),
 )

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from tests._pairs import merge_curves
 from torchfont import GlyphSample, Outline
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import functional as _functional
 from torchfont.transforms.functional import render_bitmap
 
@@ -62,7 +62,7 @@ def test_merge_curves_google_fonts(
 
     limit: int | None = request.config.getoption("--limit")
 
-    dataset = GlyphDataset(
+    dataset = CodepointDataset(
         root=GOOGLE_FONTS_ROOT,
         patterns=(
             "apache/*/*.ttf",

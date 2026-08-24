@@ -8,10 +8,10 @@ Load the glyph first, then compile the tensor-only part of the pipeline:
 import torch
 
 from torchfont import Outline
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import functional as F
 
-dataset = GlyphDataset("data/fonts", codepoints=[ord("A")])
+dataset = CodepointDataset("data/fonts", codepoints=[ord("A")])
 outline = F.load_glyph(dataset[0].ref)
 
 

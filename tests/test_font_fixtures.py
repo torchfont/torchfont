@@ -1,7 +1,7 @@
 import pytest
 
 from torchfont import ElementType
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 FONT_ROOT = "tests/fonts"
@@ -37,7 +37,7 @@ def test_single_font_fixtures_cover_outline_and_variation_formats(
     curve_type: ElementType,
     location_keys: set[str],
 ) -> None:
-    dataset = GlyphDataset(FONT_ROOT, patterns=path, codepoints=[ord("o")])
+    dataset = CodepointDataset(FONT_ROOT, patterns=path, codepoints=[ord("o")])
 
     assert len(dataset) == 1
     glyph = LoadGlyph()(dataset[0])
@@ -63,7 +63,7 @@ def test_collection_fixtures_expose_every_face(
     face_count: int,
     location_keys: set[str],
 ) -> None:
-    dataset = GlyphDataset(FONT_ROOT, patterns=path, codepoints=[codepoint])
+    dataset = CodepointDataset(FONT_ROOT, patterns=path, codepoints=[codepoint])
 
     assert len(dataset) == face_count
     assert [font.ttc_index for font in dataset.font_classes] == list(range(face_count))

@@ -1,10 +1,10 @@
 from tqdm import tqdm
 
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
 
 def main() -> None:
-    dataset = GlyphDataset(
+    dataset = CodepointDataset(
         root="data/google/fonts",
         patterns=(
             "apache/*/*.ttf",

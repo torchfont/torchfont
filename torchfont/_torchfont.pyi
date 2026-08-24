@@ -54,7 +54,7 @@ def quad_to_cubic(
 def tight_bbox(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[float, float, float, float] | None: ...
-def index_fonts(
+def index_codepoints(
     root: str,
     codepoints: Sequence[int] | None,
     patterns: Sequence[str] | None,
@@ -63,6 +63,14 @@ def index_fonts(
     list[int],
     npt.NDArray[np.uint32],
     npt.NDArray[np.uint32],
+    npt.NDArray[np.uint32],
+]: ...
+def index_glyphs(
+    root: str,
+    patterns: Sequence[str] | None,
+) -> tuple[
+    list[tuple[Path, int]],
+    list[int],
     npt.NDArray[np.uint32],
 ]: ...
 def load_glyph(

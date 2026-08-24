@@ -5,10 +5,10 @@
 Access a sample from the dataset created in the previous chapter. Run the following code:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -61,11 +61,11 @@ A glyph outline is represented as a sequence of path elements.
 Element types are defined in `ElementType`. Run the following code to see the mapping between values and names:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 from torchfont import ElementType
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -104,10 +104,10 @@ The seven types are `MOVE_TO`, `LINE_TO`, `QUAD_TO`, `CURVE_TO`, `CLOSE`,
 Each path element uses a 6D coordinates vector. Run the following code to inspect the shape and contents:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -157,9 +157,9 @@ positions have no semantic meaning.
 `font_idx` is the font face class ID. Use it to look up the persistent face reference:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
@@ -187,9 +187,9 @@ FontRef(path='.../Aclonica-Regular.ttf', ttc_index=0)
 corresponding character. Run the following code to check the value:
 
 ```python
-from torchfont.datasets import GlyphDataset
+from torchfont.datasets import CodepointDataset
 
-dataset = GlyphDataset(
+dataset = CodepointDataset(
     root="data/google/fonts",
     patterns=(
         "apache/*/*.ttf",
