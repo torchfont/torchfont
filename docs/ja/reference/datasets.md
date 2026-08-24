@@ -8,7 +8,7 @@ TorchFont はローカルのフォントディレクトリを 2 通りにイン�
 
 | データセット | 1 要素の単位 | サンプル | フィルター |
 |---|---|---|---|
-| `CodepointDataset` | フェイスとコードポイント | `GlyphSample` | `codepoints`, `max_length`, `patterns` |
+| `CodepointDataset` | フェイスとコードポイント | `CodepointSample` | `codepoints`, `max_length`, `patterns` |
 | `GlyphIdDataset` | フェイスとグリフ ID | `GlyphIdSample` | `max_length`, `patterns` |
 
 `transform` を指定しない場合、`dataset[i]` は `pickle` 可能なサンプルを返します。
@@ -17,7 +17,7 @@ TorchFont はローカルのフォントディレクトリを 2 通りにイン�
 |---|---|
 | `FontRef` | `path: str`, `ttc_index: int` |
 | `GlyphRef` | `font: FontRef`, `glyph_id: int` |
-| `GlyphSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
+| `CodepointSample` | `ref: GlyphRef`, `codepoint: int`, `font_idx: int`, `character_idx: int` |
 | `GlyphIdSample` | `ref: GlyphRef`, `font_idx: int` |
 
 ## `CodepointDataset`
@@ -29,7 +29,7 @@ CodepointDataset(
     codepoints: Sequence[SupportsIndex] | None = None,
     max_length: SupportsIndex | None = None,
     patterns: str | Sequence[str] | None = None,
-    transform: Callable[[GlyphSample], T] | None = None,
+    transform: Callable[[CodepointSample], T] | None = None,
 )
 ```
 
@@ -121,9 +121,9 @@ evaluation = CodepointDataset(root, transform=LoadGlyph())
 training = CodepointDataset(root, transform=LoadGlyph(location="random"))
 ```
 
-`LoadGlyph` は `GlyphSample` に対しては `GlyphData` を、`GlyphIdSample` に対しては
+`LoadGlyph` は `CodepointSample` に対しては `CodepointData` を、`GlyphIdSample` に対しては
 `GlyphIdData` を返します。どちらもロードしたペイロード、グリフ参照、解決済みの位置、連続値の
-ターゲットを持ち、コードポイントのターゲットを持つのは `GlyphData` だけです。
+ターゲットを持ち、コードポイントのターゲットを持つのは `CodepointData` だけです。
 [基本型](./core-types.md) を参照してください。
 
 ## 明示的な位置のロード

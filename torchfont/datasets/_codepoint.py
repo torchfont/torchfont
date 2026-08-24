@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 
 from torchfont import _torchfont
 from torchfont._font import FontRef
-from torchfont._glyph import GlyphRef, GlyphSample
+from torchfont._glyph import CodepointSample, GlyphRef
 from torchfont.datasets._utils import (
     font_targets_from_offsets,
     normalize_codepoints,
@@ -56,7 +56,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
 
     @overload
     def __init__(
-        self: CodepointDataset[GlyphSample],
+        self: CodepointDataset[CodepointSample],
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
@@ -73,7 +73,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         codepoints: Sequence[SupportsIndex] | None = None,
         max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
-        transform: Callable[[GlyphSample], T],
+        transform: Callable[[CodepointSample], T],
     ) -> None: ...
 
     def __init__(
@@ -83,7 +83,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         codepoints: Sequence[SupportsIndex] | None = None,
         max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
-        transform: Callable[[GlyphSample], T] | None = None,
+        transform: Callable[[CodepointSample], T] | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         self.transform = transform
@@ -144,8 +144,8 @@ class CodepointDataset(Dataset[T], Generic[T]):
 
     @overload
     def __getitem__(
-        self: CodepointDataset[GlyphSample], idx: SupportsIndex
-    ) -> GlyphSample: ...
+        self: CodepointDataset[CodepointSample], idx: SupportsIndex
+    ) -> CodepointSample: ...
 
     @overload
     def __getitem__(self, idx: SupportsIndex) -> T: ...
@@ -156,7 +156,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
         character_idx: int = self._character_index.item(sample_idx)
         glyph_id: int = self._glyph_ids.item(sample_idx)
         codepoint: int = self._character_codepoints.item(character_idx)
-        sample = GlyphSample(
+        sample = CodepointSample(
             ref=GlyphRef(self._font_refs[font_idx], glyph_id),
             codepoint=codepoint,
             font_idx=font_idx,

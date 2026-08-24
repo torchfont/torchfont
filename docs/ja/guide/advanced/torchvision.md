@@ -135,7 +135,7 @@ print(sample.data.dtype)  # torch.float32
 追加し、`T.ToDtype(..., scale=True)` は画素値を `[0, 255]` から `[0, 1]` へ変換します。
 `T.ToPureTensor` はモデルへ渡す前に TorchVision の画像ラッパーを取り除きます。
 
-パイプラインは `GlyphData` のメタデータを維持し、`data` の内容だけを置き換えます。
+パイプラインは `CodepointData` のメタデータを維持し、`data` の内容だけを置き換えます。
 ローカルな `collate_fn` で画像テンソルをスタックし、モデルが必要とするターゲットを
 選択できます。
 

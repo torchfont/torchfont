@@ -8,13 +8,13 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import v2 as T
 from tqdm import tqdm
 
-from torchfont import GlyphSample
+from torchfont import CodepointSample
 from torchfont import transforms as FT
 from torchfont.datasets import CodepointDataset
 from torchfont.glyphsets import LATIN_CORE
 
 if TYPE_CHECKING:
-    from torchfont import GlyphData, Outline
+    from torchfont import CodepointData, Outline
 
 
 class TransformPipeline(torch.nn.Module):
@@ -41,10 +41,10 @@ class TransformPipeline(torch.nn.Module):
         )
 
     def forward(
-        self, sample: GlyphSample
+        self, sample: CodepointSample
     ) -> tuple[Tensor, Tensor, Tensor, int, int, float | None]:
-        data = cast("GlyphData[Outline]", self.prepare_outline(sample))
-        image_data = cast("GlyphData[Tensor]", self.rasterize(data))
+        data = cast("CodepointData[Outline]", self.prepare_outline(sample))
+        image_data = cast("CodepointData[Tensor]", self.rasterize(data))
         return (
             data.data.types,
             data.data.coords,

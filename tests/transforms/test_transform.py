@@ -5,11 +5,11 @@ import torch
 
 from tests._glyphs import glyph_id
 from torchfont import (
+    CodepointData,
+    CodepointSample,
     ElementType,
     FontRef,
-    GlyphData,
     GlyphRef,
-    GlyphSample,
     Outline,
 )
 from torchfont.transforms import (
@@ -232,10 +232,10 @@ def test_load_glyph_rejects_invalid_location_policy() -> None:
         LoadGlyph(location="invalid")  # ty: ignore[invalid-argument-type]
 
 
-def _glyph_sample() -> GlyphSample:
+def _glyph_sample() -> CodepointSample:
     path = "tests/fonts/source-sans/SourceSans3-Regular.ttf"
     ref = GlyphRef(FontRef(path, 0), glyph_id(path, "A"))
-    return GlyphSample(ref, ord("A"), 0, 0)
+    return CodepointSample(ref, ord("A"), 0, 0)
 
 
 def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
@@ -244,7 +244,7 @@ def test_load_and_outline_transforms_preserve_glyph_metadata() -> None:
 
     output = transform(sample)
 
-    assert isinstance(output, GlyphData)
+    assert isinstance(output, CodepointData)
     assert isinstance(output.data, Outline)
     assert output.ref is sample.ref
     assert output.codepoint == sample.codepoint
@@ -262,7 +262,7 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
     sample = _glyph_sample()
     bitmap_output = Compose([LoadGlyph(), RenderBitmap(32)])(sample)
 
-    assert isinstance(bitmap_output, GlyphData)
+    assert isinstance(bitmap_output, CodepointData)
     assert type(bitmap_output.data) is torch.Tensor
     assert bitmap_output.data.shape == (32, 32)
     assert bitmap_output.ref is sample.ref
@@ -272,11 +272,11 @@ def test_type_changing_transforms_preserve_generic_glyph_container() -> None:
 def test_load_glyph_returns_the_randomly_sampled_location() -> None:
     path = "tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf"
     ref = GlyphRef(FontRef(path, 0), glyph_id(path, "A"))
-    sample = GlyphSample(ref, ord("A"), 0, 0)
+    sample = CodepointSample(ref, ord("A"), 0, 0)
 
     output = LoadGlyph(location="random")(sample)
 
-    assert isinstance(output, GlyphData)
+    assert isinstance(output, CodepointData)
     assert isinstance(output.data, Outline)
     assert output.ref is sample.ref
     assert output.weight == output.location["wght"]

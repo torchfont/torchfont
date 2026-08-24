@@ -7,11 +7,11 @@ image pipeline.
 ## Data types
 
 ```python
-from torchfont import GlyphData, GlyphIdData, Outline
+from torchfont import CodepointData, GlyphIdData, Outline
 ```
 
 `Outline(types, coords)` keeps the two coupled tensors together.
-`GlyphData[T]` keeps a transformed payload, glyph reference, variation location,
+`CodepointData[T]` keeps a transformed payload, glyph reference, variation location,
 and targets together. `GlyphIdData[T]` is its counterpart for glyph id samples,
 carrying the same fields without the codepoint targets. A pipeline can change
 either payload from `Outline` to a bitmap tensor without losing the other
@@ -40,8 +40,8 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` loads one `GlyphSample`, `GlyphIdSample`, or `GlyphRef`. A
-`GlyphSample` becomes `GlyphData[Outline]`, a `GlyphIdSample` becomes
+`LoadGlyph` loads one `CodepointSample`, `GlyphIdSample`, or `GlyphRef`. A
+`CodepointSample` becomes `CodepointData[Outline]`, a `GlyphIdSample` becomes
 `GlyphIdData[Outline]`, and a bare reference becomes `Outline`.
 `LoadGlyph` uses the face's default location unless `location="random"` is set.
 The random policy samples one location for any of these inputs and records it in
@@ -78,7 +78,7 @@ inside an already-applied transform.
 | Output | `RenderBitmap` |
 
 `RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
-these leaves are inside `GlyphData` or `GlyphIdData`, its reference, location,
+these leaves are inside `CodepointData` or `GlyphIdData`, its reference, location,
 and targets remain alongside the converted payload.
 
 ### Using rendered glyphs with TorchVision
@@ -87,7 +87,7 @@ and targets remain alongside the converted payload.
 `torchvision.transforms.v2.ToImage()` as the boundary into an image pipeline:
 it adds the channel
 dimension and returns a `tv_tensors.Image` of shape `1 x H x W`. Fields in an
-enclosing `GlyphData` are preserved.
+enclosing `CodepointData` are preserved.
 `RenderBitmap(antialias=False)` produces binary edge coverage. This controls
 vector rasterization and is independent of the `antialias` option on a later
 `v2.Resize`, which controls image resampling.

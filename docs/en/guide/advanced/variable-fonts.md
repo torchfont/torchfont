@@ -32,8 +32,8 @@ print(sample.location)  # For example: {"wght": 573.2, "opsz": 41.7}
 ```
 
 The sampled values use PyTorch's random number generator, so DataLoader worker
-seeding and `torch.manual_seed` apply. `GlyphData.location` records the actual
-axis values used for the returned outline. On a static font it is an empty
+seeding and `torch.manual_seed` apply. `CodepointData.location` records the
+actual axis values used for the returned outline. On a static font it is an empty
 dictionary, and the random policy produces the same outline as the default
 policy.
 

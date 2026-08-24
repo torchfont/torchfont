@@ -33,7 +33,7 @@ print(sample.location)  # 例: {"wght": 573.2, "opsz": 41.7}
 
 サンプリングには PyTorch の乱数生成器が使われるため、DataLoader ワーカーのシードと
 `torch.manual_seed` が適用されます。返された `Outline` に実際に使用した軸の値は
-`GlyphData.location` に記録されます。静的フォントでは空の辞書となり、ランダム位置と
+`CodepointData.location` に記録されます。静的フォントでは空の辞書となり、ランダム位置と
 デフォルト位置では同じ `Outline` が返されます。
 
 `LoadGlyph(location="random")` はすべての軸をサンプリングします。実験で明示的な位置が

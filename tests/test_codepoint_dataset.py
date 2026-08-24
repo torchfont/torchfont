@@ -17,11 +17,11 @@ import torchfont.datasets as datasets_module
 import torchfont.transforms as transforms_module
 from tests._glyphs import glyph_id
 from torchfont import (
+    CodepointData,
+    CodepointSample,
     ElementType,
     FontRef,
-    GlyphData,
     GlyphRef,
-    GlyphSample,
     Outline,
     _torchfont,
 )
@@ -33,12 +33,12 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-def _outline_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
+def _outline_pair(sample: CodepointSample) -> tuple[torch.Tensor, torch.Tensor]:
     outline = LoadGlyph()(sample).data
     return outline.types, outline.coords
 
 
-def _worker_pair(sample: GlyphSample) -> tuple[torch.Tensor, torch.Tensor]:
+def _worker_pair(sample: CodepointSample) -> tuple[torch.Tensor, torch.Tensor]:
     outline = LoadGlyph(location="random")(sample).data
     return outline.types, outline.coords
 
@@ -55,7 +55,7 @@ def test_dataset_indexes_each_face_codepoint_once() -> None:
     assert dataset.character_targets.tolist() == [0, 1]
     assert dataset.character_classes == ["A", "B"]
     sample = dataset[0]
-    assert isinstance(sample, GlyphSample)
+    assert isinstance(sample, CodepointSample)
     assert isinstance(sample.ref, GlyphRef)
 
 
@@ -74,9 +74,9 @@ def test_dataset_treats_static_and_variable_files_as_one_face_each() -> None:
 
 
 def test_dataset_transform_receives_sample() -> None:
-    seen: list[GlyphSample] = []
+    seen: list[CodepointSample] = []
 
-    def transform(sample: GlyphSample) -> int:
+    def transform(sample: CodepointSample) -> int:
         seen.append(sample)
         return sample.codepoint
 
@@ -180,7 +180,7 @@ def test_load_glyph_uses_default_location() -> None:
 
     data = LoadGlyph()(dataset[0])
 
-    assert isinstance(data, GlyphData)
+    assert isinstance(data, CodepointData)
     assert isinstance(data.data, Outline)
     assert data.location == {"opsz": 20.0, "wght": 400.0}
 
@@ -274,7 +274,7 @@ def test_dataset_is_pickleable() -> None:
     )
 
     restored = cast(
-        "CodepointDataset[GlyphSample]",
+        "CodepointDataset[CodepointSample]",
         pickle.loads(pickle.dumps(dataset)),  # noqa: S301
     )
 
@@ -435,7 +435,7 @@ def test_dataset_repr() -> None:
 
 def test_public_dataset_api_is_exported() -> None:
     assert datasets_module.CodepointDataset is CodepointDataset
-    assert torchfont.GlyphSample is GlyphSample
+    assert torchfont.CodepointSample is CodepointSample
     assert transforms_module.LoadGlyph is LoadGlyph
     assert hasattr(_torchfont, "index_codepoints")
 

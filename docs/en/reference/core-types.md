@@ -6,13 +6,13 @@ Types for carrying font data through datasets and transform pipelines.
 
 ```python
 from torchfont import (
+    CodepointData,
+    CodepointSample,
     ElementType,
     FontRef,
-    GlyphData,
     GlyphIdData,
     GlyphIdSample,
     GlyphRef,
-    GlyphSample,
     Outline,
     pad_outlines,
     unpad_outlines,
@@ -80,10 +80,10 @@ Splits an `Outline` with exactly one batch dimension and removes trailing
 `ElementType.PAD` rows from each result. This is the explicit inverse of
 `pad_outlines`; use `Outline.unbind()` when padding must be preserved.
 
-### `GlyphData`
+### `CodepointData`
 
-`GlyphData` contains a transformed payload, glyph
-reference, resolved variation location, and the parallel `codepoint`,
+`CodepointData` contains a transformed payload, glyph reference, resolved
+variation location, and the parallel `codepoint`,
 `font_idx`, `character_idx`, `weight`, `width`, `italic`, `slant`, and
 `optical_size` targets. Unavailable continuous targets are `None`.
 
@@ -93,8 +93,8 @@ values used to load the glyph.
 Indices are Python integers and continuous targets are floats. An unavailable
 continuous target is `None`.
 
-`GlyphData` objects compare by identity. Compare tensor payloads explicitly when
-content equality is required.
+`CodepointData` objects compare by identity. Compare tensor payloads explicitly
+when content equality is required.
 
 Define a local `DataLoader.collate_fn` for the model's input contract and use
 [`pad_outlines`](#pad-outlines) when its payloads are variable-length outlines.
@@ -105,11 +105,11 @@ See [DataLoader](../guide/basic/dataloader.md).
 `GlyphIdData` is what `LoadGlyph` returns for a `GlyphIdSample`. It carries the
 same payload, glyph reference, resolved variation location, and `font_idx`,
 `weight`, `width`, `italic`, `slant`, and `optical_size` targets as
-`GlyphData`, without the `codepoint` and `character_idx` targets that a glyph
-no character maps to cannot have.
+`CodepointData`, without the `codepoint` and `character_idx` targets that a
+glyph no character maps to cannot have.
 
-It follows the same rules as `GlyphData`: identity equality, integer indices,
-and `None` for an unavailable continuous target.
+It follows the same rules as `CodepointData`: identity equality, integer
+indices, and `None` for an unavailable continuous target.
 
 ### `ElementType: IntEnum`
 

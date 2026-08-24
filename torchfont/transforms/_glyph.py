@@ -9,11 +9,11 @@ from torch import nn
 
 from torchfont import _torchfont
 from torchfont._glyph import (
-    GlyphData,
+    CodepointData,
+    CodepointSample,
     GlyphIdData,
     GlyphIdSample,
     GlyphRef,
-    GlyphSample,
     _metric_targets,
 )
 from torchfont.transforms import functional as _functional
@@ -33,8 +33,8 @@ class LoadGlyph(nn.Module):
         self.location = location
 
     def forward(
-        self, inpt: GlyphSample | GlyphIdSample | GlyphRef
-    ) -> GlyphData | GlyphIdData | Outline:
+        self, inpt: CodepointSample | GlyphIdSample | GlyphRef
+    ) -> CodepointData | GlyphIdData | Outline:
         """Load the referenced glyph."""
         ref = inpt if isinstance(inpt, GlyphRef) else inpt.ref
         location = (
@@ -54,7 +54,7 @@ class LoadGlyph(nn.Module):
                 font_idx=inpt.font_idx,
                 **_metric_targets(metrics),
             )
-        return GlyphData(
+        return CodepointData(
             data=outline,
             ref=ref,
             location=location,

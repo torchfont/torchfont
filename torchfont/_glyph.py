@@ -35,7 +35,7 @@ class GlyphRef:
 
 
 @dataclass(frozen=True)
-class GlyphSample:
+class CodepointSample:
     """Dataset-local sample for one font face and codepoint."""
 
     ref: GlyphRef
@@ -53,7 +53,7 @@ class GlyphIdSample:
 
 
 @dataclass(frozen=True, eq=False)
-class GlyphData(Generic[T]):
+class CodepointData(Generic[T]):
     """A loaded glyph payload together with its reference and targets.
 
     Indices are Python integers and continuous targets are floats. An unavailable
@@ -81,7 +81,7 @@ class GlyphIdData(Generic[T]):
     """A loaded glyph payload identified by glyph id rather than codepoint.
 
     Carries the same reference, location, and continuous targets as
-    :class:`GlyphData`, without the codepoint targets that a glyph no character
+    :class:`CodepointData`, without the codepoint targets that a glyph no character
     maps to cannot have.
     """
 
@@ -96,19 +96,21 @@ class GlyphIdData(Generic[T]):
     optical_size: float | None
 
 
-def _register_glyph_data(
-    cls: type[GlyphData[Any] | GlyphIdData[Any]],
+def _register_glyph_payload(
+    cls: type[CodepointData[Any] | GlyphIdData[Any]],
     target_fields: tuple[str, ...],
 ) -> None:
     """Register one payload class as a pytree whose targets are children."""
 
-    def flatten(value: GlyphData[Any] | GlyphIdData[Any]) -> tuple[list[Any], object]:
+    def flatten(
+        value: CodepointData[Any] | GlyphIdData[Any],
+    ) -> tuple[list[Any], object]:
         children = [value.data, *(getattr(value, name) for name in target_fields)]
         return children, (value.ref, value.location)
 
     def unflatten(
         children: Iterable[Any], context: tuple[Any, ...]
-    ) -> GlyphData[Any] | GlyphIdData[Any]:
+    ) -> CodepointData[Any] | GlyphIdData[Any]:
         data, *targets = children
         ref, location = context
         return cls(data, ref, location, *targets)
@@ -116,10 +118,10 @@ def _register_glyph_data(
     register_pytree_node(cls, flatten, unflatten)
 
 
-_register_glyph_data(
-    GlyphData, ("codepoint", "font_idx", "character_idx", *_METRIC_FIELDS)
+_register_glyph_payload(
+    CodepointData, ("codepoint", "font_idx", "character_idx", *_METRIC_FIELDS)
 )
-_register_glyph_data(GlyphIdData, ("font_idx", *_METRIC_FIELDS))
+_register_glyph_payload(GlyphIdData, ("font_idx", *_METRIC_FIELDS))
 
 
 def _metric_targets(
@@ -146,9 +148,9 @@ def _optional_metric(value: float) -> float | None:
 
 
 __all__ = [
-    "GlyphData",
+    "CodepointData",
+    "CodepointSample",
     "GlyphIdData",
     "GlyphIdSample",
     "GlyphRef",
-    "GlyphSample",
 ]

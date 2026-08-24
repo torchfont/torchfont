@@ -6,11 +6,11 @@ TorchFont は Glyph の読み込み、変形、描画を組み合わせるため
 ## データ型
 
 ```python
-from torchfont import GlyphData, GlyphIdData, Outline
+from torchfont import CodepointData, GlyphIdData, Outline
 ```
 
 `Outline(types, coords)` は不可分な二つのテンソルを一つにまとめます。
-`GlyphData[T]` は変換中の Payload、Glyph 参照、Variation Location、Target を保持します。
+`CodepointData[T]` は変換中の Payload、Glyph 参照、Variation Location、Target を保持します。
 `GlyphIdData[T]` はグリフ ID の Sample に対応する型で、コードポイントの Target を除いた
 同じ Field を保持します。どちらも他の Field を失わずに、Payload を `Outline` から
 ビットマップテンソルへ変換できます。
@@ -38,8 +38,8 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` は一つの `GlyphSample`、`GlyphIdSample`、`GlyphRef` を読み込みます。
-`GlyphSample` は `GlyphData[Outline]` に、`GlyphIdSample` は `GlyphIdData[Outline]` に、
+`LoadGlyph` は一つの `CodepointSample`、`GlyphIdSample`、`GlyphRef` を読み込みます。
+`CodepointSample` は `CodepointData[Outline]` に、`GlyphIdSample` は `GlyphIdData[Outline]` に、
 参照単体は `Outline` になります。
 `LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
 Random Policy はいずれの入力に対しても位置を 1 点抽出し、返り値の `location` に保存します。
@@ -77,14 +77,14 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | 出力 | `RenderBitmap` |
 
 `RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
-`GlyphData` や `GlyphIdData` の中にある場合も、参照、Location、Target は変換後の Payload と
+`CodepointData` や `GlyphIdData` の中にある場合も、参照、Location、Target は変換後の Payload と
 ともに維持されます。
 
 ### レンダリングしたグリフを TorchVision で使う
 
 `RenderBitmap` はグレースケールの通常の `H x W` テンソルを返します。
 `torchvision.transforms.v2.ToImage()` を画像パイプラインへの境界として使うと、チャンネル次元が追加され、
-形状が `1 x H x W` の `tv_tensors.Image` になります。外側の `GlyphData` の Field も
+形状が `1 x H x W` の `tv_tensors.Image` になります。外側の `CodepointData` の Field も
 維持されます。
 `RenderBitmap(antialias=False)` は Edge Coverage を二値化します。これは Vector の
 Rasterization を制御するもので、後段の `v2.Resize` における画像の Resampling を制御する
