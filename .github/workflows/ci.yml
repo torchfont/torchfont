@@ -56,8 +56,8 @@ jobs:
       - run: uv run --locked --only-group lint ruff format --check
       - run: uv run --locked --only-group lint ruff check
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
-      - run: cargo check --all-targets --all-features
+      - run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - run: cargo check --locked --all-targets --all-features
 
   test:
     name: Test
@@ -84,7 +84,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: "true"
-      - run: cargo test --all-targets --all-features
+      - run: cargo test --locked --all-targets --all-features
       - if: matrix.environment == 'latest'
         run: uv run --locked ty check
       - if: matrix.environment != 'minimum'
@@ -119,7 +119,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist
+          args: --locked --release --out dist
           before-script-linux: . .github/scripts/install-linux-deps.sh ${{ matrix.platform.target }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
@@ -127,7 +127,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist -i python3.14t
+          args: --locked --release --out dist -i python3.14t
           before-script-linux: . .github/scripts/install-linux-deps.sh ${{ matrix.platform.target }}
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
@@ -150,7 +150,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: x64
-          args: --release --out dist
+          args: --locked --release --out dist
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - uses: actions/setup-python@v7
         with:
@@ -160,7 +160,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: x64
-          args: --release --out dist -i python3.14t
+          args: --locked --release --out dist -i python3.14t
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -180,7 +180,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: aarch64
-          args: --release --out dist
+          args: --locked --release --out dist
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - uses: actions/setup-python@v7
         with:
@@ -189,7 +189,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: aarch64
-          args: --release --out dist -i python3.14t
+          args: --locked --release --out dist -i python3.14t
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
       - name: Upload wheels
         uses: actions/upload-artifact@v7
