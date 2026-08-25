@@ -8,8 +8,8 @@ from torchfont.transforms.functional._curves import (
     split_segments,
 )
 from torchfont.transforms.functional._geometry import (
+    add_coordinate_noise,
     affine,
-    coord_jitter,
     horizontal_flip,
     vertical_flip,
 )
@@ -25,8 +25,8 @@ from torchfont.transforms.functional._subpath import (
 )
 
 __all__ = [
+    "add_coordinate_noise",
     "affine",
-    "coord_jitter",
     "cubic_to_quad",
     "horizontal_flip",
     "load_glyph",

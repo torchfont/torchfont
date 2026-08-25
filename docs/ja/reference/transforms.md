@@ -72,8 +72,8 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | コンテナ | `Compose`, `RandomApply` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| Subpath | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
-| 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
+| Subpath | `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
+| 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
 | 出力 | `RenderBitmap` |
 
 `RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
@@ -143,7 +143,7 @@ Functional API は乱数を生成しません。ランダムな選択とパラ�
 | カーネル | 微分可能 |
 | --- | --- |
 | `affine` | はい |
-| `coord_jitter` | はい。Outline と Noise の両方について |
+| `add_coordinate_noise` | はい。Outline と Noise の両方について |
 | `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
 | `remove_overlaps`, `remove_overlap_groups` | いいえ |
@@ -171,7 +171,7 @@ Subpath の各 Transform と `RenderBitmap` は、CPU の `float32` Outline を�
 outline = outline.to("cpu", torch.float32)
 ```
 
-`RandomCoordJitter` と `functional.coord_jitter` は入力の Device と浮動小数点 dtype を
+`GaussianNoise` と `functional.add_coordinate_noise` は入力の Device と浮動小数点 dtype を
 維持します。
 
 ### `torch.compile`

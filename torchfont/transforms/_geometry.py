@@ -165,29 +165,29 @@ class RandomAffine(Transform):
         return _functional.affine(inpt, **params)
 
 
-class RandomCoordJitter(Transform):
+class GaussianNoise(Transform):
     """Add Gaussian coordinate noise to active outline elements."""
 
-    def __init__(self, std: float) -> None:
+    def __init__(self, sigma: float) -> None:
         super().__init__()
-        if not math.isfinite(std) or std < 0.0:
-            msg = "std must be non-negative and finite"
+        if not math.isfinite(sigma) or sigma < 0.0:
+            msg = "sigma must be non-negative and finite"
             raise ValueError(msg)
-        self.std = std
+        self.sigma = sigma
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
         length = max((inpt.coords.size(0) for inpt in flat_inputs), default=0)
-        return {"noise": torch.randn((length, 3, 2)) * self.std}
+        return {"noise": torch.randn((length, 3, 2)) * self.sigma}
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
-        return _functional.coord_jitter(inpt, params["noise"])
+        return _functional.add_coordinate_noise(inpt, params["noise"])
 
 
 __all__ = [
     "Affine",
+    "GaussianNoise",
     "HorizontalFlip",
     "RandomAffine",
-    "RandomCoordJitter",
     "RandomHorizontalFlip",
     "RandomVerticalFlip",
     "VerticalFlip",

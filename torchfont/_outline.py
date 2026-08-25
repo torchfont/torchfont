@@ -34,8 +34,7 @@ class ElementType(IntEnum):
     END = 6
 
 
-TYPE_DIM: int = len(ElementType)
-COORD_DIM: int = 6
+_COORD_DIM = 6
 
 
 @dataclass(frozen=True, eq=False)
@@ -65,9 +64,12 @@ class Outline:
         if self.types.ndim != 1:
             msg = f"types must be 1-D, got {self.types.ndim}-D"
             raise ValueError(msg)
-        if self.coords.ndim != self.types.ndim + 1 or self.coords.shape[1] != COORD_DIM:
+        if (
+            self.coords.ndim != self.types.ndim + 1
+            or self.coords.shape[1] != _COORD_DIM
+        ):
             shape = tuple(self.coords.shape)
-            msg = f"coords must have shape (N, {COORD_DIM}), got {shape}"
+            msg = f"coords must have shape (N, {_COORD_DIM}), got {shape}"
             raise ValueError(msg)
         if self.types.shape[0] != self.coords.shape[0]:
             msg = (
@@ -165,8 +167,6 @@ class Outline:
 
 
 __all__ = [
-    "COORD_DIM",
-    "TYPE_DIM",
     "ElementType",
     "Outline",
 ]

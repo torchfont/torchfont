@@ -9,7 +9,7 @@ use skrifa::{
 
 use crate::{
     error::Error,
-    font::{canonicalize_location, extract_glyph_outline, map_font, parse_font_ref},
+    font::{canonicalize_location, extract_glyph_outline, map_font_file, parse_font_ref},
     outline::BezPath,
 };
 
@@ -19,7 +19,7 @@ pub(crate) fn load_glyph_outline(
     glyph_id: u32,
     location: Option<&BTreeMap<String, f32>>,
 ) -> Result<BezPath, Error> {
-    let data = map_font(path)?;
+    let data = map_font_file(path)?;
     let font = parse_font_ref(&data[..], path, face_index)?;
     let units_per_em = font
         .head()
@@ -67,7 +67,7 @@ mod tests {
 
     use crate::{
         error::Error,
-        font::{map_font, parse_font_ref},
+        font::{map_font_file, parse_font_ref},
     };
 
     use super::load_glyph_outline;
@@ -78,7 +78,7 @@ mod tests {
     }
 
     fn glyph_id_for(path: &Path, codepoint: u32) -> u32 {
-        let data = map_font(path).unwrap();
+        let data = map_font_file(path).unwrap();
         let font = parse_font_ref(&data[..], path, 0).unwrap();
         font.charmap().map(codepoint).unwrap().to_u32()
     }

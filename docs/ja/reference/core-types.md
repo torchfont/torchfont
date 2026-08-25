@@ -89,11 +89,3 @@ class ElementType(IntEnum):
 
 `PAD` はフォントの読み込みでは生成されません。バッチのパディングで導入された行を
 標識します。
-
-### `TYPE_DIM: int`
-
-要素型の数。現在値は `7`。
-
-### `COORD_DIM: int`
-
-座標の次元数。現在値は `6`（`[cx0, cy0, cx1, cy1, x, y]`）。

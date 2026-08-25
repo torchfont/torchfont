@@ -135,7 +135,7 @@ mod tests {
         raw::TableProvider as _,
     };
 
-    use crate::font::{map_font, parse_font_ref};
+    use crate::font::{map_font_file, parse_font_ref};
     use crate::outline::encode;
 
     use super::{count_glyph_elements, extract_glyph_outline};
@@ -144,7 +144,7 @@ mod tests {
     fn counts_the_elements_the_encoder_emits() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fonts/source-sans/SourceSans3-Regular.ttf");
-        let data = map_font(&path).unwrap();
+        let data = map_font_file(&path).unwrap();
         let font = parse_font_ref(&data[..], &path, 0).unwrap();
         let units_per_em = f32::from(font.head().unwrap().units_per_em());
         let settings = || DrawSettings::unhinted(Size::unscaled(), LocationRef::default());

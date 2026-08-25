@@ -14,7 +14,7 @@ from torchfont._glyph import (
     GlyphIdData,
     GlyphIdSample,
     GlyphRef,
-    _metric_targets,
+    _registered_axis_targets,
 )
 from torchfont.transforms import functional as _functional
 
@@ -45,14 +45,16 @@ class LoadGlyph(nn.Module):
         outline = _functional.load_glyph(ref, location)
         if isinstance(inpt, GlyphRef):
             return outline
-        metrics = _torchfont.glyph_targets(ref.font.path, ref.font.face_index, location)
+        axis_values = _torchfont.registered_axis_values(
+            ref.font.path, ref.font.face_index, location
+        )
         if isinstance(inpt, GlyphIdSample):
             return GlyphIdData(
                 data=outline,
                 ref=ref,
                 location=location,
                 font_idx=inpt.font_idx,
-                **_metric_targets(metrics),
+                **_registered_axis_targets(axis_values),
             )
         return CodepointData(
             data=outline,
@@ -61,7 +63,7 @@ class LoadGlyph(nn.Module):
             codepoint=inpt.codepoint,
             font_idx=inpt.font_idx,
             character_idx=inpt.character_idx,
-            **_metric_targets(metrics),
+            **_registered_axis_targets(axis_values),
         )
 
     def extra_repr(self) -> str:

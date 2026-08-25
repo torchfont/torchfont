@@ -93,11 +93,3 @@ class ElementType(IntEnum):
 
 `PAD` is never produced by loading a font. It marks rows introduced by padding a
 batch.
-
-### `TYPE_DIM: int`
-
-Number of element types. Current value: `7`.
-
-### `COORD_DIM: int`
-
-Coordinates width. Current value: `6` (`[cx0, cy0, cx1, cy1, x, y]`).

@@ -7,16 +7,17 @@ from typing import TYPE_CHECKING, Literal
 import torch
 from torch.nn import functional as _functional
 
-from torchfont._outline import TYPE_DIM, ElementType
+from torchfont._outline import ElementType
 from torchfont.nn._utils import _active_coordinate_mask, _validate_outline_tensors
 
 if TYPE_CHECKING:
     from torch import Tensor
 
 _Reduction = Literal["none", "mean", "sum"]
+_NUM_ELEMENT_TYPES = len(ElementType)
 
 
-def coordinate_loss(
+def coordinate_mse_loss(
     prediction: Tensor,
     target_types: Tensor,
     target_coords: Tensor,
@@ -71,20 +72,22 @@ def outline_loss(
             f"got {tuple(type_logits.shape)} and {tuple(target_types.shape)}"
         )
         raise ValueError(msg)
-    if type_logits.shape[-1] != TYPE_DIM:
-        msg = f"type_logits must have shape (..., N, {TYPE_DIM})"
+    if type_logits.shape[-1] != _NUM_ELEMENT_TYPES:
+        msg = f"type_logits must have shape (..., N, {_NUM_ELEMENT_TYPES})"
         raise ValueError(msg)
 
     type_loss = _functional.cross_entropy(
-        type_logits.reshape(-1, TYPE_DIM),
+        type_logits.reshape(-1, _NUM_ELEMENT_TYPES),
         target_types.reshape(-1),
         ignore_index=ElementType.PAD.value,
         reduction="sum",
     )
     type_count = (target_types != ElementType.PAD.value).sum().clamp_min(1)
     type_loss = type_loss / type_count
-    coords_loss = coordinate_loss(coordinate_prediction, target_types, target_coords)
+    coords_loss = coordinate_mse_loss(
+        coordinate_prediction, target_types, target_coords
+    )
     return type_weight * type_loss + coordinate_weight * coords_loss
 
 
-__all__ = ["coordinate_loss", "outline_loss"]
+__all__ = ["coordinate_mse_loss", "outline_loss"]

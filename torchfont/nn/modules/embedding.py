@@ -7,8 +7,10 @@ import math
 import torch
 from torch import Tensor, nn
 
-from torchfont._outline import COORD_DIM, TYPE_DIM, ElementType
+from torchfont._outline import _COORD_DIM, ElementType
 from torchfont.nn._utils import _active_coordinate_mask, _validate_outline_tensors
+
+_NUM_ELEMENT_TYPES = len(ElementType)
 
 
 class OutlineEmbedding(nn.Module):
@@ -30,14 +32,14 @@ class OutlineEmbedding(nn.Module):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.type_embedding = nn.Embedding(
-            TYPE_DIM,
+            _NUM_ELEMENT_TYPES,
             embedding_dim,
             padding_idx=ElementType.PAD.value,
             device=device,
             dtype=dtype,
         )
         self.coord_projection = nn.Linear(
-            COORD_DIM,
+            _COORD_DIM,
             embedding_dim,
             bias=False,
             device=device,
@@ -47,7 +49,7 @@ class OutlineEmbedding(nn.Module):
 
     def reset_parameters(self) -> None:
         """Draw both branches from one uniform bound over the combined width."""
-        bound = 1 / math.sqrt(TYPE_DIM + COORD_DIM)
+        bound = 1 / math.sqrt(_NUM_ELEMENT_TYPES + _COORD_DIM)
         nn.init.uniform_(self.type_embedding.weight, -bound, bound)
         nn.init.uniform_(self.coord_projection.weight, -bound, bound)
         with torch.no_grad():

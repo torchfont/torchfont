@@ -38,18 +38,11 @@ from torchfont._glyph import (
     GlyphIdSample,
     GlyphRef,
 )
-from torchfont._outline import (
-    COORD_DIM,
-    TYPE_DIM,
-    ElementType,
-    Outline,
-)
+from torchfont._outline import ElementType, Outline
 
 from . import datasets, glyphsets, nn, transforms
 
 __all__ = [
-    "COORD_DIM",
-    "TYPE_DIM",
     "CodepointData",
     "CodepointSample",
     "ElementType",

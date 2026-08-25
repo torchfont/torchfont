@@ -31,7 +31,7 @@ import torch
 from torch import Tensor
 
 from torchfont import _torchfont
-from torchfont._outline import COORD_DIM
+from torchfont._outline import _COORD_DIM
 
 if TYPE_CHECKING:
     import numpy as np
@@ -60,7 +60,7 @@ def _restore(
     """Rebuild CPU tensors returned by the native kernel."""
     return (
         torch.from_numpy(out_types),
-        torch.from_numpy(out_coords).view(-1, COORD_DIM),
+        torch.from_numpy(out_coords).view(-1, _COORD_DIM),
     )
 
 
@@ -69,7 +69,7 @@ def _dynamic_outline(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     length = torch.library.get_ctx().new_dynamic_size()
     return (
         types.new_empty(length),
-        coords.new_empty(length, COORD_DIM),
+        coords.new_empty(length, _COORD_DIM),
     )
 
 

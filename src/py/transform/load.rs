@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::font::{
-    axis_info, canonicalize_location, map_font, parse_font_ref, registered_axis_values,
+    axis_info, canonicalize_location, map_font_file, parse_font_ref,
+    registered_axis_values as resolve_registered_axis_values,
 };
 use crate::transform::load::load_glyph_outline;
 
@@ -14,29 +15,29 @@ pub(crate) fn variation_axes(
     face_index: u32,
 ) -> PyResult<Vec<(String, f32, f32, f32)>> {
     py.detach(|| {
-        let data = map_font(&path)?;
+        let data = map_font_file(&path)?;
         let font = parse_font_ref(&data[..], &path, face_index)?;
         Ok(axis_info(&font)
             .into_iter()
-            .map(|axis| (axis.tag, axis.min, axis.default, axis.max))
+            .map(|axis| (axis.tag, axis.min_value, axis.default_value, axis.max_value))
             .collect())
     })
 }
 
-type GlyphTargets = (f32, f32, f32, f32, f32);
+type AxisValues = (f32, f32, f32, f32, f32);
 
 #[pyfunction]
-pub(crate) fn glyph_targets(
+pub(crate) fn registered_axis_values(
     py: Python<'_>,
     path: PathBuf,
     face_index: u32,
     location: BTreeMap<String, f32>,
-) -> PyResult<GlyphTargets> {
+) -> PyResult<AxisValues> {
     py.detach(|| {
-        let data = map_font(&path)?;
+        let data = map_font_file(&path)?;
         let font = parse_font_ref(&data[..], &path, face_index)?;
         let location = canonicalize_location(&font, &path, face_index, Some(&location))?;
-        let values = registered_axis_values(&font, &location);
+        let values = resolve_registered_axis_values(&font, &location);
         Ok((
             values.weight,
             values.width,

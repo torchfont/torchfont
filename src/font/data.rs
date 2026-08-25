@@ -4,7 +4,7 @@ use memmap2::Mmap;
 
 use crate::error::Error;
 
-pub(crate) fn map_font(path: &Path) -> Result<Mmap, Error> {
+pub(crate) fn map_font_file(path: &Path) -> Result<Mmap, Error> {
     let file = fs::File::open(path).map_err(|err| {
         Error::Io(std::io::Error::new(
             err.kind(),

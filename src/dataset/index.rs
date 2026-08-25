@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-/// One discovered face: its file, TTC index, and the codepoint/glyph id pairs
+/// One discovered face: its file, face index, and the codepoint/glyph id pairs
 /// it contributes, sorted by codepoint.
 pub(crate) type IndexedCodepointFace = (PathBuf, u32, Vec<u32>, Vec<u32>);
 
-/// One discovered face: its file, TTC index, and the glyph ids it contributes,
+/// One discovered face: its file, face index, and the glyph ids it contributes,
 /// sorted in ascending order.
 pub(crate) type IndexedGlyphFace = (PathBuf, u32, Vec<u32>);
 

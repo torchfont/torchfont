@@ -34,13 +34,13 @@ class _RandomSubpathTransform(Transform):
         return self.function(inpt, params["values"])
 
 
-class RandomizeSubpathStartPoints(_RandomSubpathTransform):
+class RandomSubpathStartPoints(_RandomSubpathTransform):
     """Choose a random start point for every closed subpath."""
 
     function = staticmethod(_functional.set_subpath_start_points)
 
 
-class RandomizeSubpathOrder(_RandomSubpathTransform):
+class RandomSubpathOrder(_RandomSubpathTransform):
     """Randomly permute whole subpaths."""
 
     function = staticmethod(_functional.reorder_subpaths)
@@ -48,6 +48,6 @@ class RandomizeSubpathOrder(_RandomSubpathTransform):
 
 __all__ = [
     "NormalizeSubpathStartPoints",
-    "RandomizeSubpathOrder",
-    "RandomizeSubpathStartPoints",
+    "RandomSubpathOrder",
+    "RandomSubpathStartPoints",
 ]
