@@ -13,10 +13,11 @@ Use `tqdm` to iterate over all batches and measure throughput:
 
 ```python
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
-from torchfont import CodepointData, Outline, pad_outlines
+from torchfont import CodepointData, ElementType, Outline
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
@@ -24,8 +25,16 @@ MAX_ELEMENTS = 512
 
 
 def collate_fn(samples: list[CodepointData[Outline]]):
+    outlines = [sample.data[:MAX_ELEMENTS] for sample in samples]
     return {
-        "outline": pad_outlines([sample.data[:MAX_ELEMENTS] for sample in samples]),
+        "types": pad_sequence(
+            [outline.types for outline in outlines],
+            batch_first=True,
+            padding_value=ElementType.PAD,
+        ),
+        "coords": pad_sequence(
+            [outline.coords for outline in outlines], batch_first=True
+        ),
         "font_idx": torch.tensor(
             [sample.font_idx for sample in samples], dtype=torch.long
         ),

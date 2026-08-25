@@ -14,8 +14,6 @@ from torchfont import (
     GlyphIdSample,
     GlyphRef,
     Outline,
-    pad_outlines,
-    unpad_outlines,
 )
 ```
 
@@ -24,61 +22,30 @@ references, and dataset samples can be used with multiprocessing data loaders.
 
 ### `Outline`
 
-`Outline` pairs two coupled tensors. `types` has shape `(*batch, N)`, `coords`
-has shape `(*batch, N, 6)`, and their rows correspond one-to-one. `types` uses
+`Outline` pairs two coupled tensors. `types` has shape `(N,)`,
+`coords` has shape `(N, 6)`, and their rows correspond one-to-one. `types` uses
 `torch.long`, `coords` uses any floating point dtype, and both tensors are on the
 same device. Coordinates that are inactive for an element type,
 including all coordinates for `CLOSE`, `END`, and `PAD`, have no semantic value.
-
-A single glyph has an empty batch shape. [`pad_outlines`](#pad-outlines) stacks
-single glyphs into a batch. Most transforms operate on single glyphs and reject a
-batched `Outline` with an explicit error.
 
 These properties describe an outline without taking it apart:
 
 | Property | Meaning |
 | --- | --- |
-| `shape` | shape of `types`, that is `(*batch, N)` |
-| `batch_shape` | leading batch dimensions, empty for a single glyph |
-| `num_elements` | path elements per glyph, including padding |
-| `is_batched` | whether any batch dimension is present |
+| `shape` | shape of `types`, that is `(N,)` |
+| `num_elements` | number of path elements |
 | `dtype` | floating point dtype of `coords` |
 | `device` | device shared by both tensors |
-| `padding_mask` | boolean mask, `True` where an element is `PAD` |
 
 `to()` and `pin_memory()` apply to both tensors at once. A dtype passed to
 `to()` applies to `coords` only and must be floating point. Operate on `types`
-or `coords` directly for other tensor operations. Indexing addresses the
-logical `(*batch, N)` dimensions while
-always leaving the coordinate axis intact. An index may not remove the final
-element dimension. `len()` reports the first logical dimension. `unbind()`
-splits the first batch dimension without changing its contents.
+or `coords` directly for other tensor operations. Indexing preserves the
+element dimension and coordinate axis. `len()` reports the number of elements.
 
 `Outline` objects compare by identity. Compare `types` and `coords` explicitly
 with `torch.equal()` when content equality is required. In-place changes to the
 input tensors are visible through the outline. Assigning a different tensor to
 either attribute raises an error.
-
-### `pad_outlines`
-
-```python
-pad_outlines(outlines: Sequence[Outline]) -> Outline
-```
-
-Stacks single outlines into one batch padded with `ElementType.PAD` and zero
-coordinates. Every input must be a single glyph sharing one device and one
-`coords` dtype. Recover the padding with `padding_mask`, and undo it with
-[`unpad_outlines`](#unpad-outlines).
-
-### `unpad_outlines`
-
-```python
-unpad_outlines(outline: Outline) -> tuple[Outline, ...]
-```
-
-Splits an `Outline` with exactly one batch dimension and removes trailing
-`ElementType.PAD` rows from each result. This is the explicit inverse of
-`pad_outlines`; use `Outline.unbind()` when padding must be preserved.
 
 ### `CodepointData`
 
@@ -97,8 +64,8 @@ continuous target is `None`.
 when content equality is required.
 
 Define a local `DataLoader.collate_fn` for the model's input contract and use
-[`pad_outlines`](#pad-outlines) when its payloads are variable-length outlines.
-See [DataLoader](../guide/basic/dataloader.md).
+PyTorch's `pad_sequence` when its payloads are variable-length outlines. See
+[DataLoader](../guide/basic/dataloader.md).
 
 ### `GlyphIdData`
 

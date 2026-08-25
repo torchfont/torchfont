@@ -8,36 +8,36 @@ import torch
 from torch.nn import functional as _functional
 
 from torchfont._outline import TYPE_DIM, ElementType
-from torchfont.nn._utils import _active_coordinate_mask
+from torchfont.nn._utils import _active_coordinate_mask, _validate_outline_tensors
 
 if TYPE_CHECKING:
     from torch import Tensor
-
-    from torchfont._outline import Outline
 
 _Reduction = Literal["none", "mean", "sum"]
 
 
 def coordinate_loss(
     prediction: Tensor,
-    target: Outline,
+    target_types: Tensor,
+    target_coords: Tensor,
     reduction: _Reduction = "mean",
 ) -> Tensor:
     """Compute squared error over coordinates active for each target type.
 
-    ``prediction`` has shape ``(..., N, 6)`` and ``target`` is the outline it is
-    compared against. Inactive control points and coordinates belonging to
-    ``CLOSE``, ``END``, or ``PAD`` do not contribute.
+    ``prediction`` and ``target_coords`` have shape ``(..., N, 6)`` while
+    ``target_types`` has shape ``(..., N)``. Inactive control points and
+    coordinates belonging to ``CLOSE``, ``END``, or ``PAD`` do not contribute.
     """
-    if prediction.shape != target.coords.shape:
+    if prediction.shape != target_coords.shape:
         msg = (
             "prediction must have the same shape as the target coordinates, "
-            f"got {tuple(prediction.shape)} and {tuple(target.coords.shape)}"
+            f"got {tuple(prediction.shape)} and {tuple(target_coords.shape)}"
         )
         raise ValueError(msg)
+    _validate_outline_tensors(target_types, target_coords)
 
-    mask = _active_coordinate_mask(target.types)
-    difference = torch.where(mask, prediction - target.coords, 0)
+    mask = _active_coordinate_mask(target_types)
+    difference = torch.where(mask, prediction - target_coords, 0)
     loss = difference.square()
     if reduction == "none":
         return loss
@@ -52,7 +52,8 @@ def coordinate_loss(
 def outline_loss(
     type_logits: Tensor,
     coordinate_prediction: Tensor,
-    target: Outline,
+    target_types: Tensor,
+    target_coords: Tensor,
     *,
     type_weight: float = 1.0,
     coordinate_weight: float = 100.0,
@@ -63,11 +64,11 @@ def outline_loss(
     averaged independently over coordinate scalars active for the target
     element types, then the two means are combined using the given weights.
     """
-    if type_logits.shape[:-1] != target.types.shape:
+    if type_logits.shape[:-1] != target_types.shape:
         msg = (
             "type_logits shape without its last dimension must match the target "
             "element types, "
-            f"got {tuple(type_logits.shape)} and {tuple(target.types.shape)}"
+            f"got {tuple(type_logits.shape)} and {tuple(target_types.shape)}"
         )
         raise ValueError(msg)
     if type_logits.shape[-1] != TYPE_DIM:
@@ -76,13 +77,13 @@ def outline_loss(
 
     type_loss = _functional.cross_entropy(
         type_logits.reshape(-1, TYPE_DIM),
-        target.types.reshape(-1),
+        target_types.reshape(-1),
         ignore_index=ElementType.PAD.value,
         reduction="sum",
     )
-    type_count = (target.types != ElementType.PAD.value).sum().clamp_min(1)
+    type_count = (target_types != ElementType.PAD.value).sum().clamp_min(1)
     type_loss = type_loss / type_count
-    coords_loss = coordinate_loss(coordinate_prediction, target)
+    coords_loss = coordinate_loss(coordinate_prediction, target_types, target_coords)
     return type_weight * type_loss + coordinate_weight * coords_loss
 
 

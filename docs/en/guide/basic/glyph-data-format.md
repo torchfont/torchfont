@@ -95,9 +95,7 @@ The seven types are `MOVE_TO`, `LINE_TO`, `QUAD_TO`, `CURVE_TO`, `CLOSE`,
 `END`, and `PAD`.
 
 - `ElementType.END` marks the end of the sequence
-- `ElementType.PAD` marks rows introduced by padding a batch. Loading a font
-  never produces it, and a single glyph never contains it. Read
-  `outline.padding_mask` rather than comparing against the value.
+- `ElementType.PAD` marks padded batch rows
 
 ## Coordinates
 

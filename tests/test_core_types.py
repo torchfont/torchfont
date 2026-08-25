@@ -42,7 +42,7 @@ def test_glyph_ref_identifies_face_and_glyph() -> None:
         (
             torch.zeros((1, 1), dtype=torch.long),
             torch.zeros((1, 6)),
-            "exactly one more dimension",
+            "types must be 1-D",
         ),
         (
             torch.zeros(1, dtype=torch.long),
@@ -57,7 +57,7 @@ def test_glyph_ref_identifies_face_and_glyph() -> None:
         (
             torch.zeros((2, 3), dtype=torch.long),
             torch.zeros((2, 4, 6)),
-            "types shape must match coords",
+            "types must be 1-D",
         ),
     ],
 )
@@ -98,14 +98,9 @@ def test_outline_accepts_any_floating_coords_dtype(dtype: torch.dtype) -> None:
     assert outline.dtype is dtype
 
 
-def test_outline_accepts_batch_dimensions() -> None:
-    outline = Outline(torch.zeros((4, 9), dtype=torch.long), torch.zeros((4, 9, 6)))
-
-    assert outline.is_batched
-    assert outline.shape == (4, 9)
-    assert outline.batch_shape == (4,)
-    assert outline.num_elements == 9
-    assert len(outline) == 4
+def test_outline_rejects_batch_dimensions() -> None:
+    with pytest.raises(ValueError, match="types must be 1-D"):
+        Outline(torch.zeros((4, 9), dtype=torch.long), torch.zeros((4, 9, 6)))
 
 
 def test_outline_keeps_identity_equality() -> None:

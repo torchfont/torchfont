@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 import torch
 
-from torchfont import ElementType, Outline, pad_outlines
+from torchfont import ElementType, Outline
 from torchfont.transforms import functional as F  # noqa: N812
 
 if TYPE_CHECKING:
@@ -98,25 +98,3 @@ def test_rust_kernels_name_themselves_when_grad_is_required(
 
     with pytest.raises(RuntimeError, match=f"{name}.*is not differentiable"):
         call(outline)
-
-
-@pytest.mark.parametrize(
-    ("name", "call"),
-    [
-        ("affine", lambda outline: F.affine(outline, angle=5.0)),
-        ("cubic_to_quad", F.cubic_to_quad),
-        ("remove_overlaps", F.remove_overlaps),
-        ("render_bitmap", F.render_bitmap),
-        (
-            "coord_jitter",
-            lambda outline: F.coord_jitter(outline, torch.zeros(5, 3, 2)),
-        ),
-    ],
-)
-def test_kernels_reject_a_batched_outline(
-    name: str, call: Callable[[Outline], object]
-) -> None:
-    batch = pad_outlines([_curved(), _curved()])
-
-    with pytest.raises(ValueError, match=f"{name} operates on a single outline"):
-        call(batch)

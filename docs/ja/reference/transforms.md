@@ -136,20 +136,6 @@ shape = bitmap.shape
 Functional API は乱数を生成しません。ランダムな選択とパラメーターのサンプリングは
 `Random*` Transform クラスの責務です。
 
-### 単一グリフのみを扱う
-
-この節の各処理は単一グリフを対象とします。バッチ化された `Outline` を渡すと
-エラーになります。
-
-```python
-F.affine(batch, angle=5.0)
-# ValueError: affine operates on a single outline, got batch shape (64,);
-#             iterate with unpad_outlines() first
-```
-
-Transform は Collate の前にサンプルごとに実行されます。パイプラインの出力は
-[`pad_outlines`](./core-types.md#pad-outlines) または `DataLoader` でバッチ化してください。
-
 ### 微分可能性
 
 勾配への対応は処理ごとに異なります。

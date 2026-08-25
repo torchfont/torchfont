@@ -89,6 +89,7 @@ ignore = ["COM812", "CPY001", "D203", "D213", "EXE002"]
 "examples/**/*.py" = ["D", "N812", "T201"]
 # Operator signatures are fixed by the schema each kernel is registered with.
 "torchfont/_ops.py" = ["FBT001", "PLR0913", "PLR0917"]
+"torchfont/nn/functional.py" = ["PLR0913"]
 "torchfont/transforms/functional/_geometry.py" = ["PLR0913"]
 "tests/**/*.py" = ["D", "PLR2004", "S101"]
 

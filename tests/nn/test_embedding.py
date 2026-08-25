@@ -10,12 +10,10 @@ def test_outline_embedding_combines_types_and_coordinates() -> None:
     with torch.no_grad():
         embedding.type_embedding.weight.fill_(1.0)
         embedding.coord_projection.weight.fill_(2.0)
-    outline = Outline(
-        torch.tensor([[ElementType.MOVE_TO, ElementType.LINE_TO]]),
-        torch.ones((1, 2, 6)),
-    )
+    types = torch.tensor([[ElementType.MOVE_TO, ElementType.LINE_TO]])
+    coords = torch.ones((1, 2, 6))
 
-    output = embedding(outline)
+    output = embedding(types, coords)
 
     assert output.shape == (1, 2, 3)
     assert torch.equal(output, torch.full((1, 2, 3), 5.0))
@@ -36,7 +34,7 @@ def test_outline_embedding_ignores_inactive_coordinates() -> None:
         ),
     )
 
-    output = embedding(outline)
+    output = embedding(outline.types, outline.coords)
 
     assert torch.equal(output[:, 0], torch.tensor([3.0, 10.0]))
 
@@ -56,7 +54,7 @@ def test_outline_embedding_ignores_nonfinite_inactive_coordinates() -> None:
         ),
     )
 
-    output = embedding(outline)
+    output = embedding(outline.types, outline.coords)
 
     assert torch.equal(output, torch.tensor([[3.0], [0.0]]))
 
@@ -67,7 +65,7 @@ def test_outline_embedding_zeroes_padding_tokens() -> None:
         torch.tensor([ElementType.MOVE_TO, ElementType.PAD]), torch.ones((2, 6))
     )
 
-    output = embedding(outline)
+    output = embedding(outline.types, outline.coords)
 
     assert torch.count_nonzero(output[0]) > 0
     assert torch.count_nonzero(output[1]) == 0
@@ -79,7 +77,7 @@ def test_outline_embedding_supports_factory_dtype() -> None:
         torch.tensor([ElementType.MOVE_TO]), torch.ones((1, 6), dtype=torch.float64)
     )
 
-    output = embedding(outline)
+    output = embedding(outline.types, outline.coords)
 
     assert output.dtype == torch.float64
     assert embedding.type_embedding.weight.dtype == torch.float64
@@ -94,6 +92,11 @@ def test_outline_embedding_registers_parameters() -> None:
         "coord_projection.weight",
     }
     assert repr(embedding).startswith("OutlineEmbedding(\n  embedding_dim=4")
+
+
+def test_outline_embedding_rejects_misaligned_tensors() -> None:
+    with pytest.raises(ValueError, match="coords must have shape"):
+        OutlineEmbedding(4)(torch.zeros(2, dtype=torch.long), torch.zeros(1, 6))
 
 
 def test_outline_embedding_initializes_both_branches_from_one_bound() -> None:

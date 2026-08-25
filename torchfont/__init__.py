@@ -43,8 +43,6 @@ from torchfont._outline import (
     TYPE_DIM,
     ElementType,
     Outline,
-    pad_outlines,
-    unpad_outlines,
 )
 
 from . import datasets, glyphsets, nn, transforms
@@ -63,7 +61,5 @@ __all__ = [
     "datasets",
     "glyphsets",
     "nn",
-    "pad_outlines",
     "transforms",
-    "unpad_outlines",
 ]

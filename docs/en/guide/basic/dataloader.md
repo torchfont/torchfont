@@ -51,23 +51,33 @@ torch.Size([37, 6])
 ## Create a DataLoader
 
 Glyph outline sequences are variable-length, so define a local `collate_fn` for
-the exact input contract of your model. Use `pad_outlines` for the payload and
-tensorize only the targets the model needs:
+the exact input contract of your model. Use PyTorch's `pad_sequence` for the
+outline tensors and tensorize only the targets the model needs:
 
 ```python
 import math
 
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import CodepointDataset
-from torchfont import CodepointData, Outline, pad_outlines
+from torchfont import CodepointData, ElementType, Outline
 from torchfont.transforms import LoadGlyph
 
 
 def collate_fn(samples: list[CodepointData[Outline]]):
+    outlines = [sample.data for sample in samples]
     return {
-        "outline": pad_outlines([sample.data for sample in samples]),
+        "types": pad_sequence(
+            [outline.types for outline in outlines],
+            batch_first=True,
+            padding_value=ElementType.PAD,
+        ),
+        "coords": pad_sequence(
+            [outline.coords for outline in outlines], batch_first=True
+        ),
+        "lengths": torch.tensor([len(outline) for outline in outlines]),
         "font_idx": torch.tensor(
             [sample.font_idx for sample in samples], dtype=torch.long
         ),
@@ -100,8 +110,8 @@ loader = DataLoader(
 )
 batch = next(iter(loader))
 
-print(batch["outline"].shape)
-print(batch["outline"].coords.shape)
+print(batch["types"].shape)
+print(batch["coords"].shape)
 print(batch["weight"].shape)
 ```
 
@@ -118,45 +128,29 @@ torch.Size([64])
 
 ## Work with a padded batch
 
-Padded elements use `ElementType.PAD`. Rather than recovering them by comparing
-against that value, read `padding_mask`, which is exactly what attention modules
-expect as `key_padding_mask`:
+Padded elements use `ElementType.PAD`. Build the boolean mask expected by
+attention modules directly from the padded element types:
 
 ```python
-mask = batch["outline"].padding_mask  # (64, 369), True where padding
+mask = batch["types"] == ElementType.PAD  # (64, 369), True where padding
 ```
 
-`unpad_outlines()` explicitly splits a padded batch back into the single
-outlines that went in. By contrast, `Outline.unbind()` preserves padding just
-like an ordinary tensor operation:
+Keep the original lengths when the padded tensors must be restored with
+PyTorch's `unpad_sequence`:
 
 ```python
-from torchfont import unpad_outlines
+from torch.nn.utils.rnn import unpad_sequence
 
-singles = unpad_outlines(batch["outline"])
-
-print(len(singles), singles[0].shape)
+types = unpad_sequence(batch["types"], batch["lengths"], batch_first=True)
+coords = unpad_sequence(batch["coords"], batch["lengths"], batch_first=True)
 ```
 
-`torchfont.nn` modules take an `Outline`, batched or not, so a padded batch goes
-straight into a model:
+`torchfont.nn` modules take the padded tensors directly:
 
 ```python
 from torchfont.nn import OutlineEmbedding
 
-tokens = OutlineEmbedding(embedding_dim=256)(batch["outline"])
+tokens = OutlineEmbedding(embedding_dim=256)(batch["types"], batch["coords"])
 
 print(tokens.shape)  # (64, 369, 256)
-```
-
-## Batch outlines without a DataLoader
-
-`pad_outlines` applies the same padding step directly:
-
-```python
-from torchfont import pad_outlines
-
-batched = pad_outlines([dataset[0].data, dataset[1].data])
-
-print(batched.shape)
 ```

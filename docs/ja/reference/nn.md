@@ -1,9 +1,7 @@
 # ニューラルネットワーク構成要素
 
-TorchFont は、フォント固有の小さな構成要素を `torchfont.nn` で提供します。
-バッチ化の有無を問わず [`Outline`](./core-types.md#outline) を受け取り、通常の
-テンソルを返すため、標準の PyTorch Module、Device、Dtype、Autograd、
-Serialization と組み合わせられます。
+TorchFont は、要素型と座標の Tensor を受け取るフォント固有の構成要素を
+`torchfont.nn` で提供します。
 
 ## `OutlineEmbedding`
 
@@ -12,19 +10,17 @@ Serialization と組み合わせられます。
 ```python
 import torch
 
-from torchfont import ElementType, Outline
+from torchfont import ElementType
 from torchfont.nn import OutlineEmbedding
 
 embedding = OutlineEmbedding(embedding_dim=256)
-outline = Outline(
-    torch.tensor(
-        [[ElementType.MOVE_TO, ElementType.LINE_TO, ElementType.END, ElementType.PAD]]
-    ),
-    torch.zeros((1, 4, 6)),  # (batch, sequence, 6)
+types = torch.tensor(
+    [[ElementType.MOVE_TO, ElementType.LINE_TO, ElementType.END, ElementType.PAD]]
 )
+coords = torch.zeros((1, 4, 6))  # (batch, sequence, 6)
 
-tokens = embedding(outline)  # (1, 4, 256)
-padding_mask = outline.padding_mask  # (1, 4)
+tokens = embedding(types, coords)  # (1, 4, 256)
+padding_mask = types == ElementType.PAD  # (1, 4)
 ```
 
 学習可能な要素型 Embedding と、Bias なしの線形層による6次元連続座標の射影を加算します。
@@ -45,7 +41,7 @@ embedding = OutlineEmbedding(256, device="cuda", dtype=torch.float16)
 ```python
 from torchfont.nn import functional as F
 
-loss = F.coordinate_loss(predicted_coords, target_outline)
+loss = F.coordinate_loss(predicted_coords, target_types, target_coords)
 ```
 
 - `MOVE_TO` と `LINE_TO`: End Point のみ
@@ -53,7 +49,7 @@ loss = F.coordinate_loss(predicted_coords, target_outline)
 - `CURVE_TO`: 二つの Control Point と End Point
 - `CLOSE`、`END`、`PAD`: 座標なし
 
-Prediction の Shape は `(..., N, 6)` で、Target の座標と一致します。Reduction は `"none"`、`"mean"`、`"sum"` に対応します。Mean は Padding を含む格納領域ではなく、
+Prediction と Target 座標の Shape は `(..., N, 6)`、Target 型は `(..., N)` です。Reduction は `"none"`、`"mean"`、`"sum"` に対応します。Mean は Padding を含む格納領域ではなく、
 有効な座標 Scalar に対して計算されます。有効な座標がない場合、Mean は微分可能なゼロになります。
 無効な座標 Slot にある非有限値は無視されます。
 
@@ -65,7 +61,7 @@ Prediction の Shape は `(..., N, 6)` で、Target の座標と一致します�
 from torchfont.nn import OutlineLoss
 
 criterion = OutlineLoss(type_weight=1.0, coordinate_weight=0.5)
-loss = criterion(type_logits, predicted_coords, target_outline)
+loss = criterion(type_logits, predicted_coords, target_types, target_coords)
 ```
 
 `type_logits` の Shape は `(..., N, TYPE_DIM)` です。Cross Entropy は Padding 以外の要素で平均し、

@@ -12,16 +12,6 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 
-def _require_single(inpt: Outline, name: str) -> None:
-    """Reject a batched outline for a kernel defined on one glyph."""
-    if inpt.is_batched:
-        msg = (
-            f"{name} operates on a single outline, got batch shape "
-            f"{tuple(inpt.batch_shape)}; iterate with unpad_outlines() first"
-        )
-        raise ValueError(msg)
-
-
 def _require_no_grad(inpt: Outline, name: str) -> None:
     """Reject an outline that requires grad for a non-differentiable kernel.
 
@@ -48,7 +38,6 @@ def _native_outline(
     ``operation`` is a :mod:`torchfont._ops` custom operator, so the Rust call is
     one opaque node that :func:`torch.compile` can capture.
     """
-    _require_single(inpt, name)
     _require_no_grad(inpt, name)
     out_types, out_coords = operation(inpt.types, inpt.coords, *args)
     return Outline._wrap(out_types, out_coords)  # noqa: SLF001
