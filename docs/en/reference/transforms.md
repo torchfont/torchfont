@@ -73,13 +73,17 @@ inside an already-applied transform.
 | Containers | `Compose`, `RandomApply` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| Subpaths | `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
+| Subpaths | `SplitSubpaths`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
 | Output | `RenderBitmap` |
 
 `RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
 these leaves are inside `CodepointData` or `GlyphIdData`, its reference, location,
 and targets remain alongside the converted payload.
+
+`SplitSubpaths` changes each `Outline` into a `tuple[Outline, ...]` of
+independently encoded subpaths. Later transforms in a `Compose` process every
+resulting subpath.
 
 ### Using rendered glyphs with TorchVision
 
@@ -150,7 +154,7 @@ Gradient support varies by operation:
 | `horizontal_flip`, `vertical_flip` | only with `preserve_winding=False` |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | no |
 | `remove_overlaps`, `remove_overlap_groups` | no |
-| `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | no |
+| `split_subpaths`, `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | no |
 | `render_bitmap` | no |
 
 Passing an outline that requires grad to an operation marked "no" raises:

@@ -22,6 +22,7 @@ from torchfont.transforms.functional._subpath import (
     normalize_subpath_start_points,
     reorder_subpaths,
     set_subpath_start_points,
+    split_subpaths,
 )
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "reorder_subpaths",
     "set_subpath_start_points",
     "split_segments",
+    "split_subpaths",
     "vertical_flip",
 ]

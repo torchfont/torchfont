@@ -72,13 +72,17 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | コンテナ | `Compose`, `RandomApply` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| Subpath | `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
+| Subpath | `SplitSubpaths`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
 | 出力 | `RenderBitmap` |
 
 `RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
 `CodepointData` や `GlyphIdData` の中にある場合も、参照、Location、Target は変換後の Payload と
 ともに維持されます。
+
+`SplitSubpaths` は各 `Outline` を、独立してエンコードされた Subpath の
+`tuple[Outline, ...]` に変えます。`Compose` 内の後続 Transform は、分割された各
+Subpath を処理します。
 
 ### レンダリングしたグリフを TorchVision で使う
 
@@ -147,7 +151,7 @@ Functional API は乱数を生成しません。ランダムな選択とパラ�
 | `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
 | `remove_overlaps`, `remove_overlap_groups` | いいえ |
-| `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
+| `split_subpaths`, `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
 | `render_bitmap` | いいえ |
 
 「いいえ」の処理に勾配を要求する Outline を渡すとエラーになります。

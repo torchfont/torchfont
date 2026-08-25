@@ -39,6 +39,19 @@ fn encode<'py>(py: Python<'py>, outline: &BezPath) -> OutlineArrays<'py> {
 }
 
 #[pyfunction]
+pub(crate) fn split_subpaths<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<Vec<OutlineArrays<'py>>> {
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    Ok(subpath::split_subpaths(&outline)
+        .iter()
+        .map(|subpath| encode(py, subpath))
+        .collect())
+}
+
+#[pyfunction]
 pub(crate) fn quad_to_cubic<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
@@ -318,6 +331,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(cubic_to_quad, m)?)?;
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
     m.add_function(wrap_pyfunction!(random_split_segments, m)?)?;
+    m.add_function(wrap_pyfunction!(split_subpaths, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(random_remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;
