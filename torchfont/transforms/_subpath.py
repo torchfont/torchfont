@@ -31,6 +31,27 @@ class SplitSubpaths(Transform):
         return _functional.split_subpaths(inpt)
 
 
+class RandomSubpathDropout(Transform):
+    """Drop each subpath independently with probability ``p``."""
+
+    def __init__(self, p: float = 0.5) -> None:
+        super().__init__()
+        if not 0.0 <= p <= 1.0:
+            msg = "p must be between 0 and 1"
+            raise ValueError(msg)
+        self.p = p
+
+    def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
+        length = max((inpt.types.size(0) for inpt in flat_inputs), default=0)
+        return {"drop_mask": torch.rand(length) < self.p}
+
+    def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
+        return _functional.drop_subpaths(
+            inpt,
+            params["drop_mask"],
+        )
+
+
 class _RandomSubpathTransform(Transform):
     function: ClassVar[Callable[..., Outline]]
 
@@ -56,6 +77,7 @@ class RandomSubpathOrder(_RandomSubpathTransform):
 
 __all__ = [
     "NormalizeSubpathStartPoints",
+    "RandomSubpathDropout",
     "RandomSubpathOrder",
     "RandomSubpathStartPoints",
     "SplitSubpaths",

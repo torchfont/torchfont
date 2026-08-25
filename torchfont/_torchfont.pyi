@@ -25,6 +25,11 @@ def random_split_segments(
 def split_subpaths(
     types: np.ndarray, coords: np.ndarray
 ) -> list[tuple[np.ndarray, np.ndarray]]: ...
+def drop_subpaths(
+    types: np.ndarray,
+    coords: np.ndarray,
+    drop_mask: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]: ...
 def render_bitmap(
     types: np.ndarray,
     coords: np.ndarray,

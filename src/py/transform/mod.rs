@@ -52,6 +52,25 @@ pub(crate) fn split_subpaths<'py>(
 }
 
 #[pyfunction]
+pub(crate) fn drop_subpaths<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    drop_mask: PyReadonlyArray1<'_, bool>,
+) -> PyResult<OutlineArrays<'py>> {
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    let drop_mask = drop_mask.as_slice()?;
+    let subpath_count = outline.subpaths().count();
+    if drop_mask.len() < subpath_count {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "drop_mask length must be at least the number of subpaths",
+        ));
+    }
+    let result = py.detach(|| subpath::drop_subpaths(&outline, drop_mask));
+    Ok(encode(py, &result))
+}
+
+#[pyfunction]
 pub(crate) fn quad_to_cubic<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
@@ -332,6 +351,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(merge_curves, m)?)?;
     m.add_function(wrap_pyfunction!(random_split_segments, m)?)?;
     m.add_function(wrap_pyfunction!(split_subpaths, m)?)?;
+    m.add_function(wrap_pyfunction!(drop_subpaths, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(random_remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;
