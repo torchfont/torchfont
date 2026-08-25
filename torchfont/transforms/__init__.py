@@ -11,9 +11,9 @@ from torchfont.transforms._curves import (
 )
 from torchfont.transforms._geometry import (
     Affine,
+    GaussianNoise,
     HorizontalFlip,
     RandomAffine,
-    RandomCoordJitter,
     RandomHorizontalFlip,
     RandomVerticalFlip,
     VerticalFlip,
@@ -22,8 +22,8 @@ from torchfont.transforms._glyph import LoadGlyph
 from torchfont.transforms._outline import RandomRemoveOverlaps, RemoveOverlaps
 from torchfont.transforms._subpath import (
     NormalizeSubpathStartPoints,
-    RandomizeSubpathOrder,
-    RandomizeSubpathStartPoints,
+    RandomSubpathOrder,
+    RandomSubpathStartPoints,
 )
 from torchfont.transforms._transform import Transform
 
@@ -31,6 +31,7 @@ __all__ = [
     "Affine",
     "Compose",
     "CubicToQuad",
+    "GaussianNoise",
     "HorizontalFlip",
     "LoadGlyph",
     "MergeCurves",
@@ -38,13 +39,12 @@ __all__ = [
     "QuadToCubic",
     "RandomAffine",
     "RandomApply",
-    "RandomCoordJitter",
     "RandomHorizontalFlip",
     "RandomRemoveOverlaps",
     "RandomSplitSegments",
+    "RandomSubpathOrder",
+    "RandomSubpathStartPoints",
     "RandomVerticalFlip",
-    "RandomizeSubpathOrder",
-    "RandomizeSubpathStartPoints",
     "RemoveOverlaps",
     "RenderBitmap",
     "Transform",

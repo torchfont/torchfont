@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from torchfont import COORD_DIM, TYPE_DIM, ElementType, Outline
+from torchfont import ElementType, Outline
 from torchfont.nn import OutlineEmbedding
 
 
@@ -101,7 +101,7 @@ def test_outline_embedding_rejects_misaligned_tensors() -> None:
 
 def test_outline_embedding_initializes_both_branches_from_one_bound() -> None:
     embedding = OutlineEmbedding(1024)
-    bound = (TYPE_DIM + COORD_DIM) ** -0.5
+    bound = (len(ElementType) + 6) ** -0.5
     expected_std = bound / 3**0.5
     type_weight = embedding.type_embedding.weight.detach()[1:]
     coord_weight = embedding.coord_projection.weight.detach()

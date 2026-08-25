@@ -4,8 +4,6 @@ from torch.utils import _pytree as pytree
 
 import torchfont
 from torchfont import (
-    COORD_DIM,
-    TYPE_DIM,
     CodepointData,
     CodepointSample,
     ElementType,
@@ -18,8 +16,6 @@ from torchfont import (
 
 
 def test_core_types_are_exported_from_package_root() -> None:
-    assert torchfont.COORD_DIM == COORD_DIM
-    assert torchfont.TYPE_DIM == TYPE_DIM
     assert torchfont.ElementType is ElementType
     assert torchfont.FontRef is FontRef
     assert torchfont.CodepointData is CodepointData

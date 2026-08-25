@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from torchfont import _torchfont
-from torchfont._outline import COORD_DIM, Outline
+from torchfont._outline import _COORD_DIM, Outline
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -33,7 +33,7 @@ def load_glyph(
     )
     return Outline._wrap(  # noqa: SLF001
         torch.from_numpy(raw_types),
-        torch.from_numpy(raw_coords).view(-1, COORD_DIM),
+        torch.from_numpy(raw_coords).view(-1, _COORD_DIM),
     )
 
 

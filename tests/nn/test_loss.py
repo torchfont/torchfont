@@ -2,13 +2,13 @@ import pytest
 import torch
 from torch.nn import functional as torch_functional
 
-from torchfont import TYPE_DIM, ElementType
+from torchfont import ElementType
 from torchfont.nn import OutlineLoss
 from torchfont.nn import functional as font_functional
 
 
 def _inputs() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    type_logits = torch.zeros((3, TYPE_DIM), requires_grad=True)
+    type_logits = torch.zeros((3, len(ElementType)), requires_grad=True)
     coordinate_prediction = torch.zeros((3, 6), requires_grad=True)
     target_types = torch.tensor(
         [ElementType.MOVE_TO, ElementType.CURVE_TO, ElementType.PAD]
@@ -34,7 +34,7 @@ def test_outline_loss_combines_independently_averaged_losses() -> None:
         target_types,
         ignore_index=ElementType.PAD,
     )
-    expected_coord_loss = font_functional.coordinate_loss(
+    expected_coord_loss = font_functional.coordinate_mse_loss(
         prediction, target_types, target_coords
     )
     assert torch.allclose(loss, 2 * expected_type_loss + 3 * expected_coord_loss)
@@ -67,7 +67,7 @@ def test_outline_loss_backpropagates_through_both_predictions() -> None:
 
 
 def test_outline_loss_is_zero_for_all_padding() -> None:
-    type_logits = torch.zeros((2, TYPE_DIM), requires_grad=True)
+    type_logits = torch.zeros((2, len(ElementType)), requires_grad=True)
     prediction = torch.zeros((2, 6), requires_grad=True)
     target_types = torch.tensor([ElementType.PAD, ElementType.PAD])
     target_coords = torch.zeros_like(prediction)
@@ -85,8 +85,8 @@ def test_outline_loss_is_zero_for_all_padding() -> None:
 @pytest.mark.parametrize(
     ("logits_shape", "match"),
     [
-        ((2, 3, TYPE_DIM), "without its last dimension"),
-        ((3, TYPE_DIM - 1), "must have shape"),
+        ((2, 3, len(ElementType)), "without its last dimension"),
+        ((3, len(ElementType) - 1), "must have shape"),
     ],
 )
 def test_outline_loss_rejects_misaligned_type_logits(

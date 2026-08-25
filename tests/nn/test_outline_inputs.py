@@ -6,7 +6,7 @@ import pytest
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
-from torchfont import COORD_DIM, TYPE_DIM, ElementType, Outline
+from torchfont import ElementType, Outline
 from torchfont.nn import OutlineEmbedding, OutlineLoss
 from torchfont.nn import functional as F  # noqa: N812
 
@@ -16,7 +16,7 @@ def _outline(length: int = 4) -> Outline:
         [ElementType.MOVE_TO, ElementType.CURVE_TO, ElementType.CLOSE, ElementType.END],
         dtype=torch.long,
     )[:length]
-    return Outline(types, torch.rand(length, COORD_DIM))
+    return Outline(types, torch.rand(length, 6))
 
 
 @pytest.fixture
@@ -47,17 +47,17 @@ def test_loss_accepts_batched_outline_tensors(
     batch: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = batch
-    logits = torch.zeros(*types.shape, TYPE_DIM)
+    logits = torch.zeros(*types.shape, len(ElementType))
 
     assert OutlineLoss()(logits, torch.zeros_like(coords), types, coords).ndim == 0
 
 
-def test_coordinate_loss_accepts_batched_outline_tensors(
+def test_coordinate_mse_loss_accepts_batched_outline_tensors(
     batch: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = batch
 
-    assert F.coordinate_loss(torch.zeros_like(coords), types, coords).ndim == 0
+    assert F.coordinate_mse_loss(torch.zeros_like(coords), types, coords).ndim == 0
 
 
 def test_loss_ignores_padding_introduced_by_pad_sequence() -> None:
@@ -69,13 +69,13 @@ def test_loss_ignores_padding_introduced_by_pad_sequence() -> None:
     )
     coords = pad_sequence([single.coords, single.coords], batch_first=True)
     padded_loss = OutlineLoss()(
-        torch.zeros(*types.shape, TYPE_DIM),
+        torch.zeros(*types.shape, len(ElementType)),
         torch.zeros_like(coords),
         types,
         coords,
     )
     unpadded_loss = OutlineLoss()(
-        torch.zeros(1, *single.shape, TYPE_DIM),
+        torch.zeros(1, *single.shape, len(ElementType)),
         torch.zeros(1, *single.coords.shape),
         single.types.unsqueeze(0),
         single.coords.unsqueeze(0),

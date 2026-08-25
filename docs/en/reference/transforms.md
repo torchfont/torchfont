@@ -73,8 +73,8 @@ inside an already-applied transform.
 | Containers | `Compose`, `RandomApply` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| Subpaths | `NormalizeSubpathStartPoints`, `RandomizeSubpathStartPoints`, `RandomizeSubpathOrder` |
-| Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `RandomCoordJitter` |
+| Subpaths | `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
+| Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
 | Output | `RenderBitmap` |
 
 `RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
@@ -146,7 +146,7 @@ Gradient support varies by operation:
 | Kernel | Differentiable |
 | --- | --- |
 | `affine` | yes |
-| `coord_jitter` | yes, in both the outline and the noise |
+| `add_coordinate_noise` | yes, in both the outline and the noise |
 | `horizontal_flip`, `vertical_flip` | only with `preserve_winding=False` |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | no |
 | `remove_overlaps`, `remove_overlap_groups` | no |
@@ -174,7 +174,7 @@ Convert other outlines explicitly before calling them:
 outline = outline.to("cpu", torch.float32)
 ```
 
-`RandomCoordJitter` and `functional.coord_jitter` preserve the input device and
+`GaussianNoise` and `functional.add_coordinate_noise` preserve the input device and
 floating point dtype.
 
 ### `torch.compile`

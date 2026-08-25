@@ -8,7 +8,7 @@ use skrifa::{
 };
 
 use crate::error::Error;
-use crate::font::{count_glyph_elements, map_font};
+use crate::font::{count_glyph_elements, map_font_file};
 
 /// One discovered face and the codepoint/glyph id pairs its `cmap` contributes.
 pub(crate) struct DiscoveredCodepoints {
@@ -149,7 +149,7 @@ fn read_faces<T>(
     path: &Path,
     build: impl Fn(u32, &skrifa::FontRef<'_>) -> Result<T, Error>,
 ) -> Result<Vec<T>, Error> {
-    let mapped = map_font(path)?;
+    let mapped = map_font_file(path)?;
     let parsed = FileRef::new(&mapped[..])
         .map_err(|err| Error::Parse(format!("failed to parse '{}': {err}", path.display())))?;
     let entries = parsed

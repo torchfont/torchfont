@@ -60,11 +60,11 @@ def test_affine_does_not_backpropagate_through_the_bbox_centre() -> None:
     assert torch.equal(coords.grad[active.detach()], torch.ones(int(active.sum())))
 
 
-def test_coord_jitter_is_differentiable_in_both_arguments() -> None:
+def test_add_coordinate_noise_is_differentiable_in_both_arguments() -> None:
     outline, coords = _grad_outline()
     noise = torch.zeros(5, 3, 2, requires_grad=True)
 
-    F.coord_jitter(outline, noise).coords.sum().backward()
+    F.add_coordinate_noise(outline, noise).coords.sum().backward()
 
     assert coords.grad is not None
     assert noise.grad is not None

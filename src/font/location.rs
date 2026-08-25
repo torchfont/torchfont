@@ -7,9 +7,9 @@ use crate::error::Error;
 #[derive(Clone)]
 pub(crate) struct AxisInfo {
     pub(crate) tag: String,
-    pub(crate) min: f32,
-    pub(crate) default: f32,
-    pub(crate) max: f32,
+    pub(crate) min_value: f32,
+    pub(crate) default_value: f32,
+    pub(crate) max_value: f32,
 }
 
 pub(crate) fn axis_info(font: &skrifa::FontRef<'_>) -> Vec<AxisInfo> {
@@ -17,9 +17,9 @@ pub(crate) fn axis_info(font: &skrifa::FontRef<'_>) -> Vec<AxisInfo> {
         .iter()
         .map(|axis| AxisInfo {
             tag: axis.tag().to_string(),
-            min: axis.min_value(),
-            default: axis.default_value(),
-            max: axis.max_value(),
+            min_value: axis.min_value(),
+            default_value: axis.default_value(),
+            max_value: axis.max_value(),
         })
         .collect()
 }
@@ -29,7 +29,7 @@ pub(crate) type Location = Vec<(String, f32)>;
 pub(crate) fn default_location(font: &skrifa::FontRef<'_>) -> Location {
     axis_info(font)
         .into_iter()
-        .map(|axis| (axis.tag, axis.default))
+        .map(|axis| (axis.tag, axis.default_value))
         .collect()
 }
 
@@ -55,17 +55,20 @@ pub(crate) fn canonicalize_location(
                 "variation axis '{tag}' value must be finite"
             )));
         }
-        if *value < axis.min || *value > axis.max {
+        if *value < axis.min_value || *value > axis.max_value {
             return Err(Error::Parse(format!(
                 "variation axis '{tag}' value {value} is outside [{}, {}]",
-                axis.min, axis.max,
+                axis.min_value, axis.max_value,
             )));
         }
     }
     Ok(axes
         .into_iter()
         .map(|axis| {
-            let value = location.get(&axis.tag).copied().unwrap_or(axis.default);
+            let value = location
+                .get(&axis.tag)
+                .copied()
+                .unwrap_or(axis.default_value);
             (axis.tag, value)
         })
         .collect())

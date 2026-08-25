@@ -85,7 +85,7 @@ def variation_axes(
     path: str,
     face_index: int,
 ) -> list[tuple[str, float, float, float]]: ...
-def glyph_targets(
+def registered_axis_values(
     path: str,
     face_index: int,
     location: dict[str, float],

@@ -278,7 +278,7 @@ def affine(
     )
 
 
-def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
+def add_coordinate_noise(inpt: Outline, noise: Tensor) -> Outline:
     """Add caller-provided noise to active coordinate pairs.
 
     Differentiable with respect to both ``coords`` and ``noise``.
@@ -302,4 +302,4 @@ def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
     )
 
 
-__all__ = ["affine", "coord_jitter", "horizontal_flip", "vertical_flip"]
+__all__ = ["add_coordinate_noise", "affine", "horizontal_flip", "vertical_flip"]

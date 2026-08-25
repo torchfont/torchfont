@@ -18,7 +18,7 @@ T = TypeVar("T")
 _METRIC_FIELDS = ("weight", "width", "italic", "slant", "optical_size")
 
 
-class _MetricTargets(TypedDict):
+class _RegisteredAxisTargets(TypedDict):
     weight: float | None
     width: float | None
     italic: float | None
@@ -124,26 +124,26 @@ _register_glyph_payload(
 _register_glyph_payload(GlyphIdData, ("font_idx", *_METRIC_FIELDS))
 
 
-def _metric_targets(
-    metrics: tuple[float, float, float, float, float],
-) -> _MetricTargets:
-    """Build the continuous targets carried by a loaded glyph payload.
+def _registered_axis_targets(
+    values: tuple[float, float, float, float, float],
+) -> _RegisteredAxisTargets:
+    """Build registered-axis targets carried by a loaded glyph payload.
 
-    ``metrics`` is the ``(weight, width, italic, slant, optical_size)`` tuple
-    returned by the Rust ``glyph_targets`` helper, in that order.
+    ``values`` is the ``(weight, width, italic, slant, optical_size)`` tuple
+    returned by the Rust ``registered_axis_values`` helper, in that order.
     """
-    weight, width, italic, slant, optical_size = metrics
+    weight, width, italic, slant, optical_size = values
     return {
-        "weight": _optional_metric(weight),
-        "width": _optional_metric(width),
-        "italic": _optional_metric(italic),
-        "slant": _optional_metric(slant),
-        "optical_size": _optional_metric(optical_size),
+        "weight": _optional_target(weight),
+        "width": _optional_target(width),
+        "italic": _optional_target(italic),
+        "slant": _optional_target(slant),
+        "optical_size": _optional_target(optical_size),
     }
 
 
-def _optional_metric(value: float) -> float | None:
-    """Represent an unavailable native metric explicitly at the Python boundary."""
+def _optional_target(value: float) -> float | None:
+    """Represent an unavailable native target explicitly at the Python boundary."""
     return None if math.isnan(value) else value
 
 

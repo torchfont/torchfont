@@ -37,15 +37,15 @@ The constructor accepts PyTorch-style `device` and `dtype` keyword arguments:
 embedding = OutlineEmbedding(256, device="cuda", dtype=torch.float16)
 ```
 
-## `coordinate_loss`
+## `coordinate_mse_loss`
 
-`coordinate_loss` computes squared error only over coordinates that carry
+`coordinate_mse_loss` computes squared error only over coordinates that carry
 meaning for the target element type:
 
 ```python
 from torchfont.nn import functional as F
 
-loss = F.coordinate_loss(predicted_coords, target_types, target_coords)
+loss = F.coordinate_mse_loss(predicted_coords, target_types, target_coords)
 ```
 
 - `MOVE_TO` and `LINE_TO`: endpoint only
@@ -72,7 +72,7 @@ criterion = OutlineLoss(type_weight=1.0, coordinate_weight=0.5)
 loss = criterion(type_logits, predicted_coords, target_types, target_coords)
 ```
 
-`type_logits` has shape `(..., N, TYPE_DIM)`. Cross entropy is averaged over
+`type_logits` has shape `(..., N, len(ElementType))`. Cross entropy is averaged over
 non-padding
 elements, while coordinate error is averaged independently over active
 coordinate scalars. The two means are then combined using `type_weight` and
@@ -81,6 +81,6 @@ lengths and padding amounts. An all-padding input produces a differentiable
 zero loss.
 
 The loss intentionally has no `reduction` argument. Use PyTorch cross entropy
-and `coordinate_loss` separately when unreduced components or a different
+and `coordinate_mse_loss` separately when unreduced components or a different
 aggregation are required. The equivalent functional API is
 `torchfont.nn.functional.outline_loss`.
