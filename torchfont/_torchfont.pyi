@@ -22,6 +22,9 @@ def random_split_segments(
     split_probability: float,
     split_range: tuple[float, float],
 ) -> tuple[np.ndarray, np.ndarray]: ...
+def split_subpaths(
+    types: np.ndarray, coords: np.ndarray
+) -> list[tuple[np.ndarray, np.ndarray]]: ...
 def render_bitmap(
     types: np.ndarray,
     coords: np.ndarray,

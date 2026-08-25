@@ -24,6 +24,7 @@ from torchfont.transforms._subpath import (
     NormalizeSubpathStartPoints,
     RandomSubpathOrder,
     RandomSubpathStartPoints,
+    SplitSubpaths,
 )
 from torchfont.transforms._transform import Transform
 
@@ -47,6 +48,7 @@ __all__ = [
     "RandomVerticalFlip",
     "RemoveOverlaps",
     "RenderBitmap",
+    "SplitSubpaths",
     "Transform",
     "VerticalFlip",
     "functional",

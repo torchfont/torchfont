@@ -9,6 +9,13 @@ pub(crate) fn reverse_subpath(subpath: &[PathEl]) -> BezPath {
     BezPath::from_vec(subpath.to_vec()).reverse_subpaths()
 }
 
+pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
+    outline
+        .subpaths()
+        .map(|subpath| BezPath::from_vec(subpath.to_vec()))
+        .collect()
+}
+
 pub(crate) fn normalize_subpath_start_points(outline: &BezPath) -> BezPath {
     transform_start_points(outline, |subpath, _| {
         nodes(subpath)
@@ -135,6 +142,15 @@ mod tests {
     }
 
     // --- reverse_subpath ---
+
+    #[test]
+    fn splits_subpaths_in_order() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
+        let outline = outline_from_subpaths([first.clone(), second.clone()]);
+
+        assert_eq!(split_subpaths(&outline), [first, second]);
+    }
 
     #[test]
     fn reverse_subpath_empty_returns_clone() {

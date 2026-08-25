@@ -23,6 +23,14 @@ class NormalizeSubpathStartPoints(Transform):
         return _functional.normalize_subpath_start_points(inpt)
 
 
+class SplitSubpaths(Transform):
+    """Split each outline into a tuple of independently encoded subpaths."""
+
+    def transform(self, inpt: Outline, params: dict[str, Any]) -> tuple[Outline, ...]:
+        del params
+        return _functional.split_subpaths(inpt)
+
+
 class _RandomSubpathTransform(Transform):
     function: ClassVar[Callable[..., Outline]]
 
@@ -50,4 +58,5 @@ __all__ = [
     "NormalizeSubpathStartPoints",
     "RandomSubpathOrder",
     "RandomSubpathStartPoints",
+    "SplitSubpaths",
 ]

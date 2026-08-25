@@ -1,21 +1,46 @@
-"""Functional subpath kernels.
+"""Functional subpath operations.
 
-Every kernel here reorders or re-encodes path elements in Rust, so none of them
-define a gradient. Subpath boundaries are derived from the ``CLOSE`` and ``END``
-element types rather than stored alongside the outline.
+Subpath boundaries are derived from path element types rather than stored
+alongside the outline. Operations here reorder or re-encode elements in Rust,
+so they do not define a gradient.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from torchfont import _ops
-from torchfont.transforms.functional._utils import _native_outline
+import torch
+
+from torchfont import _ops, _torchfont
+from torchfont._outline import _COORD_DIM, Outline
+from torchfont.transforms.functional._utils import _native_outline, _require_no_grad
 
 if TYPE_CHECKING:
     from torch import Tensor
 
-    from torchfont._outline import Outline
+
+def split_subpaths(inpt: Outline) -> tuple[Outline, ...]:
+    """Split an outline into independently encoded subpaths.
+
+    Each result starts with ``MOVE_TO`` and ends with a newly added ``END``.
+    Subpath order, winding, curve degree, coordinates, and whether the subpath
+    is open or closed are preserved. An outline with no subpaths returns an
+    empty tuple.
+
+    The number of results depends on tensor values, so this operation is not
+    supported inside :func:`torch.compile`.
+    """
+    _require_no_grad(inpt, "split_subpaths")
+    arrays = _torchfont.split_subpaths(
+        inpt.types.detach().contiguous().numpy(),
+        inpt.coords.detach().contiguous().reshape(-1).numpy(),
+    )
+    return tuple(
+        Outline._wrap(  # noqa: SLF001
+            torch.from_numpy(types), torch.from_numpy(coords).view(-1, _COORD_DIM)
+        )
+        for types, coords in arrays
+    )
 
 
 def normalize_subpath_start_points(inpt: Outline) -> Outline:
@@ -57,4 +82,5 @@ __all__ = [
     "normalize_subpath_start_points",
     "reorder_subpaths",
     "set_subpath_start_points",
+    "split_subpaths",
 ]
