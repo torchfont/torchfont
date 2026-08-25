@@ -43,6 +43,19 @@ def split_subpaths(inpt: Outline) -> tuple[Outline, ...]:
     )
 
 
+def drop_subpaths(
+    inpt: Outline,
+    drop_mask: Tensor,
+) -> Outline:
+    """Drop subpaths selected by an explicit boolean mask."""
+    return _native_outline(
+        inpt,
+        _ops.drop_subpaths,
+        drop_mask,
+        name="drop_subpaths",
+    )
+
+
 def normalize_subpath_start_points(inpt: Outline) -> Outline:
     """Choose a deterministic start point for each closed subpath.
 
@@ -79,6 +92,7 @@ def reorder_subpaths(inpt: Outline, keys: Tensor) -> Outline:
 
 
 __all__ = [
+    "drop_subpaths",
     "normalize_subpath_start_points",
     "reorder_subpaths",
     "set_subpath_start_points",

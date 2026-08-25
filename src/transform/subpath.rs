@@ -16,6 +16,16 @@ pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
         .collect()
 }
 
+pub(crate) fn drop_subpaths(outline: &BezPath, drop_mask: &[bool]) -> BezPath {
+    let mut result = BezPath::new();
+    for (subpath, &drop) in outline.subpaths().zip(drop_mask) {
+        if !drop {
+            result.extend(subpath.iter().copied());
+        }
+    }
+    result
+}
+
 pub(crate) fn normalize_subpath_start_points(outline: &BezPath) -> BezPath {
     transform_start_points(outline, |subpath, _| {
         nodes(subpath)
@@ -150,6 +160,16 @@ mod tests {
         let outline = outline_from_subpaths([first.clone(), second.clone()]);
 
         assert_eq!(split_subpaths(&outline), [first, second]);
+    }
+
+    #[test]
+    fn drops_selected_subpaths() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
+        let outline = outline_from_subpaths([first.clone(), second]);
+
+        assert_eq!(drop_subpaths(&outline, &[false, true]), first);
+        assert!(drop_subpaths(&outline, &[true, true]).is_empty());
     }
 
     #[test]

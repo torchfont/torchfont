@@ -19,6 +19,7 @@ from torchfont.transforms.functional._outline import (
     remove_overlaps,
 )
 from torchfont.transforms.functional._subpath import (
+    drop_subpaths,
     normalize_subpath_start_points,
     reorder_subpaths,
     set_subpath_start_points,
@@ -29,6 +30,7 @@ __all__ = [
     "add_coordinate_noise",
     "affine",
     "cubic_to_quad",
+    "drop_subpaths",
     "horizontal_flip",
     "load_glyph",
     "merge_curves",

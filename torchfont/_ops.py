@@ -80,6 +80,13 @@ def _selection(values: Tensor) -> np.ndarray:
     return values.detach().contiguous().numpy()
 
 
+def _mask(values: Tensor) -> np.ndarray:
+    if values.dtype is not torch.bool:
+        msg = f"mask must have dtype torch.bool, got {values.dtype}"
+        raise TypeError(msg)
+    return values.detach().contiguous().numpy()
+
+
 @torch.library.custom_op(
     "torchfont::quad_to_cubic", mutates_args=(), device_types="cpu"
 )
@@ -259,6 +266,32 @@ def _(types: Tensor, coords: Tensor, keys: Tensor) -> tuple[Tensor, Tensor]:
 
 
 @torch.library.custom_op(
+    "torchfont::drop_subpaths", mutates_args=(), device_types="cpu"
+)
+def drop_subpaths(
+    types: Tensor,
+    coords: Tensor,
+    drop_mask: Tensor,
+) -> tuple[Tensor, Tensor]:
+    """Drop subpaths selected by an explicit boolean mask."""
+    out = _torchfont.drop_subpaths(
+        *_arrays(types, coords),
+        _mask(drop_mask),
+    )
+    return _restore(*out)
+
+
+@drop_subpaths.register_fake
+def _(
+    types: Tensor,
+    coords: Tensor,
+    drop_mask: Tensor,
+) -> tuple[Tensor, Tensor]:
+    del drop_mask
+    return _dynamic_outline(types, coords)
+
+
+@torch.library.custom_op(
     "torchfont::reverse_closed_subpaths", mutates_args=(), device_types="cpu"
 )
 def reverse_closed_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
@@ -339,6 +372,7 @@ def _(
 __all__ = [
     "bbox_center",
     "cubic_to_quad",
+    "drop_subpaths",
     "merge_curves",
     "normalize_subpath_start_points",
     "quad_to_cubic",

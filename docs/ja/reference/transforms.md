@@ -72,7 +72,7 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | コンテナ | `Compose`, `RandomApply` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| Subpath | `SplitSubpaths`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
+| Subpath | `SplitSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
 | 出力 | `RenderBitmap` |
 
@@ -151,7 +151,7 @@ Functional API は乱数を生成しません。ランダムな選択とパラ�
 | `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
 | `remove_overlaps`, `remove_overlap_groups` | いいえ |
-| `split_subpaths`, `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
+| `split_subpaths`, `drop_subpaths`, `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
 | `render_bitmap` | いいえ |
 
 「いいえ」の処理に勾配を要求する Outline を渡すとエラーになります。
