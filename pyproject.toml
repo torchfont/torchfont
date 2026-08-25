@@ -18,7 +18,9 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -35,6 +37,8 @@ dynamic = ["version"]
 dependencies = ["numpy>=1.21.3", "torch>=2.5.0"]
 
 [project.urls]
+Documentation = "https://torchfont.readthedocs.io/"
+Issues = "https://github.com/torchfont/torchfont/issues"
 Repository = "https://github.com/torchfont/torchfont"
 Releases = "https://github.com/torchfont/torchfont/releases"
 
@@ -89,10 +93,8 @@ ignore = ["COM812", "CPY001", "D203", "D213", "EXE002"]
 "tests/**/*.py" = ["D", "PLR2004", "S101"]
 
 [tool.maturin]
+exclude = ["data/**"]
 module-name = "torchfont._torchfont"
-
-[tool.setuptools.package-data]
-"torchfont" = ["py.typed"]
 
 [tool.ty.rules]
 invalid-method-override = "ignore"

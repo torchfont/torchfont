@@ -53,23 +53,25 @@ run = "cargo fmt --all -- --check"
 [tasks.rust-lint]
 description = "Lint Rust targets with Clippy"
 sources = [
+  ".python-version",
   "Cargo.toml",
   "Cargo.lock",
   "mise.lock",
   "src/**/*.rs",
 ]
-run = "cargo clippy --all-targets --all-features -- -D warnings"
+run = "uv run --locked --no-sync cargo clippy --locked --all-targets --all-features -- -D warnings"
 
 [tasks.rust-test]
 description = "Run the Rust test suite"
 sources = [
+  ".python-version",
   "Cargo.toml",
   "Cargo.lock",
   "mise.lock",
   "src/**/*.rs",
   "tests/fonts/**",
 ]
-run = "cargo test --all-targets --all-features"
+run = "uv run --locked --no-sync cargo test --locked --all-targets --all-features"
 
 [tasks.rust-check]
 description = "Run all Rust checks"
@@ -107,7 +109,7 @@ sources = [
   "torchfont/**/*.py",
 ]
 depends = ["uv-sync"]
-run = "uv run --no-sync ty check"
+run = "uv run --locked --no-sync ty check"
 
 [tasks.python-check]
 description = "Run all Python checks"
@@ -132,12 +134,12 @@ outputs = [
   'torchfont/_torchfont*.{% if os() == "windows" %}pyd{% else %}so{% endif %}',
 ]
 depends = ["check"]
-run = "uv run --no-sync maturin develop --release"
+run = "uv run --locked --no-sync maturin develop --locked --release"
 
 [tasks.test]
 description = "Run the Python test suite"
 depends = ["build"]
-run = "uv run --no-sync pytest tests"
+run = "uv run --locked --no-sync pytest tests"
 
 [tasks.data-sync]
 description = "Initialize the repository data submodules"
@@ -156,7 +158,7 @@ run = [
 [tasks.test-google-fonts]
 description = "Run tests against the Google Fonts checkout"
 depends = ["build", "data-sync"]
-run = "uv run --no-sync pytest tests/google_fonts --google-fonts -s"
+run = "uv run --locked --no-sync pytest tests/google_fonts --google-fonts -s"
 
 [tasks.docs-build]
 description = "Build the documentation site"
