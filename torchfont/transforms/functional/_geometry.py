@@ -210,10 +210,10 @@ def _affine(
     if _is_nan(scale) or _is_infinite(scale) or scale <= 0:
         msg = "scale must be positive and finite"
         raise ValueError(msg)
-    if _is_nan(angle):
+    if _is_nan(angle) or _is_infinite(angle):
         msg = "angle must be finite"
         raise ValueError(msg)
-    if _is_nan(shear):
+    if _is_nan(shear) or _is_infinite(shear):
         msg = "shear must be finite"
         raise ValueError(msg)
     if any(_is_nan(value) or _is_infinite(value) for value in translate):

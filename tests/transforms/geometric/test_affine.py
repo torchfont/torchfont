@@ -110,20 +110,24 @@ def test_affine_invalid_scale_raises(
         affine(types, coords, scale=scale)
 
 
-def test_affine_rejects_nan_angle(
+@pytest.mark.parametrize("angle", [float("nan"), float("inf"), float("-inf")])
+def test_affine_rejects_non_finite_angle(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
+    angle: float,
 ) -> None:
     types, coords = simple_outline
     with pytest.raises(ValueError, match="angle must be finite"):
-        affine(types, coords, angle=float("nan"))
+        affine(types, coords, angle=angle)
 
 
-def test_affine_rejects_nan_shear(
+@pytest.mark.parametrize("shear", [float("nan"), float("inf"), float("-inf")])
+def test_affine_rejects_non_finite_shear(
     simple_outline: tuple[torch.Tensor, torch.Tensor],
+    shear: float,
 ) -> None:
     types, coords = simple_outline
     with pytest.raises(ValueError, match="shear must be finite"):
-        affine(types, coords, shear=float("nan"))
+        affine(types, coords, shear=shear)
 
 
 @pytest.mark.parametrize(
