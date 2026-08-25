@@ -73,7 +73,7 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpath | `SplitSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
-| 幾何変換 | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
+| 幾何変換 | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | 出力 | `RenderBitmap` |
 
 `RenderBitmap` は各 `Outline` を通常の `uint8` テンソルに変えます。これらが
@@ -147,6 +147,9 @@ Functional API は乱数を生成しません。ランダムな選択とパラ�
 | カーネル | 微分可能 |
 | --- | --- |
 | `affine` | はい |
+| `scale` | はい |
+| `rotate` | はい |
+| `elastic` | はい。Outline と変位場の両方について |
 | `add_coordinate_noise` | はい。Outline と Noise の両方について |
 | `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
@@ -162,21 +165,22 @@ F.remove_overlaps(outline)
 # RuntimeError が発生
 ```
 
-`affine` と Flip は Tight Bounding Box の中心を軸に変換します。勾配は変換後の
+`affine`、`rotate`、`scale` と Flip は Tight Bounding Box の中心を軸に変換します。勾配は変換後の
 座標を通って流れますが、この中心を通っては流れません。
 
 ### デバイス
 
-`LoadGlyph` は CPU の `float32` Outline を返します。`Affine`、Flip、Curve、Overlap、
-Subpath の各 Transform と `RenderBitmap` は、CPU の `float32` Outline を必要とします。
+`LoadGlyph` は CPU の `float32` Outline を返します。`Affine`、`RandomAffine`、
+`RandomRotation`、`RandomScale`、Flip、Curve、Overlap、Subpath の各 Transform と
+`RenderBitmap` は、CPU の `float32` Outline を必要とします。
 それ以外の Outline は呼び出す前に明示的に変換してください。
 
 ```python
 outline = outline.to("cpu", torch.float32)
 ```
 
-`GaussianNoise` と `functional.add_coordinate_noise` は入力の Device と浮動小数点 dtype を
-維持します。
+`ElasticTransform`、`GaussianNoise`、`functional.elastic`、
+`functional.add_coordinate_noise` は入力の Device と浮動小数点 dtype を維持します。
 
 ### `torch.compile`
 

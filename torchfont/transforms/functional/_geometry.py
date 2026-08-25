@@ -21,6 +21,7 @@ import math
 
 import torch
 from torch import Tensor
+from torch.nn import functional as nn_functional
 
 from torchfont import _ops
 from torchfont._outline import ElementType, Outline
@@ -95,18 +96,25 @@ def _apply_matrix(
 def _rotation_scale_shear_matrix(
     angle_deg: float,
     scale: float,
-    shear_deg: float,
+    shear_deg: float | tuple[float, float],
     *,
     like: Tensor,
 ) -> Tensor:
-    """Return a 2x2 matrix for scale * x-shear * rotation (all applied in place)."""
+    """Return a 2x2 matrix for scale, x/y shear, and rotation."""
     a = math.radians(angle_deg)
-    s = math.radians(shear_deg)
-    cos_a, sin_a, tan_s = math.cos(a), math.sin(a), math.tan(s)
+    if isinstance(shear_deg, tuple):
+        shear_x, shear_y = shear_deg
+    else:
+        shear_x, shear_y = shear_deg, 0.0
+    sx, sy = math.radians(shear_x), math.radians(shear_y)
+    cos_a, sin_a = math.cos(a), math.sin(a)
+    tan_x, tan_y = math.tan(sx), math.tan(sy)
+    x0 = cos_a + tan_x * sin_a
+    x1 = -sin_a + tan_x * cos_a
     return like.new_tensor(
         [
-            [scale * (cos_a + sin_a * tan_s), scale * (-sin_a + cos_a * tan_s)],
-            [scale * sin_a, scale * cos_a],
+            [scale * x0, scale * x1],
+            [scale * (tan_y * x0 + sin_a), scale * (tan_y * x1 + cos_a)],
         ],
     )
 
@@ -184,7 +192,7 @@ def _affine(
     angle: float = 0.0,
     translate: tuple[float, float] = (0.0, 0.0),
     scale: float = 1.0,
-    shear: float = 0.0,
+    shear: float | tuple[float, float] = 0.0,
 ) -> tuple[Tensor, Tensor]:
     """Apply a deterministic affine transformation to a glyph outline.
 
@@ -200,7 +208,7 @@ def _affine(
         translate: Translation ``(tx, ty)`` in em units applied
             after rotation and scaling. Values must be finite.
         scale: Uniform scale factor (must be positive and finite).
-        shear: x-shear angle in degrees.
+        shear: x-shear angle in degrees, or fixed ``(x, y)`` shear angles.
 
     Returns:
         A new ``(types, coords)`` pair with the affine transform applied.
@@ -213,8 +221,9 @@ def _affine(
     if _is_nan(angle) or _is_infinite(angle):
         msg = "angle must be finite"
         raise ValueError(msg)
-    if _is_nan(shear) or _is_infinite(shear):
-        msg = "shear must be finite"
+    shear_values = shear if isinstance(shear, tuple) else (shear,)
+    if any(_is_nan(value) or _is_infinite(value) for value in shear_values):
+        msg = "shear values must be finite"
         raise ValueError(msg)
     if any(_is_nan(value) or _is_infinite(value) for value in translate):
         msg = "translate values must be finite"
@@ -258,7 +267,7 @@ def affine(
     angle: float = 0.0,
     translate: tuple[float, float] = (0.0, 0.0),
     scale: float = 1.0,
-    shear: float = 0.0,
+    shear: float | tuple[float, float] = 0.0,
 ) -> Outline:
     """Apply a deterministic affine transformation.
 
@@ -276,6 +285,30 @@ def affine(
             shear=shear,
         )[1],
     )
+
+
+def scale(inpt: Outline, factors: tuple[float, float]) -> Outline:
+    """Scale an outline independently on the x and y axes.
+
+    The transform pivots around the tight bounding-box centre and is
+    differentiable with respect to ``coords``. ``factors`` contains the fixed
+    ``(scale_x, scale_y)`` multipliers.
+    """
+    scale_x, scale_y = factors
+    if any(_is_nan(value) or _is_infinite(value) or value <= 0.0 for value in factors):
+        msg = "scale factors must be positive and finite"
+        raise ValueError(msg)
+    matrix = inpt.coords.new_tensor([[scale_x, 0.0], [0.0, scale_y]])
+    center = _bbox_center(inpt.types, inpt.coords)
+    return _same_types(
+        inpt,
+        _apply_matrix(inpt.types, inpt.coords, matrix, center, (0.0, 0.0)),
+    )
+
+
+def rotate(inpt: Outline, angle: float) -> Outline:
+    """Rotate an outline counter-clockwise around its tight bounding-box centre."""
+    return affine(inpt, angle=angle)
 
 
 def add_coordinate_noise(inpt: Outline, noise: Tensor) -> Outline:
@@ -302,4 +335,61 @@ def add_coordinate_noise(inpt: Outline, noise: Tensor) -> Outline:
     )
 
 
-__all__ = ["add_coordinate_noise", "affine", "horizontal_flip", "vertical_flip"]
+def elastic(inpt: Outline, displacement: Tensor) -> Outline:
+    """Apply a dense displacement field to an outline.
+
+    ``displacement`` has shape ``(1, H, W, 2)`` and stores x/y offsets in em
+    units over the standard TorchFont canvas ``[-0.25, 1.25]``. Values between
+    grid points are bilinearly interpolated. The operation is differentiable
+    with respect to both the outline coordinates and the displacement field.
+    """
+    expected_ndim = 4
+    coordinate_dim = 2
+    minimum_grid_size = 2
+    if (
+        displacement.ndim != expected_ndim
+        or displacement.shape[0] != 1
+        or displacement.shape[-1] != coordinate_dim
+        or displacement.shape[1] < minimum_grid_size
+        or displacement.shape[2] < minimum_grid_size
+    ):
+        msg = (
+            "displacement must have shape (1, H, W, 2) with H and W at least 2, "
+            f"got {tuple(displacement.shape)}"
+        )
+        raise ValueError(msg)
+
+    types, coords = inpt.types, inpt.coords
+    points = coords.reshape(-1, 3, 2)
+    # grid_sample expects coordinates in [-1, 1]. TorchFont's full em canvas
+    # runs from -0.25 to 1.25, so this is the corresponding affine map.
+    sample_grid = ((points + 0.25) * (2.0 / 1.5) - 1.0).reshape(1, -1, 1, 2)
+    field = displacement.permute(0, 3, 1, 2).to(
+        device=coords.device, dtype=coords.dtype
+    )
+    offsets = (
+        nn_functional.grid_sample(
+            field,
+            sample_grid,
+            mode="bilinear",
+            padding_mode="border",
+            align_corners=True,
+        )
+        .reshape(2, -1)
+        .T.reshape_as(points)
+    )
+    active = torch.stack(_active_pairs(types), dim=1).unsqueeze(-1)
+    return _same_types(
+        inpt, torch.where(active, points + offsets, points).reshape_as(coords)
+    )
+
+
+__all__ = [
+    "add_coordinate_noise",
+    "affine",
+    "elastic",
+    "horizontal_flip",
+    "rotate",
+    "scale",
+    "vertical_flip",
+]

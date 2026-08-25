@@ -74,7 +74,7 @@ inside an already-applied transform.
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `SplitSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
-| Geometry | `Affine`, `RandomAffine`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `GaussianNoise` |
+| Geometry | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | Output | `RenderBitmap` |
 
 `RenderBitmap` changes each `Outline` leaf into a plain `uint8` tensor. When
@@ -150,6 +150,9 @@ Gradient support varies by operation:
 | Kernel | Differentiable |
 | --- | --- |
 | `affine` | yes |
+| `scale` | yes |
+| `rotate` | yes |
+| `elastic` | yes, in both the outline and the displacement field |
 | `add_coordinate_noise` | yes, in both the outline and the noise |
 | `horizontal_flip`, `vertical_flip` | only with `preserve_winding=False` |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | no |
@@ -165,21 +168,22 @@ F.remove_overlaps(outline)
 # Raises RuntimeError
 ```
 
-`affine` and the flips pivot around the tight bounding-box centre. Gradients flow
+`affine`, `rotate`, `scale`, and the flips pivot around the tight bounding-box centre. Gradients flow
 through the transformed coordinates but not through that centre.
 
 ### Devices
 
-`LoadGlyph` returns CPU `float32` outlines. `Affine`, flip, curve, overlap, and
-subpath transforms, as well as `RenderBitmap`, require CPU `float32` outlines.
+`LoadGlyph` returns CPU `float32` outlines. `Affine`, `RandomAffine`,
+`RandomRotation`, `RandomScale`, flip, curve, overlap, and subpath transforms, as
+well as `RenderBitmap`, require CPU `float32` outlines.
 Convert other outlines explicitly before calling them:
 
 ```python
 outline = outline.to("cpu", torch.float32)
 ```
 
-`GaussianNoise` and `functional.add_coordinate_noise` preserve the input device and
-floating point dtype.
+`ElasticTransform`, `GaussianNoise`, `functional.elastic`, and
+`functional.add_coordinate_noise` preserve the input device and floating point dtype.
 
 ### `torch.compile`
 
