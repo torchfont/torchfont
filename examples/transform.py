@@ -1,13 +1,23 @@
+from torch import Tensor
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from torchfont import CodepointData, Outline, pad_outlines
+from torchfont import CodepointData, ElementType, Outline
 from torchfont import transforms as T
 from torchfont.datasets import CodepointDataset
 
 
-def collate_fn(batch: list[CodepointData[Outline]]) -> Outline:
-    return pad_outlines([data.data for data in batch])
+def collate_fn(batch: list[CodepointData[Outline]]) -> tuple[Tensor, Tensor]:
+    outlines = [data.data for data in batch]
+    return (
+        pad_sequence(
+            [outline.types for outline in outlines],
+            batch_first=True,
+            padding_value=ElementType.PAD,
+        ),
+        pad_sequence([outline.coords for outline in outlines], batch_first=True),
+    )
 
 
 def main() -> None:

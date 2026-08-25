@@ -5,7 +5,14 @@ from __future__ import annotations
 import torch
 from torch import Tensor
 
-from torchfont._outline import ElementType
+from torchfont._outline import COORD_DIM, ElementType
+
+
+def _validate_outline_tensors(types: Tensor, coords: Tensor) -> None:
+    expected = (*types.shape, COORD_DIM)
+    if coords.shape != expected:
+        msg = f"coords must have shape {expected} for types, got {tuple(coords.shape)}"
+        raise ValueError(msg)
 
 
 def _active_coordinate_mask(types: Tensor) -> Tensor:

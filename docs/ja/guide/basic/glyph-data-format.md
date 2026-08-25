@@ -98,9 +98,7 @@ MOVE_TO
 7 つです。
 
 - `ElementType.END` はシーケンス終端を表します
-- `ElementType.PAD` はバッチのパディングで導入された行を標識します。フォントの
-  読み込みでは生成されず、単一グリフには含まれません。値と比較するのではなく
-  `outline.padding_mask` を読んでください
+- `ElementType.PAD` はバッチのパディング行を表します
 
 ## 座標
 

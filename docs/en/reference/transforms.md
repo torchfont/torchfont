@@ -139,20 +139,6 @@ shape = bitmap.shape
 The functional API does not sample randomness. Random selection and parameter
 sampling belong to the `Random*` transform classes.
 
-### Single glyphs only
-
-Every operation in this section accepts a single glyph. Passing a batched
-`Outline` raises:
-
-```python
-F.affine(batch, angle=5.0)
-# ValueError: affine operates on a single outline, got batch shape (64,);
-#             iterate with unpad_outlines() first
-```
-
-Transforms run per sample, before collation. Batch a pipeline's output with
-[`pad_outlines`](./core-types.md#pad-outlines) or a `DataLoader`.
-
 ### Differentiability
 
 Gradient support varies by operation:

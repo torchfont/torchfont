@@ -47,15 +47,26 @@ pip install torchfont
 ## Quickstart
 
 ```python
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
-from torchfont import CodepointData, Outline, pad_outlines
+from torchfont import CodepointData, ElementType, Outline
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 
-def collate_fn(samples: list[CodepointData[Outline]]) -> Outline:
-    return pad_outlines([sample.data for sample in samples])
+def collate_fn(samples: list[CodepointData[Outline]]):
+    outlines = [sample.data for sample in samples]
+    return {
+        "types": pad_sequence(
+            [outline.types for outline in outlines],
+            batch_first=True,
+            padding_value=ElementType.PAD,
+        ),
+        "coords": pad_sequence(
+            [outline.coords for outline in outlines], batch_first=True
+        ),
+    }
 
 
 dataset = CodepointDataset(
@@ -71,14 +82,11 @@ loader = DataLoader(
     shuffle=True,
     collate_fn=collate_fn,
 )
-outlines = next(iter(loader))
+batch = next(iter(loader))
 
-print(outlines.types.shape)  # (8, L)
-print(outlines.coords.shape)  # (8, L, 6)
+print(batch["types"].shape)  # (8, L)
+print(batch["coords"].shape)  # (8, L, 6)
 ```
-
-Use `pad_outlines` to pad variable-length outlines. A model that also needs
-targets can add them to the batch in its local `collate_fn`.
 
 ## What TorchFont Focuses On
 

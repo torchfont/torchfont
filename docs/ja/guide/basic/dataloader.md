@@ -51,23 +51,33 @@ torch.Size([37, 6])
 ## DataLoader を作成する
 
 グリフのアウトライン系列は可変長なので、モデルの入力契約に合うローカルな
-`collate_fn` を定義します。データ本体には `pad_outlines` を使い、モデルが必要とする
-ターゲットだけをテンソルに変換します。
+`collate_fn` を定義します。アウトライン Tensor には PyTorch の `pad_sequence` を使い、
+モデルが必要とするターゲットだけをテンソルに変換します。
 
 ```python
 import math
 
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 from torchfont.datasets import CodepointDataset
-from torchfont import CodepointData, Outline, pad_outlines
+from torchfont import CodepointData, ElementType, Outline
 from torchfont.transforms import LoadGlyph
 
 
 def collate_fn(samples: list[CodepointData[Outline]]):
+    outlines = [sample.data for sample in samples]
     return {
-        "outline": pad_outlines([sample.data for sample in samples]),
+        "types": pad_sequence(
+            [outline.types for outline in outlines],
+            batch_first=True,
+            padding_value=ElementType.PAD,
+        ),
+        "coords": pad_sequence(
+            [outline.coords for outline in outlines], batch_first=True
+        ),
+        "lengths": torch.tensor([len(outline) for outline in outlines]),
         "font_idx": torch.tensor(
             [sample.font_idx for sample in samples], dtype=torch.long
         ),
@@ -100,8 +110,8 @@ loader = DataLoader(
 )
 batch = next(iter(loader))
 
-print(batch["outline"].shape)
-print(batch["outline"].coords.shape)
+print(batch["types"].shape)
+print(batch["coords"].shape)
 print(batch["weight"].shape)
 ```
 
@@ -117,43 +127,29 @@ torch.Size([64])
 
 ## パディング済みバッチを扱う
 
-パディングされた要素は `ElementType.PAD` です。その値と直接比較する代わりに
-`padding_mask` を使用します。これは Attention モジュールへ `key_padding_mask` として
-そのまま渡せます。
+パディングされた要素は `ElementType.PAD` です。Attention モジュールが
+`key_padding_mask` として期待する Boolean Mask を Element Type から直接作ります。
 
 ```python
-mask = batch["outline"].padding_mask  # (64, 369)、パディング位置が True
+mask = batch["types"] == ElementType.PAD  # (64, 369)、パディング位置が True
 ```
 
-`unpad_outlines()` はパディング済みバッチを分割し、入力時の個々の `Outline` に戻します。
-一方、`Outline.unbind()` は通常のテンソル操作と同じくパディングを保持します。
+Padding 済み Tensor を復元する必要がある場合は元の Length を保持し、PyTorch の
+`unpad_sequence` を使います。
 
 ```python
-from torchfont import unpad_outlines
+from torch.nn.utils.rnn import unpad_sequence
 
-singles = unpad_outlines(batch["outline"])
-
-print(len(singles), singles[0].shape)
+types = unpad_sequence(batch["types"], batch["lengths"], batch_first=True)
+coords = unpad_sequence(batch["coords"], batch["lengths"], batch_first=True)
 ```
 
-`torchfont.nn` のモジュールはバッチ化の有無を問わず `Outline` を受け取るので、パディング済みバッチをそのままモデルに渡せます。
+`torchfont.nn` のモジュールには Padding 済み Tensor を直接渡します。
 
 ```python
 from torchfont.nn import OutlineEmbedding
 
-tokens = OutlineEmbedding(embedding_dim=256)(batch["outline"])
+tokens = OutlineEmbedding(embedding_dim=256)(batch["types"], batch["coords"])
 
 print(tokens.shape)  # (64, 369, 256)
-```
-
-## DataLoader を使わずにバッチ化する
-
-`pad_outlines` は同じパディング処理を直接呼び出せます。
-
-```python
-from torchfont import pad_outlines
-
-batched = pad_outlines([dataset[0].data, dataset[1].data])
-
-print(batched.shape)
 ```

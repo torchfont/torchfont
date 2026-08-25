@@ -1,11 +1,12 @@
-"""``torchfont.nn`` operating on single and batched :class:`torchfont.Outline`."""
+"""``torchfont.nn`` operating on single and batched outline tensors."""
 
 from __future__ import annotations
 
 import pytest
 import torch
+from torch.nn.utils.rnn import pad_sequence
 
-from torchfont import COORD_DIM, TYPE_DIM, ElementType, Outline, pad_outlines
+from torchfont import COORD_DIM, TYPE_DIM, ElementType, Outline
 from torchfont.nn import OutlineEmbedding, OutlineLoss
 from torchfont.nn import functional as F  # noqa: N812
 
@@ -19,45 +20,65 @@ def _outline(length: int = 4) -> Outline:
 
 
 @pytest.fixture
-def batch() -> Outline:
-    return pad_outlines([_outline(), _outline(3)])
-
-
-def test_embedding_accepts_a_single_outline() -> None:
-    assert OutlineEmbedding(8)(_outline()).shape == (4, 8)
-
-
-def test_embedding_accepts_a_batched_outline(batch: Outline) -> None:
-    assert OutlineEmbedding(8)(batch).shape == (2, 4, 8)
-
-
-def test_loss_accepts_a_batched_outline(batch: Outline) -> None:
-    logits = torch.zeros(*batch.shape, TYPE_DIM)
-    prediction = torch.zeros(*batch.shape, COORD_DIM)
-
-    assert OutlineLoss()(logits, prediction, batch).ndim == 0
-
-
-def test_coordinate_loss_accepts_a_batched_outline(batch: Outline) -> None:
-    prediction = torch.zeros(*batch.shape, COORD_DIM)
-
-    assert F.coordinate_loss(prediction, batch).ndim == 0
-
-
-def test_loss_ignores_padding_introduced_by_pad_outlines() -> None:
-    single = _outline(3)
-    batch = pad_outlines([single, single])
-    padded_loss = OutlineLoss()(
-        torch.zeros(*batch.shape, TYPE_DIM),
-        torch.zeros(*batch.shape, COORD_DIM),
-        batch,
+def batch() -> tuple[torch.Tensor, torch.Tensor]:
+    outlines = [_outline(), _outline(3)]
+    return (
+        pad_sequence(
+            [outline.types for outline in outlines],
+            batch_first=True,
+            padding_value=ElementType.PAD,
+        ),
+        pad_sequence([outline.coords for outline in outlines], batch_first=True),
     )
 
-    unpadded = pad_outlines([single])
+
+def test_embedding_accepts_single_outline_tensors() -> None:
+    outline = _outline()
+    assert OutlineEmbedding(8)(outline.types, outline.coords).shape == (4, 8)
+
+
+def test_embedding_accepts_batched_outline_tensors(
+    batch: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    assert OutlineEmbedding(8)(*batch).shape == (2, 4, 8)
+
+
+def test_loss_accepts_batched_outline_tensors(
+    batch: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = batch
+    logits = torch.zeros(*types.shape, TYPE_DIM)
+
+    assert OutlineLoss()(logits, torch.zeros_like(coords), types, coords).ndim == 0
+
+
+def test_coordinate_loss_accepts_batched_outline_tensors(
+    batch: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = batch
+
+    assert F.coordinate_loss(torch.zeros_like(coords), types, coords).ndim == 0
+
+
+def test_loss_ignores_padding_introduced_by_pad_sequence() -> None:
+    single = _outline(3)
+    types = pad_sequence(
+        [single.types, single.types],
+        batch_first=True,
+        padding_value=ElementType.PAD,
+    )
+    coords = pad_sequence([single.coords, single.coords], batch_first=True)
+    padded_loss = OutlineLoss()(
+        torch.zeros(*types.shape, TYPE_DIM),
+        torch.zeros_like(coords),
+        types,
+        coords,
+    )
     unpadded_loss = OutlineLoss()(
-        torch.zeros(*unpadded.shape, TYPE_DIM),
-        torch.zeros(*unpadded.shape, COORD_DIM),
-        unpadded,
+        torch.zeros(1, *single.shape, TYPE_DIM),
+        torch.zeros(1, *single.coords.shape),
+        single.types.unsqueeze(0),
+        single.coords.unsqueeze(0),
     )
 
     assert torch.allclose(padded_loss, unpadded_loss)

@@ -26,7 +26,6 @@ from torchfont import _ops
 from torchfont._outline import ElementType, Outline
 from torchfont.transforms.functional._utils import (
     _require_no_grad,
-    _require_single,
     _same_types,
 )
 
@@ -231,7 +230,6 @@ def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     Differentiable only when ``preserve_winding`` is ``False``; reversing
     subpaths reorders elements in Rust and defines no gradient.
     """
-    _require_single(inpt, "horizontal_flip")
     if preserve_winding:
         _require_no_grad(inpt, "horizontal_flip(preserve_winding=True)")
     out_types, out_coords = _horizontal_flip(
@@ -246,7 +244,6 @@ def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     Differentiable only when ``preserve_winding`` is ``False``; reversing
     subpaths reorders elements in Rust and defines no gradient.
     """
-    _require_single(inpt, "vertical_flip")
     if preserve_winding:
         _require_no_grad(inpt, "vertical_flip(preserve_winding=True)")
     out_types, out_coords = _vertical_flip(
@@ -268,7 +265,6 @@ def affine(
     Differentiable with respect to ``coords``. The bounding-box centre the
     transform pivots around is treated as a constant reference frame.
     """
-    _require_single(inpt, "affine")
     return _same_types(
         inpt,
         _affine(
@@ -287,7 +283,6 @@ def coord_jitter(inpt: Outline, noise: Tensor) -> Outline:
 
     Differentiable with respect to both ``coords`` and ``noise``.
     """
-    _require_single(inpt, "coord_jitter")
     types, coords = inpt.types, inpt.coords
     noise_tail_shape = (3, 2)
     if (

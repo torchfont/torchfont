@@ -6,7 +6,7 @@ from torch import Tensor
 
 from torchfont import _ops
 from torchfont._outline import Outline
-from torchfont.transforms.functional._utils import _require_no_grad, _require_single
+from torchfont.transforms.functional._utils import _require_no_grad
 
 BitmapMode = Literal["fixed", "bbox", "bbox_square"]
 FillRule = Literal["winding", "even_odd"]
@@ -48,7 +48,6 @@ def render_bitmap(
         rejected.
 
     """
-    _require_single(inpt, "render_bitmap")
     _require_no_grad(inpt, "render_bitmap")
     return _ops.render_bitmap(inpt.types, inpt.coords, size, mode, fill_rule, antialias)
 
