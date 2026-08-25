@@ -70,6 +70,22 @@ def test_add_coordinate_noise_is_differentiable_in_both_arguments() -> None:
     assert noise.grad is not None
 
 
+def test_scale_is_differentiable() -> None:
+    outline, coords = _grad_outline()
+
+    F.scale(outline, (0.9, 1.1)).coords.sum().backward()
+
+    assert coords.grad is not None
+
+
+def test_rotate_is_differentiable() -> None:
+    outline, coords = _grad_outline()
+
+    F.rotate(outline, 10.0).coords.sum().backward()
+
+    assert coords.grad is not None
+
+
 def test_flip_without_winding_preservation_is_differentiable() -> None:
     outline, coords = _grad_outline()
 

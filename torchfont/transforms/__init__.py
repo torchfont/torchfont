@@ -11,10 +11,13 @@ from torchfont.transforms._curves import (
 )
 from torchfont.transforms._geometry import (
     Affine,
+    ElasticTransform,
     GaussianNoise,
     HorizontalFlip,
     RandomAffine,
     RandomHorizontalFlip,
+    RandomRotation,
+    RandomScale,
     RandomVerticalFlip,
     VerticalFlip,
 )
@@ -33,6 +36,7 @@ __all__ = [
     "Affine",
     "Compose",
     "CubicToQuad",
+    "ElasticTransform",
     "GaussianNoise",
     "HorizontalFlip",
     "LoadGlyph",
@@ -43,6 +47,8 @@ __all__ = [
     "RandomApply",
     "RandomHorizontalFlip",
     "RandomRemoveOverlaps",
+    "RandomRotation",
+    "RandomScale",
     "RandomSplitSegments",
     "RandomSubpathDropout",
     "RandomSubpathOrder",

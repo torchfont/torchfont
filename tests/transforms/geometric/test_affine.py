@@ -87,6 +87,37 @@ def test_affine_transforms_all_cubic_pairs(
     assert not torch.allclose(out[curve_idx, 4:6], coords[curve_idx, 4:6])
 
 
+def test_affine_supports_fixed_y_shear(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
+    _, out = affine(types, coords, shear=(0.0, 45.0))
+
+    line_idx = types.tolist().index(ElementType.LINE_TO.value)
+    assert out[line_idx, 4].item() == pytest.approx(coords[line_idx, 4].item())
+    assert out[line_idx, 5].item() == pytest.approx(
+        coords[line_idx, 5].item() + coords[line_idx, 4].item() - 0.5,
+        abs=1e-5,
+    )
+
+
+def test_affine_x_shear_is_applied_after_rotation(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
+    _, rotated = affine(types, coords, angle=30.0)
+    _, out = affine(types, coords, angle=30.0, shear=20.0)
+
+    line_idx = types.tolist().index(ElementType.LINE_TO.value)
+    center = torch.tensor([0.5, 0.5])
+    rotated_point = rotated[line_idx, 4:6]
+    expected_x = rotated_point[0] + torch.tan(torch.deg2rad(torch.tensor(20.0))) * (
+        rotated_point[1] - center[1]
+    )
+    assert out[line_idx, 4].item() == pytest.approx(expected_x.item(), abs=1e-5)
+    assert out[line_idx, 5].item() == pytest.approx(rotated_point[1].item(), abs=1e-5)
+
+
 def test_affine_quad_pair1_stays_zero(
     quad_outline: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
@@ -126,8 +157,16 @@ def test_affine_rejects_non_finite_shear(
     shear: float,
 ) -> None:
     types, coords = simple_outline
-    with pytest.raises(ValueError, match="shear must be finite"):
+    with pytest.raises(ValueError, match="shear values must be finite"):
         affine(types, coords, shear=shear)
+
+
+def test_affine_rejects_non_finite_y_shear(
+    simple_outline: tuple[torch.Tensor, torch.Tensor],
+) -> None:
+    types, coords = simple_outline
+    with pytest.raises(ValueError, match="shear values must be finite"):
+        affine(types, coords, shear=(0.0, float("nan")))
 
 
 @pytest.mark.parametrize(

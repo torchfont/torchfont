@@ -10,7 +10,10 @@ from torchfont.transforms.functional._curves import (
 from torchfont.transforms.functional._geometry import (
     add_coordinate_noise,
     affine,
+    elastic,
     horizontal_flip,
+    rotate,
+    scale,
     vertical_flip,
 )
 from torchfont.transforms.functional._glyph import load_glyph
@@ -31,6 +34,7 @@ __all__ = [
     "affine",
     "cubic_to_quad",
     "drop_subpaths",
+    "elastic",
     "horizontal_flip",
     "load_glyph",
     "merge_curves",
@@ -40,6 +44,8 @@ __all__ = [
     "remove_overlaps",
     "render_bitmap",
     "reorder_subpaths",
+    "rotate",
+    "scale",
     "set_subpath_start_points",
     "split_segments",
     "split_subpaths",

@@ -41,6 +41,9 @@ def _pipeline(types: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
     outline = F.cubic_to_quad(outline)
     outline = F.merge_curves(outline)
     outline = F.affine(outline, angle=10.0, scale=1.1)
+    outline = F.rotate(outline, 5.0)
+    outline = F.scale(outline, (0.9, 1.1))
+    outline = F.elastic(outline, coords.new_zeros((1, 4, 4, 2)))
     outline = F.normalize_subpath_start_points(outline)
     return F.render_bitmap(outline, 32)
 
