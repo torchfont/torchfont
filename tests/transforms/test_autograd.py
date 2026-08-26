@@ -102,6 +102,7 @@ def test_flip_without_winding_preservation_is_differentiable() -> None:
         ("merge_curves", F.merge_curves),
         ("remove_overlaps", F.remove_overlaps),
         ("render_bitmap", F.render_bitmap),
+        ("normalize_subpath_order", F.normalize_subpath_order),
         ("normalize_subpath_start_points", F.normalize_subpath_start_points),
         ("horizontal_flip", F.horizontal_flip),
         ("vertical_flip", F.vertical_flip),

@@ -45,6 +45,7 @@ def _pipeline(types: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
     outline = F.scale(outline, (0.9, 1.1))
     outline = F.elastic(outline, coords.new_zeros((1, 4, 4, 2)))
     outline = F.normalize_subpath_start_points(outline)
+    outline = F.normalize_subpath_order(outline)
     return F.render_bitmap(outline, 32)
 
 
@@ -70,6 +71,7 @@ def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
             ops.normalize_subpath_start_points,
             pair,
         ),
+        ("normalize_subpath_order", ops.normalize_subpath_order, pair),
         ("reverse_closed_subpaths", ops.reverse_closed_subpaths, pair),
         ("bbox_center", ops.bbox_center, pair),
         ("set_subpath_start_points", ops.set_subpath_start_points, (*pair, values)),

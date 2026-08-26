@@ -73,7 +73,7 @@ inside an already-applied transform.
 | Containers | `Compose`, `RandomApply` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
-| Subpaths | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
+| Subpaths | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | Geometry | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | Output | `RenderBitmap` |
 
@@ -157,7 +157,7 @@ Gradient support varies by operation:
 | `horizontal_flip`, `vertical_flip` | only with `preserve_winding=False` |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | no |
 | `remove_overlaps`, `remove_overlap_groups` | no |
-| `split_subpaths`, `truncate_subpaths`, `drop_subpaths`, `drop_subpaths_to_fit`, `normalize_subpath_start_points`, `set_subpath_start_points`, `reorder_subpaths` | no |
+| `split_subpaths`, `truncate_subpaths`, `drop_subpaths`, `drop_subpaths_to_fit`, `normalize_subpath_start_points`, `normalize_subpath_order`, `set_subpath_start_points`, `reorder_subpaths` | no |
 | `render_bitmap` | no |
 
 Passing an outline that requires grad to an operation marked "no" raises:

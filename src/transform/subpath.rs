@@ -1,8 +1,8 @@
 #[cfg(test)]
 use crate::outline::outline_from_subpaths;
 use crate::outline::{
-    BezPath, PathEl, Point, path_element_end, subpath_elements, subpath_from_elements,
-    subpath_is_closed, subpath_start,
+    BezPath, Bounds, PathEl, Point, bounds_from_subpath, path_element_end, subpath_elements,
+    subpath_from_elements, subpath_is_closed, subpath_start,
 };
 
 pub(crate) fn reverse_subpath(subpath: &[PathEl]) -> BezPath {
@@ -110,6 +110,27 @@ pub(crate) fn randomize_subpath_order(outline: &BezPath, random_values: &[f32]) 
         result.extend(subpath.iter().copied());
     }
     result
+}
+
+pub(crate) fn normalize_subpath_order(outline: &BezPath) -> BezPath {
+    let mut subpaths: Vec<_> = outline.subpaths().enumerate().collect();
+    subpaths.sort_by(|(a_idx, a), (b_idx, b)| {
+        compare_bounds(bounds_from_subpath(a), bounds_from_subpath(b))
+            .then_with(|| a_idx.cmp(b_idx))
+    });
+    let mut result = BezPath::new();
+    for (_, subpath) in subpaths {
+        result.extend(subpath.iter().copied());
+    }
+    result
+}
+
+fn compare_bounds(a: Bounds, b: Bounds) -> std::cmp::Ordering {
+    a.x_min
+        .total_cmp(&b.x_min)
+        .then_with(|| a.y_min.total_cmp(&b.y_min))
+        .then_with(|| a.x_max.total_cmp(&b.x_max))
+        .then_with(|| a.y_max.total_cmp(&b.y_max))
 }
 
 pub(crate) fn reverse_closed_subpaths(outline: &BezPath) -> BezPath {
@@ -396,6 +417,49 @@ mod tests {
         let outline = outline_from_subpaths([first.clone(), second.clone()]);
 
         let result = randomize_subpath_order(&outline, &[0.5, 0.5]);
+
+        assert_eq!(subpaths(&result), vec![first, second]);
+    }
+
+    #[test]
+    fn normalize_subpath_order_uses_tight_bounds() {
+        let first = closed(pt(10.0, 0.0), vec![line(11.0, 0.0)]);
+        let second = closed(pt(0.0, 10.0), vec![line(1.0, 10.0)]);
+        let third = closed(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let outline = outline_from_subpaths([first.clone(), second.clone(), third.clone()]);
+
+        let result = normalize_subpath_order(&outline);
+
+        assert_eq!(subpaths(&result), vec![third, second, first]);
+    }
+
+    #[test]
+    fn normalize_subpath_order_does_not_depend_on_start_point_or_winding() {
+        let right = closed(pt(10.0, 0.0), vec![line(12.0, 0.0), line(11.0, 1.0)]);
+        let left = closed(pt(2.0, 0.0), vec![line(0.0, 0.0), line(1.0, 1.0)]);
+        let outline = outline_from_subpaths([right.clone(), left.clone()]);
+        let changed = outline_from_subpaths([reverse_subpath(right.elements()), left.clone()]);
+
+        assert_eq!(
+            subpaths(&normalize_subpath_order(&outline)),
+            vec![left.clone(), right.clone()]
+        );
+        assert_eq!(
+            subpaths(&normalize_subpath_order(&changed)),
+            vec![left, reverse_subpath(right.elements())]
+        );
+    }
+
+    #[test]
+    fn normalize_subpath_order_preserves_tie_order() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 1.0)]);
+        let second = open(
+            pt(0.0, 0.0),
+            vec![PathEl::QuadTo(pt(0.5, 0.5), pt(1.0, 1.0))],
+        );
+        let outline = outline_from_subpaths([first.clone(), second.clone()]);
+
+        let result = normalize_subpath_order(&outline);
 
         assert_eq!(subpaths(&result), vec![first, second]);
     }

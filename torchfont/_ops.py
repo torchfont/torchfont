@@ -230,6 +230,22 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 
 
 @torch.library.custom_op(
+    "torchfont::normalize_subpath_order",
+    mutates_args=(),
+    device_types="cpu",
+)
+def normalize_subpath_order(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    """Order subpaths lexicographically by their tight bounding boxes."""
+    out = _torchfont.normalize_subpath_order(*_arrays(types, coords))
+    return _restore(*out)
+
+
+@normalize_subpath_order.register_fake
+def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    return _dynamic_outline(types, coords)
+
+
+@torch.library.custom_op(
     "torchfont::set_subpath_start_points", mutates_args=(), device_types="cpu"
 )
 def set_subpath_start_points(
@@ -434,6 +450,7 @@ __all__ = [
     "drop_subpaths",
     "drop_subpaths_to_fit",
     "merge_curves",
+    "normalize_subpath_order",
     "normalize_subpath_start_points",
     "quad_to_cubic",
     "remove_overlap_groups",

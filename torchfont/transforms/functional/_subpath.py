@@ -135,6 +135,20 @@ def normalize_subpath_start_points(inpt: Outline) -> Outline:
     )
 
 
+def normalize_subpath_order(inpt: Outline) -> Outline:
+    """Order subpaths lexicographically by their tight bounding boxes.
+
+    The sort key is ``(x_min, y_min, x_max, y_max)``. It is independent of the
+    start point and winding. Ties preserve the input order, and element
+    encodings within each subpath are unchanged.
+    """
+    return _native_outline(
+        inpt,
+        _ops.normalize_subpath_order,
+        name="normalize_subpath_order",
+    )
+
+
 def set_subpath_start_points(inpt: Outline, selection_values: Tensor) -> Outline:
     """Set closed-subpath start points from explicit unit-interval values."""
     return _native_outline(
@@ -158,6 +172,7 @@ def reorder_subpaths(inpt: Outline, keys: Tensor) -> Outline:
 __all__ = [
     "drop_subpaths",
     "drop_subpaths_to_fit",
+    "normalize_subpath_order",
     "normalize_subpath_start_points",
     "reorder_subpaths",
     "set_subpath_start_points",
