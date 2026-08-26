@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -70,4 +71,68 @@ class RandomApply(nn.Module):
         return f"p={self.p}"
 
 
-__all__ = ["Compose", "RandomApply"]
+class RandomChoice(nn.Module):
+    """Apply one transform randomly selected from a sequence."""
+
+    def __init__(
+        self,
+        transforms: Iterable[nn.Module] | nn.ModuleList,
+        p: list[float] | None = None,
+    ) -> None:
+        super().__init__()
+        self.transforms = _module_list(transforms)
+        if not self.transforms:
+            msg = "transforms must contain at least one transform"
+            raise ValueError(msg)
+        if p is None:
+            p = [1.0] * len(self.transforms)
+        elif len(p) != len(self.transforms):
+            msg = (
+                "p length must match the number of transforms, "
+                f"got {len(p)} and {len(self.transforms)}"
+            )
+            raise ValueError(msg)
+        if not all(
+            math.isfinite(probability) and probability >= 0.0 for probability in p
+        ):
+            msg = "p values must be non-negative and finite"
+            raise ValueError(msg)
+        total = sum(p)
+        if total == 0.0:
+            msg = "p values must have a positive sum"
+            raise ValueError(msg)
+        self.p = [probability / total for probability in p]
+
+    def forward(self, *inputs: object) -> object:
+        """Apply the randomly selected transform to all inputs."""
+        index = int(torch.multinomial(torch.tensor(self.p), 1).item())
+        return self.transforms[index](*inputs)
+
+    def extra_repr(self) -> str:
+        return f"p={self.p}"
+
+
+class RandomOrder(nn.Module):
+    """Apply a sequence of transforms in random order."""
+
+    def __init__(
+        self,
+        transforms: Iterable[nn.Module] | nn.ModuleList,
+    ) -> None:
+        super().__init__()
+        self.transforms = _module_list(transforms)
+        if not self.transforms:
+            msg = "transforms must contain at least one transform"
+            raise ValueError(msg)
+
+    def forward(self, *inputs: object) -> object:
+        """Apply all configured transforms in a randomly sampled order."""
+        unpack = len(inputs) > 1
+        output: object = inputs if unpack else inputs[0]
+        for transform_index in torch.randperm(len(self.transforms)):
+            output = self.transforms[transform_index](*inputs)
+            inputs = cast("tuple[object, ...]", output) if unpack else (output,)
+        return output
+
+
+__all__ = ["Compose", "RandomApply", "RandomChoice", "RandomOrder"]

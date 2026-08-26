@@ -17,6 +17,8 @@ from torchfont.transforms import (
     LoadGlyph,
     QuadToCubic,
     RandomApply,
+    RandomChoice,
+    RandomOrder,
     RandomSplitSegments,
     RenderBitmap,
     Transform,
@@ -30,6 +32,15 @@ class AddToCoords(Transform):
 
     def transform(self, outline: Outline, _params: dict[str, object]) -> Outline:
         return Outline(outline.types, outline.coords + self.value)
+
+
+class MultiplyCoords(Transform):
+    def __init__(self, value: float) -> None:
+        super().__init__()
+        self.value = value
+
+    def transform(self, outline: Outline, _params: dict[str, object]) -> Outline:
+        return Outline(outline.types, outline.coords * self.value)
 
 
 class IncrementInts(Transform):
@@ -152,6 +163,104 @@ def test_random_apply_rejects_plain_callables() -> None:
 def test_random_apply_rejects_invalid_probability(p: float) -> None:
     with pytest.raises(ValueError, match="p must be between 0 and 1"):
         RandomApply(AddToCoords(1.0), p=p)
+
+
+@pytest.mark.parametrize(("p", "expected"), [([1.0, 0.0], 1.0), ([0.0, 1.0], 2.0)])
+def test_random_choice_selects_transform(
+    p: list[float],
+    expected: float,
+) -> None:
+    outline = _line_outline()
+    transform = RandomChoice([AddToCoords(1.0), AddToCoords(2.0)], p=p)
+
+    output = transform(outline)
+
+    assert torch.equal(output.coords, outline.coords + expected)
+
+
+def test_random_choice_normalizes_probabilities() -> None:
+    transform = RandomChoice([AddToCoords(1.0), AddToCoords(2.0)], p=[1.0, 3.0])
+
+    assert transform.p == [0.25, 0.75]
+
+
+def test_random_choice_supports_multiple_inputs() -> None:
+    outline = _line_outline()
+    transform = RandomChoice([AddToCoords(2.0)], p=[1.0])
+
+    output = transform(outline, "label")
+
+    assert isinstance(output, tuple)
+    assert torch.equal(output[0].coords, outline.coords + 2.0)
+    assert output[1] == "label"
+
+
+@pytest.mark.parametrize(
+    ("p", "match"),
+    [
+        ([1.0], "p length must match"),
+        ([-1.0, 2.0], "non-negative and finite"),
+        ([float("inf"), 1.0], "non-negative and finite"),
+        ([0.0, 0.0], "positive sum"),
+    ],
+)
+def test_random_choice_rejects_invalid_probabilities(
+    p: list[float],
+    match: str,
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        RandomChoice([AddToCoords(1.0), AddToCoords(2.0)], p=p)
+
+
+@pytest.mark.parametrize("container", [RandomChoice, RandomOrder])
+def test_random_containers_reject_empty_transforms(
+    container: type[RandomChoice] | type[RandomOrder],
+) -> None:
+    with pytest.raises(ValueError, match="at least one transform"):
+        container([])
+
+
+@pytest.mark.parametrize("container", [RandomChoice, RandomOrder])
+def test_random_containers_register_transforms(
+    container: type[RandomChoice] | type[RandomOrder],
+) -> None:
+    child = AddToCoords(1.0)
+    transform = container([child])
+
+    assert transform.get_submodule("transforms.0") is child
+
+
+@pytest.mark.parametrize("container", [RandomChoice, RandomOrder])
+def test_random_containers_reject_plain_callables(
+    container: type[RandomChoice] | type[RandomOrder],
+) -> None:
+    with pytest.raises(TypeError, match="is not a Module subclass"):
+        container([lambda value: value])  # ty: ignore[invalid-argument-type]
+
+
+def test_random_order_applies_each_transform_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(torch, "randperm", lambda _length: torch.tensor([1, 0]))
+    transform = RandomOrder([AddToCoords(1.0), MultiplyCoords(2.0)])
+    outline = _line_outline()
+
+    output = transform(outline)
+
+    assert torch.equal(output.coords, outline.coords * 2.0 + 1.0)
+
+
+def test_random_order_supports_multiple_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(torch, "randperm", lambda _length: torch.tensor([0]))
+    outline = _line_outline()
+
+    output = RandomOrder([AddToCoords(2.0)])(outline, "label")
+
+    assert isinstance(output, tuple)
+    assert torch.equal(output[0].coords, outline.coords + 2.0)
+    assert output[1] == "label"
 
 
 def test_random_split_segments_handles_different_length_outlines() -> None:

@@ -52,7 +52,8 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 独立したサンプルには Transform を個別に適用します。確率的 Transform は PyTorch の
 デフォルト RNG を使うため、`torch.manual_seed` と `DataLoader` ワーカーのシードが通常どおり
 機能します。
-組み込み Transform はマルチプロセスの DataLoader でも使用できます。`Compose` には
+組み込み Transform はマルチプロセスの DataLoader でも使用できます。`Compose`、
+`RandomChoice`、`RandomOrder` には
 `nn.Module` の Transform を渡します。独自 Transform も通常の Callable ではなく
 `nn.Module` の Subclass として定義してください。空の `Compose` は入力を変更しません。
 複数の Transform を `RandomApply` でまとめる場合は、内側に `Compose` を置きます。
@@ -61,6 +62,11 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 決定論的な Pipeline を使用してください。
 
 `RandomApply(transform, p)` は一つの Transform を適用するか制御します。
+`RandomChoice(transforms, p)` はランダムに選んだ一つの Transform を適用し、`p` を
+省略すると等確率で選びます。`p` の重みは自動的に正規化されます。
+`RandomOrder(transforms)` はすべての Transform をランダムな
+順序で一度ずつ適用します。`RandomOrder` に渡す各 Transform は、先行し得るすべての順序が
+生成する出力型を受け取れる必要があります。
 `RandomSplitSegments.split_probability` などは、適用された Transform 内部の挙動を
 制御します。
 
@@ -69,7 +75,7 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | 分類 | Transform |
 | --- | --- |
 | 読み込み | `LoadGlyph` |
-| コンテナ | `Compose`, `RandomApply` |
+| コンテナ | `Compose`, `RandomApply`, `RandomChoice`, `RandomOrder` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpath | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
