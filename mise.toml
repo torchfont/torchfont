@@ -2,12 +2,12 @@ min_version = "2026.6.14"
 
 [tools]
 uv = "latest"
-rust = { version = "1.96.0", profile = "default", components = "rust-src,rustfmt,clippy" }
 npm = "latest"
 node = "24"
 
 [settings]
 lockfile = true
+idiomatic_version_file_enable_tools = ["rust"]
 
 [tasks.uv-sync]
 description = "Sync Python dependencies from uv.lock"
@@ -25,7 +25,7 @@ depends = ["uv-sync", "npm-sync"]
 
 [tasks.rust-format]
 description = "Format Rust sources"
-sources = ["Cargo.toml", "mise.lock", "src/**/*.rs"]
+sources = ["Cargo.toml", "mise.lock", "rust-toolchain.toml", "src/**/*.rs"]
 run = "cargo fmt --all"
 
 [tasks.python-format]
@@ -47,7 +47,7 @@ depends = ["rust-format", "python-format"]
 
 [tasks.rust-format-check]
 description = "Check Rust formatting"
-sources = ["Cargo.toml", "mise.lock", "src/**/*.rs"]
+sources = ["Cargo.toml", "mise.lock", "rust-toolchain.toml", "src/**/*.rs"]
 run = "cargo fmt --all -- --check"
 
 [tasks.rust-lint]
@@ -57,6 +57,7 @@ sources = [
   "Cargo.toml",
   "Cargo.lock",
   "mise.lock",
+  "rust-toolchain.toml",
   "src/**/*.rs",
 ]
 run = "uv run --locked --no-sync cargo clippy --locked --all-targets --all-features -- -D warnings"
@@ -68,6 +69,7 @@ sources = [
   "Cargo.toml",
   "Cargo.lock",
   "mise.lock",
+  "rust-toolchain.toml",
   "src/**/*.rs",
   "tests/fonts/**",
 ]
@@ -127,6 +129,7 @@ sources = [
   "pyproject.toml",
   "uv.lock",
   "mise.lock",
+  "rust-toolchain.toml",
   ".python-version",
   "src/**/*.rs",
 ]

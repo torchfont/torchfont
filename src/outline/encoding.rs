@@ -54,7 +54,8 @@ pub(crate) fn decode(types: &[i64], coords: &[f32]) -> Result<BezPath, DecodeErr
         });
     }
     let mut path = BezPath::new();
-    for (&ty, v) in types[..len].iter().zip(coords[..len * 6].chunks_exact(6)) {
+    let coords = coords[..len * 6].as_chunks::<6>().0;
+    for (&ty, v) in types[..len].iter().zip(coords) {
         match ElementType::try_from(ty) {
             Ok(ElementType::MoveTo) => path.move_to(point(v[4], v[5])),
             Ok(ElementType::LineTo) => path.line_to(point(v[4], v[5])),
