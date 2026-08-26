@@ -75,6 +75,12 @@ def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
         ("set_subpath_start_points", ops.set_subpath_start_points, (*pair, values)),
         ("reorder_subpaths", ops.reorder_subpaths, (*pair, values)),
         ("drop_subpaths", ops.drop_subpaths, (*pair, values < 0.5)),
+        (
+            "drop_subpaths_to_fit",
+            ops.drop_subpaths_to_fit,
+            (*pair, values, 4, None),
+        ),
+        ("truncate_subpaths", ops.truncate_subpaths, (*pair, 4, None)),
         ("remove_overlap_groups", ops.remove_overlap_groups, (*pair, values)),
         (
             "split_segments",

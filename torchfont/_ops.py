@@ -292,6 +292,65 @@ def _(
 
 
 @torch.library.custom_op(
+    "torchfont::truncate_subpaths", mutates_args=(), device_types="cpu"
+)
+def truncate_subpaths(
+    types: Tensor,
+    coords: Tensor,
+    max_length: int | None,
+    max_subpaths: int | None,
+) -> tuple[Tensor, Tensor]:
+    """Keep the longest whole-subpath prefix within the given limits."""
+    out = _torchfont.truncate_subpaths(
+        *_arrays(types, coords), max_length, max_subpaths
+    )
+    return _restore(*out)
+
+
+@truncate_subpaths.register_fake
+def _(
+    types: Tensor,
+    coords: Tensor,
+    max_length: int | None,
+    max_subpaths: int | None,
+) -> tuple[Tensor, Tensor]:
+    del max_length, max_subpaths
+    return _dynamic_outline(types, coords)
+
+
+@torch.library.custom_op(
+    "torchfont::drop_subpaths_to_fit", mutates_args=(), device_types="cpu"
+)
+def drop_subpaths_to_fit(
+    types: Tensor,
+    coords: Tensor,
+    removal_values: Tensor,
+    max_length: int | None,
+    max_subpaths: int | None,
+) -> tuple[Tensor, Tensor]:
+    """Drop subpaths in an explicit order until the limits are met."""
+    out = _torchfont.drop_subpaths_to_fit(
+        *_arrays(types, coords),
+        _selection(removal_values),
+        max_length,
+        max_subpaths,
+    )
+    return _restore(*out)
+
+
+@drop_subpaths_to_fit.register_fake
+def _(
+    types: Tensor,
+    coords: Tensor,
+    removal_values: Tensor,
+    max_length: int | None,
+    max_subpaths: int | None,
+) -> tuple[Tensor, Tensor]:
+    del removal_values, max_length, max_subpaths
+    return _dynamic_outline(types, coords)
+
+
+@torch.library.custom_op(
     "torchfont::reverse_closed_subpaths", mutates_args=(), device_types="cpu"
 )
 def reverse_closed_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
@@ -373,6 +432,7 @@ __all__ = [
     "bbox_center",
     "cubic_to_quad",
     "drop_subpaths",
+    "drop_subpaths_to_fit",
     "merge_curves",
     "normalize_subpath_start_points",
     "quad_to_cubic",
@@ -383,4 +443,5 @@ __all__ = [
     "reverse_closed_subpaths",
     "set_subpath_start_points",
     "split_segments",
+    "truncate_subpaths",
 ]

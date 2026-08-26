@@ -30,6 +30,19 @@ def drop_subpaths(
     coords: np.ndarray,
     drop_mask: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]: ...
+def truncate_subpaths(
+    types: np.ndarray,
+    coords: np.ndarray,
+    max_length: int | None,
+    max_subpaths: int | None,
+) -> tuple[np.ndarray, np.ndarray]: ...
+def drop_subpaths_to_fit(
+    types: np.ndarray,
+    coords: np.ndarray,
+    removal_values: np.ndarray,
+    max_length: int | None,
+    max_subpaths: int | None,
+) -> tuple[np.ndarray, np.ndarray]: ...
 def render_bitmap(
     types: np.ndarray,
     coords: np.ndarray,
