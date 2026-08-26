@@ -26,5 +26,6 @@ of that work:
   from the original files without a required preprocessing format.
 - **Composable transforms**:
   an `Outline`-aware class API provides `torchvision.transforms.v2`-style `Transform`,
-  `Compose`, and `RandomApply` building blocks for reusable data pipelines.
+  `Compose`, `RandomApply`, `RandomChoice`, and `RandomOrder` building blocks for
+  reusable data pipelines.
   Deterministic functionals remain available as low-level kernels.

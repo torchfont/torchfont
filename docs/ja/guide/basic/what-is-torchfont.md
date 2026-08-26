@@ -25,5 +25,6 @@ TorchFont は PyTorch の非公式ライブラリです。PyTorch プロジェ�
   専用の中間形式への事前変換は必要ありません。
 - **組み合わせ可能な変換**:
   `Outline` を認識するクラス API と、`torchvision.transforms.v2` 形式の `Transform`、`Compose`、
-  `RandomApply` を再利用可能なパイプライン向けに提供します。決定的な Functional API は
+  `RandomApply`、`RandomChoice`、`RandomOrder` を再利用可能なパイプライン向けに提供します。
+  決定的な Functional API は
   低レベルカーネルとして利用できます。

@@ -2,7 +2,12 @@
 
 from torchfont.transforms import functional
 from torchfont.transforms._bitmap import RenderBitmap
-from torchfont.transforms._container import Compose, RandomApply
+from torchfont.transforms._container import (
+    Compose,
+    RandomApply,
+    RandomChoice,
+    RandomOrder,
+)
 from torchfont.transforms._curves import (
     CubicToQuad,
     MergeCurves,
@@ -49,7 +54,9 @@ __all__ = [
     "QuadToCubic",
     "RandomAffine",
     "RandomApply",
+    "RandomChoice",
     "RandomHorizontalFlip",
+    "RandomOrder",
     "RandomRemoveOverlaps",
     "RandomRotation",
     "RandomScale",

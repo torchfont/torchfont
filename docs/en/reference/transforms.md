@@ -53,8 +53,9 @@ Transforms accept nested inputs and preserve their structure. Corresponding
 outlines in one call receive the same randomly sampled parameters. Apply the
 transform separately to independent samples. Random transforms use PyTorch's default RNG, so
 `torch.manual_seed` and DataLoader worker seeding apply normally.
-Built-in transforms can be used with multiprocessing data loaders. `Compose`
-accepts `nn.Module` transforms; define custom transforms as `nn.Module`
+Built-in transforms can be used with multiprocessing data loaders. `Compose`,
+`RandomChoice`, and `RandomOrder`
+accept `nn.Module` transforms; define custom transforms as `nn.Module`
 subclasses rather than plain callables. An empty `Compose` leaves its input
 unchanged. Use `Compose` inside `RandomApply` to group several transforms.
 
@@ -62,6 +63,11 @@ Calling `eval()` does not disable random data augmentation. Use a deterministic
 pipeline for evaluation.
 
 `RandomApply(transform, p)` controls whether one transform is applied.
+`RandomChoice(transforms, p)` applies one randomly selected transform, with equal
+probability when `p` is omitted. The weights in `p` are normalized automatically.
+`RandomOrder(transforms)` applies every transform once in a randomly selected order.
+The transforms passed to `RandomOrder` must
+accept the output types produced by every possible preceding order.
 Probabilities such as `RandomSplitSegments.split_probability` control behavior
 inside an already-applied transform.
 
@@ -70,7 +76,7 @@ inside an already-applied transform.
 | Category | Transforms |
 | --- | --- |
 | Loading | `LoadGlyph` |
-| Containers | `Compose`, `RandomApply` |
+| Containers | `Compose`, `RandomApply`, `RandomChoice`, `RandomOrder` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
 | Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
 | Subpaths | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
