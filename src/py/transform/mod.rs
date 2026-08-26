@@ -71,6 +71,68 @@ pub(crate) fn drop_subpaths<'py>(
 }
 
 #[pyfunction]
+pub(crate) fn truncate_subpaths<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    max_length: Option<usize>,
+    max_subpaths: Option<usize>,
+) -> PyResult<OutlineArrays<'py>> {
+    if max_length == Some(0) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "max_length must be positive",
+        ));
+    }
+    if max_length.is_none() && max_subpaths.is_none() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "max_length or max_subpaths must be specified",
+        ));
+    }
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    let result = py.detach(|| subpath::truncate_subpaths(&outline, max_length, max_subpaths));
+    Ok(encode(py, &result))
+}
+
+#[pyfunction]
+pub(crate) fn drop_subpaths_to_fit<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    removal_values: PyReadonlyArray1<'_, f32>,
+    max_length: Option<usize>,
+    max_subpaths: Option<usize>,
+) -> PyResult<OutlineArrays<'py>> {
+    use crate::outline::ElementType;
+    if max_length == Some(0) {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "max_length must be positive",
+        ));
+    }
+    if max_length.is_none() && max_subpaths.is_none() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "max_length or max_subpaths must be specified",
+        ));
+    }
+    let types = types.as_slice()?;
+    let values = removal_values.as_slice()?;
+    let outline = decode(types, coords.as_slice()?)?;
+    if values.len() < types.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "removal_values length must be at least types length",
+        ));
+    }
+    let subpath_values: Vec<_> = types
+        .iter()
+        .zip(values)
+        .filter_map(|(&ty, &value)| (ty == ElementType::MoveTo as i64).then_some(value))
+        .collect();
+    let result = py.detach(|| {
+        subpath::drop_subpaths_to_fit(&outline, &subpath_values, max_length, max_subpaths)
+    });
+    Ok(encode(py, &result))
+}
+
+#[pyfunction]
 pub(crate) fn quad_to_cubic<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
@@ -352,6 +414,8 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(random_split_segments, m)?)?;
     m.add_function(wrap_pyfunction!(split_subpaths, m)?)?;
     m.add_function(wrap_pyfunction!(drop_subpaths, m)?)?;
+    m.add_function(wrap_pyfunction!(truncate_subpaths, m)?)?;
+    m.add_function(wrap_pyfunction!(drop_subpaths_to_fit, m)?)?;
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(random_remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;

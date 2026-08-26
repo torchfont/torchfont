@@ -23,10 +23,12 @@ from torchfont.transforms.functional._outline import (
 )
 from torchfont.transforms.functional._subpath import (
     drop_subpaths,
+    drop_subpaths_to_fit,
     normalize_subpath_start_points,
     reorder_subpaths,
     set_subpath_start_points,
     split_subpaths,
+    truncate_subpaths,
 )
 
 __all__ = [
@@ -34,6 +36,7 @@ __all__ = [
     "affine",
     "cubic_to_quad",
     "drop_subpaths",
+    "drop_subpaths_to_fit",
     "elastic",
     "horizontal_flip",
     "load_glyph",
@@ -49,5 +52,6 @@ __all__ = [
     "set_subpath_start_points",
     "split_segments",
     "split_subpaths",
+    "truncate_subpaths",
     "vertical_flip",
 ]

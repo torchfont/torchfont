@@ -26,6 +26,54 @@ pub(crate) fn drop_subpaths(outline: &BezPath, drop_mask: &[bool]) -> BezPath {
     result
 }
 
+pub(crate) fn truncate_subpaths(
+    outline: &BezPath,
+    max_length: Option<usize>,
+    max_subpaths: Option<usize>,
+) -> BezPath {
+    let mut result = BezPath::new();
+    let mut remaining = max_length.map(|length| length - 1);
+    for (index, subpath) in outline.subpaths().enumerate() {
+        if max_subpaths.is_some_and(|count| index >= count)
+            || remaining.is_some_and(|length| subpath.len() > length)
+        {
+            break;
+        }
+        result.extend(subpath.iter().copied());
+        if let Some(length) = &mut remaining {
+            *length -= subpath.len();
+        }
+    }
+    result
+}
+
+pub(crate) fn drop_subpaths_to_fit(
+    outline: &BezPath,
+    removal_values: &[f32],
+    max_length: Option<usize>,
+    max_subpaths: Option<usize>,
+) -> BezPath {
+    let subpaths: Vec<_> = outline.subpaths().collect();
+    let mut element_count = subpaths.iter().map(|subpath| subpath.len()).sum::<usize>() + 1;
+    let mut subpath_count = subpaths.len();
+    let mut removal_order: Vec<_> = removal_values.iter().copied().enumerate().collect();
+    removal_order.sort_by(|(a_idx, a), (b_idx, b)| a.total_cmp(b).then_with(|| a_idx.cmp(b_idx)));
+    let mut drop_mask = vec![false; subpath_count];
+
+    for (index, _) in removal_order {
+        let exceeds_length = max_length.is_some_and(|limit| element_count > limit);
+        let exceeds_count = max_subpaths.is_some_and(|limit| subpath_count > limit);
+        if !exceeds_length && !exceeds_count {
+            break;
+        }
+        drop_mask[index] = true;
+        element_count -= subpaths[index].len();
+        subpath_count -= 1;
+    }
+
+    drop_subpaths(outline, &drop_mask)
+}
+
 pub(crate) fn normalize_subpath_start_points(outline: &BezPath) -> BezPath {
     transform_start_points(outline, |subpath, _| {
         nodes(subpath)
@@ -170,6 +218,63 @@ mod tests {
 
         assert_eq!(drop_subpaths(&outline, &[false, true]), first);
         assert!(drop_subpaths(&outline, &[true, true]).is_empty());
+    }
+
+    #[test]
+    fn truncates_at_subpath_boundaries() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
+        let outline = outline_from_subpaths([first.clone(), second]);
+
+        assert_eq!(truncate_subpaths(&outline, Some(4), None), first);
+    }
+
+    #[test]
+    fn truncation_keeps_every_fitting_subpath() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
+        let outline = outline_from_subpaths([first, second]);
+
+        assert_eq!(truncate_subpaths(&outline, Some(6), None), outline);
+    }
+
+    #[test]
+    fn truncation_can_return_an_empty_path() {
+        let outline = outline_from_subpaths([open(pt(0.0, 0.0), vec![line(1.0, 0.0)])]);
+
+        assert!(truncate_subpaths(&outline, Some(1), None).is_empty());
+    }
+
+    #[test]
+    fn truncates_by_subpath_count() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
+        let outline = outline_from_subpaths([first.clone(), second]);
+
+        assert_eq!(truncate_subpaths(&outline, None, Some(1)), first);
+        assert!(truncate_subpaths(&outline, None, Some(0)).is_empty());
+    }
+
+    #[test]
+    fn drops_randomly_ordered_subpaths_until_limits_fit() {
+        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
+        let outline = outline_from_subpaths([first, second.clone()]);
+
+        assert_eq!(
+            drop_subpaths_to_fit(&outline, &[0.1, 0.9], None, Some(1)),
+            second
+        );
+    }
+
+    #[test]
+    fn random_truncation_preserves_an_outline_that_fits() {
+        let outline = outline_from_subpaths([open(pt(0.0, 0.0), vec![line(1.0, 0.0)])]);
+
+        assert_eq!(
+            drop_subpaths_to_fit(&outline, &[0.1], Some(3), Some(1)),
+            outline
+        );
     }
 
     #[test]

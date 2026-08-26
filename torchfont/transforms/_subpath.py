@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from operator import index
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsIndex
 
 import torch
 
@@ -29,6 +30,70 @@ class SplitSubpaths(Transform):
     def transform(self, inpt: Outline, params: dict[str, Any]) -> tuple[Outline, ...]:
         del params
         return _functional.split_subpaths(inpt)
+
+
+class TruncateSubpaths(Transform):
+    """Keep the longest whole-subpath prefix within the given limits."""
+
+    def __init__(
+        self,
+        max_length: SupportsIndex | None = None,
+        max_subpaths: SupportsIndex | None = None,
+    ) -> None:
+        super().__init__()
+        self.max_length = None if max_length is None else index(max_length)
+        self.max_subpaths = None if max_subpaths is None else index(max_subpaths)
+        if self.max_length is None and self.max_subpaths is None:
+            msg = "max_length or max_subpaths must be specified"
+            raise ValueError(msg)
+        if self.max_length is not None and self.max_length < 1:
+            msg = "max_length must be positive"
+            raise ValueError(msg)
+        if self.max_subpaths is not None and self.max_subpaths < 0:
+            msg = "max_subpaths must be non-negative"
+            raise ValueError(msg)
+
+    def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
+        del params
+        return _functional.truncate_subpaths(
+            inpt,
+            self.max_length,
+            self.max_subpaths,
+        )
+
+
+class RandomTruncateSubpaths(Transform):
+    """Randomly drop subpaths until the given limits are met."""
+
+    def __init__(
+        self,
+        max_length: SupportsIndex | None = None,
+        max_subpaths: SupportsIndex | None = None,
+    ) -> None:
+        super().__init__()
+        self.max_length = None if max_length is None else index(max_length)
+        self.max_subpaths = None if max_subpaths is None else index(max_subpaths)
+        if self.max_length is None and self.max_subpaths is None:
+            msg = "max_length or max_subpaths must be specified"
+            raise ValueError(msg)
+        if self.max_length is not None and self.max_length < 1:
+            msg = "max_length must be positive"
+            raise ValueError(msg)
+        if self.max_subpaths is not None and self.max_subpaths < 0:
+            msg = "max_subpaths must be non-negative"
+            raise ValueError(msg)
+
+    def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
+        length = max((inpt.types.size(0) for inpt in flat_inputs), default=0)
+        return {"removal_values": torch.rand(length)}
+
+    def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
+        return _functional.drop_subpaths_to_fit(
+            inpt,
+            params["removal_values"],
+            self.max_length,
+            self.max_subpaths,
+        )
 
 
 class RandomSubpathDropout(Transform):
@@ -80,5 +145,7 @@ __all__ = [
     "RandomSubpathDropout",
     "RandomSubpathOrder",
     "RandomSubpathStartPoints",
+    "RandomTruncateSubpaths",
     "SplitSubpaths",
+    "TruncateSubpaths",
 ]

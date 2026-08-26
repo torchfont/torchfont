@@ -7,7 +7,8 @@ so they do not define a gradient.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from operator import index
+from typing import TYPE_CHECKING, SupportsIndex
 
 import torch
 
@@ -56,6 +57,69 @@ def drop_subpaths(
     )
 
 
+def truncate_subpaths(
+    inpt: Outline,
+    max_length: SupportsIndex | None = None,
+    max_subpaths: SupportsIndex | None = None,
+) -> Outline:
+    """Keep the longest whole-subpath prefix within the given limits.
+
+    The terminal ``END`` counts toward ``max_length``. ``max_subpaths`` limits
+    the number of retained subpaths. At least one limit must be specified. No
+    subpath is partially retained.
+    """
+    max_length = None if max_length is None else index(max_length)
+    max_subpaths = None if max_subpaths is None else index(max_subpaths)
+    if max_length is None and max_subpaths is None:
+        msg = "max_length or max_subpaths must be specified"
+        raise ValueError(msg)
+    if max_length is not None and max_length < 1:
+        msg = "max_length must be positive"
+        raise ValueError(msg)
+    if max_subpaths is not None and max_subpaths < 0:
+        msg = "max_subpaths must be non-negative"
+        raise ValueError(msg)
+    return _native_outline(
+        inpt,
+        _ops.truncate_subpaths,
+        max_length,
+        max_subpaths,
+        name="truncate_subpaths",
+    )
+
+
+def drop_subpaths_to_fit(
+    inpt: Outline,
+    removal_values: Tensor,
+    max_length: SupportsIndex | None = None,
+    max_subpaths: SupportsIndex | None = None,
+) -> Outline:
+    """Drop subpaths in an explicit order until the given limits are met.
+
+    Smaller ``removal_values`` are removed first. The retained subpaths keep
+    their original order.
+    """
+    max_length = None if max_length is None else index(max_length)
+    max_subpaths = None if max_subpaths is None else index(max_subpaths)
+    if max_length is None and max_subpaths is None:
+        msg = "max_length or max_subpaths must be specified"
+        raise ValueError(msg)
+    if max_length is not None and max_length < 1:
+        msg = "max_length must be positive"
+        raise ValueError(msg)
+    if max_subpaths is not None and max_subpaths < 0:
+        msg = "max_subpaths must be non-negative"
+        raise ValueError(msg)
+    return _native_outline(
+        inpt,
+        _ops.drop_subpaths_to_fit,
+        removal_values,
+        max_length,
+        max_subpaths,
+        name="drop_subpaths_to_fit",
+    )
+
+
 def normalize_subpath_start_points(inpt: Outline) -> Outline:
     """Choose a deterministic start point for each closed subpath.
 
@@ -93,8 +157,10 @@ def reorder_subpaths(inpt: Outline, keys: Tensor) -> Outline:
 
 __all__ = [
     "drop_subpaths",
+    "drop_subpaths_to_fit",
     "normalize_subpath_start_points",
     "reorder_subpaths",
     "set_subpath_start_points",
     "split_subpaths",
+    "truncate_subpaths",
 ]
