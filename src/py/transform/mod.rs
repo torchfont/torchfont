@@ -296,6 +296,17 @@ pub(crate) fn randomize_subpath_order<'py>(
 }
 
 #[pyfunction]
+pub(crate) fn normalize_subpath_order<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+) -> PyResult<OutlineArrays<'py>> {
+    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    let result = py.detach(|| subpath::normalize_subpath_order(&outline));
+    Ok(encode(py, &result))
+}
+
+#[pyfunction]
 pub(crate) fn reverse_closed_subpaths<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
@@ -419,6 +430,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(random_remove_overlaps, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_subpath_start_points, m)?)?;
+    m.add_function(wrap_pyfunction!(normalize_subpath_order, m)?)?;
     m.add_function(wrap_pyfunction!(randomize_subpath_order, m)?)?;
     m.add_function(wrap_pyfunction!(randomize_subpath_start_points, m)?)?;
     m.add_function(wrap_pyfunction!(reverse_closed_subpaths, m)?)?;

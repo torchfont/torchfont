@@ -24,6 +24,14 @@ class NormalizeSubpathStartPoints(Transform):
         return _functional.normalize_subpath_start_points(inpt)
 
 
+class NormalizeSubpathOrder(Transform):
+    """Order subpaths lexicographically by their tight bounding boxes."""
+
+    def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
+        del params
+        return _functional.normalize_subpath_order(inpt)
+
+
 class SplitSubpaths(Transform):
     """Split each outline into a tuple of independently encoded subpaths."""
 
@@ -141,6 +149,7 @@ class RandomSubpathOrder(_RandomSubpathTransform):
 
 
 __all__ = [
+    "NormalizeSubpathOrder",
     "NormalizeSubpathStartPoints",
     "RandomSubpathDropout",
     "RandomSubpathOrder",
