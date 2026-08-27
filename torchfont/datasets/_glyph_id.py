@@ -48,6 +48,7 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
     _font_refs: tuple[FontRef, ...]
     _offsets: tuple[int, ...]
     _glyph_ids: npt.NDArray[np.uint32]
+    _outline_lengths: npt.NDArray[np.uint32]
 
     @overload
     def __init__(
@@ -81,10 +82,11 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
         self.transform = transform
         self.patterns = normalize_patterns(patterns)
         self.max_length = normalize_max_length(max_length)
-        (font_refs, offsets, self._glyph_ids) = _torchfont.index_glyphs(
-            str(self.root), self.max_length, self.patterns
+        (font_refs, offsets, self._glyph_ids, self._outline_lengths) = (
+            _torchfont.index_glyphs(str(self.root), self.max_length, self.patterns)
         )
         self._glyph_ids.flags.writeable = False
+        self._outline_lengths.flags.writeable = False
         self._font_refs = tuple(
             FontRef(path, face_index) for path, face_index in font_refs
         )
@@ -113,6 +115,11 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
     def glyph_ids(self) -> Tensor:
         """LongTensor of face-local glyph ids for each sample."""
         return torch.from_numpy(self._glyph_ids.astype(np.int64))
+
+    @property
+    def outline_lengths(self) -> Tensor:
+        """LongTensor of encoded outline lengths for each sample."""
+        return torch.from_numpy(self._outline_lengths.astype(np.int64))
 
     @overload
     def __getitem__(

@@ -37,6 +37,11 @@ def test_dataset_indexes_every_outline_glyph_of_each_face() -> None:
 
     assert len(dataset) == font["maxp"].numGlyphs
     assert dataset.glyph_ids.tolist() == list(range(len(dataset)))
+    assert dataset.outline_lengths.dtype == torch.long
+    assert dataset.outline_lengths.shape == (len(dataset),)
+    assert dataset.outline_lengths.tolist() == [
+        len(LoadGlyph()(dataset[idx]).data) for idx in range(len(dataset))
+    ]
     sample = dataset[0]
     assert isinstance(sample, GlyphIdSample)
     assert isinstance(sample.ref, GlyphRef)
@@ -159,6 +164,7 @@ def test_dataset_is_pickleable() -> None:
     assert restored[36] == dataset[36]
     assert torch.equal(restored.font_targets, dataset.font_targets)
     assert torch.equal(restored.glyph_ids, dataset.glyph_ids)
+    assert torch.equal(restored.outline_lengths, dataset.outline_lengths)
 
 
 def test_dataset_accepts_negative_index() -> None:
@@ -184,6 +190,7 @@ def test_pattern_filter_and_outline_less_fonts_are_empty() -> None:
     assert len(missing) == 0
     assert missing.font_targets.shape == (0,)
     assert missing.glyph_ids.shape == (0,)
+    assert missing.outline_lengths.shape == (0,)
     assert len(no_outlines) == 0
     assert no_outlines.font_classes == []
 

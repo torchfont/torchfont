@@ -54,6 +54,7 @@ Properties:
 - `character_classes -> list[str]`
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
+- `outline_lengths -> LongTensor (N,)`
 
 The sampling distribution is proportional to the number of supported
 codepoints in each face. Adjust training weights with a PyTorch sampler when the
@@ -92,6 +93,7 @@ Properties:
 - `font_classes -> list[FontRef]`
 - `font_targets -> LongTensor (N,)`
 - `glyph_ids -> LongTensor (N,)`
+- `outline_lengths -> LongTensor (N,)`
 
 `glyph_ids` holds the face-local glyph id of each sample. Ids are not
 comparable across faces, so they are data for selecting samples rather than
@@ -111,6 +113,9 @@ dataset = GlyphIdDataset(root="data/google/fonts", max_length=128)
 
 Faces left without a fitting glyph are omitted, as they are for the other
 filters.
+
+`outline_lengths` contains each pre-transform encoded length, including the
+trailing `END` element, at the face's default variation location.
 
 ## Loading glyphs
 
