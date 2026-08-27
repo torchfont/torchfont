@@ -89,6 +89,7 @@ def index_codepoints(
     npt.NDArray[np.uint32],
     npt.NDArray[np.uint32],
     npt.NDArray[np.uint32],
+    npt.NDArray[np.uint32],
 ]: ...
 def index_glyphs(
     root: str,
@@ -97,6 +98,7 @@ def index_glyphs(
 ) -> tuple[
     list[tuple[Path, int]],
     list[int],
+    npt.NDArray[np.uint32],
     npt.NDArray[np.uint32],
 ]: ...
 def load_glyph(

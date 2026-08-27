@@ -54,6 +54,11 @@ def test_dataset_indexes_each_face_codepoint_once() -> None:
     assert dataset.font_targets.tolist() == [0, 0]
     assert dataset.character_targets.tolist() == [0, 1]
     assert dataset.character_classes == ["A", "B"]
+    assert dataset.outline_lengths.dtype == torch.long
+    assert dataset.outline_lengths.shape == (len(dataset),)
+    assert dataset.outline_lengths.tolist() == [
+        len(LoadGlyph()(dataset[idx]).data) for idx in range(len(dataset))
+    ]
     sample = dataset[0]
     assert isinstance(sample, CodepointSample)
     assert isinstance(sample.ref, GlyphRef)
@@ -286,6 +291,7 @@ def test_dataset_is_pickleable() -> None:
     assert restored_sample.character_idx == sample.character_idx
     assert torch.equal(restored.font_targets, dataset.font_targets)
     assert torch.equal(restored.character_targets, dataset.character_targets)
+    assert torch.equal(restored.outline_lengths, dataset.outline_lengths)
 
 
 @pytest.mark.parametrize("index", [-2, 1])
@@ -334,6 +340,7 @@ def test_pattern_filter_and_outline_less_fonts_are_empty() -> None:
     assert len(missing) == 0
     assert missing.font_targets.shape == (0,)
     assert missing.character_targets.shape == (0,)
+    assert missing.outline_lengths.shape == (0,)
     assert len(no_outlines) == 0
 
 

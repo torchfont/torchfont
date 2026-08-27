@@ -53,6 +53,7 @@ class CodepointDataset(Dataset[T], Generic[T]):
     _character_codepoints: npt.NDArray[np.uint32]
     _character_index: npt.NDArray[np.uint32]
     _glyph_ids: npt.NDArray[np.uint32]
+    _outline_lengths: npt.NDArray[np.uint32]
 
     @overload
     def __init__(
@@ -96,12 +97,14 @@ class CodepointDataset(Dataset[T], Generic[T]):
             self._character_codepoints,
             self._character_index,
             self._glyph_ids,
+            self._outline_lengths,
         ) = _torchfont.index_codepoints(
             str(self.root), self.codepoints, self.max_length, self.patterns
         )
         self._character_codepoints.flags.writeable = False
         self._character_index.flags.writeable = False
         self._glyph_ids.flags.writeable = False
+        self._outline_lengths.flags.writeable = False
         self._font_refs = tuple(
             FontRef(path, face_index) for path, face_index in font_refs
         )
@@ -141,6 +144,11 @@ class CodepointDataset(Dataset[T], Generic[T]):
     def character_targets(self) -> Tensor:
         """LongTensor of character target indices for each sample."""
         return torch.from_numpy(self._character_index.astype(np.int64))
+
+    @property
+    def outline_lengths(self) -> Tensor:
+        """LongTensor of encoded outline lengths for each sample."""
+        return torch.from_numpy(self._outline_lengths.astype(np.int64))
 
     @overload
     def __getitem__(

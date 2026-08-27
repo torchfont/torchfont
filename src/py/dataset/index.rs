@@ -14,9 +14,15 @@ type CodepointIndexArrays = (
     Py<PyArray1<u32>>,
     Py<PyArray1<u32>>,
     Py<PyArray1<u32>>,
+    Py<PyArray1<u32>>,
 );
 
-type GlyphIndexArrays = (Vec<(PathBuf, u32)>, Vec<i64>, Py<PyArray1<u32>>);
+type GlyphIndexArrays = (
+    Vec<(PathBuf, u32)>,
+    Vec<i64>,
+    Py<PyArray1<u32>>,
+    Py<PyArray1<u32>>,
+);
 
 #[pyfunction]
 pub(super) fn index_codepoints(
@@ -45,6 +51,7 @@ pub(super) fn index_codepoints(
             .unbind(),
         index.character_index.into_pyarray(py).unbind(),
         index.glyph_ids.into_pyarray(py).unbind(),
+        index.outline_lengths.into_pyarray(py).unbind(),
     ))
 }
 
@@ -68,6 +75,7 @@ pub(super) fn index_glyphs(
         index.fonts,
         index.offsets,
         index.glyph_ids.into_pyarray(py).unbind(),
+        index.outline_lengths.into_pyarray(py).unbind(),
     ))
 }
 

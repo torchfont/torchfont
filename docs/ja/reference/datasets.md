@@ -54,6 +54,7 @@ dataset = CodepointDataset(
 - `character_classes -> list[str]`
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
+- `outline_lengths -> LongTensor (N,)`
 
 サンプリング分布は各フェイスが収録するコードポイント数に比例します。異なる分布が必要な用途では
 PyTorch のサンプラーで学習時の重みを調整してください。
@@ -91,6 +92,7 @@ dataset = GlyphIdDataset(
 - `font_classes -> list[FontRef]`
 - `font_targets -> LongTensor (N,)`
 - `glyph_ids -> LongTensor (N,)`
+- `outline_lengths -> LongTensor (N,)`
 
 `glyph_ids` は各サンプルのフェイスローカルなグリフ ID です。フェイスをまたいで比較できる値では
 ないため、学習ターゲットではなくサンプル選択のためのデータとして使ってください。
@@ -107,6 +109,9 @@ dataset = GlyphIdDataset(root="data/google/fonts", max_length=128)
 ```
 
 条件を満たすグリフが 1 つも残らないフェイスは、他のフィルターと同様に除外されます。
+
+`outline_lengths` は、末尾の `END` 要素を含む変換前の符号化長を、フェイスのデフォルトの
+バリエーション位置で保持します。
 
 ## グリフのロード
 
