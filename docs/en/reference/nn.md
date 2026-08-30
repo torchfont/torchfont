@@ -68,19 +68,25 @@ into one training objective:
 ```python
 from torchfont.nn import OutlineLoss
 
-criterion = OutlineLoss(type_weight=1.0, coordinate_weight=0.5)
+criterion = OutlineLoss(
+    type_weight=1.0,
+    coordinate_weight=0.5,
+    reduction="mean",
+)
 loss = criterion(type_logits, predicted_coords, target_types, target_coords)
 ```
 
-`type_logits` has shape `(..., N, len(ElementType))`. Cross entropy is averaged over
-non-padding
-elements, while coordinate error is averaged independently over active
-coordinate scalars. The two means are then combined using `type_weight` and
-`coordinate_weight`. This keeps their relative weighting stable across outline
-lengths and padding amounts. An all-padding input produces a differentiable
-zero loss.
+`type_logits` has shape `(..., N, len(ElementType))`. Cross entropy and
+coordinate error are combined using `type_weight` and `coordinate_weight`.
+Padding elements and inactive coordinate slots do not contribute. An
+all-padding input produces a differentiable zero loss.
 
-The loss intentionally has no `reduction` argument. Use PyTorch cross entropy
-and `coordinate_mse_loss` separately when unreduced components or a different
-aggregation are required. The equivalent functional API is
-`torchfont.nn.functional.outline_loss`.
+`reduction` supports `"none"`, `"mean"`, and `"sum"`. With `"none"`, losses
+are summed within each outline and the output shape is `target_types.shape[:-1]`.
+With `"sum"`, these outline losses are summed. With `"mean"` (the default),
+cross entropy is averaged over all non-padding elements and coordinate error is
+averaged independently over all active coordinate scalars.
+
+Use PyTorch cross entropy and `coordinate_mse_loss` separately when unreduced
+components or different aggregation behavior is required. The equivalent
+functional API is `torchfont.nn.functional.outline_loss`.

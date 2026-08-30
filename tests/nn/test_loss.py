@@ -42,17 +42,67 @@ def test_outline_loss_combines_independently_averaged_losses() -> None:
 
 def test_outline_loss_module_delegates_to_functional_loss() -> None:
     inputs = _inputs()
-    criterion = OutlineLoss(type_weight=0.25, coordinate_weight=2.0)
+    criterion = OutlineLoss(type_weight=0.25, coordinate_weight=2.0, reduction="sum")
 
     actual = criterion(*inputs)
     expected = font_functional.outline_loss(
         *inputs,
         type_weight=0.25,
         coordinate_weight=2.0,
+        reduction="sum",
     )
 
     assert torch.equal(actual, expected)
-    assert repr(criterion) == "OutlineLoss(type_weight=0.25, coordinate_weight=2.0)"
+    assert repr(criterion) == (
+        "OutlineLoss(type_weight=0.25, coordinate_weight=2.0, reduction='sum')"
+    )
+
+
+def test_outline_loss_none_returns_loss_per_outline() -> None:
+    type_logits, prediction, target_types, target_coords = _inputs()
+    type_logits = type_logits.unsqueeze(0).expand(2, -1, -1)
+    prediction = prediction.detach().unsqueeze(0).expand(2, -1, -1)
+    target_types = target_types.unsqueeze(0).expand(2, -1)
+    target_coords = target_coords.unsqueeze(0).expand(2, -1, -1)
+
+    loss = font_functional.outline_loss(
+        type_logits,
+        prediction,
+        target_types,
+        target_coords,
+        type_weight=2.0,
+        coordinate_weight=3.0,
+        reduction="none",
+    )
+    expected_type_loss = torch_functional.cross_entropy(
+        type_logits.transpose(1, 2),
+        target_types,
+        ignore_index=ElementType.PAD,
+        reduction="none",
+    ).sum(dim=-1)
+    expected_coord_loss = font_functional.coordinate_mse_loss(
+        prediction, target_types, target_coords, reduction="none"
+    ).sum(dim=(-2, -1))
+
+    assert loss.shape == (2,)
+    assert torch.allclose(loss, 2 * expected_type_loss + 3 * expected_coord_loss)
+
+
+def test_outline_loss_sum_sums_unreduced_outline_losses() -> None:
+    type_logits, prediction, target_types, target_coords = _inputs()
+    type_logits = type_logits.unsqueeze(0).expand(2, -1, -1)
+    prediction = prediction.detach().unsqueeze(0).expand(2, -1, -1)
+    target_types = target_types.unsqueeze(0).expand(2, -1)
+    target_coords = target_coords.unsqueeze(0).expand(2, -1, -1)
+
+    unreduced = font_functional.outline_loss(
+        type_logits, prediction, target_types, target_coords, reduction="none"
+    )
+    reduced = font_functional.outline_loss(
+        type_logits, prediction, target_types, target_coords, reduction="sum"
+    )
+
+    assert torch.equal(reduced, unreduced.sum())
 
 
 def test_outline_loss_backpropagates_through_both_predictions() -> None:
@@ -98,4 +148,12 @@ def test_outline_loss_rejects_misaligned_type_logits(
     with pytest.raises(ValueError, match=match):
         font_functional.outline_loss(
             torch.zeros(logits_shape), prediction, target_types, target_coords
+        )
+
+
+def test_outline_loss_rejects_invalid_reduction() -> None:
+    with pytest.raises(ValueError, match="not a valid value"):
+        font_functional.outline_loss(
+            *_inputs(),
+            reduction="invalid",  # ty: ignore[invalid-argument-type]
         )

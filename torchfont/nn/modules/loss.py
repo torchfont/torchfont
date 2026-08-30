@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from torch import nn
 
@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 class OutlineLoss(nn.Module):
     """Combine element-type and active-coordinate losses.
 
-    The two losses are averaged independently before ``type_weight`` and
-    ``coordinate_weight`` are applied. Padding elements do not contribute.
+    ``reduction`` controls aggregation across outlines. Padding elements do not
+    contribute.
     """
 
     def __init__(
@@ -24,11 +24,13 @@ class OutlineLoss(nn.Module):
         *,
         type_weight: float = 1.0,
         coordinate_weight: float = 100.0,
+        reduction: Literal["none", "mean", "sum"] = "mean",
     ) -> None:
-        """Initialize the weights applied to both loss components."""
+        """Initialize the weights and reduction applied to the loss."""
         super().__init__()
         self.type_weight = type_weight
         self.coordinate_weight = coordinate_weight
+        self.reduction = reduction
 
     def forward(
         self,
@@ -45,13 +47,15 @@ class OutlineLoss(nn.Module):
             target_coords,
             type_weight=self.type_weight,
             coordinate_weight=self.coordinate_weight,
+            reduction=self.reduction,
         )
 
     def extra_repr(self) -> str:
         """Return the module configuration for :func:`repr`."""
         return (
             f"type_weight={self.type_weight}, "
-            f"coordinate_weight={self.coordinate_weight}"
+            f"coordinate_weight={self.coordinate_weight}, "
+            f"reduction={self.reduction!r}"
         )
 
 
