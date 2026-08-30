@@ -26,7 +26,7 @@ padding_mask = types == ElementType.PAD  # (1, 4)
 学習可能な要素型 Embedding と、Bias なしの線形層による6次元連続座標の射影を加算します。
 要素型に対して無効な座標成分は、射影前に Mask されます。
 `ElementType.PAD` を `padding_idx` とし、Padding Token 全体の出力はゼロになります。
-位置情報は意図的に分離しています。下流の系列アーキテクチャに適した位置 Encoding を使ってください。
+下流の系列アーキテクチャに適した位置 Encoding は別途追加します。
 
 Constructor は PyTorch と同様に `device` と `dtype` Keyword Argument を受け取ります。
 
@@ -60,15 +60,22 @@ Prediction と Target 座標の Shape は `(..., N, 6)`、Target 型は `(..., N
 ```python
 from torchfont.nn import OutlineLoss
 
-criterion = OutlineLoss(type_weight=1.0, coordinate_weight=0.5)
+criterion = OutlineLoss(
+    type_weight=1.0,
+    coordinate_weight=0.5,
+    reduction="mean",
+)
 loss = criterion(type_logits, predicted_coords, target_types, target_coords)
 ```
 
-`type_logits` の Shape は `(..., N, len(ElementType))` です。Cross Entropy は Padding 以外の要素で平均し、
-座標誤差は有効な座標 Scalar で独立に平均します。その後、二つの Mean を `type_weight` と
-`coordinate_weight` で重み付けします。このため、Outline の長さや Padding 量が変化しても、
-相対的な重みが安定します。すべてが Padding の Input に対しては、微分可能なゼロ Loss を返します。
+`type_logits` の Shape は `(..., N, len(ElementType))` です。Cross Entropy と座標誤差を
+`type_weight` と `coordinate_weight` で重み付けします。Padding 要素と無効な座標 Slot は
+Loss に寄与しません。すべてが Padding の Input に対しては、微分可能なゼロ Loss を返します。
 
-この Loss は意図的に `reduction` Argument を持ちません。集約前の成分や異なる集約方法が
-必要な場合は、PyTorch の Cross Entropy と `coordinate_mse_loss` を個別に使ってください。
-同等の関数 API は `torchfont.nn.functional.outline_loss` です。
+`reduction` は `"none"`、`"mean"`、`"sum"` に対応します。`"none"` では Outline ごとに
+Loss を合計し、`target_types.shape[:-1]` Shape の Tensor を返します。`"sum"` ではそれらを
+さらに合計します。既定の `"mean"` では、Cross Entropy をすべての Padding 以外の要素で、
+座標誤差をすべての有効な座標 Scalar で独立に平均します。
+
+PyTorch の Cross Entropy と `coordinate_mse_loss` は、分類と座標の各成分を個別に提供します。
+組み合わせた Loss の同等の関数 API は `torchfont.nn.functional.outline_loss` です。

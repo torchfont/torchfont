@@ -58,12 +58,15 @@ def outline_loss(
     *,
     type_weight: float = 1.0,
     coordinate_weight: float = 100.0,
+    reduction: _Reduction = "mean",
 ) -> Tensor:
     """Combine element-type classification and active-coordinate regression.
 
-    Type loss is averaged over non-padding elements. Coordinate loss is
-    averaged independently over coordinate scalars active for the target
-    element types, then the two means are combined using the given weights.
+    With ``reduction="none"``, losses are summed within each outline and the
+    result has shape ``target_types.shape[:-1]``. ``"sum"`` sums those outline
+    losses. ``"mean"`` averages type loss over all non-padding elements and
+    coordinate loss independently over all active coordinate scalars before
+    combining them using the given weights.
     """
     if type_logits.shape[:-1] != target_types.shape:
         msg = (
@@ -80,14 +83,26 @@ def outline_loss(
         type_logits.reshape(-1, _NUM_ELEMENT_TYPES),
         target_types.reshape(-1),
         ignore_index=ElementType.PAD.value,
-        reduction="sum",
-    )
-    type_count = (target_types != ElementType.PAD.value).sum().clamp_min(1)
-    type_loss = type_loss / type_count
+        reduction="none",
+    ).reshape(target_types.shape)
     coords_loss = coordinate_mse_loss(
-        coordinate_prediction, target_types, target_coords
+        coordinate_prediction, target_types, target_coords, reduction="none"
     )
-    return type_weight * type_loss + coordinate_weight * coords_loss
+    if reduction == "none":
+        return type_weight * type_loss.sum(
+            dim=-1
+        ) + coordinate_weight * coords_loss.sum(dim=(-2, -1))
+    if reduction == "sum":
+        return type_weight * type_loss.sum() + coordinate_weight * coords_loss.sum()
+    if reduction == "mean":
+        type_count = (target_types != ElementType.PAD.value).sum().clamp_min(1)
+        coordinate_count = _active_coordinate_mask(target_types).sum().clamp_min(1)
+        return (
+            type_weight * type_loss.sum() / type_count
+            + coordinate_weight * coords_loss.sum() / coordinate_count
+        )
+    msg = f"{reduction!r} is not a valid value for reduction"
+    raise ValueError(msg)
 
 
 __all__ = ["coordinate_mse_loss", "outline_loss"]
