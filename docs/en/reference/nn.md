@@ -27,9 +27,8 @@ padding_mask = types == ElementType.PAD  # (1, 4)
 The module adds a learned element-type embedding to a bias-free linear
 projection of the six continuous coordinates. Coordinate components inactive
 for an element type are masked before projection. `ElementType.PAD` is the
-`padding_idx`, and complete padding tokens produce zero vectors. Positional
-information is intentionally separate: use the positional encoding appropriate
-for the downstream sequence architecture.
+`padding_idx`, and complete padding tokens produce zero vectors. Add positional
+encoding appropriate for the downstream sequence architecture separately.
 
 The constructor accepts PyTorch-style `device` and `dtype` keyword arguments:
 
@@ -87,6 +86,6 @@ With `"sum"`, these outline losses are summed. With `"mean"` (the default),
 cross entropy is averaged over all non-padding elements and coordinate error is
 averaged independently over all active coordinate scalars.
 
-Use PyTorch cross entropy and `coordinate_mse_loss` separately when unreduced
-components or different aggregation behavior is required. The equivalent
-functional API is `torchfont.nn.functional.outline_loss`.
+PyTorch cross entropy and `coordinate_mse_loss` provide the individual
+classification and coordinate components. The equivalent functional API for
+the combined loss is `torchfont.nn.functional.outline_loss`.

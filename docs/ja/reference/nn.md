@@ -26,7 +26,7 @@ padding_mask = types == ElementType.PAD  # (1, 4)
 学習可能な要素型 Embedding と、Bias なしの線形層による6次元連続座標の射影を加算します。
 要素型に対して無効な座標成分は、射影前に Mask されます。
 `ElementType.PAD` を `padding_idx` とし、Padding Token 全体の出力はゼロになります。
-位置情報は意図的に分離しています。下流の系列アーキテクチャに適した位置 Encoding を使ってください。
+下流の系列アーキテクチャに適した位置 Encoding は別途追加します。
 
 Constructor は PyTorch と同様に `device` と `dtype` Keyword Argument を受け取ります。
 
@@ -77,6 +77,5 @@ Loss を合計し、`target_types.shape[:-1]` Shape の Tensor を返します�
 さらに合計します。既定の `"mean"` では、Cross Entropy をすべての Padding 以外の要素で、
 座標誤差をすべての有効な座標 Scalar で独立に平均します。
 
-集約前の各成分や異なる集約方法が必要な場合は、PyTorch の Cross Entropy と
-`coordinate_mse_loss` を個別に使ってください。
-同等の関数 API は `torchfont.nn.functional.outline_loss` です。
+PyTorch の Cross Entropy と `coordinate_mse_loss` は、分類と座標の各成分を個別に提供します。
+組み合わせた Loss の同等の関数 API は `torchfont.nn.functional.outline_loss` です。
