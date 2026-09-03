@@ -42,6 +42,7 @@
 			"extensions": [
 				"astral-sh.ty",
 				"charliermarsh.ruff",
+				"ms-python.vscode-python-envs",
 				"rust-lang.rust-analyzer",
 				"tamasfe.even-better-toml"
 			]
