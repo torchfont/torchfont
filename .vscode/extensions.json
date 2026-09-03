@@ -2,10 +2,8 @@
     "recommendations": [
         "astral-sh.ty",
         "charliermarsh.ruff",
+        "ms-python.vscode-python-envs",
         "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml"
-    ],
-    "unwantedRecommendations": [
-        "ms-python.vscode-pylance"
     ]
 }
