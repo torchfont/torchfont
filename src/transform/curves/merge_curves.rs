@@ -38,21 +38,21 @@ fn merge_subpath_elements(start: Point, elements: &[PathEl]) -> Vec<PathEl> {
                         seg_start,
                         elements,
                         i,
-                        |e| matches!(e, PathEl::CurveTo(..)),
+                        curve_junction_is_mergeable,
                         try_merge_cubics_n,
                     ),
                     PathEl::QuadTo(..) => try_merge_run(
                         seg_start,
                         elements,
                         i,
-                        |e| matches!(e, PathEl::QuadTo(..)),
+                        curve_junction_is_mergeable,
                         try_merge_quads_n,
                     ),
                     PathEl::LineTo(_) => try_merge_run(
                         seg_start,
                         elements,
                         i,
-                        |e| matches!(e, PathEl::LineTo(_)),
+                        |_, e| matches!(e, PathEl::LineTo(_)),
                         try_merge_lines_n,
                     ),
                     PathEl::MoveTo(_) | PathEl::ClosePath => {
@@ -74,11 +74,11 @@ fn try_merge_run(
     seg_start: Point,
     elements: &[PathEl],
     i: usize,
-    is_same: impl Fn(PathEl) -> bool,
+    can_join: impl Fn(PathEl, PathEl) -> bool,
     try_merge: fn(Point, &[PathEl]) -> Option<PathEl>,
 ) -> (PathEl, usize) {
     let mut run_end = i + 1;
-    while run_end < elements.len() && is_same(elements[run_end]) {
+    while run_end < elements.len() && can_join(elements[run_end - 1], elements[run_end]) {
         run_end += 1;
     }
     let run_len = run_end - i;
@@ -102,10 +102,36 @@ fn cubic_points(element: PathEl) -> (Point, Point, Point) {
     }
 }
 
+fn curve_junction_is_mergeable(previous: PathEl, current: PathEl) -> bool {
+    let (end_tan, start_tan) = match (previous, current) {
+        (PathEl::QuadTo(h, end), PathEl::QuadTo(next_h, _))
+        | (PathEl::CurveTo(_, h, end), PathEl::CurveTo(next_h, _, _)) => (end - h, next_h - end),
+        _ => return false,
+    };
+    // A failed tangent check rejects every candidate crossing this junction.
+    tangent_ratio(end_tan, start_tan).is_some()
+}
+
+fn tangent_ratio(end_tan: Vec2, start_tan: Vec2) -> Option<f64> {
+    let len_end = end_tan.hypot();
+    let len_start = start_tan.hypot();
+    if len_end < 1e-10 {
+        return None;
+    }
+    if len_start > 1e-10 {
+        if end_tan.cross(start_tan).abs() > TOLERANCE * len_end * len_start {
+            return None;
+        }
+        if end_tan.dot(start_tan) < 0.0 {
+            return None;
+        }
+    }
+    Some(len_start / len_end)
+}
+
 // Reconstruct normalized split parameters from cumulative tangent-length ratios
 // at each junction. ratio_k = |start_tan_k| / |end_tan_{k-1}|; ts_unnorm
 // accumulates partial sums and the last entry (= total) is discarded.
-// Returns None if any junction tangent is degenerate or forms a cusp.
 fn compute_split_ts(
     n: usize,
     junction_tangents: impl Fn(usize) -> (Vec2, Vec2),
@@ -116,32 +142,16 @@ fn compute_split_ts(
 
     for k in 1..n {
         let (end_tan, start_tan) = junction_tangents(k);
-        let len_end = end_tan.hypot();
-        let len_start = start_tan.hypot();
-        if len_end < 1e-10 {
-            return None;
-        }
-        // Tangents at the junction must be parallel and in the same direction.
-        if len_start > 1e-10 {
-            if end_tan.cross(start_tan).abs() > TOLERANCE * len_end * len_start {
-                return None;
-            }
-            if end_tan.dot(start_tan) < 0.0 {
-                return None;
-            }
-        }
-        let ratio = len_start / len_end;
+        let ratio = tangent_ratio(end_tan, start_tan)?;
         prod_ratio *= ratio;
         sum_ratio += prod_ratio;
         ts_unnorm.push(sum_ratio);
     }
 
-    // ts has n-1 elements; ts[0] = t1 (first junction), ts[n-2] = t_{n-1} (last).
     ts_unnorm.pop();
     Some(ts_unnorm.iter().map(|&t| t / sum_ratio).collect())
 }
 
-// Attempt to merge n consecutive quadratic segments into one.
 fn try_merge_quads_n(p0: Point, segs: &[PathEl]) -> Option<PathEl> {
     let n = segs.len();
     debug_assert!(n >= 2);
@@ -201,11 +211,6 @@ fn split_quad_at_ts(p0: Point, p1: Point, p2: Point, ts: &[f64]) -> Vec<QuadBez>
     pieces
 }
 
-// Attempt to merge n consecutive cubic segments into one.
-//
-// Uses the fonttools qu2cu approach: reconstruct t-parameters from cumulative
-// ratios of adjacent junction tangent lengths, then recover the outer control
-// points P1/P2. Validity is confirmed by re-splitting and measuring curve error.
 fn try_merge_cubics_n(p0: Point, segs: &[PathEl]) -> Option<PathEl> {
     let n = segs.len();
     debug_assert!(n >= 2);
@@ -273,8 +278,6 @@ fn validate_cubic_merge(
     true
 }
 
-// Split cubic (P0,P1,P2,P3) at each t in ts (ascending), returning n+1 pieces.
-// Each subsequent split uses the reparametrized t relative to the remaining curve.
 fn split_cubic_at_ts(p0: Point, p1: Point, p2: Point, p3: Point, ts: &[f64]) -> Vec<CubicBez> {
     let mut pieces = Vec::with_capacity(ts.len() + 1);
     let mut current = CubicBez::new(p0, p1, p2, p3);
@@ -328,4 +331,70 @@ fn points_are_collinear(a: Point, b: Point, c: Point) -> bool {
     // Public coordinates are f32, so permit the rounding already present at the
     // tensor boundary even though the internal geometry uses f64.
     cross <= 8.0 * f64::from(f32::EPSILON) * product_scale
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pruned_search_matches_exhaustive_search() {
+        let mut state = 42_u64;
+        for _ in 0..128 {
+            let mut elements = Vec::new();
+            let mut start = Point::ZERO;
+            for _ in 0..64 {
+                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let x = ((state >> 32) % 7) as f64 - 3.0;
+                let y = ((state >> 40) % 7) as f64 - 3.0;
+                let end = start + Vec2::new(x, y);
+                match (state >> 48) % 3 {
+                    0 => elements.push(PathEl::LineTo(end)),
+                    1 => {
+                        let curve = QuadBez::new(start, start + Vec2::new(y, x), end);
+                        for range in [0.0..0.5, 0.5..1.0] {
+                            let piece = curve.subsegment(range);
+                            elements.push(PathEl::QuadTo(piece.p1, piece.p2));
+                        }
+                    }
+                    _ => {
+                        let curve = CubicBez::new(
+                            start,
+                            start + Vec2::new(y, x),
+                            end - Vec2::new(x, y),
+                            end,
+                        );
+                        for range in [0.0..0.5, 0.5..1.0] {
+                            let piece = curve.subsegment(range);
+                            elements.push(PathEl::CurveTo(piece.p1, piece.p2, piece.p3));
+                        }
+                    }
+                }
+                start = end;
+            }
+
+            let mut expected = Vec::new();
+            let mut i = 0;
+            let mut start = Point::ZERO;
+            while i < elements.len() {
+                let merge = match elements[i] {
+                    PathEl::LineTo(_) => try_merge_lines_n,
+                    PathEl::QuadTo(..) => try_merge_quads_n,
+                    PathEl::CurveTo(..) => try_merge_cubics_n,
+                    _ => unreachable!(),
+                };
+                let (element, len) = try_merge_run(
+                    start,
+                    &elements,
+                    i,
+                    |a, b| std::mem::discriminant(&a) == std::mem::discriminant(&b),
+                    merge,
+                );
+                expected.push(element);
+                start = path_element_end(element);
+                i += len;
+            }
+            assert_eq!(merge_subpath_elements(Point::ZERO, &elements), expected);
+        }
+    }
 }
