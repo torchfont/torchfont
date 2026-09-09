@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
 # Skia PathOps has known edge-case bugs; allow up to this fraction of glyphs to fail.
-MAX_FAILURE_RATE = 0.001  # 0.1 %
+MAX_FAILURE_RATE = 0.001
 BITMAP_SIZE = 128
 
 # Outer rectangle covering all Google Fonts glyphs with margin.
@@ -41,7 +41,6 @@ _OUTER_RECT_TYPES = torch.tensor(
     ],
     dtype=torch.long,
 )
-# Clockwise in y-up
 _OUTER_RECT_COORDS_CW = torch.tensor(
     [
         [0.0, 0.0, 0.0, 0.0, _RECT_X_MIN, _RECT_Y_MIN],
@@ -52,7 +51,6 @@ _OUTER_RECT_COORDS_CW = torch.tensor(
     ],
     dtype=torch.float32,
 )
-# Counter-clockwise in y-up
 _OUTER_RECT_COORDS_CCW = torch.tensor(
     [
         [0.0, 0.0, 0.0, 0.0, _RECT_X_MIN, _RECT_Y_MIN],

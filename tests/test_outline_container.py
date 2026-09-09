@@ -1,5 +1,3 @@
-"""Tensor-like container behaviour of :class:`torchfont.Outline`."""
-
 from __future__ import annotations
 
 import pytest
@@ -100,7 +98,6 @@ def test_indexing_rejects_removing_the_element_dimension(triangle: Outline) -> N
 
 
 def test_outline_aliases_its_tensors(triangle: Outline) -> None:
-    """``frozen=True`` blocks rebinding attributes, not mutating the tensors."""
     triangle.coords[0, 4] = 5.0
 
     assert triangle.coords[0, 4] == 5.0

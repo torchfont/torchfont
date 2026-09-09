@@ -108,7 +108,6 @@ fn curve_junction_is_mergeable(previous: PathEl, current: PathEl) -> bool {
         | (PathEl::CurveTo(_, h, end), PathEl::CurveTo(next_h, _, _)) => (end - h, next_h - end),
         _ => return false,
     };
-    // A failed tangent check rejects every candidate crossing this junction.
     tangent_ratio(end_tan, start_tan).is_some()
 }
 
@@ -130,8 +129,7 @@ fn tangent_ratio(end_tan: Vec2, start_tan: Vec2) -> Option<f64> {
 }
 
 // Reconstruct normalized split parameters from cumulative tangent-length ratios
-// at each junction. ratio_k = |start_tan_k| / |end_tan_{k-1}|; ts_unnorm
-// accumulates partial sums and the last entry (= total) is discarded.
+// at each junction: ratio_k = |start_tan_k| / |end_tan_{k-1}|.
 fn compute_split_ts(
     n: usize,
     junction_tangents: impl Fn(usize) -> (Vec2, Vec2),
@@ -262,7 +260,6 @@ fn validate_cubic_merge(
             return false;
         }
 
-        // Check that the difference cubic lies within TOLERANCE of the origin.
         let d0 = piece.p0 - prev_end;
         let d1 = piece.p1 - orig_h1;
         let d2 = piece.p2 - orig_h2;

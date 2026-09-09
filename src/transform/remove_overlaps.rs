@@ -227,8 +227,6 @@ fn point(point: skia_safe::Point) -> Point {
 }
 
 fn winding_from_even_odd(outline: &BezPath) -> BezPath {
-    // skia-pathops uses nesting depth instead of Skia's AsWinding operation;
-    // keep that behavior while using TorchFont's native outline types.
     // Contours are treated as implicitly closed for area purposes regardless
     // of whether PathOps happened to emit a trailing Close: kurbo only
     // synthesizes the closing edge when ClosePath is present, but an open
@@ -247,11 +245,6 @@ fn winding_from_even_odd(outline: &BezPath) -> BezPath {
         .iter()
         .map(|(_, subpath)| subpath.bounding_box())
         .collect();
-    // The nesting loop below queries, for every candidate outer/inner pair,
-    // whether the inner contour's points fall inside the outer one. Skia's
-    // Path::contains is markedly faster per query than kurbo's analytic
-    // per-segment winding, so build each contour's Skia path once up front
-    // rather than converting it on every query.
     let skia_paths: Vec<_> = contours
         .iter()
         .map(|(_, subpath)| subpath_skia_path(subpath))
@@ -339,8 +332,6 @@ mod tests {
 
     #[test]
     fn subpath_skia_path_fills_open_subpath_interior() {
-        // No close_path(): the edge back to (0.0, 0.0) is only implicit in
-        // the input, but subpath_skia_path closes every contour explicitly.
         let mut outer = BezPath::new();
         outer.move_to((0.0, 0.0));
         outer.line_to((10.0, 0.0));

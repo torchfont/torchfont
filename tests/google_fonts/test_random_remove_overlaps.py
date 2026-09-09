@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
 # Skia PathOps has known edge-case bugs; allow up to this fraction of glyphs to fail.
-MAX_FAILURE_RATE = 0.001  # 0.1 %
-MIN_CHANGE_RATE = 0.1  # 10 %
+MAX_FAILURE_RATE = 0.001
+MIN_CHANGE_RATE = 0.1
 BITMAP_SIZE = 128
 
 

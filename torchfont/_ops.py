@@ -6,21 +6,9 @@ extension module. Registering the boundary with :func:`torch.library.custom_op`
 turns each kernel into a single opaque graph node instead, so
 :func:`torch.compile` captures a whole outline pipeline without breaking.
 
-Every operator here:
-
-* takes and returns tensors, never NumPy arrays or Python scalars, so no value
-  escapes into the graph as a constant;
-* is registered only for CPU tensors, matching the device of the Rust kernel;
-* accepts the native kernel's actual dtypes: ``torch.long`` element types and
-  ``torch.float32`` coordinates;
-* declares a fake implementation so shape propagation works without running the
-  kernel. Most of these kernels change the number of path elements, which makes
-  the output length data-dependent; those fakes allocate an unbacked dynamic
-  size.
-
-None of them register an autograd formula. They reorder or re-encode path
-elements, so no gradient is defined. Callers reject outlines that require grad
-before reaching this layer, which produces an error naming the kernel.
+Kernels that change the number of path elements use unbacked dynamic sizes in
+their fake implementations. None defines an autograd formula; callers must
+reject outlines that require grad before reaching this layer.
 """
 
 from __future__ import annotations
@@ -40,7 +28,6 @@ if TYPE_CHECKING:
 
 
 def _arrays(types: Tensor, coords: Tensor) -> tuple[np.ndarray, np.ndarray]:
-    """Return NumPy views accepted by the CPU float32 Rust kernels."""
     if types.dtype is not torch.long:
         msg = f"types must have dtype torch.long, got {types.dtype}"
         raise TypeError(msg)
@@ -57,7 +44,6 @@ def _restore(
     out_types: np.ndarray,
     out_coords: np.ndarray,
 ) -> tuple[Tensor, Tensor]:
-    """Rebuild CPU tensors returned by the native kernel."""
     return (
         torch.from_numpy(out_types),
         torch.from_numpy(out_coords).view(-1, _COORD_DIM),
@@ -65,7 +51,6 @@ def _restore(
 
 
 def _dynamic_outline(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Allocate a fake outline whose element count is data-dependent."""
     length = torch.library.get_ctx().new_dynamic_size()
     return (
         types.new_empty(length),

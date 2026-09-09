@@ -84,7 +84,6 @@ def _apply_matrix(
     center: Tensor,
     translate: tuple[float, float],
 ) -> Tensor:
-    """Apply ``p' = (p - center) @ matrix.T + center + translate`` to active pairs."""
     c = center
     t = coords.new_tensor(translate)
     active = torch.stack(list(_active_pairs(types)), dim=1).unsqueeze(-1)
@@ -100,7 +99,6 @@ def _rotation_scale_shear_matrix(
     *,
     like: Tensor,
 ) -> Tensor:
-    """Return a 2x2 matrix for scale, x/y shear, and rotation."""
     a = math.radians(angle_deg)
     if isinstance(shear_deg, tuple):
         shear_x, shear_y = shear_deg
@@ -132,23 +130,6 @@ def _horizontal_flip(
     *,
     preserve_winding: bool = True,
 ) -> tuple[Tensor, Tensor]:
-    """Flip a glyph outline horizontally around the bounding-box centre.
-
-    Both on-curve endpoints and off-curve control points are transformed.
-    Zero-coordinate element types (CLOSE, END, PAD) are left unchanged.
-
-    Args:
-        types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D floating point tensor of shape ``(N, 6)``.
-        preserve_winding: Reverse closed subpaths after reflection so their
-            winding direction matches the input. Default: ``True``.
-
-    Returns:
-        A new ``(types, coords)`` pair with coordinates reflected around the
-        bounding-box centre. Closed subpaths are re-encoded when
-        ``preserve_winding`` is enabled.
-
-    """
     matrix = coords.new_tensor([[-1.0, 0.0], [0.0, 1.0]])
     center = _bbox_center(types, coords)
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
@@ -163,20 +144,6 @@ def _vertical_flip(
     *,
     preserve_winding: bool = True,
 ) -> tuple[Tensor, Tensor]:
-    """Flip a glyph outline vertically around the bounding-box centre.
-
-    Args:
-        types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D floating point tensor of shape ``(N, 6)``.
-        preserve_winding: Reverse closed subpaths after reflection so their
-            winding direction matches the input. Default: ``True``.
-
-    Returns:
-        A new ``(types, coords)`` pair with coordinates reflected around the
-        bounding-box centre. Closed subpaths are re-encoded when
-        ``preserve_winding`` is enabled.
-
-    """
     matrix = coords.new_tensor([[1.0, 0.0], [0.0, -1.0]])
     center = _bbox_center(types, coords)
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
@@ -194,27 +161,6 @@ def _affine(
     scale: float = 1.0,
     shear: float | tuple[float, float] = 0.0,
 ) -> tuple[Tensor, Tensor]:
-    """Apply a deterministic affine transformation to a glyph outline.
-
-    The transform composes **uniform scale**, **x-shear**, and **rotation**
-    around the bounding-box centre, then applies ``translate``. Control points
-    and endpoints are all transformed consistently; zero-coordinate element
-    types (CLOSE, END, PAD) are not modified.
-
-    Args:
-        types: 1-D ``torch.int64`` tensor of element types.
-        coords: 2-D floating point tensor of shape ``(N, 6)``.
-        angle: Counter-clockwise rotation in degrees.
-        translate: Translation ``(tx, ty)`` in em units applied
-            after rotation and scaling. Values must be finite.
-        scale: Uniform scale factor (must be positive and finite).
-        shear: x-shear angle in degrees, or fixed ``(x, y)`` shear angles.
-
-    Returns:
-        A new ``(types, coords)`` pair with the affine transform applied.
-        ``types`` is returned unchanged (same object).
-
-    """
     if _is_nan(scale) or _is_infinite(scale) or scale <= 0:
         msg = "scale must be positive and finite"
         raise ValueError(msg)

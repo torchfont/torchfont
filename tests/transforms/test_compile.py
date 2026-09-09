@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 @pytest.fixture(autouse=True)
 def _capture_dynamic_output_shapes() -> Iterator[None]:
-    """Enable data-dependent custom-op outputs on every supported PyTorch."""
     with torch._dynamo.config.patch(capture_dynamic_output_shape_ops=True):  # noqa: SLF001
         yield
 
@@ -108,7 +107,6 @@ def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
 def test_operator_passes_opcheck(
     name: str, op: CustomOpDef, args: tuple[object, ...]
 ) -> None:
-    """Check schema, fake implementation, and autograd registration agree."""
     del name
     opcheck(op, args)
 

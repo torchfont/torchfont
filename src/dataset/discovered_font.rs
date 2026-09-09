@@ -10,7 +10,6 @@ use skrifa::{
 use crate::error::Error;
 use crate::font::{count_glyph_elements, map_font_file};
 
-/// One discovered face and the codepoint/glyph id pairs its `cmap` contributes.
 pub(crate) struct DiscoveredCodepoints {
     path: PathBuf,
     face_index: u32,
@@ -19,7 +18,6 @@ pub(crate) struct DiscoveredCodepoints {
     outline_lengths: Vec<u32>,
 }
 
-/// One discovered face and every glyph id it draws an outline for.
 pub(crate) struct DiscoveredGlyphs {
     path: PathBuf,
     face_index: u32,
@@ -138,8 +136,6 @@ impl DiscoveredGlyphs {
     }
 }
 
-/// Returns the encoded sequence length of one glyph.
-///
 /// The elements are counted at the face default location, where variations
 /// move points without changing how many elements a glyph draws.
 fn glyph_length(
@@ -168,7 +164,6 @@ fn glyph_length(
     })
 }
 
-/// Parses every face in one font file and builds one entry per face.
 fn read_faces<T>(
     path: &Path,
     build: impl Fn(u32, &skrifa::FontRef<'_>) -> Result<T, Error>,
