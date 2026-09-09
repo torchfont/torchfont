@@ -86,20 +86,18 @@ def outline_loss(
         reduction="none",
     ).reshape(target_types.shape)
     coords_loss = coordinate_mse_loss(
-        coordinate_prediction, target_types, target_coords, reduction="none"
+        coordinate_prediction, target_types, target_coords, reduction=reduction
     )
     if reduction == "none":
         return type_weight * type_loss.sum(
             dim=-1
         ) + coordinate_weight * coords_loss.sum(dim=(-2, -1))
     if reduction == "sum":
-        return type_weight * type_loss.sum() + coordinate_weight * coords_loss.sum()
+        return type_weight * type_loss.sum() + coordinate_weight * coords_loss
     if reduction == "mean":
         type_count = (target_types != ElementType.PAD.value).sum().clamp_min(1)
-        coordinate_count = _active_coordinate_mask(target_types).sum().clamp_min(1)
         return (
-            type_weight * type_loss.sum() / type_count
-            + coordinate_weight * coords_loss.sum() / coordinate_count
+            type_weight * type_loss.sum() / type_count + coordinate_weight * coords_loss
         )
     msg = f"{reduction!r} is not a valid value for reduction"
     raise ValueError(msg)

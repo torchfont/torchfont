@@ -36,6 +36,8 @@ class LoadGlyph(nn.Module):
         self, inpt: CodepointSample | GlyphIdSample | GlyphRef
     ) -> CodepointData | GlyphIdData | Outline:
         """Load the referenced glyph."""
+        if isinstance(inpt, GlyphRef) and self.location == "default":
+            return _functional.load_glyph(inpt)
         ref = inpt if isinstance(inpt, GlyphRef) else inpt.ref
         location = (
             _default_location(ref)
