@@ -527,3 +527,23 @@ def test_max_length_below_every_glyph_is_empty() -> None:
 
     assert len(dataset) == 0
     assert dataset.font_classes == []
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        "source-sans/*",
+        "source-serif/*",
+        "static-collection/*",
+        "variable-collection/*",
+    ],
+)
+def test_default_reference_loading_matches_sample_loading(pattern: str) -> None:
+    dataset = CodepointDataset("tests/fonts", patterns=pattern, codepoints=[0x41])
+    assert len(dataset) > 0
+    load = LoadGlyph()
+    for sample in dataset:
+        expected = load(sample).data
+        actual = load(sample.ref)
+        torch.testing.assert_close(actual.types, expected.types, rtol=0, atol=0)
+        torch.testing.assert_close(actual.coords, expected.coords, rtol=0, atol=0)
