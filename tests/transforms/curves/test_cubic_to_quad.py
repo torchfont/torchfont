@@ -88,8 +88,6 @@ def test_cubic_to_quad_quad_to_cubic_merge_curves_roundtrip(curve: _CubicSeg) ->
 
 
 def test_cubic_to_quad_reports_unrepresentable_large_curve() -> None:
-    # With normalized input this should be unusual, but public APIs should not
-    # turn malformed/extreme input into a Rust panic.
     curve: _CubicSeg = (
         (0.0, 0.0),
         (0.0, 10_000.0),
@@ -143,10 +141,6 @@ def test_cubic_to_quad_quad_to_cubic_endpoints_are_exact(curve: _CubicSeg) -> No
 
 @pytest.mark.parametrize("curve", _CUBIC_CURVES)
 def test_cubic_to_quad_implied_cubics_close_to_sub_cubics(curve: _CubicSeg) -> None:
-    # cubic_to_quad splits the cubic into N quads at t = i/N.
-    # quad_to_cubic converts each back; the resulting cp1/cp2 must be close to
-    # the De Casteljau sub-cubic's own control points.
-    # This directly validates the algorithm's tolerance guarantee.
     types, coords = _cubic_segs_to_tensors([curve])
 
     q_types, q_coords = cubic_to_quad(types, coords)

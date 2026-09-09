@@ -70,7 +70,6 @@ def test_random_remove_overlaps_selects_at_least_one_group() -> None:
 
 
 def test_random_remove_overlaps_uses_connected_components() -> None:
-    # The first and third rectangles do not intersect, but both intersect the second.
     types, coords = _rectangles([(0.0, 2.0), (1.0, 3.0), (2.5, 4.5)])
 
     out_types = RandomRemoveOverlaps()(Outline(types, coords)).types

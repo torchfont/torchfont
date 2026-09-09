@@ -35,11 +35,8 @@ pub(crate) fn cubic_farthest_fit_inside(
         && cubic_farthest_fit_inside(mid, mid + deriv3, (p2 + p3) * 0.5, p3, tolerance)
 }
 
-// A non-finite displacement (e.g. from a NaN coordinate) must compare as
-// arbitrarily far rather than as neither near nor far: `NaN <= tolerance`
-// and `NaN > tolerance` are both false, which would let corrupted input
-// silently pass tolerance checks throughout this module instead of being
-// rejected.
+// Map NaN to infinity so it fails tolerance checks instead of making both
+// `distance <= tolerance` and `distance > tolerance` false.
 pub(crate) fn finite_hypot(v: Vec2) -> f64 {
     if v.is_finite() {
         v.hypot()

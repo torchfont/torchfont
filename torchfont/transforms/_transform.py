@@ -48,7 +48,6 @@ class Transform(nn.Module):
         return tree_unflatten(flat_outputs, tree_spec)
 
     def _needs_transform_list(self, flat_inputs: list[Any]) -> list[bool]:
-        """Select semantic leaves while passing all other inputs through."""
         return [isinstance(inpt, self._transformed_types) for inpt in flat_inputs]
 
     def extra_repr(self) -> str:

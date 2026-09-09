@@ -47,11 +47,7 @@ impl OutlinePen for ElementCountingPen {
 struct OutlineEncodingPen {
     outline: BezPath,
     scale: f64,
-    // skrifa's glyph draw contract is a well-formed sequence of subpaths, but
-    // font files are external data; guard against a malformed/corrupt glyph
-    // sending drawing calls with no open subpath instead of letting kurbo's
-    // BezPath violate the "starts with MoveTo" invariant every downstream
-    // helper relies on.
+    // Malformed glyphs must not produce a BezPath that starts without MoveTo.
     has_open_subpath: bool,
 }
 

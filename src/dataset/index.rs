@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
-/// One discovered face: its file, face index, and the codepoint/glyph id pairs
-/// it contributes, sorted by codepoint.
+/// File, face index, and parallel codepoint, glyph id, and outline length arrays,
+/// sorted by codepoint.
 pub(crate) type IndexedCodepointFace = (PathBuf, u32, Vec<u32>, Vec<u32>, Vec<u32>);
 
-/// One discovered face: its file, face index, and the glyph ids it contributes,
-/// sorted in ascending order.
+/// File, face index, and parallel glyph id and outline length arrays, sorted by id.
 pub(crate) type IndexedGlyphFace = (PathBuf, u32, Vec<u32>, Vec<u32>);
 
 /// Flat sample index over the `cmap` entries of discovered font faces.
@@ -35,7 +34,6 @@ pub(crate) struct GlyphIndex {
 }
 
 impl CodepointIndex {
-    /// Builds an index from faces whose codepoints are sorted in ascending order.
     pub(crate) fn build(faces: Vec<IndexedCodepointFace>) -> Self {
         let mut fonts = Vec::with_capacity(faces.len());
         let mut offsets = Vec::with_capacity(faces.len() + 1);
@@ -54,10 +52,8 @@ impl CodepointIndex {
             outline_lengths.extend(face_outline_lengths);
             offsets.push(i64::try_from(codepoints.len()).expect("Vec length fits in i64"));
         }
-        // Rank every codepoint through a table indexed by the codepoint itself.
-        // `skrifa` limits `cmap` codepoints to `char::MAX`, so the table costs
-        // at most a few megabytes, and sizing it from the codepoints present
-        // keeps every lookup in bounds.
+        // `skrifa` limits `cmap` codepoints to `char::MAX`, bounding this direct
+        // lookup table to a few megabytes.
         let table_len = codepoints
             .iter()
             .copied()
@@ -91,7 +87,6 @@ impl CodepointIndex {
 }
 
 impl GlyphIndex {
-    /// Builds an index from faces whose glyph ids are sorted in ascending order.
     pub(crate) fn build(faces: Vec<IndexedGlyphFace>) -> Self {
         let mut fonts = Vec::with_capacity(faces.len());
         let mut offsets = Vec::with_capacity(faces.len() + 1);

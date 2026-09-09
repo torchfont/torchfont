@@ -1,5 +1,3 @@
-"""``torchfont.nn`` operating on single and batched outline tensors."""
-
 from __future__ import annotations
 
 import pytest

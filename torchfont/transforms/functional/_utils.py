@@ -44,5 +44,4 @@ def _native_outline(
 
 
 def _same_types(inpt: Outline, coords: Tensor) -> Outline:
-    """Pair new coordinates with the element types of an existing outline."""
     return Outline._wrap(inpt.types, coords)  # noqa: SLF001

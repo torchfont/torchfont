@@ -100,8 +100,6 @@ def _register_glyph_payload(
     cls: type[CodepointData[Any] | GlyphIdData[Any]],
     target_fields: tuple[str, ...],
 ) -> None:
-    """Register one payload class as a pytree whose targets are children."""
-
     def flatten(
         value: CodepointData[Any] | GlyphIdData[Any],
     ) -> tuple[list[Any], object]:
@@ -143,7 +141,6 @@ def _registered_axis_targets(
 
 
 def _optional_target(value: float) -> float | None:
-    """Represent an unavailable native target explicitly at the Python boundary."""
     return None if math.isnan(value) else value
 
 

@@ -60,7 +60,6 @@ class Outline:
     coords: Tensor
 
     def __post_init__(self) -> None:
-        """Reject structurally invalid coupled tensors at construction."""
         if self.types.ndim != 1:
             msg = f"types must be 1-D, got {self.types.ndim}-D"
             raise ValueError(msg)
@@ -89,7 +88,6 @@ class Outline:
 
     @classmethod
     def _wrap(cls, types: Tensor, coords: Tensor) -> Outline:
-        """Pair tensors produced by an operation on a valid outline."""
         return cls(types, coords)
 
     @property
@@ -159,7 +157,6 @@ class Outline:
         return self._wrap(types, coords)
 
     def __repr__(self) -> str:
-        """Summarise shape, dtype, and device instead of dumping both tensors."""
         return (
             f"Outline(shape={tuple(self.shape)}, dtype={self.dtype}, "
             f"device={self.device})"

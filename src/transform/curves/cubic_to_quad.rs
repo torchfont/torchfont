@@ -36,9 +36,6 @@ pub(crate) fn cubic_to_quad(outline: &BezPath) -> Result<BezPath, CubicToQuadErr
     Ok(result)
 }
 
-// Port of fonttools.cu2qu's all_quadratic=True path.  The returned pairs encode
-// the quadratic spline as explicit path elements, with implied on-curves materialized
-// at midpoints between adjacent off-curves.
 fn append_cubic_as_quads(
     result: &mut BezPath,
     p0: Point,
@@ -51,12 +48,7 @@ fn append_cubic_as_quads(
     if !cubic.is_finite() {
         return Err(CubicToQuadError::ApproximationFailed);
     }
-    // Preserve a single quadratic for degree-reduced cubics. A cubic that is
-    // an exact degree elevation of a quadratic has tangent lines at p0/p3
-    // that are exactly parallel, which Kurbo's crossing-point fit cannot
-    // resolve (it only special-cases fully coincident controls), so it would
-    // otherwise emit two segments for input this crate's own quad-to-cubic
-    // conversion produces.
+    // kurbo's crossing-point fit can't handle degree-elevated cubics.
     if let Some(control) = degree_reduced_control(p0, p1, p2, p3) {
         result.quad_to(control, p3);
         return Ok(());

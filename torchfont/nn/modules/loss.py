@@ -39,7 +39,7 @@ class OutlineLoss(nn.Module):
         target_types: Tensor,
         target_coords: Tensor,
     ) -> Tensor:
-        """Return the weighted mean outline loss."""
+        """Compute outline loss using the configured weights and reduction."""
         return functional.outline_loss(
             type_logits,
             coordinate_prediction,

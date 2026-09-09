@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
 # Allow rare rasterizer edge cases while still catching corpus-wide regressions.
-MAX_FAILURE_RATE = 0.001  # 0.1 %
+MAX_FAILURE_RATE = 0.001
 BITMAP_SIZE = 128
 
 

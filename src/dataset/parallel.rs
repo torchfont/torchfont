@@ -4,14 +4,8 @@ use std::thread;
 
 use crate::error::Error;
 
-/// Builds entries from font files on every available core, in file order.
-///
-/// Parsing one font file is independent of every other, so files are claimed
-/// from a shared cursor and their results are reordered afterwards. Font sizes
-/// differ by orders of magnitude, so claiming one file at a time balances the
-/// work far better than splitting the list into equal shares. The result is
-/// what running `build` over `files` sequentially would produce, including
-/// which file's error is reported.
+/// Claim files individually to balance differently sized fonts; preserve file
+/// order for both entries and errors.
 pub(crate) fn build_from_files<T: Send>(
     files: &[PathBuf],
     build: impl Fn(&Path) -> Result<Vec<T>, Error> + Sync,

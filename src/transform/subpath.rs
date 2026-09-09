@@ -220,8 +220,6 @@ mod tests {
             .collect()
     }
 
-    // --- reverse_subpath ---
-
     #[test]
     fn splits_subpaths_in_order() {
         let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
@@ -307,7 +305,6 @@ mod tests {
 
     #[test]
     fn reverse_subpath_triangle() {
-        // A→B→C  reversed to  C→B→A
         let s = open(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)]);
         let r = reverse_subpath(s.elements());
         assert_eq!(subpath_start(r.elements()), pt(0.5, 1.0));
@@ -329,12 +326,8 @@ mod tests {
         );
     }
 
-    // --- normalize_subpath_start_points ---
-
     #[test]
     fn normalize_picks_lexicographic_minimum() {
-        // Triangle B(2,0)→C(0,0)→A(1,1), start=B
-        // Lex minimum is C(0,0) at index 1
         let outline =
             outline_from_subpaths([closed(pt(2.0, 0.0), vec![line(0.0, 0.0), line(1.0, 1.0)])]);
         let result = normalize_subpath_start_points(&outline);
@@ -348,7 +341,6 @@ mod tests {
 
     #[test]
     fn normalize_already_minimum_is_noop() {
-        // A(0,0) is already the minimum
         let subpath = closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)]);
         let outline = outline_from_subpaths([subpath.clone()]);
         let result = normalize_subpath_start_points(&outline);
@@ -357,7 +349,6 @@ mod tests {
 
     #[test]
     fn normalize_prefers_smaller_index_for_equal_points() {
-        // Explicitly closed: A→B→A; nodes=[A,B,A]. Both A's tie — index 0 must win.
         let outline =
             outline_from_subpaths([closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.0, 0.0)])]);
         let result = normalize_subpath_start_points(&outline);
@@ -374,8 +365,6 @@ mod tests {
         let result = normalize_subpath_start_points(&outline);
         assert_eq!(subpaths(&result)[0], subpath);
     }
-
-    // --- randomize_subpath_start_points ---
 
     #[test]
     fn randomize_counts_implicit_close_endpoint() {
@@ -396,8 +385,6 @@ mod tests {
 
         assert_eq!(subpath_start(subpaths(&result)[0].elements()), pt(1.0, 1.0));
     }
-
-    // --- reverse_closed_subpaths ---
 
     #[test]
     fn randomize_subpath_order_uses_random_keys() {

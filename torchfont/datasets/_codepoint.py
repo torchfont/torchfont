@@ -40,12 +40,6 @@ class CodepointDataset(Dataset[T], Generic[T]):
 
     ``max_length`` keeps only glyphs whose outline is at most that many elements
     long.
-
-    Samples are laid out face by face: face ``i`` owns the half-open sample
-    range ``_offsets[i]:_offsets[i + 1]``, so ``_offsets`` holds one more
-    element than ``_font_refs`` and ends with the sample count. Sample ``s``
-    draws glyph ``_glyph_ids[s]``, whose codepoint is
-    ``_character_codepoints[_character_index[s]]``.
     """
 
     _font_refs: tuple[FontRef, ...]
