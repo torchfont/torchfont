@@ -5,7 +5,9 @@ target="${1:-host}"
 
 case "${target}" in
   host)
-    apt-get update
+    apt-get update \
+      -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources \
+      -o Dir::Etc::sourceparts=-
     apt-get install -y --no-install-recommends \
       pkg-config \
       libfreetype6-dev \
