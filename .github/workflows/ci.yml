@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          enable-cache: "true"
+          cache-suffix: check
       - run: uv run --locked --only-group lint ruff format --check
       - run: uv run --locked --only-group lint ruff check
       - run: cargo fmt --all -- --check
@@ -85,7 +85,8 @@ jobs:
         run: sudo sh .github/scripts/install-linux-deps.sh host
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          enable-cache: "true"
+          cache-suffix: test-${{ matrix.environment }}
+          python-version: ${{ matrix.python-version }}
       - run: cargo test --locked --all-targets --all-features
       - if: matrix.environment == 'latest'
         run: uv run --locked ty check
