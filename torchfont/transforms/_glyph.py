@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 import torch
 from torch import nn
@@ -16,10 +16,8 @@ from torchfont._glyph import (
     GlyphRef,
     _registered_axis_targets,
 )
+from torchfont._outline import _COORD_DIM, Outline
 from torchfont.transforms import functional as _functional
-
-if TYPE_CHECKING:
-    from torchfont._outline import Outline
 
 
 class LoadGlyph(nn.Module):
@@ -39,17 +37,22 @@ class LoadGlyph(nn.Module):
         if isinstance(inpt, GlyphRef) and self.location == "default":
             return _functional.load_glyph(inpt)
         ref = inpt if isinstance(inpt, GlyphRef) else inpt.ref
-        location = (
-            _default_location(ref)
-            if self.location == "default"
-            else _random_location(ref)
+        requested_location = (
+            None if self.location == "default" else _random_location(ref)
         )
-        outline = _functional.load_glyph(ref, location)
+        (raw_types, raw_coords), location_items, axis_values = _torchfont.load_glyph(
+            ref.font.path,
+            ref.font.face_index,
+            ref.glyph_id,
+            requested_location,
+        )
+        outline = Outline._wrap(  # noqa: SLF001
+            torch.from_numpy(raw_types),
+            torch.from_numpy(raw_coords).view(-1, _COORD_DIM),
+        )
+        location = dict(location_items)
         if isinstance(inpt, GlyphRef):
             return outline
-        axis_values = _torchfont.registered_axis_values(
-            ref.font.path, ref.font.face_index, location
-        )
         if isinstance(inpt, GlyphIdSample):
             return GlyphIdData(
                 data=outline,
@@ -79,15 +82,6 @@ def _random_location(ref: GlyphRef) -> dict[str, float]:
     ):
         location[str(tag)] = torch.empty(()).uniform_(minimum, maximum).item()
     return location
-
-
-def _default_location(ref: GlyphRef) -> dict[str, float]:
-    return {
-        str(tag): float(default)
-        for tag, _minimum, default, _maximum in _torchfont.variation_axes(
-            ref.font.path, ref.font.face_index
-        )
-    }
 
 
 __all__ = ["LoadGlyph"]

@@ -25,7 +25,7 @@ def load_glyph(
         if location is None
         else {str(tag): float(value) for tag, value in location.items()}
     )
-    raw_types, raw_coords = _torchfont.load_glyph(
+    (raw_types, raw_coords), _, _ = _torchfont.load_glyph(
         ref.font.path,
         ref.font.face_index,
         ref.glyph_id,
