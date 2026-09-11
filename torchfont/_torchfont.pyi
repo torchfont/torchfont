@@ -115,6 +115,7 @@ def variation_axes(
     path: str,
     face_index: int,
 ) -> list[tuple[str, float, float, float]]: ...
+
 LATIN_CORE: list[int]
 LATIN_KERNEL: list[int]
 
