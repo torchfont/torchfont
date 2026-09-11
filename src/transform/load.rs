@@ -9,16 +9,22 @@ use skrifa::{
 
 use crate::{
     error::Error,
-    font::{canonicalize_location, extract_glyph_outline, map_font_file, parse_font_ref},
+    font::{
+        canonicalize_location, extract_glyph_outline, map_font_file, parse_font_ref,
+        registered_axis_values,
+    },
     outline::BezPath,
 };
 
-pub(crate) fn load_glyph_outline(
+type AxisValues = (f32, f32, f32, f32, f32);
+type LoadedGlyph = (BezPath, Vec<(String, f32)>, AxisValues);
+
+pub(crate) fn load_glyph(
     path: &Path,
     face_index: u32,
     glyph_id: u32,
     location: Option<&BTreeMap<String, f32>>,
-) -> Result<BezPath, Error> {
+) -> Result<LoadedGlyph, Error> {
     let data = map_font_file(path)?;
     let font = parse_font_ref(&data[..], path, face_index)?;
     let units_per_em = font
@@ -36,7 +42,7 @@ pub(crate) fn load_glyph_outline(
             path.display()
         )));
     }
-    let user_location = canonicalize_location(&font, path, face_index, location)?;
+    let location = canonicalize_location(&font, path, face_index, location)?;
     let glyph = font
         .outline_glyphs()
         .get(GlyphId::new(glyph_id))
@@ -46,17 +52,27 @@ pub(crate) fn load_glyph_outline(
                 path.display()
             ))
         })?;
-    let location = font.axes().location(
-        user_location
-            .iter()
-            .map(|(tag, value)| (tag.as_str(), *value)),
-    );
-    extract_glyph_outline(
+    let skrifa_location = font
+        .axes()
+        .location(location.iter().map(|(tag, value)| (tag.as_str(), *value)));
+    let outline = extract_glyph_outline(
         &glyph,
-        DrawSettings::unhinted(Size::unscaled(), LocationRef::from(&location)),
+        DrawSettings::unhinted(Size::unscaled(), LocationRef::from(&skrifa_location)),
         units_per_em as f32,
     )
-    .map_err(|err| Error::Parse(format!("failed to draw glyph: {err}")))
+    .map_err(|err| Error::Parse(format!("failed to draw glyph: {err}")))?;
+    let values = registered_axis_values(&font, &location);
+    Ok((
+        outline,
+        location,
+        (
+            values.weight,
+            values.width,
+            values.italic,
+            values.slant,
+            values.optical_size,
+        ),
+    ))
 }
 
 #[cfg(test)]
@@ -70,7 +86,7 @@ mod tests {
         font::{map_font_file, parse_font_ref},
     };
 
-    use super::load_glyph_outline;
+    use super::load_glyph;
 
     fn test_font() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -86,13 +102,15 @@ mod tests {
     #[test]
     fn loads_outline_without_python() {
         let glyph_id = glyph_id_for(&test_font(), 'A' as u32);
-        let outline = load_glyph_outline(&test_font(), 0, glyph_id, None).unwrap();
+        let (outline, _, _) = load_glyph(&test_font(), 0, glyph_id, None).unwrap();
         assert!(outline.subpaths().next().is_some());
     }
 
     #[test]
     fn reports_missing_glyph_id_as_out_of_range() {
-        let error = load_glyph_outline(&test_font(), 0, u32::MAX, None).unwrap_err();
+        let Err(error) = load_glyph(&test_font(), 0, u32::MAX, None) else {
+            panic!("missing glyph id must fail");
+        };
         assert!(matches!(error, Error::OutOfRange(_)));
     }
 }

@@ -2,11 +2,8 @@ use pyo3::prelude::*;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::font::{
-    axis_info, canonicalize_location, map_font_file, parse_font_ref,
-    registered_axis_values as resolve_registered_axis_values,
-};
-use crate::transform::load::load_glyph_outline;
+use crate::font::{axis_info, map_font_file, parse_font_ref};
+use crate::transform::load::load_glyph as load;
 
 #[pyfunction]
 pub(crate) fn variation_axes(
@@ -26,27 +23,7 @@ pub(crate) fn variation_axes(
 
 type AxisValues = (f32, f32, f32, f32, f32);
 
-#[pyfunction]
-pub(crate) fn registered_axis_values(
-    py: Python<'_>,
-    path: PathBuf,
-    face_index: u32,
-    location: BTreeMap<String, f32>,
-) -> PyResult<AxisValues> {
-    py.detach(|| {
-        let data = map_font_file(&path)?;
-        let font = parse_font_ref(&data[..], &path, face_index)?;
-        let location = canonicalize_location(&font, &path, face_index, Some(&location))?;
-        let values = resolve_registered_axis_values(&font, &location);
-        Ok((
-            values.weight,
-            values.width,
-            values.italic,
-            values.slant,
-            values.optical_size,
-        ))
-    })
-}
+type LoadedGlyphArrays<'py> = (super::OutlineArrays<'py>, Vec<(String, f32)>, AxisValues);
 
 #[pyfunction]
 pub(crate) fn load_glyph<'py>(
@@ -55,8 +32,8 @@ pub(crate) fn load_glyph<'py>(
     face_index: u32,
     glyph_id: u32,
     location: Option<BTreeMap<String, f32>>,
-) -> PyResult<super::OutlineArrays<'py>> {
-    let outline =
-        py.detach(|| load_glyph_outline(&path, face_index, glyph_id, location.as_ref()))?;
-    Ok(super::encode(py, &outline))
+) -> PyResult<LoadedGlyphArrays<'py>> {
+    let (outline, location, axis_values) =
+        py.detach(|| load(&path, face_index, glyph_id, location.as_ref()))?;
+    Ok((super::encode(py, &outline), location, axis_values))
 }

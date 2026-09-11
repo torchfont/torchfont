@@ -106,22 +106,15 @@ def load_glyph(
     face_index: int,
     glyph_id: int,
     location: dict[str, float] | None = ...,
-) -> tuple[np.ndarray, np.ndarray]: ...
+) -> tuple[
+    tuple[np.ndarray, np.ndarray],
+    list[tuple[str, float]],
+    tuple[float, float, float, float, float],
+]: ...
 def variation_axes(
     path: str,
     face_index: int,
 ) -> list[tuple[str, float, float, float]]: ...
-def registered_axis_values(
-    path: str,
-    face_index: int,
-    location: dict[str, float],
-) -> tuple[
-    float,
-    float,
-    float,
-    float,
-    float,
-]: ...
 
 LATIN_CORE: list[int]
 LATIN_KERNEL: list[int]
