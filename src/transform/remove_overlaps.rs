@@ -1,5 +1,6 @@
 use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
+use super::skia::{build_skia_path, push_skia_element};
 use super::subpath::reverse_subpath;
 use crate::outline::{BezPath, Bounds, PathEl, Point, bounds_from_subpath, subpath_is_closed};
 use kurbo::Shape;
@@ -123,19 +124,12 @@ fn simplify(outline: &BezPath) -> Option<BezPath> {
     // Simplify emits an even-odd path. Reorient nested contours before
     // returning to TorchFont, whose outlines use non-zero winding semantics.
     let simplified = outline_from_path(&simplified)?;
-    let winding = winding_from_even_odd(&simplified);
-    Some(kurbo::Affine::scale(f64::from(PATHOPS_SCALE.recip())) * &winding)
+    let mut winding = winding_from_even_odd(&simplified);
+    winding.apply_affine(kurbo::Affine::scale(f64::from(PATHOPS_SCALE.recip())));
+    Some(winding)
 }
 
-fn build_skia_path(outline: &BezPath) -> Option<Path> {
-    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
-    for &element in outline.elements() {
-        push_skia_element(&mut builder, element);
-    }
-    (!builder.is_empty()).then(|| builder.detach())
-}
-
-// Explicitly close every contour, matching close_subpath's rationale: a
+// Explicitly close every contour, matching subpath_area's rationale: a
 // contour is a fill boundary regardless of whether PathOps happened to emit
 // a trailing Close. EvenOdd (rather than build_skia_path's Winding) is safe
 // here only because every caller passes a single, simple, non-self-
@@ -148,33 +142,6 @@ fn subpath_skia_path(subpath: &[PathEl]) -> Option<Path> {
     }
     builder.close();
     (!builder.is_empty()).then(|| builder.detach())
-}
-
-fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
-    match element {
-        PathEl::MoveTo(point) => {
-            builder.move_to((point.x as f32, point.y as f32));
-        }
-        PathEl::LineTo(point) => {
-            builder.line_to((point.x as f32, point.y as f32));
-        }
-        PathEl::QuadTo(control, end) => {
-            builder.quad_to(
-                (control.x as f32, control.y as f32),
-                (end.x as f32, end.y as f32),
-            );
-        }
-        PathEl::CurveTo(control0, control1, end) => {
-            builder.cubic_to(
-                (control0.x as f32, control0.y as f32),
-                (control1.x as f32, control1.y as f32),
-                (end.x as f32, end.y as f32),
-            );
-        }
-        PathEl::ClosePath => {
-            builder.close();
-        }
-    };
 }
 
 fn outline_from_path(path: &Path) -> Option<BezPath> {
@@ -215,7 +182,7 @@ fn commit_subpath(
         && !elements.is_empty()
     {
         outline.move_to(start);
-        outline.extend(std::mem::take(elements));
+        outline.extend(elements.drain(..));
         if closed {
             outline.close_path();
         }
@@ -233,8 +200,15 @@ fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     // polyline isn't a meaningful fill boundary.
     let mut contours: Vec<_> = outline
         .subpaths()
-        .map(|subpath| (close_subpath(subpath).area(), subpath))
+        .map(|subpath| (subpath_area(subpath), subpath))
         .collect();
+    if let [(area, subpath)] = contours.as_slice() {
+        return if *area < 0.0 {
+            reverse_subpath(subpath)
+        } else {
+            outline.clone()
+        };
+    }
     contours.sort_by(|a, b| {
         b.0.abs()
             .partial_cmp(&a.0.abs())
@@ -245,16 +219,16 @@ fn winding_from_even_odd(outline: &BezPath) -> BezPath {
         .iter()
         .map(|(_, subpath)| subpath.bounding_box())
         .collect();
-    let skia_paths: Vec<_> = contours
-        .iter()
-        .map(|(_, subpath)| subpath_skia_path(subpath))
-        .collect();
+    // Most contours have no children. Build a containment path only when
+    // another contour's tight bounds actually fit inside it.
+    let mut skia_paths = vec![None; contours.len()];
 
     let mut nesting = vec![0usize; contours.len()];
     for inner in 0..contours.len() {
         for outer in 0..inner {
             let is_inside = bounding_boxes[outer].contains_rect(bounding_boxes[inner])
                 && skia_paths[outer]
+                    .get_or_insert_with(|| subpath_skia_path(contours[outer].1))
                     .as_ref()
                     .is_some_and(|path| contour_is_inside(path, contours[inner].1));
             if is_inside {
@@ -276,12 +250,18 @@ fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     result
 }
 
-fn close_subpath(subpath: &[PathEl]) -> BezPath {
-    let mut path = BezPath::from_vec(subpath.to_vec());
-    if !subpath_is_closed(subpath) {
-        path.close_path();
+fn subpath_area(subpath: &[PathEl]) -> f64 {
+    if subpath_is_closed(subpath) {
+        return subpath.area();
     }
-    path
+    kurbo::segments(
+        subpath
+            .iter()
+            .copied()
+            .chain(std::iter::once(PathEl::ClosePath)),
+    )
+    .map(|segment| segment.area())
+    .sum()
 }
 
 #[cfg(test)]
@@ -313,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn close_subpath_treats_open_subpath_as_implicitly_closed_for_area() {
+    fn subpath_area_treats_open_subpath_as_implicitly_closed() {
         // Offset from the origin: kurbo's raw (unclosed) area only matches
         // the true polygon area when the missing closing edge happens to
         // pass through the origin, so this triangle is chosen to actually
@@ -324,7 +304,7 @@ mod tests {
         open.line_to((1.0, 5.0));
 
         let raw_area = open.elements().area();
-        let closed_area = super::close_subpath(open.elements()).area();
+        let closed_area = super::subpath_area(open.elements());
 
         assert_ne!(raw_area, closed_area);
         assert!((closed_area.abs() - 8.0).abs() < 1e-9);
@@ -388,5 +368,33 @@ mod tests {
         crossing.close_path();
 
         assert!(!path_is_inside(outer.elements(), crossing.elements()));
+    }
+
+    #[test]
+    fn winding_handles_nested_contours_and_disjoint_siblings() {
+        let mut outline = BezPath::new();
+        for rect in [
+            Rect::new(2.0, 2.0, 4.0, 4.0),
+            Rect::new(12.0, 0.0, 14.0, 2.0),
+            Rect::new(0.0, 0.0, 10.0, 10.0),
+            Rect::new(6.0, 6.0, 9.0, 9.0),
+            Rect::new(1.0, 1.0, 5.0, 5.0),
+        ] {
+            outline.extend(rectangle(rect).elements().iter().copied());
+        }
+
+        let winding = super::winding_from_even_odd(&outline);
+
+        // Two holes share the outer contour; one hole contains an island.
+        for (point, expected) in [
+            ((0.5, 0.5), 1),
+            ((1.5, 1.5), 0),
+            ((3.0, 3.0), 1),
+            ((7.0, 7.0), 0),
+            ((13.0, 1.0), 1),
+            ((11.0, 1.0), 0),
+        ] {
+            assert_eq!(winding.winding(point.into()), expected);
+        }
     }
 }
