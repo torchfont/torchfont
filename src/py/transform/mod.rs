@@ -1,6 +1,6 @@
 use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
-use tiny_skia::FillRule;
+use skia_safe::PathFillType;
 
 use crate::outline::{BezPath, DecodeError};
 use crate::transform::render_bitmap::RenderMode;
@@ -388,8 +388,8 @@ pub(crate) fn render_bitmap(
         }
     };
     let fill_rule = match fill_rule {
-        "winding" => FillRule::Winding,
-        "even_odd" => FillRule::EvenOdd,
+        "winding" => PathFillType::Winding,
+        "even_odd" => PathFillType::EvenOdd,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "fill_rule must be 'winding' or 'even_odd'",
