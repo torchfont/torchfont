@@ -145,17 +145,19 @@ depends = ["build"]
 run = "uv run --locked --no-sync pytest tests"
 
 [tasks.data-sync]
-description = "Initialize the repository data submodules"
+description = "Synchronize the repository data submodules"
 run = [
   "git submodule sync --recursive",
-  "git submodule update --init --depth 1 --recursive",
+  "git submodule update --init --force --depth 1 --recursive",
+  "git submodule foreach --recursive 'git clean -fd'",
 ]
 
 [tasks.data-update]
 description = "Update the repository data submodules"
 run = [
   "git submodule sync --recursive",
-  "git submodule update --remote --depth 1 --recursive",
+  "git submodule update --remote --force --depth 1 --recursive",
+  "git submodule foreach --recursive 'git clean -fd'",
 ]
 
 [tasks.test-google-fonts]
