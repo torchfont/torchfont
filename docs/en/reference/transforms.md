@@ -91,6 +91,10 @@ and targets remain alongside the converted payload.
 independently encoded subpaths. Later transforms in a `Compose` process every
 resulting subpath.
 
+`RemoveOverlaps` and `RandomRemoveOverlaps` accept `verify=True` to preserve an
+input when its coverage changes. `verify_size` sets the verification resolution
+and defaults to 256 pixels.
+
 ### Using rendered glyphs with TorchVision
 
 `RenderBitmap` returns a plain grayscale `H x W` tensor. Use

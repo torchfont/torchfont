@@ -166,14 +166,19 @@ def _(
 @torch.library.custom_op(
     "torchfont::remove_overlaps", mutates_args=(), device_types="cpu"
 )
-def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Merge overlapping subpaths with Skia PathOps winding simplification."""
-    out = _torchfont.remove_overlaps(*_arrays(types, coords))
+def remove_overlaps(
+    types: Tensor, coords: Tensor, verify: bool, verify_size: int
+) -> tuple[Tensor, Tensor]:
+    """Merge overlapping subpaths."""
+    out = _torchfont.remove_overlaps(*_arrays(types, coords), verify, verify_size)
     return _restore(*out)
 
 
 @remove_overlaps.register_fake
-def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+def _(
+    types: Tensor, coords: Tensor, verify: bool, verify_size: int
+) -> tuple[Tensor, Tensor]:
+    del verify, verify_size
     return _dynamic_outline(types, coords)
 
 
@@ -181,18 +186,28 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     "torchfont::remove_overlap_groups", mutates_args=(), device_types="cpu"
 )
 def remove_overlap_groups(
-    types: Tensor, coords: Tensor, selection_values: Tensor
+    types: Tensor,
+    coords: Tensor,
+    selection_values: Tensor,
+    verify: bool,
+    verify_size: int,
 ) -> tuple[Tensor, Tensor]:
     """Simplify overlap groups according to explicit selection values."""
     out = _torchfont.random_remove_overlaps(
-        *_arrays(types, coords), _selection(selection_values)
+        *_arrays(types, coords), _selection(selection_values), verify, verify_size
     )
     return _restore(*out)
 
 
 @remove_overlap_groups.register_fake
-def _(types: Tensor, coords: Tensor, selection_values: Tensor) -> tuple[Tensor, Tensor]:
-    del selection_values
+def _(
+    types: Tensor,
+    coords: Tensor,
+    selection_values: Tensor,
+    verify: bool,
+    verify_size: int,
+) -> tuple[Tensor, Tensor]:
+    del selection_values, verify, verify_size
     return _dynamic_outline(types, coords)
 
 

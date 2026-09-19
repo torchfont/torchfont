@@ -322,9 +322,14 @@ pub(crate) fn remove_overlaps<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
+    verify: bool,
+    verify_size: u32,
 ) -> PyResult<OutlineArrays<'py>> {
+    validate_bitmap_size(verify_size, "verify_size")?;
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    let result = py.detach(|| crate::transform::remove_overlaps::remove_overlaps(&outline));
+    let result = py.detach(|| {
+        crate::transform::remove_overlaps::remove_overlaps(&outline, verify, verify_size)
+    });
     Ok(encode(py, &result))
 }
 
@@ -334,7 +339,10 @@ pub(crate) fn random_remove_overlaps<'py>(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
     random_values: PyReadonlyArray1<'_, f32>,
+    verify: bool,
+    verify_size: u32,
 ) -> PyResult<OutlineArrays<'py>> {
+    validate_bitmap_size(verify_size, "verify_size")?;
     let types = types.as_slice()?;
     let outline = decode(types, coords.as_slice()?)?;
     let random_values = random_values.as_slice()?;
@@ -345,7 +353,12 @@ pub(crate) fn random_remove_overlaps<'py>(
     }
     let random_values = random_values.to_vec();
     let result = py.detach(|| {
-        crate::transform::remove_overlaps::random_remove_overlaps(&outline, &random_values)
+        crate::transform::remove_overlaps::random_remove_overlaps(
+            &outline,
+            &random_values,
+            verify,
+            verify_size,
+        )
     });
     Ok(encode(py, &result))
 }
@@ -372,11 +385,7 @@ pub(crate) fn render_bitmap(
     fill_rule: &str,
     antialias: bool,
 ) -> PyResult<(Py<PyArray1<u8>>, u32, u32)> {
-    if size == 0 || size > 4096 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "size must be between 1 and 4096",
-        ));
-    }
+    validate_bitmap_size(size, "size")?;
     let mode = match mode {
         "fixed" => RenderMode::Fixed,
         "bbox" => RenderMode::Bbox,
@@ -413,6 +422,15 @@ pub(crate) fn render_bitmap(
         rendered.width,
         rendered.height,
     ))
+}
+
+fn validate_bitmap_size(size: u32, name: &str) -> PyResult<()> {
+    if size == 0 || size > 4096 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "{name} must be between 1 and 4096"
+        )));
+    }
+    Ok(())
 }
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {

@@ -31,8 +31,18 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _pair(F.merge_curves(Outline(types, coords)))
 
 
-def remove_overlaps(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    return _pair(F.remove_overlaps(Outline(types, coords)))
+def remove_overlaps(
+    types: Tensor,
+    coords: Tensor,
+    *,
+    verify: bool = False,
+    verify_size: int = 256,
+) -> tuple[Tensor, Tensor]:
+    return _pair(
+        F.remove_overlaps(
+            Outline(types, coords), verify=verify, verify_size=verify_size
+        )
+    )
 
 
 def normalize_subpath_start_points(

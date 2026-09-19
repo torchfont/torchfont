@@ -20,6 +20,7 @@ pub(crate) struct RenderedBitmap {
     pub(crate) height: u32,
 }
 
+#[derive(Debug)]
 pub(crate) enum RenderBitmapError {
     BboxTooLarge,
 }
@@ -52,6 +53,27 @@ pub(crate) fn render_bitmap(
         width,
         height,
     })
+}
+
+pub(crate) fn render_bitmap_in_bounds(
+    outline: &BezPath,
+    size: u32,
+    bounds: Bounds,
+    fill_rule: PathFillType,
+    antialias: bool,
+) -> RenderedBitmap {
+    let path = build_skia_path(outline).filter(|path| !path.segment_masks().is_empty());
+    let target = render_target(Some(bounds), size as f32, RenderMode::BboxSquare)
+        .expect("bbox-square rendering never errors");
+    let (Some(path), Some((width, height, transform))) = (path, target) else {
+        return blank_bitmap(size, size);
+    };
+
+    RenderedBitmap {
+        data: draw_alpha_path(path, width, height, transform, fill_rule, antialias),
+        width,
+        height,
+    }
 }
 
 fn draw_alpha_path(

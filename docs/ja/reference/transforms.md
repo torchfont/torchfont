@@ -90,6 +90,9 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 `tuple[Outline, ...]` に変えます。`Compose` 内の後続 Transform は、分割された各
 Subpath を処理します。
 
+`RemoveOverlaps` と `RandomRemoveOverlaps` に `verify=True` を指定すると、Coverage が
+変化する場合は入力を維持します。`verify_size` は検証解像度を指定し、既定値は 256 pixel です。
+
 ### レンダリングしたグリフを TorchVision で使う
 
 `RenderBitmap` はグレースケールの通常の `H x W` テンソルを返します。
