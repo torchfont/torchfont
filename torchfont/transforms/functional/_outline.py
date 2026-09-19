@@ -13,21 +13,48 @@ if TYPE_CHECKING:
     from torchfont._outline import Outline
 
 
-def remove_overlaps(inpt: Outline) -> Outline:
-    """Merge overlapping subpaths using Skia PathOps winding simplification.
+def remove_overlaps(
+    inpt: Outline, *, verify: bool = False, verify_size: int = 256
+) -> Outline:
+    """Merge overlapping subpaths.
 
-    If PathOps cannot simplify an otherwise valid outline, the original outline
-    is returned unchanged.
+    Args:
+        inpt: Glyph outline to simplify.
+        verify: Whether to preserve ``inpt`` when coverage changes.
+        verify_size: Verification resolution in pixels. Must be between 1 and
+            4096.
+
     """
-    return _native_outline(inpt, _ops.remove_overlaps, name="remove_overlaps")
+    return _native_outline(
+        inpt, _ops.remove_overlaps, verify, verify_size, name="remove_overlaps"
+    )
 
 
-def remove_overlap_groups(inpt: Outline, selection_values: Tensor) -> Outline:
-    """Simplify overlap groups according to explicit selection values."""
+def remove_overlap_groups(
+    inpt: Outline,
+    selection_values: Tensor,
+    *,
+    verify: bool = False,
+    verify_size: int = 256,
+) -> Outline:
+    """Simplify overlap groups according to explicit selection values.
+
+    Args:
+        inpt: Glyph outline whose bbox-connected overlap groups are selected
+            for simplification.
+        selection_values: Per-group selection values; see
+            :class:`~torchfont.transforms.RandomRemoveOverlaps`.
+        verify: Whether to preserve ``inpt`` when coverage changes.
+        verify_size: Verification resolution in pixels. Must be between 1 and
+            4096.
+
+    """
     return _native_outline(
         inpt,
         _ops.remove_overlap_groups,
         selection_values,
+        verify,
+        verify_size,
         name="remove_overlap_groups",
     )
 

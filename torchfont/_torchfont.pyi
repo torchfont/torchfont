@@ -67,10 +67,14 @@ def reverse_closed_subpaths(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def remove_overlaps(
-    types: np.ndarray, coords: np.ndarray
+    types: np.ndarray, coords: np.ndarray, verify: bool, verify_size: int
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def random_remove_overlaps(
-    types: np.ndarray, coords: np.ndarray, random_values: np.ndarray
+    types: np.ndarray,
+    coords: np.ndarray,
+    random_values: np.ndarray,
+    verify: bool,
+    verify_size: int,
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def quad_to_cubic(
     types: np.ndarray, coords: np.ndarray, merge_curves: bool

@@ -1,19 +1,33 @@
 use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
+use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{build_skia_path, push_skia_element};
 use super::subpath::reverse_subpath;
-use crate::outline::{BezPath, Bounds, PathEl, Point, bounds_from_subpath, subpath_is_closed};
+use crate::outline::{
+    BezPath, Bounds, PathEl, Point, bounds_from_outline, bounds_from_subpath, subpath_is_closed,
+};
 use kurbo::Shape;
 
 // TorchFont outlines are normalized to roughly em-sized coordinates. PathOps is
 // more reliable at conventional font-unit magnitudes, so simplify a scaled copy.
 const PATHOPS_SCALE: f32 = 131_072.0;
 
-pub(crate) fn remove_overlaps(outline: &BezPath) -> BezPath {
-    simplify(outline).unwrap_or_else(|| outline.clone())
+pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
+    let Some(simplified) = simplify(outline) else {
+        return outline.clone();
+    };
+    if verify && !renders_match(outline, &simplified, verify_size) {
+        return outline.clone();
+    }
+    simplified
 }
 
-pub(crate) fn random_remove_overlaps(outline: &BezPath, random_values: &[f32]) -> BezPath {
+pub(crate) fn random_remove_overlaps(
+    outline: &BezPath,
+    random_values: &[f32],
+    verify: bool,
+    verify_size: u32,
+) -> BezPath {
     let source: Vec<_> = outline.subpaths().collect();
     let bounds: Vec<_> = source
         .iter()
@@ -85,15 +99,19 @@ pub(crate) fn random_remove_overlaps(outline: &BezPath, random_values: &[f32]) -
             for &other in group {
                 component.extend(source[other].iter().copied());
             }
-            let simplified = simplify(&component).unwrap_or(component);
-            result.extend(simplified.elements().iter().copied());
+            let chosen = simplify(&component).unwrap_or(component);
+            result.extend(chosen.elements().iter().copied());
         } else {
             for &other in group {
                 result.extend(source[other].iter().copied());
             }
         }
     }
-    result
+    if verify && !renders_match(outline, &result, verify_size) {
+        outline.clone()
+    } else {
+        result
+    }
 }
 
 fn bounds_overlap(a: Bounds, b: Bounds) -> bool {
@@ -114,6 +132,30 @@ fn union(parent: &mut [usize], left: usize, right: usize) {
         parent[right] = left.min(right);
         parent[left] = left.min(right);
     }
+}
+
+fn renders_match(original: &BezPath, candidate: &BezPath, size: u32) -> bool {
+    let Some(bounds) = combined_bounds(original, candidate) else {
+        return true;
+    };
+    render_coverage(original, bounds, size) == render_coverage(candidate, bounds, size)
+}
+
+fn combined_bounds(first: &BezPath, second: &BezPath) -> Option<Bounds> {
+    match (bounds_from_outline(first), bounds_from_outline(second)) {
+        (Some(first), Some(second)) => Some(Bounds {
+            x_min: first.x_min.min(second.x_min),
+            y_min: first.y_min.min(second.y_min),
+            x_max: first.x_max.max(second.x_max),
+            y_max: first.y_max.max(second.y_max),
+        }),
+        (bounds @ Some(_), None) | (None, bounds @ Some(_)) => bounds,
+        (None, None) => None,
+    }
+}
+
+fn render_coverage(outline: &BezPath, bounds: Bounds, size: u32) -> Vec<u8> {
+    render_bitmap_in_bounds(outline, size, bounds, PathFillType::Winding, false).data
 }
 
 fn simplify(outline: &BezPath) -> Option<BezPath> {
@@ -396,5 +438,50 @@ mod tests {
         ] {
             assert_eq!(winding.winding(point.into()), expected);
         }
+    }
+
+    #[test]
+    fn renders_match_identifies_identical_font_unit_outlines() {
+        let square = rectangle(Rect::new(100.0, 200.0, 900.0, 1_000.0));
+
+        assert!(super::renders_match(&square, &square, 128));
+    }
+
+    #[test]
+    fn renders_match_detects_different_font_unit_coverage() {
+        let small = rectangle(Rect::new(100.0, 200.0, 300.0, 400.0));
+        let large = rectangle(Rect::new(100.0, 200.0, 900.0, 1_000.0));
+
+        assert!(!super::renders_match(&small, &large, 128));
+    }
+
+    #[test]
+    fn renders_match_uses_the_same_bounds_for_both_outlines() {
+        let left = rectangle(Rect::new(0.0, 0.0, 500.0, 1_000.0));
+        let right = rectangle(Rect::new(500.0, 0.0, 1_000.0, 1_000.0));
+
+        assert!(!super::renders_match(&left, &right, 128));
+    }
+
+    #[test]
+    fn remove_overlaps_with_verify_keeps_a_correct_simplification() {
+        let mut outline = BezPath::new();
+        outline.move_to((100.0, 100.0));
+        outline.line_to((500.0, 100.0));
+        outline.line_to((500.0, 500.0));
+        outline.line_to((100.0, 500.0));
+        outline.close_path();
+        outline.move_to((300.0, 100.0));
+        outline.line_to((700.0, 100.0));
+        outline.line_to((700.0, 500.0));
+        outline.line_to((300.0, 500.0));
+        outline.close_path();
+
+        let unverified = super::remove_overlaps(&outline, false, 128);
+        let verified = super::remove_overlaps(&outline, true, 128);
+
+        assert_eq!(unverified.subpaths().count(), 1);
+        assert_eq!(verified.subpaths().count(), 1);
+        assert!(super::renders_match(&unverified, &verified, 128));
     }
 }

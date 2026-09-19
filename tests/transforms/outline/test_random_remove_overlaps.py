@@ -99,6 +99,17 @@ def test_random_remove_overlaps_is_reproducible() -> None:
     assert torch.equal(output1.coords, output2.coords)
 
 
+def test_random_remove_overlaps_verify_keeps_a_correct_result() -> None:
+    outline = Outline(*_four_squares())
+    torch.manual_seed(3)
+    unverified = RandomRemoveOverlaps(verify=False)(outline)
+    torch.manual_seed(3)
+    verified = RandomRemoveOverlaps(verify=True)(outline)
+
+    assert torch.equal(verified.types, unverified.types)
+    assert torch.allclose(verified.coords, unverified.coords)
+
+
 def test_random_remove_overlaps_leaves_non_candidates_unchanged() -> None:
     types, coords = _four_squares()
     separated_types = torch.cat([types[:5], types[10:15], types[-1:]])
@@ -117,5 +128,9 @@ def test_random_remove_overlaps_native_rejects_too_few_random_values() -> None:
         ValueError, match="random_values length must be at least types length"
     ):
         _torchfont.random_remove_overlaps(
-            types.numpy(), coords.reshape(-1).numpy(), np.zeros(1, dtype=np.float32)
+            types.numpy(),
+            coords.reshape(-1).numpy(),
+            np.zeros(1, dtype=np.float32),
+            verify=False,
+            verify_size=128,
         )

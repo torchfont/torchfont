@@ -60,7 +60,8 @@ def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
     pair = (outline.types, outline.coords)
     values = torch.rand(16, generator=torch.Generator().manual_seed(0))
     return [
-        ("remove_overlaps", ops.remove_overlaps, pair),
+        ("remove_overlaps", ops.remove_overlaps, (*pair, False, 256)),
+        ("remove_overlaps_verified", ops.remove_overlaps, (*pair, True, 256)),
         ("cubic_to_quad", ops.cubic_to_quad, pair),
         ("merge_curves", ops.merge_curves, pair),
         ("quad_to_cubic", ops.quad_to_cubic, (*pair, False)),
@@ -82,7 +83,16 @@ def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
             (*pair, values, 4, None),
         ),
         ("truncate_subpaths", ops.truncate_subpaths, (*pair, 4, None)),
-        ("remove_overlap_groups", ops.remove_overlap_groups, (*pair, values)),
+        (
+            "remove_overlap_groups",
+            ops.remove_overlap_groups,
+            (*pair, values, False, 256),
+        ),
+        (
+            "remove_overlap_groups_verified",
+            ops.remove_overlap_groups,
+            (*pair, values, True, 256),
+        ),
         (
             "split_segments",
             ops.split_segments,
