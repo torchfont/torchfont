@@ -1,6 +1,6 @@
 {
 	"name": "mise",
-	"image": "jdxcode/mise:latest",
+	"image": "jdxcode/mise:debian",
 	"features": {
 		"ghcr.io/devcontainers/features/common-utils:2.6.0": {}
 	},
@@ -11,14 +11,17 @@
 			"type": "volume"
 		},
 		{
+			"source": "venv-${devcontainerId}",
 			"target": "${containerWorkspaceFolder}/.venv",
 			"type": "volume"
 		},
 		{
+			"source": "target-${devcontainerId}",
 			"target": "${containerWorkspaceFolder}/target",
 			"type": "volume"
 		},
 		{
+			"source": "node_modules-${devcontainerId}",
 			"target": "${containerWorkspaceFolder}/node_modules",
 			"type": "volume"
 		},
