@@ -9,6 +9,15 @@ node = "24"
 lockfile = true
 idiomatic_version_file_enable_tools = ["rust"]
 
+[bootstrap.packages]
+"apt:build-essential" = "latest"
+"apt:libfontconfig1-dev" = "latest"
+"apt:libfreetype-dev" = "latest"
+
+[tasks.system-deps]
+description = "Install system dependencies required for native builds"
+run = "mise bootstrap packages apply --yes"
+
 [tasks.uv-sync]
 description = "Sync Python dependencies from uv.lock"
 run = "uv sync --locked --no-install-project"
@@ -60,6 +69,7 @@ sources = [
   "rust-toolchain.toml",
   "src/**/*.rs",
 ]
+depends = ["system-deps"]
 run = "uv run --locked --no-sync cargo clippy --locked --all-targets --all-features -- -D warnings"
 
 [tasks.rust-test]
@@ -73,6 +83,7 @@ sources = [
   "src/**/*.rs",
   "tests/fonts/**",
 ]
+depends = ["system-deps"]
 run = "uv run --locked --no-sync cargo test --locked --all-targets --all-features"
 
 [tasks.rust-check]
@@ -136,7 +147,7 @@ sources = [
 outputs = [
   'torchfont/_torchfont*.{% if os() == "windows" %}pyd{% else %}so{% endif %}',
 ]
-depends = ["check"]
+depends = ["system-deps", "check"]
 run = "uv run --locked --no-sync maturin develop --locked --release"
 
 [tasks.test]
