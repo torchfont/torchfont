@@ -340,6 +340,7 @@ def test_pattern_filter_and_outline_less_fonts_are_empty() -> None:
     assert len(missing) == 0
     assert missing.font_targets.shape == (0,)
     assert missing.character_targets.shape == (0,)
+    assert missing.glyph_ids.shape == (0,)
     assert missing.outline_lengths.shape == (0,)
     assert len(no_outlines) == 0
 
@@ -396,12 +397,15 @@ def test_targets_match_samples() -> None:
 
     assert dataset.font_targets.dtype == torch.long
     assert dataset.character_targets.dtype == torch.long
+    assert dataset.glyph_ids.dtype == torch.long
     assert dataset.font_targets.shape == (len(dataset),)
     assert dataset.character_targets.shape == (len(dataset),)
+    assert dataset.glyph_ids.shape == (len(dataset),)
     for idx in range(len(dataset)):
         sample = dataset[idx]
         assert dataset.font_targets[idx].item() == sample.font_idx
         assert dataset.character_targets[idx].item() == sample.character_idx
+        assert dataset.glyph_ids[idx].item() == sample.ref.glyph_id
 
 
 def test_targets_match_samples_across_faces_with_unequal_coverage() -> None:
