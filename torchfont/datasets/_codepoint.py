@@ -140,6 +140,11 @@ class CodepointDataset(Dataset[T], Generic[T]):
         return torch.from_numpy(self._character_index.astype(np.int64))
 
     @property
+    def glyph_ids(self) -> Tensor:
+        """LongTensor of face-local glyph ids for each sample."""
+        return torch.from_numpy(self._glyph_ids.astype(np.int64))
+
+    @property
     def outline_lengths(self) -> Tensor:
         """LongTensor of encoded outline lengths for each sample."""
         return torch.from_numpy(self._outline_lengths.astype(np.int64))

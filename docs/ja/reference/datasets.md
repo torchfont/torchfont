@@ -54,6 +54,7 @@ dataset = CodepointDataset(
 - `character_classes -> list[str]`
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
+- `glyph_ids -> LongTensor (N,)`
 - `outline_lengths -> LongTensor (N,)`
 
 サンプリング分布は各フェイスが収録するコードポイント数に比例します。異なる分布が必要な用途では

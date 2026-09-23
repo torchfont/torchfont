@@ -54,6 +54,7 @@ Properties:
 - `character_classes -> list[str]`
 - `character_class_to_idx -> dict[str, int]`
 - `character_targets -> LongTensor (N,)`
+- `glyph_ids -> LongTensor (N,)`
 - `outline_lengths -> LongTensor (N,)`
 
 The sampling distribution is proportional to the number of supported
