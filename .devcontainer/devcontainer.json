@@ -6,6 +6,11 @@
 	},
 	"mounts": [
 		{
+			"source": "mise",
+			"target": "/mise",
+			"type": "volume"
+		},
+		{
 			"source": "uv",
 			"target": "/home/vscode/.cache/uv",
 			"type": "volume"
