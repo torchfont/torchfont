@@ -38,14 +38,15 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` は一つの `CodepointSample`、`GlyphIdSample`、`GlyphRef` を読み込みます。
+`LoadGlyph` はネストした入力に含まれる `CodepointSample`、`GlyphIdSample`、`GlyphRef` を、
+入力構造を保ったまま読み込みます。
 `CodepointSample` は `CodepointData[Outline]` に、`GlyphIdSample` は `GlyphIdData[Outline]` に、
 参照単体は `Outline` になります。
 `LoadGlyph` は、`location="random"` を指定しない限り Face の Default Location を使います。
-Random Policy はいずれの入力に対しても位置を 1 点抽出し、返り値の `location` に保存します。
-Static Face では空の位置になります。
-Dataset Sample に対しては、返り値の並列な `weight`、`width`、`italic`、
-`slant`、`optical_size` Target も解決します。
+Random Policy では、一回の呼び出しに含まれる同じ Face の Glyph は同じ Location を使います。
+独立した Location が必要な入力には `LoadGlyph` を個別に適用してください。Static Face では
+空の位置になります。Dataset Sample の出力は Location を保存し、並列な `weight`、`width`、
+`italic`、`slant`、`optical_size` Target も解決します。
 
 Transform はネストした入力を受け取り、その構造を保ちます。一回の呼び出しに含まれる
 対応する複数 Outline には、同じランダムパラメーターが適用されます。

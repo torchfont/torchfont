@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, ClassVar, Literal
 
 import torch
-from torch import nn
 
 from torchfont import _torchfont
 from torchfont._glyph import (
@@ -18,10 +17,17 @@ from torchfont._glyph import (
 )
 from torchfont._outline import _COORD_DIM, Outline
 from torchfont.transforms import functional as _functional
+from torchfont.transforms._transform import Transform
 
 
-class LoadGlyph(nn.Module):
-    """Load one glyph at the default or a randomly sampled variation location."""
+class LoadGlyph(Transform):
+    """Load referenced glyphs at default or randomly sampled locations."""
+
+    _transformed_types: ClassVar[tuple[type[Any], ...]] = (
+        CodepointSample,
+        GlyphIdSample,
+        GlyphRef,
+    )
 
     def __init__(self, location: Literal["default", "random"] = "default") -> None:
         super().__init__()
@@ -30,15 +36,26 @@ class LoadGlyph(nn.Module):
             raise ValueError(msg)
         self.location = location
 
-    def forward(
-        self, inpt: CodepointSample | GlyphIdSample | GlyphRef
+    def make_params(self, _flat_inputs: list[Any]) -> dict[str, Any]:
+        """Sample shared random parameters for all inputs."""
+        if self.location == "default":
+            return {}
+        seed = torch.empty((), dtype=torch.int64).random_().item()
+        return {"seed": seed}
+
+    def transform(
+        self,
+        inpt: CodepointSample | GlyphIdSample | GlyphRef,
+        params: dict[str, Any],
     ) -> CodepointData | GlyphIdData | Outline:
-        """Load the referenced glyph."""
+        """Load one referenced glyph using the shared parameters."""
         if isinstance(inpt, GlyphRef) and self.location == "default":
             return _functional.load_glyph(inpt)
         ref = inpt if isinstance(inpt, GlyphRef) else inpt.ref
         requested_location = (
-            None if self.location == "default" else _random_location(ref)
+            None
+            if self.location == "default"
+            else _random_location(ref, params["seed"])
         )
         (raw_types, raw_coords), location_items, axis_values = _torchfont.load_glyph(
             ref.font.path,
@@ -75,12 +92,15 @@ class LoadGlyph(nn.Module):
         return f"location={self.location}"
 
 
-def _random_location(ref: GlyphRef) -> dict[str, float]:
+def _random_location(ref: GlyphRef, seed: int) -> dict[str, float]:
+    generator = torch.Generator().manual_seed(seed)
     location: dict[str, float] = {}
     for tag, minimum, _default, maximum in _torchfont.variation_axes(
         ref.font.path, ref.font.face_index
     ):
-        location[str(tag)] = torch.empty(()).uniform_(minimum, maximum).item()
+        location[str(tag)] = (
+            torch.empty(()).uniform_(minimum, maximum, generator=generator).item()
+        )
     return location
 
 

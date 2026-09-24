@@ -40,14 +40,16 @@ data = transform(sample)
 outline = data.data
 ```
 
-`LoadGlyph` loads one `CodepointSample`, `GlyphIdSample`, or `GlyphRef`. A
+`LoadGlyph` loads `CodepointSample`, `GlyphIdSample`, and `GlyphRef` leaves in a
+nested input while preserving its structure. A
 `CodepointSample` becomes `CodepointData[Outline]`, a `GlyphIdSample` becomes
 `GlyphIdData[Outline]`, and a bare reference becomes `Outline`.
 `LoadGlyph` uses the face's default location unless `location="random"` is set.
-The random policy samples one location for any of these inputs and records it in
-the returned payload's `location`; on a static face it naturally uses an empty
-location. For dataset samples, it also resolves the parallel `weight`, `width`,
-`italic`, `slant`, and `optical_size` targets.
+With the random policy, glyphs from the same face in one call use the same
+location. Apply `LoadGlyph` separately to inputs that need independent
+locations. A static face uses an empty location. Dataset sample outputs record
+the location and also resolve the parallel `weight`, `width`, `italic`, `slant`,
+and `optical_size` targets.
 
 Transforms accept nested inputs and preserve their structure. Corresponding
 outlines in one call receive the same randomly sampled parameters. Apply the
