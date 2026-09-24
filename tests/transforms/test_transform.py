@@ -394,3 +394,35 @@ def test_load_glyph_returns_the_randomly_sampled_location() -> None:
     assert output.slant == 0.0
     assert output.optical_size == output.location["opsz"]
     assert set(output.location) == {"opsz", "wght"}
+
+
+def test_load_glyph_shares_random_location_across_one_call() -> None:
+    path = "tests/fonts/source-serif/SourceSerif4Variable-Roman.ttf"
+    font = FontRef(path, 0)
+    samples = [
+        CodepointSample(GlyphRef(font, glyph_id(path, character)), ord(character), 0, i)
+        for i, character in enumerate(("A", "B"))
+    ]
+
+    output = LoadGlyph(location="random")(samples)
+
+    assert isinstance(output, list)
+    assert all(isinstance(item, CodepointData) for item in output)
+    assert output[0].location == output[1].location
+
+
+def test_load_glyph_preserves_nested_glyph_ref_inputs() -> None:
+    path = "tests/fonts/source-sans/SourceSans3-Regular.ttf"
+    font = FontRef(path, 0)
+    refs = {
+        "letters": (
+            GlyphRef(font, glyph_id(path, "A")),
+            GlyphRef(font, glyph_id(path, "B")),
+        )
+    }
+
+    output = LoadGlyph()(refs)
+
+    assert isinstance(output, dict)
+    assert isinstance(output["letters"], tuple)
+    assert all(isinstance(item, Outline) for item in output["letters"])
