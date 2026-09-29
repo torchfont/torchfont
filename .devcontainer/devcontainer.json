@@ -2,7 +2,7 @@
 	"name": "mise",
 	"image": "jdxcode/mise:debian",
 	"features": {
-		"ghcr.io/devcontainers/features/common-utils:2.6.0": {}
+		"ghcr.io/devcontainers/features/common-utils:2.7.0": {}
 	},
 	"mounts": [
 		{
