@@ -167,7 +167,7 @@ run = [
 description = "Update the repository data submodules"
 run = [
   "git submodule sync",
-  "git submodule update --remote --depth 1",
+  "git submodule update --remote --force --depth 1",
   "git submodule foreach 'git clean -fd'",
 ]
 
