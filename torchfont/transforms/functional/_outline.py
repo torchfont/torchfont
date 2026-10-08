@@ -13,6 +13,39 @@ if TYPE_CHECKING:
     from torchfont._outline import Outline
 
 
+def normalize_winding(inpt: Outline, *, clockwise: bool = True) -> Outline:
+    """Normalize winding while preserving non-zero and even-odd fills.
+
+    Contours whose filled interiors intersect form groups, including containment
+    and transitive intersections. Each group's largest absolute signed area
+    contour determines whether the group is reversed; ties prefer the first
+    contour. ``clockwise=True`` chooses clockwise in y-up font coordinates.
+    Groups with open subpaths or only zero-area contours are unchanged.
+
+    Disjoint groups can be reversed independently. Relative winding within a
+    group is preserved, so complex groups may retain mixed outer directions.
+    Start points may change; contour order and curve geometry are preserved.
+    Raises ``ValueError`` if contour intersections cannot be determined.
+    """
+    return _native_outline(
+        inpt, _ops.normalize_winding, clockwise, name="normalize_winding"
+    )
+
+
+def reverse_winding_groups(inpt: Outline, reversal_mask: Tensor) -> Outline:
+    """Reverse winding groups selected by an explicit boolean mask.
+
+    Groups are formed as in :func:`normalize_winding` and ordered by their first
+    contour in the input. ``reversal_mask`` must have at least one entry per
+    group; extra entries are ignored. Groups containing open subpaths are
+    unchanged. Geometry, non-zero fill, and even-odd fill are preserved.
+    Raises ``ValueError`` if contour intersections cannot be determined.
+    """
+    return _native_outline(
+        inpt, _ops.reverse_winding_groups, reversal_mask, name="reverse_winding_groups"
+    )
+
+
 def remove_overlaps(
     inpt: Outline, *, verify: bool = False, verify_size: int = 256
 ) -> Outline:
@@ -59,4 +92,9 @@ def remove_overlap_groups(
     )
 
 
-__all__ = ["remove_overlap_groups", "remove_overlaps"]
+__all__ = [
+    "normalize_winding",
+    "remove_overlap_groups",
+    "remove_overlaps",
+    "reverse_winding_groups",
+]

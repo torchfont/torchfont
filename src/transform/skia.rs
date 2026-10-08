@@ -2,15 +2,23 @@ use skia_safe::{Path, PathBuilder, PathFillType};
 
 use crate::outline::{BezPath, PathEl};
 
+// TorchFont outlines use em-sized coordinates; scale PathOps to font-sized inputs.
+pub(super) const PATHOPS_SCALE: f32 = 131_072.0;
+
 pub(super) fn build_skia_path(outline: &BezPath) -> Option<Path> {
-    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
-    for &element in outline.elements() {
-        push_skia_element(&mut builder, element);
-    }
+    let mut builder = build_skia_path_builder(outline.elements(), PathFillType::Winding);
     (!builder.is_empty()).then(|| builder.detach())
 }
 
-pub(super) fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
+pub(super) fn build_skia_path_builder(elements: &[PathEl], fill_type: PathFillType) -> PathBuilder {
+    let mut builder = PathBuilder::new_with_fill_type(fill_type);
+    for &element in elements {
+        push_skia_element(&mut builder, element);
+    }
+    builder
+}
+
+fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
     match element {
         PathEl::MoveTo(point) => {
             builder.move_to((point.x as f32, point.y as f32));

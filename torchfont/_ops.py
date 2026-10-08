@@ -380,6 +380,42 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _dynamic_outline(types, coords)
 
 
+@torch.library.custom_op(
+    "torchfont::normalize_winding", mutates_args=(), device_types="cpu"
+)
+def normalize_winding(
+    types: Tensor, coords: Tensor, clockwise: bool
+) -> tuple[Tensor, Tensor]:
+    """Normalize each winding group by its largest contour."""
+    out = _torchfont.normalize_winding(*_arrays(types, coords), clockwise)
+    return _restore(*out)
+
+
+@normalize_winding.register_fake
+def _(types: Tensor, coords: Tensor, clockwise: bool) -> tuple[Tensor, Tensor]:
+    del clockwise
+    return _dynamic_outline(types, coords)
+
+
+@torch.library.custom_op(
+    "torchfont::reverse_winding_groups", mutates_args=(), device_types="cpu"
+)
+def reverse_winding_groups(
+    types: Tensor, coords: Tensor, reversal_mask: Tensor
+) -> tuple[Tensor, Tensor]:
+    """Reverse spatially interacting contours together using an explicit mask."""
+    out = _torchfont.reverse_winding_groups(
+        *_arrays(types, coords), _mask(reversal_mask)
+    )
+    return _restore(*out)
+
+
+@reverse_winding_groups.register_fake
+def _(types: Tensor, coords: Tensor, reversal_mask: Tensor) -> tuple[Tensor, Tensor]:
+    del reversal_mask
+    return _dynamic_outline(types, coords)
+
+
 @torch.library.custom_op("torchfont::bbox_center", mutates_args=(), device_types="cpu")
 def bbox_center(types: Tensor, coords: Tensor) -> Tensor:
     """Return the tight bounding-box centre as a ``(2,)`` tensor.
@@ -452,12 +488,14 @@ __all__ = [
     "merge_curves",
     "normalize_subpath_order",
     "normalize_subpath_start_points",
+    "normalize_winding",
     "quad_to_cubic",
     "remove_overlap_groups",
     "remove_overlaps",
     "render_bitmap",
     "reorder_subpaths",
     "reverse_closed_subpaths",
+    "reverse_winding_groups",
     "set_subpath_start_points",
     "split_segments",
     "truncate_subpaths",

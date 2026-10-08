@@ -18,8 +18,10 @@ from torchfont.transforms.functional._geometry import (
 )
 from torchfont.transforms.functional._glyph import load_glyph
 from torchfont.transforms.functional._outline import (
+    normalize_winding,
     remove_overlap_groups,
     remove_overlaps,
+    reverse_winding_groups,
 )
 from torchfont.transforms.functional._subpath import (
     drop_subpaths,
@@ -44,11 +46,13 @@ __all__ = [
     "merge_curves",
     "normalize_subpath_order",
     "normalize_subpath_start_points",
+    "normalize_winding",
     "quad_to_cubic",
     "remove_overlap_groups",
     "remove_overlaps",
     "render_bitmap",
     "reorder_subpaths",
+    "reverse_winding_groups",
     "rotate",
     "scale",
     "set_subpath_start_points",

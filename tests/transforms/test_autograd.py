@@ -104,6 +104,7 @@ def test_flip_without_winding_preservation_is_differentiable() -> None:
         ("render_bitmap", F.render_bitmap),
         ("normalize_subpath_order", F.normalize_subpath_order),
         ("normalize_subpath_start_points", F.normalize_subpath_start_points),
+        ("normalize_winding", F.normalize_winding),
         ("horizontal_flip", F.horizontal_flip),
         ("vertical_flip", F.vertical_flip),
     ],
