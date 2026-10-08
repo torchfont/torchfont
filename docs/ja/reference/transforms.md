@@ -78,7 +78,7 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | 読み込み | `LoadGlyph` |
 | コンテナ | `Compose`, `RandomApply`, `RandomChoice`, `RandomOrder` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps` |
+| アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps`, `NormalizeWinding`, `RandomReverseWinding` |
 | Subpath | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | 出力 | `RenderBitmap` |
@@ -161,6 +161,7 @@ Functional API は乱数を生成しません。ランダムな選択とパラ�
 | `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
 | `remove_overlaps`, `remove_overlap_groups` | いいえ |
+| `normalize_winding`, `reverse_winding_groups` | いいえ |
 | `split_subpaths`, `truncate_subpaths`, `drop_subpaths`, `drop_subpaths_to_fit`, `normalize_subpath_start_points`, `normalize_subpath_order`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
 | `render_bitmap` | いいえ |
 
@@ -178,7 +179,7 @@ F.remove_overlaps(outline)
 ### デバイス
 
 `LoadGlyph` は CPU の `float32` Outline を返します。`Affine`、`RandomAffine`、
-`RandomRotation`、`RandomScale`、Flip、Curve、Overlap、Subpath の各 Transform と
+`RandomRotation`、`RandomScale`、Flip、Winding、Curve、Overlap、Subpath の各 Transform と
 `RenderBitmap` は、CPU の `float32` Outline を必要とします。
 それ以外の Outline は呼び出す前に明示的に変換してください。
 

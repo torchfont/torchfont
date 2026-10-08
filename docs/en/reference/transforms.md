@@ -80,7 +80,7 @@ inside an already-applied transform.
 | Loading | `LoadGlyph` |
 | Containers | `Compose`, `RandomApply`, `RandomChoice`, `RandomOrder` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps` |
+| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps`, `NormalizeWinding`, `RandomReverseWinding` |
 | Subpaths | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | Geometry | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | Output | `RenderBitmap` |
@@ -165,6 +165,7 @@ Gradient support varies by operation:
 | `horizontal_flip`, `vertical_flip` | only with `preserve_winding=False` |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | no |
 | `remove_overlaps`, `remove_overlap_groups` | no |
+| `normalize_winding`, `reverse_winding_groups` | no |
 | `split_subpaths`, `truncate_subpaths`, `drop_subpaths`, `drop_subpaths_to_fit`, `normalize_subpath_start_points`, `normalize_subpath_order`, `set_subpath_start_points`, `reorder_subpaths` | no |
 | `render_bitmap` | no |
 
@@ -182,7 +183,7 @@ through the transformed coordinates but not through that centre.
 ### Devices
 
 `LoadGlyph` returns CPU `float32` outlines. `Affine`, `RandomAffine`,
-`RandomRotation`, `RandomScale`, flip, curve, overlap, and subpath transforms, as
+`RandomRotation`, `RandomScale`, flip, winding, curve, overlap, and subpath transforms, as
 well as `RenderBitmap`, require CPU `float32` outlines.
 Convert other outlines explicitly before calling them:
 

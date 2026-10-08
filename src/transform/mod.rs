@@ -4,3 +4,4 @@ pub(crate) mod remove_overlaps;
 pub(crate) mod render_bitmap;
 mod skia;
 pub(crate) mod subpath;
+pub(crate) mod winding;

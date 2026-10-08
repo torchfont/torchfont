@@ -5,10 +5,6 @@ use crate::outline::{
     subpath_from_elements, subpath_is_closed, subpath_start,
 };
 
-pub(crate) fn reverse_subpath(subpath: &[PathEl]) -> BezPath {
-    BezPath::from_vec(subpath.to_vec()).reverse_subpaths()
-}
-
 pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
     outline
         .subpaths()
@@ -133,19 +129,6 @@ fn compare_bounds(a: Bounds, b: Bounds) -> std::cmp::Ordering {
         .then_with(|| a.y_max.total_cmp(&b.y_max))
 }
 
-pub(crate) fn reverse_closed_subpaths(outline: &BezPath) -> BezPath {
-    let mut result = BezPath::new();
-    for subpath in outline.subpaths() {
-        if subpath_is_closed(subpath) {
-            let reversed = reverse_subpath(subpath);
-            result.extend(reversed.elements().iter().copied());
-        } else {
-            result.extend(subpath.iter().copied());
-        }
-    }
-    result
-}
-
 fn transform_start_points(
     outline: &BezPath,
     choose_start: impl Fn(&[PathEl], usize) -> usize,
@@ -197,6 +180,7 @@ fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
 mod tests {
     use super::*;
     use crate::outline::PathEl;
+    use crate::transform::winding::reverse_subpath;
 
     fn pt(x: f32, y: f32) -> Point {
         Point::new(x.into(), y.into())
@@ -293,36 +277,6 @@ mod tests {
         assert_eq!(
             drop_subpaths_to_fit(&outline, &[0.1], Some(3), Some(1)),
             outline
-        );
-    }
-
-    #[test]
-    fn reverse_subpath_empty_returns_clone() {
-        let s = open(pt(0.0, 0.0), vec![]);
-        let r = reverse_subpath(s.elements());
-        assert_eq!(r, s);
-    }
-
-    #[test]
-    fn reverse_subpath_triangle() {
-        let s = open(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)]);
-        let r = reverse_subpath(s.elements());
-        assert_eq!(subpath_start(r.elements()), pt(0.5, 1.0));
-        assert_eq!(subpath_elements(r.elements())[0], line(1.0, 0.0));
-        assert_eq!(subpath_elements(r.elements())[1], line(0.0, 0.0));
-    }
-
-    #[test]
-    fn reverse_subpath_cubic_swaps_controls() {
-        let s = open(
-            pt(0.0, 0.0),
-            vec![PathEl::CurveTo(pt(1.0, 2.0), pt(3.0, 4.0), pt(5.0, 0.0))],
-        );
-        let r = reverse_subpath(s.elements());
-        assert_eq!(subpath_start(r.elements()), pt(5.0, 0.0));
-        assert_eq!(
-            subpath_elements(r.elements())[0],
-            PathEl::CurveTo(pt(3.0, 4.0), pt(1.0, 2.0), pt(0.0, 0.0))
         );
     }
 
@@ -449,24 +403,5 @@ mod tests {
         let result = normalize_subpath_order(&outline);
 
         assert_eq!(subpaths(&result), vec![first, second]);
-    }
-
-    #[test]
-    fn reverse_closed_subpaths_skips_open() {
-        let subpath = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
-        let outline = outline_from_subpaths([subpath.clone()]);
-        let result = reverse_closed_subpaths(&outline);
-        assert_eq!(subpaths(&result)[0], subpath);
-    }
-
-    #[test]
-    fn reverse_closed_subpaths_reverses_closed() {
-        let outline =
-            outline_from_subpaths([closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)])]);
-        let result = reverse_closed_subpaths(&outline);
-        let result_subpaths = subpaths(&result);
-        let s = &result_subpaths[0];
-        assert_eq!(subpath_start(s.elements()), pt(0.5, 1.0));
-        assert!(subpath_is_closed(s.elements()));
     }
 }
