@@ -62,8 +62,6 @@ def test_cubic_to_quad_passes_through_non_cubic_commands() -> None:
 def test_cubic_to_quad_exact_quadratics_use_one_segment_and_roundtrip(
     curve: _CubicSeg,
 ) -> None:
-    # Cubics with p0 - 3*p1 + 3*p2 - p3 = 0 are exactly degree-elevated
-    # quadratics; parallel endpoint tangents are covered by the straight case.
     types, coords = _cubic_segs_to_tensors([curve])
 
     q_types, q_coords = cubic_to_quad(types, coords)
@@ -129,8 +127,6 @@ def test_cubic_to_quad_quad_to_cubic_endpoints_are_exact(curve: _CubicSeg) -> No
     orig_end = torch.tensor([curve[3][0], curve[3][1]], dtype=torch.float32)
     assert torch.allclose(q_coords[last_idx, 4:6], orig_end, atol=1e-5)
 
-    # For multi-segment results, intermediate on-curve points are midpoints of
-    # adjacent off-curve control points (TrueType spline convention).
     if len(quad_indices) > 1:
         for k in range(len(quad_indices) - 1):
             qi = quad_indices[k]

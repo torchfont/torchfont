@@ -2,8 +2,6 @@ use skrifa::outline::{DrawError, DrawSettings, OutlineGlyph, OutlinePen};
 
 use crate::outline::{BezPath, Point};
 
-/// Counts the elements one glyph draws, guarding drawing calls made with no
-/// open subpath exactly as [`OutlineEncodingPen`] does so both pens agree.
 struct ElementCountingPen {
     count: usize,
     has_open_subpath: bool,
@@ -47,7 +45,6 @@ impl OutlinePen for ElementCountingPen {
 struct OutlineEncodingPen {
     outline: BezPath,
     scale: f64,
-    // Malformed glyphs must not produce a BezPath that starts without MoveTo.
     has_open_subpath: bool,
 }
 
@@ -99,8 +96,6 @@ impl OutlinePen for OutlineEncodingPen {
     }
 }
 
-/// Counts the encoded sequence elements of one glyph, including the trailing
-/// `End` marker, without building its outline.
 pub(crate) fn count_glyph_elements<'a>(
     glyph: &OutlineGlyph<'a>,
     settings: DrawSettings<'a>,

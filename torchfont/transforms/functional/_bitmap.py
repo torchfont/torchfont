@@ -1,5 +1,3 @@
-"""Functional glyph rasterization kernels."""
-
 from typing import Literal
 
 from torch import Tensor

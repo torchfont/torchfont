@@ -136,8 +136,6 @@ impl DiscoveredGlyphs {
     }
 }
 
-/// The elements are counted at the face default location, where variations
-/// move points without changing how many elements a glyph draws.
 fn glyph_length(
     path: &Path,
     face_index: u32,

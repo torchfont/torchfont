@@ -1,9 +1,6 @@
 use google_fonts_glyphsets::{GF_LATIN_CORE, GF_LATIN_KERNEL};
 use pyo3::prelude::*;
 
-/// Returns the codepoints of a glyphset as a list of integers.
-///
-/// If the glyphset is not found, raises a ValueError.
 #[pyfunction]
 fn get_glyphset_codepoints(glyphset_name: &str) -> PyResult<Vec<u32>> {
     google_fonts_glyphsets::GLYPHSETS

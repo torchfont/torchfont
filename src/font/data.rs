@@ -11,8 +11,6 @@ pub(crate) fn map_font_file(path: &Path) -> Result<Mmap, Error> {
             format!("failed to open '{}': {err}", path.display()),
         ))
     })?;
-    // SAFETY: callers only access the map while parsing and TorchFont documents
-    // modification of indexed font files during use as unsupported.
     let mmap = unsafe { Mmap::map(&file) }.map_err(|err| {
         Error::Io(std::io::Error::new(
             err.kind(),

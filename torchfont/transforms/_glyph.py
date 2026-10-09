@@ -1,5 +1,3 @@
-"""Glyph loading transforms."""
-
 from __future__ import annotations
 
 from typing import Any, ClassVar, Literal

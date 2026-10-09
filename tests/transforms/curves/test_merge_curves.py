@@ -47,7 +47,6 @@ def test_merge_curves_allows_normalization_roundoff_for_lines() -> None:
     "points",
     [
         pytest.param([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)], id="corner"),
-        # Tiny angular bend, but far from the merged line in normalized coordinates.
         pytest.param(
             [(0.0, 0.0), (1_000.0, 0.0), (2_000.0, 0.5)], id="absolute-tolerance"
         ),
@@ -64,9 +63,6 @@ def test_merge_curves_non_mergeable_lines_stay_separate(points: list[_Point]) ->
 
 
 def test_merge_curves_does_not_accumulate_line_error() -> None:
-    # A one-unit perpendicular segment is within the absolute tolerance when
-    # preceded by a long line, but must not turn the following polyline into a
-    # single diagonal chord.
     upm = 1024.0
     points = [(87.0 / upm, 193.0 / upm), (87.0 / upm, 0.0)]
     points.extend((x / upm, -(x // 64) / upm) for x in range(88, 184))

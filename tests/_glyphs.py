@@ -1,5 +1,3 @@
-"""Glyph id lookup for tests that build a :class:`torchfont.GlyphRef` by hand."""
-
 from __future__ import annotations
 
 from fontTools.ttLib import TTFont

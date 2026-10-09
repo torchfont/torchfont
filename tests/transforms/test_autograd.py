@@ -1,5 +1,3 @@
-"""Which functional kernels carry gradients, and how the rest fail."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -50,7 +48,6 @@ def test_affine_is_differentiable() -> None:
 
 
 def test_affine_does_not_backpropagate_through_the_bbox_centre() -> None:
-    """The pivot is a reference frame, so a pure translation has unit gradient."""
     outline, coords = _grad_outline()
 
     F.affine(outline, translate=(0.25, 0.0)).coords.sum().backward()

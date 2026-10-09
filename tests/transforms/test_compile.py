@@ -1,5 +1,3 @@
-"""Rust kernels as custom operators: operator contracts and graph capture."""
-
 from __future__ import annotations
 
 import sys
@@ -145,7 +143,6 @@ def test_compiled_pipeline_matches_eager() -> None:
 
 @pytest.mark.parametrize("elements", [5, 9, 17, 33])
 def test_compiled_pipeline_handles_varying_element_counts(elements: int) -> None:
-    """Outline length is data-dependent, so the fakes must allow it to vary."""
     outline = _outline(elements)
     compiled = _compile_pipeline()
 
@@ -158,7 +155,6 @@ def test_compiled_pipeline_handles_varying_element_counts(elements: int) -> None
 def test_pipeline_compiles_under_every_dynamic_setting(
     dynamic: bool | None,  # noqa: FBT001
 ) -> None:
-    """``dynamic=True`` makes float parameters symbolic, so validation must trace."""
     torch._dynamo.reset()  # noqa: SLF001
     outline = _outline()
     compiled = _compile_pipeline(dynamic=dynamic)

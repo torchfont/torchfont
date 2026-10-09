@@ -1,22 +1,3 @@
-"""Functional geometric kernels for glyph outlines.
-
-Public functions accept and return :class:`torchfont.Outline`
-objects without modifying the input. Private tensor helpers operate on the
-underlying ``(types, coords)`` pair.
-
-Coordinates layout (``coords`` shape ``(N, 6)``)::
-
-    [cx0, cy0, cx1, cy1, x, y]
-
-    Pair 0 (cx0, cy0): off-curve control point 1 — active for QUAD_TO / CURVE_TO
-    Pair 1 (cx1, cy1): off-curve control point 2 — active for CURVE_TO only
-    Pair 2 (x,   y  ): on-curve endpoint        — active for all drawing path elements
-
-All coordinates are in em units: font design units divided by ``unitsPerEm``.
-The glyph body typically occupies
-``[0, 1] x [0, 1]`` inside the full canvas ``[-0.25, 1.25] x [-0.25, 1.25]``.
-"""
-
 import math
 
 import torch
@@ -32,21 +13,10 @@ from torchfont.transforms.functional._utils import (
 
 
 def _is_nan(value: float) -> bool:
-    """Return whether ``value`` is NaN, without calling :func:`math.isnan`.
-
-    Dynamo treats ``math.isnan`` as an operator returning a non-Tensor and cannot
-    trace it once ``torch.compile`` runs with ``dynamic=True``, which makes these
-    float parameters symbolic. NaN is the only float that compares false against
-    both zero comparisons.
-    """
     return not (value <= 0.0 or value > 0.0)
 
 
 def _is_infinite(value: float) -> bool:
-    """Return whether ``value`` is infinite, without calling :func:`math.isfinite`.
-
-    Traceable for the same reason as :func:`_is_nan`.
-    """
     return abs(value) == math.inf
 
 
@@ -63,17 +33,6 @@ def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
 
 
 def _bbox_center(types: Tensor, coords: Tensor) -> Tensor:
-    """Return the tight bounding-box centre as a ``(2,)`` tensor.
-
-    Delegates to the ``torchfont::bbox_center`` operator, which evaluates true
-    curve extrema for QUAD_TO and CURVE_TO segments rather than bounding the
-    control-point hull.
-
-    The centre is the reference frame a transform is applied around, not a
-    differentiable output, so it is computed from detached coordinates. Gradients
-    therefore flow through the transformed coordinates but not through the choice
-    of centre.
-    """
     return _ops.bbox_center(types.detach(), coords.detach())
 
 
@@ -307,8 +266,6 @@ def elastic(inpt: Outline, displacement: Tensor) -> Outline:
 
     types, coords = inpt.types, inpt.coords
     points = coords.reshape(-1, 3, 2)
-    # grid_sample expects coordinates in [-1, 1]. TorchFont's full em canvas
-    # runs from -0.25 to 1.25, so this is the corresponding affine map.
     sample_grid = ((points + 0.25) * (2.0 / 1.5) - 1.0).reshape(1, -1, 1, 2)
     field = displacement.permute(0, 3, 1, 2).to(
         device=coords.device, dtype=coords.dtype

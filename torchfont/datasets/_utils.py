@@ -1,5 +1,3 @@
-"""Internal dataset normalization helpers."""
-
 from __future__ import annotations
 
 from operator import index
@@ -52,7 +50,6 @@ def normalize_index(idx: SupportsIndex, dataset_len: int) -> int:
 
 
 def font_targets_from_offsets(offsets: tuple[int, ...]) -> Tensor:
-    """Repeat each face index across the sample range that face owns."""
     bounds = np.asarray(offsets, dtype=np.int64)
     faces = np.arange(len(offsets) - 1, dtype=np.int64)
     return torch.from_numpy(np.repeat(faces, np.diff(bounds)))

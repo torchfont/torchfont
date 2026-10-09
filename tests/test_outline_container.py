@@ -73,12 +73,6 @@ def test_tree_map_moves_an_outline(triangle: Outline) -> None:
 def test_registering_outline_as_a_pytree_node_would_break_transforms(
     triangle: Outline,
 ) -> None:
-    """Guard the reason ``Outline`` must stay a leaf.
-
-    ``Transform`` selects work with ``isinstance(leaf, Outline)`` after
-    ``tree_flatten``. If ``Outline`` decomposed into bare tensors, nothing would
-    match and every transform would silently return its input.
-    """
     flipped = Affine(angle=10.0)(triangle)
 
     assert not torch.equal(flipped.coords, triangle.coords)

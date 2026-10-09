@@ -1,5 +1,3 @@
-"""Semantic glyph outline structure and encoding constants."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass

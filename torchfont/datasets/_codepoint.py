@@ -1,5 +1,3 @@
-"""Codepoint-indexed font dataset."""
-
 from __future__ import annotations
 
 from bisect import bisect_right

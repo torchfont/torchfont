@@ -1,5 +1,3 @@
-//! Dataset discovery and deterministic sample indexing.
-
 mod discovered_font;
 mod discovery;
 mod index;
