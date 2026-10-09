@@ -30,7 +30,7 @@ from torchfont.transforms._glyph import LoadGlyph
 from torchfont.transforms._outline import (
     NormalizeWinding,
     RandomRemoveOverlaps,
-    RandomReverseWinding,
+    RandomWinding,
     RemoveOverlaps,
 )
 from torchfont.transforms._subpath import (
@@ -64,7 +64,6 @@ __all__ = [
     "RandomHorizontalFlip",
     "RandomOrder",
     "RandomRemoveOverlaps",
-    "RandomReverseWinding",
     "RandomRotation",
     "RandomScale",
     "RandomSplitSegments",
@@ -73,6 +72,7 @@ __all__ = [
     "RandomSubpathStartPoints",
     "RandomTruncateSubpaths",
     "RandomVerticalFlip",
+    "RandomWinding",
     "RemoveOverlaps",
     "RenderBitmap",
     "SplitSubpaths",

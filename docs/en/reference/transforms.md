@@ -80,7 +80,7 @@ inside an already-applied transform.
 | Loading | `LoadGlyph` |
 | Containers | `Compose`, `RandomApply`, `RandomChoice`, `RandomOrder` |
 | Curves | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps`, `NormalizeWinding`, `RandomReverseWinding` |
+| Outline | `RemoveOverlaps`, `RandomRemoveOverlaps`, `NormalizeWinding`, `RandomWinding` |
 | Subpaths | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | Geometry | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | Output | `RenderBitmap` |
