@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 class GlyphIdDataset(Dataset[T], Generic[T]):
@@ -55,12 +56,12 @@ class GlyphIdDataset(Dataset[T], Generic[T]):
 
     @overload
     def __init__(
-        self: GlyphIdDataset[T],
+        self: GlyphIdDataset[U],
         root: Path | str,
         *,
         max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
-        transform: Callable[[GlyphIdSample], T],
+        transform: Callable[[GlyphIdSample], U],
     ) -> None: ...
 
     def __init__(

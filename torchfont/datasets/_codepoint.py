@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 class CodepointDataset(Dataset[T], Generic[T]):
@@ -60,13 +61,13 @@ class CodepointDataset(Dataset[T], Generic[T]):
 
     @overload
     def __init__(
-        self: CodepointDataset[T],
+        self: CodepointDataset[U],
         root: Path | str,
         *,
         codepoints: Sequence[SupportsIndex] | None = None,
         max_length: SupportsIndex | None = None,
         patterns: str | Sequence[str] | None = None,
-        transform: Callable[[CodepointSample], T],
+        transform: Callable[[CodepointSample], U],
     ) -> None: ...
 
     def __init__(
