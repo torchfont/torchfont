@@ -2,7 +2,9 @@ use kurbo::Shape;
 use skia_safe::{Path, PathFillType, PathOp};
 
 use super::skia::{PATHOPS_SCALE, build_skia_path_builder};
-use crate::outline::{BezPath, PathEl, bounds_from_subpath, subpath_is_closed};
+use crate::outline::{
+    BezPath, Bounds, PathEl, Point, bounds_from_subpath, subpath_is_closed, subpath_start,
+};
 
 pub(crate) fn reverse_subpath(subpath: &[PathEl]) -> BezPath {
     BezPath::from_vec(subpath.to_vec()).reverse_subpaths()
@@ -25,6 +27,25 @@ pub(crate) fn normalize_winding(
     outline: &BezPath,
     clockwise: bool,
 ) -> Result<BezPath, &'static str> {
+    // Grouping is unnecessary when every group must make the same decision:
+    // all areas already match, or all contours are closed and strictly opposite.
+    let mut preserve = true;
+    let mut reverse = true;
+    for path in outline.subpaths() {
+        let area = subpath_area(path);
+        let aligned = area == 0.0 || (area < 0.0) == clockwise;
+        preserve &= aligned;
+        reverse &= !aligned && subpath_is_closed(path);
+        if !preserve && !reverse {
+            break;
+        }
+    }
+    if preserve {
+        return Ok(outline.clone());
+    }
+    if reverse {
+        return Ok(reverse_closed_subpaths(outline));
+    }
     transform_groups(outline, |_, group, paths| {
         let mut largest_area = 0.0_f64;
         for &index in group {
@@ -41,6 +62,17 @@ pub(crate) fn reverse_winding_groups(
     outline: &BezPath,
     reversal_mask: &[bool],
 ) -> Result<BezPath, &'static str> {
+    // There can be at most one group per subpath. A uniform mask covering
+    // that upper bound makes every group's choice known without intersections.
+    let count = outline.subpaths().count();
+    if let Some(mask) = reversal_mask.get(..count) {
+        if mask.iter().all(|&selected| !selected) {
+            return Ok(outline.clone());
+        }
+        if mask.iter().all(|&selected| selected) && outline.subpaths().all(subpath_is_closed) {
+            return Ok(reverse_closed_subpaths(outline));
+        }
+    }
     transform_groups(outline, |index, _, _| {
         reversal_mask
             .get(index)
@@ -76,40 +108,164 @@ fn transform_groups(
 }
 
 fn winding_groups(paths: &[&[PathEl]]) -> Result<Vec<Vec<usize>>, &'static str> {
-    // Use kurbo's tight bounds before invoking Skia's intersection operations.
-    // Convert each candidate contour at most once, and skip already joined pairs.
-    let bounds: Vec<_> = paths.iter().map(|path| bounds_from_subpath(path)).collect();
+    if paths.len() <= 1 {
+        return Ok((0..paths.len()).map(|index| vec![index]).collect());
+    }
+    // Convert candidate contours once; segment bounds can rule out
+    // boundary crossings before the more expensive PathOps intersection.
+    let bounds: Vec<_> = paths
+        .iter()
+        .map(|path| rect_from_bounds(bounds_from_subpath(path)))
+        .collect();
     let mut skia_paths = vec![None; paths.len()];
+    let mut boundary_boxes: Vec<Option<Vec<kurbo::Rect>>> = vec![None; paths.len()];
+    let mut boundary_segments: Vec<Option<Vec<kurbo::PathSeg>>> = vec![None; paths.len()];
+    let mut nonempty = vec![None; paths.len()];
     let mut roots: Vec<_> = (0..paths.len()).collect();
-    for left in 0..paths.len() {
-        for right in left + 1..paths.len() {
-            let a = bounds[left];
+    let mut order: Vec<_> = (0..paths.len()).collect();
+    order.sort_unstable_by(|&a, &b| bounds[a].x0.total_cmp(&bounds[b].x0).then(a.cmp(&b)));
+    for (position, &left) in order.iter().enumerate() {
+        let a = bounds[left];
+        for &right in &order[position + 1..] {
             let b = bounds[right];
-            if a.x_min >= b.x_max
-                || b.x_min >= a.x_max
-                || a.y_min >= b.y_max
-                || b.y_min >= a.y_max
-                || root(&mut roots, left) == root(&mut roots, right)
-            {
+            // Later contours start at least as far right. Once there is no
+            // positive-width overlap, every remaining pair is disjoint too.
+            if b.x0 >= a.x1 {
+                break;
+            }
+            if !a.overlaps(b) || root(&mut roots, left) == root(&mut roots, right) {
                 continue;
             }
-            for index in [left, right] {
-                if skia_paths[index].is_none() {
-                    let mut builder = build_skia_path_builder(paths[index], PathFillType::Winding);
-                    skia_paths[index] = Some(
-                        builder
-                            .detach()
-                            .try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))
-                            .ok_or("could not scale contours for winding grouping")?,
-                    );
+            let overlap = a.intersect(b);
+            if overlap.area() == 0.0 {
+                continue;
+            }
+            let mut intersects = None;
+            for (outer, inner) in [(left, right), (right, left)] {
+                let boundary =
+                    boundary_boxes[outer].get_or_insert_with(|| boundary_bounds(paths[outer]));
+                let b = bounds[inner];
+                // No boundary can enter this rectangle, so the outer winding
+                // is constant throughout it. A single containment query suffices.
+                if boundary.iter().all(|rect| !rect.overlaps(b)) {
+                    if skia_paths[outer].is_none() {
+                        skia_paths[outer] = Some(grouping_path(paths[outer])?);
+                    }
+                    let point = subpath_start(paths[inner]);
+                    let inside = skia_paths[outer].as_ref().unwrap().contains((
+                        point.x as f32 * PATHOPS_SCALE,
+                        point.y as f32 * PATHOPS_SCALE,
+                    ));
+                    if !inside {
+                        intersects = Some(false);
+                        break;
+                    }
+                    if let Some(nonempty) = *nonempty[inner].get_or_insert_with(|| {
+                        subpath_has_fill(paths[inner], &mut skia_paths[inner])
+                    }) {
+                        intersects = Some(nonempty);
+                        break;
+                    }
                 }
             }
-            let intersection = skia_paths[left]
-                .as_ref()
-                .unwrap()
-                .op(skia_paths[right].as_ref().unwrap(), PathOp::Intersect)
-                .ok_or("could not determine winding groups")?;
-            if !intersection.is_empty() {
+            if intersects.is_none() {
+                for index in [left, right] {
+                    if skia_paths[index].is_none() {
+                        skia_paths[index] = Some(grouping_path(paths[index])?);
+                    }
+                }
+            }
+            if intersects.is_none() {
+                let center = overlap.center();
+                let x = center.x as f32;
+                let y = center.y as f32;
+                let point = kurbo::Point::new(f64::from(x), f64::from(y));
+                let probe = kurbo::Rect::from_points(point, point);
+                // Boundary exclusion proves a neighborhood of the point belongs to
+                // both fills: this is a sufficient proof, not approximate sampling.
+                // Exclude all boundary boxes so shared edges cannot qualify.
+                if [left, right].iter().all(|&index| {
+                    boundary_boxes[index]
+                        .as_ref()
+                        .unwrap()
+                        .iter()
+                        .all(|rect| !rect.overlaps(probe))
+                        && skia_paths[index]
+                            .as_ref()
+                            .unwrap()
+                            .contains((x * PATHOPS_SCALE, y * PATHOPS_SCALE))
+                }) {
+                    intersects = Some(true);
+                }
+            }
+            if intersects.is_none() {
+                // Disjoint segment bounds prove the boundaries cannot meet,
+                // even when neither contour fits in the other's bounding box.
+                for index in [left, right] {
+                    boundary_segments[index].get_or_insert_with(|| {
+                        kurbo::segments(
+                            paths[index]
+                                .iter()
+                                .copied()
+                                .chain(std::iter::once(PathEl::ClosePath)),
+                        )
+                        .collect()
+                    });
+                }
+                let boundaries_disjoint = boundary_boxes[left]
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .zip(boundary_segments[left].as_ref().unwrap())
+                    .all(|(a, segment_a)| {
+                        boundary_boxes[right]
+                            .as_ref()
+                            .unwrap()
+                            .iter()
+                            .zip(boundary_segments[right].as_ref().unwrap())
+                            .all(|(b, segment_b)| {
+                                !a.overlaps(*b) || control_hulls_disjoint(*segment_a, *segment_b)
+                            })
+                    });
+                if boundaries_disjoint {
+                    let mut filled_overlap = false;
+                    let mut determined = true;
+                    // Either contour may enclose the other. Query both sides;
+                    // an outside point alone cannot rule out containment.
+                    for (outer, inner) in [(left, right), (right, left)] {
+                        let point = subpath_start(paths[inner]);
+                        if skia_paths[outer].as_ref().unwrap().contains((
+                            point.x as f32 * PATHOPS_SCALE,
+                            point.y as f32 * PATHOPS_SCALE,
+                        )) {
+                            match *nonempty[inner].get_or_insert_with(|| {
+                                subpath_has_fill(paths[inner], &mut skia_paths[inner])
+                            }) {
+                                Some(true) => {
+                                    filled_overlap = true;
+                                    break;
+                                }
+                                Some(false) => {}
+                                None => determined = false,
+                            }
+                        }
+                    }
+                    if determined || filled_overlap {
+                        intersects = Some(filled_overlap);
+                    }
+                }
+            }
+            let intersects = if let Some(intersects) = intersects {
+                intersects
+            } else {
+                let intersection = skia_paths[left]
+                    .as_ref()
+                    .unwrap()
+                    .op(skia_paths[right].as_ref().unwrap(), PathOp::Intersect)
+                    .ok_or("could not determine winding groups")?;
+                !intersection.is_empty()
+            };
+            if intersects {
                 let left = root(&mut roots, left);
                 let right = root(&mut roots, right);
                 roots[left.max(right)] = left.min(right);
@@ -127,11 +283,112 @@ fn winding_groups(paths: &[&[PathEl]]) -> Result<Vec<Vec<usize>>, &'static str> 
         .collect())
 }
 
-fn root(roots: &mut [usize], index: usize) -> usize {
-    if roots[index] != index {
-        roots[index] = root(roots, roots[index]);
+// A Bezier curve lies in the convex hull of its control points. A strict
+// separating line between those hulls proves the curves cannot meet. Robust
+// orientation predicates keep near-collinear edges and touching hulls safe.
+fn control_hulls_disjoint(a: kurbo::PathSeg, b: kurbo::PathSeg) -> bool {
+    fn points(segment: kurbo::PathSeg) -> ([Point; 4], usize) {
+        match segment {
+            kurbo::PathSeg::Line(line) => ([line.p0, line.p1, Point::ZERO, Point::ZERO], 2),
+            kurbo::PathSeg::Quad(quad) => ([quad.p0, quad.p1, quad.p2, Point::ZERO], 3),
+            kurbo::PathSeg::Cubic(cubic) => ([cubic.p0, cubic.p1, cubic.p2, cubic.p3], 4),
+        }
     }
-    roots[index]
+    fn separates(a: &[Point], b: &[Point]) -> bool {
+        for (i, p) in a.iter().enumerate() {
+            for q in &a[i + 1..] {
+                let side = |r: &Point| {
+                    robust::orient2d(
+                        robust::Coord { x: p.x, y: p.y },
+                        robust::Coord { x: q.x, y: q.y },
+                        robust::Coord { x: r.x, y: r.y },
+                    )
+                };
+                let sides = a
+                    .iter()
+                    .map(side)
+                    .fold((true, true), |(positive, negative), s| {
+                        (positive && s >= 0.0, negative && s <= 0.0)
+                    });
+                if (sides.0 && b.iter().all(|r| side(r) < 0.0))
+                    || (sides.1 && b.iter().all(|r| side(r) > 0.0))
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    let (a, na) = points(a);
+    let (b, nb) = points(b);
+    separates(&a[..na], &b[..nb]) || separates(&b[..nb], &a[..na])
+}
+
+fn subpath_has_fill(path: &[PathEl], skia_path: &mut Option<Path>) -> Option<bool> {
+    if skia_path.is_none() {
+        *skia_path = Some(grouping_path(path).ok()?);
+    }
+    let skia_path = skia_path.as_ref().unwrap();
+    let center = skia_path.bounds().center();
+    let point = Point::new(
+        f64::from(center.x) / f64::from(PATHOPS_SCALE),
+        f64::from(center.y) / f64::from(PATHOPS_SCALE),
+    );
+    let probe = kurbo::PathSeg::Line(kurbo::Line::new(point, point));
+    // An inside point separated from every boundary has a filled neighborhood.
+    // Signed area is insufficient here: cancellation in retraced curves can
+    // leave a nonzero floating-point residual even when their fill is empty.
+    if skia_path.contains(center)
+        && kurbo::segments(
+            path.iter()
+                .copied()
+                .chain(std::iter::once(PathEl::ClosePath)),
+        )
+        .all(|segment| control_hulls_disjoint(segment, probe))
+    {
+        return Some(true);
+    }
+    skia_path.simplify().map(|path| !path.is_empty())
+}
+
+fn grouping_path(path: &[PathEl]) -> Result<Path, &'static str> {
+    build_skia_path_builder(path, PathFillType::Winding)
+        .detach()
+        .try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))
+        .ok_or("could not scale contours for winding grouping")
+}
+
+// Kurbo computes curve extrema; retain outward-rounded f32 bounds for Skia.
+fn boundary_bounds(path: &[PathEl]) -> Vec<kurbo::Rect> {
+    kurbo::segments(
+        path.iter()
+            .copied()
+            .chain(std::iter::once(PathEl::ClosePath)),
+    )
+    .map(|segment| {
+        let rect = segment.bounding_box();
+        let mut bounds = Bounds::new(Point::new(rect.x0, rect.y0));
+        bounds.include(Point::new(rect.x1, rect.y1));
+        rect_from_bounds(bounds)
+    })
+    .collect()
+}
+
+fn rect_from_bounds(bounds: Bounds) -> kurbo::Rect {
+    kurbo::Rect::new(
+        bounds.x_min.into(),
+        bounds.y_min.into(),
+        bounds.x_max.into(),
+        bounds.y_max.into(),
+    )
+}
+
+fn root(roots: &mut [usize], mut index: usize) -> usize {
+    while roots[index] != index {
+        roots[index] = roots[roots[index]];
+        index = roots[index];
+    }
+    index
 }
 
 // Explicitly close every contour, matching subpath_area's rationale: a
@@ -266,6 +523,108 @@ mod tests {
 
     fn rectangle(rect: Rect) -> BezPath {
         rect.to_path(0.1)
+    }
+
+    #[test]
+    fn control_hulls_separate_oblique_lines_and_bezier_curves() {
+        let diagonal = kurbo::PathSeg::Line(kurbo::Line::new((0.0, 0.0), (4.0, 4.0)));
+        let curves = [
+            kurbo::PathSeg::Line(kurbo::Line::new((0.0, 1.0), (3.0, 4.0))),
+            kurbo::PathSeg::Quad(kurbo::QuadBez::new((0.0, 1.0), (1.0, 4.0), (3.0, 4.0))),
+            kurbo::PathSeg::Cubic(kurbo::CubicBez::new(
+                (0.0, 1.0),
+                (1.0, 4.0),
+                (2.0, 4.0),
+                (3.0, 4.0),
+            )),
+        ];
+        for curve in curves {
+            assert!(diagonal.bounding_box().overlaps(curve.bounding_box()));
+            assert!(control_hulls_disjoint(diagonal, curve));
+            assert!(control_hulls_disjoint(curve, diagonal));
+        }
+    }
+
+    #[test]
+    fn control_hulls_keep_crossings_tangencies_and_retraced_segments() {
+        let horizontal = kurbo::PathSeg::Line(kurbo::Line::new((0.0, 0.0), (4.0, 0.0)));
+        for curve in [
+            kurbo::PathSeg::Line(kurbo::Line::new((2.0, -1.0), (2.0, 1.0))),
+            kurbo::PathSeg::Line(kurbo::Line::new((3.0, 0.0), (1.0, 0.0))),
+            kurbo::PathSeg::Quad(kurbo::QuadBez::new((1.0, 1.0), (2.0, -1.0), (3.0, 1.0))),
+            kurbo::PathSeg::Cubic(kurbo::CubicBez::new(
+                (1.0, 1.0),
+                (2.0, -1.0),
+                (3.0, -1.0),
+                (4.0, 1.0),
+            )),
+        ] {
+            assert!(!control_hulls_disjoint(horizontal, curve));
+            assert!(!control_hulls_disjoint(curve, horizontal));
+        }
+    }
+
+    #[test]
+    fn control_hulls_distinguish_touching_from_one_ulp_gaps() {
+        let a = kurbo::PathSeg::Line(kurbo::Line::new((0.0, 1.0), (1.0, 1.0)));
+        let gap = f64::from(1.0_f32.next_up());
+        let b = kurbo::PathSeg::Line(kurbo::Line::new((0.0, gap), (1.0, gap)));
+        assert!(control_hulls_disjoint(a, b));
+        assert!(!control_hulls_disjoint(a, a));
+    }
+
+    #[test]
+    fn grouping_matches_pathops_for_containment_crossings_and_empty_fills() {
+        let contours = [
+            rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)),
+            rectangle(Rect::new(2.0, 2.0, 8.0, 8.0)),
+            rectangle(Rect::new(10.0, 0.0, 12.0, 10.0)),
+            rectangle(Rect::new(-1.0, 4.0, 11.0, 6.0)),
+            closed(
+                pt(2.0, 2.0),
+                vec![line(8.0, 8.0), line(2.0, 8.0), line(8.0, 2.0)],
+            ),
+            closed(
+                pt(2.0, 2.0),
+                vec![line(8.0, 2.0), line(2.0, 8.0), line(8.0, 2.0)],
+            ),
+            closed(
+                pt(2.0, 5.0),
+                vec![PathEl::CurveTo(pt(2.0, 20.0), pt(8.0, 20.0), pt(8.0, 5.0))],
+            ),
+            closed(
+                pt(0.0, 0.0),
+                vec![line(4.0, 4.0), line(4.0, 2.0), line(0.0, -2.0)],
+            ),
+            closed(
+                pt(0.0, 1.0),
+                vec![line(4.0, 5.0), line(4.0, 4.5), line(0.0, 0.5)],
+            ),
+            closed(
+                pt(0.5, 0.0),
+                vec![line(3.5, 3.0), line(3.5, 2.5), line(0.5, -0.5)],
+            ),
+        ];
+        for left in &contours {
+            for right in &contours {
+                let paths = [left.elements(), right.elements()];
+                let skia: Vec<_> = paths
+                    .iter()
+                    .map(|path| {
+                        build_skia_path_builder(path, PathFillType::Winding)
+                            .detach()
+                            .try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))
+                            .unwrap()
+                    })
+                    .collect();
+                let intersects = !skia[0].op(&skia[1], PathOp::Intersect).unwrap().is_empty();
+                assert_eq!(
+                    winding_groups(&paths).unwrap().len(),
+                    if intersects { 1 } else { 2 },
+                    "left={left:?}, right={right:?}"
+                );
+            }
+        }
     }
 
     #[test]
