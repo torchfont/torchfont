@@ -78,7 +78,7 @@ Transform はネストした入力を受け取り、その構造を保ちます�
 | 読み込み | `LoadGlyph` |
 | コンテナ | `Compose`, `RandomApply`, `RandomChoice`, `RandomOrder` |
 | Curve | `QuadToCubic`, `CubicToQuad`, `MergeCurves`, `RandomSplitSegments` |
-| アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps`, `NormalizeWinding`, `RandomReverseWinding` |
+| アウトライン | `RemoveOverlaps`, `RandomRemoveOverlaps`, `NormalizeWinding`, `RandomWinding` |
 | Subpath | `SplitSubpaths`, `TruncateSubpaths`, `RandomTruncateSubpaths`, `RandomSubpathDropout`, `NormalizeSubpathStartPoints`, `NormalizeSubpathOrder`, `RandomSubpathStartPoints`, `RandomSubpathOrder` |
 | 幾何変換 | `Affine`, `RandomAffine`, `RandomRotation`, `RandomScale`, `HorizontalFlip`, `VerticalFlip`, `RandomHorizontalFlip`, `RandomVerticalFlip`, `ElasticTransform`, `GaussianNoise` |
 | 出力 | `RenderBitmap` |

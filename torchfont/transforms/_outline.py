@@ -29,26 +29,25 @@ class NormalizeWinding(Transform):
         return _functional.normalize_winding(inpt, clockwise=self.clockwise)
 
 
-class RandomReverseWinding(Transform):
-    """Reverse each winding group independently with probability ``p``.
+class RandomWinding(Transform):
+    """Choose clockwise or counterclockwise for each group with equal probability.
 
-    Groups are formed as in :class:`NormalizeWinding`. Corresponding groups in
-    one call share the sampled decisions.
+    Groups are formed as in :class:`NormalizeWinding`. The contour with the
+    largest absolute signed area determines each group's direction; relative
+    winding within the group is preserved. Groups containing open subpaths are
+    unchanged. Groups with only zero-area contours have no defined direction.
+    Corresponding groups in one call share the sampled directions.
     """
-
-    def __init__(self, p: float = 0.5) -> None:
-        super().__init__()
-        if not 0.0 <= p <= 1.0:
-            msg = "p must be between 0 and 1"
-            raise ValueError(msg)
-        self.p = p
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
         length = max((inpt.types.size(0) for inpt in flat_inputs), default=0)
-        return {"reversal_mask": torch.rand(length) < self.p}
+        return {"clockwise_mask": torch.randint(2, (length,), dtype=torch.bool)}
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
-        return _functional.reverse_winding_groups(inpt, params["reversal_mask"])
+        counterclockwise = _functional.normalize_winding(inpt, clockwise=False)
+        return _functional.reverse_winding_groups(
+            counterclockwise, params["clockwise_mask"]
+        )
 
 
 class RemoveOverlaps(Transform):
@@ -104,6 +103,6 @@ class RandomRemoveOverlaps(Transform):
 __all__ = [
     "NormalizeWinding",
     "RandomRemoveOverlaps",
-    "RandomReverseWinding",
+    "RandomWinding",
     "RemoveOverlaps",
 ]
