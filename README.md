@@ -1,12 +1,14 @@
-# TorchFont
-
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/public/brand/torchfont-logo-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/public/brand/torchfont-logo-light.svg">
-    <img alt="TorchFont logo" src="docs/public/brand/torchfont-logo-light.svg" width="640">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/torchfont/torchfont/main/docs/public/brand/torchfont-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/torchfont/torchfont/main/docs/public/brand/torchfont-logo-light.svg">
+    <img alt="TorchFont logo" src="https://raw.githubusercontent.com/torchfont/torchfont/main/docs/public/brand/torchfont-logo-light.svg" width="640">
   </picture>
 </p>
+
+<p align="center"><strong>TorchFont: A Machine Learning Library for Vector Fonts</strong></p>
+
+<div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/pypi/pyversions/torchfont)](https://pypi.org/project/torchfont/)
@@ -16,6 +18,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/torchfont)](https://pypi.org/project/torchfont/)
 [![Rust](https://img.shields.io/badge/Rust-2024-orange?logo=rust)](https://www.rust-lang.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.5+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
+
+</div>
 
 TorchFont is an **unofficial** library based on PyTorch for deep learning with vector fonts.
 It is not affiliated with or endorsed by the PyTorch project.
