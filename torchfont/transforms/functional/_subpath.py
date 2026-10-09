@@ -1,10 +1,3 @@
-"""Functional subpath operations.
-
-Subpath boundaries are derived from path element types rather than stored
-alongside the outline. Operations here reorder or re-encode elements in Rust,
-so they do not define a gradient.
-"""
-
 from __future__ import annotations
 
 from operator import index

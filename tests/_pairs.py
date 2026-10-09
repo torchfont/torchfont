@@ -1,5 +1,3 @@
-"""Tensor-pair adapters for kernels whose public API takes an ``Outline``."""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

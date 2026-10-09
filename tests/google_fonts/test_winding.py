@@ -60,7 +60,6 @@ class _CheckWinding:
         self.reverse = T.RandomWinding()
 
     def __call__(self, sample: GlyphIdSample) -> Tensor:
-        # Make locations, transforms, and masks reproducible across workers.
         torch.manual_seed(sample.ref.glyph_id * 1009 + sample.font_idx)
         outline = self.augment(sample.ref)
         results = (

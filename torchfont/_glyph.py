@@ -1,5 +1,3 @@
-"""Semantic glyph references, samples, and transformed payloads."""
-
 from __future__ import annotations
 
 import math
@@ -125,11 +123,6 @@ _register_glyph_payload(GlyphIdData, ("font_idx", *_METRIC_FIELDS))
 def _registered_axis_targets(
     values: tuple[float, float, float, float, float],
 ) -> _RegisteredAxisTargets:
-    """Build registered-axis targets carried by a loaded glyph payload.
-
-    ``values`` is the ``(weight, width, italic, slant, optical_size)`` tuple
-    returned by the Rust ``registered_axis_values`` helper, in that order.
-    """
     weight, width, italic, slant, optical_size = values
     return {
         "weight": _optional_target(weight),

@@ -566,7 +566,6 @@ def test_empty_and_zero_area_outlines_are_unchanged(*, zero_area: bool) -> None:
 
 def test_open_contour_keeps_only_its_interacting_group_unchanged() -> None:
     outline = _outline(_SQUARE, _HOLE, _ACCENT)
-    # Open the inner contour: keep the interacting group and normalize the accent.
     close_indices = (outline.types == ElementType.CLOSE).nonzero().flatten()
     keep = torch.arange(outline.types.numel()) != close_indices[1]
     outline = Outline(outline.types[keep], outline.coords[keep])

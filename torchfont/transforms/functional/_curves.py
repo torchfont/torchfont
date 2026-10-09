@@ -1,9 +1,3 @@
-"""Functional curve conversion and segment kernels.
-
-Every kernel here re-encodes path elements in Rust and may change the number of
-elements, so none of them define a gradient.
-"""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

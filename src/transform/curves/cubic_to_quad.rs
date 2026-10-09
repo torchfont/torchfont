@@ -44,11 +44,9 @@ fn append_cubic_as_quads(
     p3: Point,
 ) -> Result<(), CubicToQuadError> {
     let cubic = CubicBez::new(p0, p1, p2, p3);
-    // Kurbo's recursive fitting assumes finite coordinates.
     if !cubic.is_finite() {
         return Err(CubicToQuadError::ApproximationFailed);
     }
-    // kurbo's crossing-point fit can't handle degree-elevated cubics.
     if let Some(control) = degree_reduced_control(p0, p1, p2, p3) {
         result.quad_to(control, p3);
         return Ok(());
@@ -71,9 +69,6 @@ fn degree_reduced_control(p0: Point, p1: Point, p2: Point, p3: Point) -> Option<
     let control = from_start.midpoint(from_end);
     let cubic_control0 = p0.lerp(control, 2.0 / 3.0);
     let cubic_control1 = p3.lerp(control, 2.0 / 3.0);
-    // Validate the round trip the same way merge_curves does: as a
-    // difference cubic that must lie within tolerance everywhere, not just
-    // at the handles.
     let d1 = cubic_control0 - p1;
     let d2 = cubic_control1 - p2;
     cubic_farthest_fit_inside(Vec2::ZERO, d1, d2, Vec2::ZERO, TOLERANCE).then_some(control)

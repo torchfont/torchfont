@@ -4,8 +4,6 @@ use std::thread;
 
 use crate::error::Error;
 
-/// Claim files individually to balance differently sized fonts; preserve file
-/// order for both entries and errors.
 pub(crate) fn build_from_files<T: Send>(
     files: &[PathBuf],
     build: impl Fn(&Path) -> Result<Vec<T>, Error> + Sync,

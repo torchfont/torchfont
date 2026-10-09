@@ -62,7 +62,6 @@ def test_random_remove_overlaps_can_select_only_one_group() -> None:
 
 def test_random_remove_overlaps_selects_at_least_one_group() -> None:
     types, coords = _four_squares()
-    # The first two values for this seed are both above the selection threshold.
     torch.manual_seed(4)
     out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 

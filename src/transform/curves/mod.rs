@@ -5,11 +5,8 @@ pub(crate) mod split_segments;
 
 use crate::outline::Vec2;
 
-// Absolute tolerance in em units (≈ 1 font unit in a 1000-UPM font).
 pub(crate) const TOLERANCE: f64 = 1e-3;
 
-// Recursive check: does the cubic (as a displacement field relative to the origin)
-// lie entirely within `tolerance` of the origin? Ported from fonttools qu2cu.
 pub(crate) fn cubic_farthest_fit_inside(
     p0: Vec2,
     p1: Vec2,
@@ -35,8 +32,6 @@ pub(crate) fn cubic_farthest_fit_inside(
         && cubic_farthest_fit_inside(mid, mid + deriv3, (p2 + p3) * 0.5, p3, tolerance)
 }
 
-// Map NaN to infinity so it fails tolerance checks instead of making both
-// `distance <= tolerance` and `distance > tolerance` false.
 pub(crate) fn finite_hypot(v: Vec2) -> f64 {
     if v.is_finite() {
         v.hypot()

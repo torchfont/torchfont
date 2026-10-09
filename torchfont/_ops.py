@@ -1,16 +1,3 @@
-"""Rust outline kernels registered as PyTorch custom operators.
-
-Each Rust kernel crosses a CPU and NumPy boundary. Calling one directly from a
-compiled region would break the graph, because Dynamo cannot trace into an
-extension module. Registering the boundary with :func:`torch.library.custom_op`
-turns each kernel into a single opaque graph node instead, so
-:func:`torch.compile` captures a whole outline pipeline without breaking.
-
-Kernels that change the number of path elements use unbacked dynamic sizes in
-their fake implementations. None defines an autograd formula; callers must
-reject outlines that require grad before reaching this layer.
-"""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
@@ -78,7 +65,6 @@ def _mask(values: Tensor) -> np.ndarray:
 def quad_to_cubic(
     types: Tensor, coords: Tensor, merge_curves: bool
 ) -> tuple[Tensor, Tensor]:
-    """Convert quadratic segments to cubic segments."""
     out = _torchfont.quad_to_cubic(*_arrays(types, coords), merge_curves)
     return _restore(*out)
 
@@ -94,7 +80,6 @@ def _(types: Tensor, coords: Tensor, merge_curves: bool) -> tuple[Tensor, Tensor
     "torchfont::cubic_to_quad", mutates_args=(), device_types="cpu"
 )
 def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Convert cubic segments to sequences of quadratic segments."""
     out = _torchfont.cubic_to_quad(*_arrays(types, coords))
     return _restore(*out)
 
@@ -106,7 +91,6 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 
 @torch.library.custom_op("torchfont::merge_curves", mutates_args=(), device_types="cpu")
 def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Merge adjacent pieces of the same parent curve or line."""
     out = _torchfont.merge_curves(*_arrays(types, coords))
     return _restore(*out)
 
@@ -134,11 +118,6 @@ def split_segments(
     split_probability: float,
     split_range: list[float],
 ) -> tuple[Tensor, Tensor]:
-    """Split segments according to explicit selection and position values.
-
-    ``split_range`` is a list rather than a tuple because operator schemas do not
-    support tuple arguments.
-    """
     low, high = split_range
     out = _torchfont.random_split_segments(
         *_arrays(types, coords),
@@ -169,7 +148,6 @@ def _(
 def remove_overlaps(
     types: Tensor, coords: Tensor, verify: bool, verify_size: int
 ) -> tuple[Tensor, Tensor]:
-    """Merge overlapping subpaths."""
     out = _torchfont.remove_overlaps(*_arrays(types, coords), verify, verify_size)
     return _restore(*out)
 
@@ -192,7 +170,6 @@ def remove_overlap_groups(
     verify: bool,
     verify_size: int,
 ) -> tuple[Tensor, Tensor]:
-    """Simplify overlap groups according to explicit selection values."""
     out = _torchfont.random_remove_overlaps(
         *_arrays(types, coords), _selection(selection_values), verify, verify_size
     )
@@ -219,7 +196,6 @@ def _(
 def normalize_subpath_start_points(
     types: Tensor, coords: Tensor
 ) -> tuple[Tensor, Tensor]:
-    """Choose a deterministic start point for each closed subpath."""
     out = _torchfont.normalize_subpath_start_points(*_arrays(types, coords))
     return _restore(*out)
 
@@ -235,7 +211,6 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     device_types="cpu",
 )
 def normalize_subpath_order(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Order subpaths lexicographically by their tight bounding boxes."""
     out = _torchfont.normalize_subpath_order(*_arrays(types, coords))
     return _restore(*out)
 
@@ -251,7 +226,6 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 def set_subpath_start_points(
     types: Tensor, coords: Tensor, selection_values: Tensor
 ) -> tuple[Tensor, Tensor]:
-    """Set closed-subpath start points from explicit unit-interval values."""
     out = _torchfont.randomize_subpath_start_points(
         *_arrays(types, coords), _selection(selection_values)
     )
@@ -270,7 +244,6 @@ def _(types: Tensor, coords: Tensor, selection_values: Tensor) -> tuple[Tensor, 
 def reorder_subpaths(
     types: Tensor, coords: Tensor, keys: Tensor
 ) -> tuple[Tensor, Tensor]:
-    """Order subpaths by explicit sort keys."""
     out = _torchfont.randomize_subpath_order(*_arrays(types, coords), _selection(keys))
     return _restore(*out)
 
@@ -289,7 +262,6 @@ def drop_subpaths(
     coords: Tensor,
     drop_mask: Tensor,
 ) -> tuple[Tensor, Tensor]:
-    """Drop subpaths selected by an explicit boolean mask."""
     out = _torchfont.drop_subpaths(
         *_arrays(types, coords),
         _mask(drop_mask),
@@ -316,7 +288,6 @@ def truncate_subpaths(
     max_length: int | None,
     max_subpaths: int | None,
 ) -> tuple[Tensor, Tensor]:
-    """Keep the longest whole-subpath prefix within the given limits."""
     out = _torchfont.truncate_subpaths(
         *_arrays(types, coords), max_length, max_subpaths
     )
@@ -344,7 +315,6 @@ def drop_subpaths_to_fit(
     max_length: int | None,
     max_subpaths: int | None,
 ) -> tuple[Tensor, Tensor]:
-    """Drop subpaths in an explicit order until the limits are met."""
     out = _torchfont.drop_subpaths_to_fit(
         *_arrays(types, coords),
         _selection(removal_values),
@@ -370,7 +340,6 @@ def _(
     "torchfont::reverse_closed_subpaths", mutates_args=(), device_types="cpu"
 )
 def reverse_closed_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    """Reverse the winding direction of every closed subpath."""
     out = _torchfont.reverse_closed_subpaths(*_arrays(types, coords))
     return _restore(*out)
 
@@ -386,7 +355,6 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
 def normalize_winding(
     types: Tensor, coords: Tensor, clockwise: bool
 ) -> tuple[Tensor, Tensor]:
-    """Normalize each winding group by its largest contour."""
     out = _torchfont.normalize_winding(*_arrays(types, coords), clockwise)
     return _restore(*out)
 
@@ -403,7 +371,6 @@ def _(types: Tensor, coords: Tensor, clockwise: bool) -> tuple[Tensor, Tensor]:
 def reverse_winding_groups(
     types: Tensor, coords: Tensor, reversal_mask: Tensor
 ) -> tuple[Tensor, Tensor]:
-    """Reverse spatially interacting contours together using an explicit mask."""
     out = _torchfont.reverse_winding_groups(
         *_arrays(types, coords), _mask(reversal_mask)
     )
@@ -418,11 +385,6 @@ def _(types: Tensor, coords: Tensor, reversal_mask: Tensor) -> tuple[Tensor, Ten
 
 @torch.library.custom_op("torchfont::bbox_center", mutates_args=(), device_types="cpu")
 def bbox_center(types: Tensor, coords: Tensor) -> Tensor:
-    """Return the tight bounding-box centre as a ``(2,)`` tensor.
-
-    Empty outlines have no bounding box and yield the origin, matching the
-    reference frame an affine transform would use for them.
-    """
     result = _torchfont.tight_bbox(*_arrays(types, coords))
     if result is None:
         return coords.new_zeros(2)
@@ -447,12 +409,6 @@ def render_bitmap(
     fill_rule: str,
     antialias: bool,
 ) -> Tensor:
-    """Rasterize an outline into a ``uint8`` greyscale ``H x W`` tensor.
-
-    ``mode`` and ``fill_rule`` are plain strings because operator schemas have no
-    literal string type. The Rust kernel rejects an unknown value, so they are
-    passed through rather than validated again here.
-    """
     raw, width, height = _torchfont.render_bitmap(
         *_arrays(types, coords),
         size,

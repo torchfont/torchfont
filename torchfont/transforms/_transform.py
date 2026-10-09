@@ -1,5 +1,3 @@
-"""torchvision.transforms.v2-style primitives for semantic font data."""
-
 from __future__ import annotations
 
 from enum import Enum

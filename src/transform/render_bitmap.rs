@@ -88,8 +88,6 @@ fn draw_alpha_path(
     let mut data = vec![0u8; width as usize * height as usize];
     let info = ImageInfo::new_a8((width as i32, height as i32));
     {
-        // Draw into the final one-byte-per-pixel buffer; no RGBA allocation or
-        // alpha extraction is needed before transferring it to NumPy.
         let canvas = Canvas::from_raster_direct(&info, &mut data, width as usize, None)
             .expect("valid alpha bitmap");
         let mut paint = Paint::default();

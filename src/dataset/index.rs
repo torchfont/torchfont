@@ -1,18 +1,9 @@
 use std::path::PathBuf;
 
-/// File, face index, and parallel codepoint, glyph id, and outline length arrays,
-/// sorted by codepoint.
 pub(crate) type IndexedCodepointFace = (PathBuf, u32, Vec<u32>, Vec<u32>, Vec<u32>);
 
-/// File, face index, and parallel glyph id and outline length arrays, sorted by id.
 pub(crate) type IndexedGlyphFace = (PathBuf, u32, Vec<u32>, Vec<u32>);
 
-/// Flat sample index over the `cmap` entries of discovered font faces.
-///
-/// Samples are laid out face by face: face `i` owns the half-open sample range
-/// `offsets[i]..offsets[i + 1]`, so `offsets` has one more element than `fonts`
-/// and its last element is the total sample count. Sample `s` draws glyph
-/// `glyph_ids[s]`, whose codepoint is `character_codepoints[character_index[s]]`.
 pub(crate) struct CodepointIndex {
     pub(crate) fonts: Vec<(PathBuf, u32)>,
     pub(crate) offsets: Vec<i64>,
@@ -22,10 +13,6 @@ pub(crate) struct CodepointIndex {
     pub(crate) outline_lengths: Vec<u32>,
 }
 
-/// Flat sample index over every outline glyph of discovered font faces.
-///
-/// Samples are laid out face by face like [`CodepointIndex`], but sample `s` names
-/// glyph `glyph_ids[s]` directly, including glyphs no codepoint maps to.
 pub(crate) struct GlyphIndex {
     pub(crate) fonts: Vec<(PathBuf, u32)>,
     pub(crate) offsets: Vec<i64>,
@@ -52,8 +39,6 @@ impl CodepointIndex {
             outline_lengths.extend(face_outline_lengths);
             offsets.push(i64::try_from(codepoints.len()).expect("Vec length fits in i64"));
         }
-        // `skrifa` limits `cmap` codepoints to `char::MAX`, bounding this direct
-        // lookup table to a few megabytes.
         let table_len = codepoints
             .iter()
             .copied()

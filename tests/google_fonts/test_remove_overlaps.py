@@ -16,18 +16,9 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_FONTS_ROOT = Path("data/google/fonts")
 
-# Skia PathOps has known edge-case bugs; allow up to this fraction of glyphs to fail.
 MAX_FAILURE_RATE = 0.001
 BITMAP_SIZE = 128
 
-# Outer rectangle covering all Google Fonts glyphs with margin.
-# Prepending CW or CCW variants shifts every pixel's winding number w:
-#   CW rect (y-up) → w-1;  CCW rect (y-up) → w+1.
-# Winding renders of the shifted path (255 iff shifted w ≠ 0) then satisfy:
-#   simplified     = 255 iff w ≠  0
-#   simplified_cw  = 255 iff w ≠  1
-#   simplified_ccw = 255 iff w ≠ -1
-#   AND of all three = 255 iff w ∉ {-1, 0, 1}.
 _RECT_X_MIN, _RECT_X_MAX = -4.0, 13.0
 _RECT_Y_MIN, _RECT_Y_MAX = -4.0, 3.5
 
@@ -72,7 +63,6 @@ def _transform(sample: CodepointSample) -> Tensor:
     types, coords = outline.types, outline.coords
     simplified_types, simplified_coords = remove_overlaps(types, coords)
 
-    # Prepend outer rect before glyph contours; End token truncates if appended.
     prepended_types = torch.cat([_OUTER_RECT_TYPES, simplified_types])
     cw_coords = torch.cat([_OUTER_RECT_COORDS_CW, simplified_coords])
     ccw_coords = torch.cat([_OUTER_RECT_COORDS_CCW, simplified_coords])

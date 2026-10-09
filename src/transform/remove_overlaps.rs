@@ -158,8 +158,6 @@ fn simplify(outline: &BezPath) -> Option<BezPath> {
     let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;
     let simplified = scaled.simplify()?;
 
-    // Simplify emits an even-odd path. Reorient nested contours before
-    // returning to TorchFont, whose outlines use non-zero winding semantics.
     let simplified = outline_from_path(&simplified)?;
     let mut winding = winding_from_even_odd(&simplified);
     winding.apply_affine(kurbo::Affine::scale(f64::from(PATHOPS_SCALE.recip())));

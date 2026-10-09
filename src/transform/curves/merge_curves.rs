@@ -128,8 +128,6 @@ fn tangent_ratio(end_tan: Vec2, start_tan: Vec2) -> Option<f64> {
     Some(len_start / len_end)
 }
 
-// Reconstruct normalized split parameters from cumulative tangent-length ratios
-// at each junction: ratio_k = |start_tan_k| / |end_tan_{k-1}|.
 fn compute_split_ts(
     n: usize,
     junction_tangents: impl Fn(usize) -> (Vec2, Vec2),
@@ -229,9 +227,6 @@ fn try_merge_cubics_n(p0: Point, segs: &[PathEl]) -> Option<PathEl> {
     let (first_h1, _, _) = cubic_points(segs[0]);
     let (_, last_h2, p3) = cubic_points(segs[n - 1]);
 
-    // Recover outer control points from the split relationship:
-    //   first_h1 = lerp(P0, P1, t1)  →  P1 = P0 + (first_h1 − P0) / t1
-    //   last_h2  = lerp(P2, P3, t_last)  →  P2 = P3 + (last_h2 − P3) / (1 − t_last)
     let p1 = p0.lerp(first_h1, 1.0 / t1);
     let p2 = p3.lerp(last_h2, 1.0 / (1.0 - t_last));
 
@@ -325,8 +320,6 @@ fn points_are_collinear(a: Point, b: Point, c: Point) -> bool {
     let cross = ab.cross(ac).abs();
     let product_scale = (ab.x * ac.y).abs() + (ab.y * ac.x).abs();
 
-    // Public coordinates are f32, so permit the rounding already present at the
-    // tensor boundary even though the internal geometry uses f64.
     cross <= 8.0 * f64::from(f32::EPSILON) * product_scale
 }
 

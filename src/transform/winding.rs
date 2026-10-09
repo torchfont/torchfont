@@ -25,8 +25,6 @@ pub(crate) fn normalize_winding(
     outline: &BezPath,
     clockwise: bool,
 ) -> Result<BezPath, &'static str> {
-    // Grouping is unnecessary when every group must make the same decision:
-    // all areas already match, or all contours are closed and strictly opposite.
     let mut preserve = true;
     let mut reverse = true;
     for path in outline.subpaths() {
@@ -60,8 +58,6 @@ pub(crate) fn reverse_winding_groups(
     outline: &BezPath,
     reversal_mask: &[bool],
 ) -> Result<BezPath, &'static str> {
-    // There can be at most one group per subpath. A uniform mask covering
-    // that upper bound makes every group's choice known without grouping.
     let count = outline.subpaths().count();
     if let Some(mask) = reversal_mask.get(..count) {
         if mask.iter().all(|&selected| !selected) {
@@ -154,12 +150,6 @@ fn root(roots: &mut [usize], mut index: usize) -> usize {
     index
 }
 
-// Explicitly close every contour, matching subpath_area's rationale: a
-// contour is a fill boundary regardless of whether PathOps happened to emit
-// a trailing Close. EvenOdd (rather than build_skia_path's Winding) is safe
-// here only because every caller passes a single, simple, non-self-
-// intersecting contour from Skia's own simplify() output; both fill rules
-// agree for such a shape.
 fn subpath_skia_path(subpath: &[PathEl]) -> Option<Path> {
     let mut builder = build_skia_path_builder(subpath, PathFillType::EvenOdd);
     builder.close();
@@ -167,10 +157,6 @@ fn subpath_skia_path(subpath: &[PathEl]) -> Option<Path> {
 }
 
 pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
-    // Contours are treated as implicitly closed for area purposes regardless
-    // of whether PathOps happened to emit a trailing Close: kurbo only
-    // synthesizes the closing edge when ClosePath is present, but an open
-    // polyline isn't a meaningful fill boundary.
     let mut contours: Vec<_> = outline
         .subpaths()
         .map(|subpath| (subpath_area(subpath), subpath))
@@ -192,8 +178,6 @@ pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
         .iter()
         .map(|(_, subpath)| subpath.bounding_box())
         .collect();
-    // Most contours have no children. Build a containment path only when
-    // another contour's tight bounds actually fit inside it.
     let mut skia_paths = vec![None; contours.len()];
 
     let mut nesting = vec![0usize; contours.len()];
@@ -239,10 +223,6 @@ fn subpath_area(subpath: &[PathEl]) -> f64 {
 
 #[cfg(test)]
 fn path_is_inside(outer: &[PathEl], inner: &[PathEl]) -> bool {
-    // PathOps simplification has already split intersecting contours, so a
-    // contour whose tight bounds fit and whose on-curve points are inside is
-    // nested. Checking tight-bound containment also catches curves that bulge
-    // outside the candidate parent while keeping their endpoints inside.
     outer.bounding_box().contains_rect(inner.bounding_box())
         && subpath_skia_path(outer).is_some_and(|path| contour_is_inside(&path, inner))
 }
@@ -363,10 +343,6 @@ mod tests {
 
     #[test]
     fn subpath_area_treats_open_subpath_as_implicitly_closed() {
-        // Offset from the origin: kurbo's raw (unclosed) area only matches
-        // the true polygon area when the missing closing edge happens to
-        // pass through the origin, so this triangle is chosen to actually
-        // exercise the implicit-closure behavior rather than mask it.
         let mut open = BezPath::new();
         open.move_to((1.0, 1.0));
         open.line_to((5.0, 1.0));
@@ -438,7 +414,6 @@ mod tests {
 
         let winding = super::winding_from_even_odd(&outline);
 
-        // Two holes share the outer contour; one hole contains an island.
         for (point, expected) in [
             ((0.5, 0.5), 1),
             ((1.5, 1.5), 0),
