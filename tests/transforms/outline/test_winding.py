@@ -594,3 +594,113 @@ def test_preserves_curve_geometry(request: pytest.FixtureRequest, fixture: str) 
         reversed_outline,
     ):
         assert torch.equal(F.render_bitmap(output, 96), original)
+
+
+@pytest.mark.parametrize("clockwise", [True, False])
+@pytest.mark.parametrize("offset", [0.0, 1e10])
+def test_cancelling_cubic_areas_remain_unchanged(
+    *, clockwise: bool, offset: float
+) -> None:
+    coords = torch.tensor(
+        [
+            [0, 0, 0, 0, 0, 0],
+            [0, 1, -1, 0, 0, 0],
+            [-3, -1, 2, 1, 0, 2],
+            [0, 1, 0, 0, 0, 0],
+            [0, 2, 1, -2, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+        ],
+        dtype=torch.float32,
+    )
+    coords = coords * 1024 + offset
+    coords[0, :4] = 0
+    coords[-2:] = 0
+    outline = Outline(
+        torch.tensor(
+            [ElementType.MOVE_TO]
+            + [ElementType.CURVE_TO] * 4
+            + [ElementType.CLOSE, ElementType.END]
+        ),
+        coords,
+    )
+    output = F.normalize_winding(outline, clockwise=clockwise)
+    assert torch.equal(output.types, outline.types)
+    assert torch.equal(output.coords, outline.coords)
+
+
+@pytest.mark.parametrize("scale", [1e-15, 1.0, 1e15])
+def test_small_nonzero_areas_still_have_a_direction(scale: float) -> None:
+    outline = _outline([(0, 0), (scale, 0), (0, scale * 1e-12)])
+    assert _signs(outline) == [1]
+    assert _signs(F.normalize_winding(outline)) == [-1]
+
+
+@pytest.mark.parametrize("sample", range(16))
+def test_opposite_duplicate_curves_prefer_the_first_contour(sample: int) -> None:
+    generator = torch.Generator().manual_seed(1)
+    coords = torch.rand(sample + 1, 7, 6, generator=generator)[-1]
+    coords[0, :4] = 0
+    coords[-2:] = 0
+    outline = Outline(
+        torch.tensor(
+            [ElementType.MOVE_TO]
+            + [ElementType.CURVE_TO] * 4
+            + [ElementType.CLOSE, ElementType.END]
+        ),
+        coords,
+    )
+    reversed_outline = F.reverse_winding_groups(outline, torch.tensor([True]))
+    pair = Outline(
+        torch.cat((outline.types[:-1], reversed_outline.types)),
+        torch.cat((outline.coords[:-1], reversed_outline.coords)),
+    )
+    for clockwise in (False, True):
+        output = F.normalize_winding(pair, clockwise=clockwise)
+        expected_first = F.normalize_winding(outline, clockwise=clockwise)
+        assert torch.equal(output.coords[:6], expected_first.coords[:-1])
+        repeated = F.normalize_winding(output, clockwise=clockwise)
+        assert torch.equal(repeated.coords, output.coords)
+    torch.manual_seed(sample)
+    random_output = RandomWinding()(pair)
+    torch.manual_seed(sample)
+    random_first = RandomWinding()(outline)
+    assert torch.equal(random_output.coords[:6], random_first.coords[:-1])
+
+
+@pytest.mark.parametrize("seed", range(32))
+def test_cubic_normalization_is_translation_invariant_and_idempotent(seed: int) -> None:
+    generator = torch.Generator().manual_seed(seed)
+    coords = torch.randint(-4, 5, (7, 6), generator=generator).float() * 1024
+    coords[0, :4] = 0
+    coords[-2:] = 0
+    types = torch.tensor(
+        [ElementType.MOVE_TO]
+        + [ElementType.CURVE_TO] * 4
+        + [ElementType.CLOSE, ElementType.END]
+    )
+    outline = Outline(types, coords)
+    shifted_coords = coords + 1e10
+    shifted_coords[0, :4] = 0
+    shifted_coords[-2:] = 0
+    shifted = Outline(types, shifted_coords)
+    for clockwise in (False, True):
+        output = F.normalize_winding(shifted, clockwise=clockwise)
+        expected = F.normalize_winding(outline, clockwise=clockwise).coords + 1e10
+        expected[0, :4] = 0
+        expected[-2:] = 0
+        assert torch.equal(output.coords, expected)
+        repeated = F.normalize_winding(output, clockwise=clockwise)
+        assert torch.equal(repeated.coords, output.coords)
+    mask = torch.tensor([True])
+    reversed_outline = F.reverse_winding_groups(shifted, mask)
+    restored = F.reverse_winding_groups(reversed_outline, mask)
+    assert torch.equal(restored.types, shifted.types)
+    assert torch.equal(restored.coords, shifted.coords)
+    torch.manual_seed(seed)
+    random_output = RandomWinding()(shifted)
+    torch.manual_seed(seed)
+    random_expected = RandomWinding()(outline).coords + 1e10
+    random_expected[0, :4] = 0
+    random_expected[-2:] = 0
+    assert torch.equal(random_output.coords, random_expected)
