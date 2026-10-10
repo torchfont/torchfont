@@ -1,34 +1,31 @@
 # AGENTS.md
 
-## Architecture
+These guidelines apply to everyday development. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for details and task-specific instructions.
+If the two documents differ, follow `CONTRIBUTING.md`.
 
-- TorchFont is beta; ignore backward compatibility. Add no shims, deprecated aliases, version branches, or fallbacks. Raise minimum dependencies instead.
-- Follow current public PyTorch and TorchVision design, including autograd, `torch.compile`, device/dtype, `nn.Module`, and `Dataset`/`DataLoader` conventions where applicable. Add no abstraction, implicit behavior, or convenience API without a clear analogue.
-- Prefer standard PyTorch types and protocols. Add custom types only for otherwise inexpressible font invariants. Never mutate global PyTorch registries or prescribe collation.
-- Return bitmaps as ordinary Tensor data usable by TorchVision, but never import or depend on TorchVision at runtime. Development and interoperability tests may use it.
-- Follow current PyTorch and TorchVision naming, visibility, modules, and directory layout; ignore legacy structure kept for compatibility.
-- Keep Python thin and pickle-friendly; put font parsing and computation in deterministic Rust using crates such as `skrifa` and `read-fonts`.
-- Avoid mutable Rust runtime state unless the design clearly requires it.
-- Validate once at external boundaries only to prevent **silent data corruption**. Rely on dependencies and downstream operations to raise; allow documented empty/no-op results.
+## Tools
 
-## Workflow
+- Use mise to run development tasks and manage development tools.
+- Use uv for Python dependencies and commands, Cargo for Rust, and maturin for Python/Rust integration.
+- Manage PyTorch using uv's PyTorch integration.
+- Use the GitHub CLI for GitHub operations.
 
-- Prefer the Dev Container when available.
-- Prefer existing `mise` tasks over ad hoc commands.
-- Use `uv` for all Python operations; never invoke `python` or `pip` directly.
-- Run formatting, checks, and relevant tests after code changes.
-- Docs use VitePress. Document only the current public API for users—never history, internals, compatibility notes, or maintainer guidance. Keep `docs/en/` and `docs/ja/` aligned.
+## Design
 
-## GitHub
+- Avoid overengineering and prefer existing libraries over custom implementations.
+- Backward compatibility is not required during beta. Do not add compatibility aliases or fallbacks.
+- Follow "Parse, don't validate": validate only at external boundaries and avoid excessive exception handling.
+- Follow PyTorch ecosystem conventions and support features such as `torch.compile`.
+- Prefer standard PyTorch types and protocols. Return bitmaps as ordinary tensors and do not depend on TorchVision at runtime.
+- Do not modify shared PyTorch settings to change the default behavior of components such as DataLoader. Let users explicitly choose any custom collation behavior.
+- Keep Rust stateless and deterministic, Python objects picklable, and stochastic operations in Python.
 
-- Use `gh` for issue and pull request operations.
-- Resolve PR conversations after addressing the feedback.
+## Code Checks
 
-## Known non-starters
+- Run formatting, linting, type checks, and tests. Keep tests focused and avoid redundant coverage.
 
-- **Making `skia-safe` an optional Cargo feature**: PyPI wheels are compiled
-  binaries — Cargo features cannot be selected via `pip install`. Truly optional
-  Skia would require a separate distribution package, which is not planned.
-- **Sharing parsed font state across indexing, axis inspection, and loading**:
-  keep these boundaries simple and pickle-friendly. Re-parsing is acceptable;
-  measured savings were only about 70–85 ms, or 0.34% for full indexing.
+## Documentation
+
+- Do not add source comments or private API docstrings. Keep documentation and public docstrings focused on library users.
+- Keep Japanese and English documentation aligned and consistent with existing documentation.

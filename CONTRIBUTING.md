@@ -1,89 +1,109 @@
 # Contributing to TorchFont
 
-Thank you for taking the time to improve TorchFont. The guidelines below keep
-the project healthy and make it easier for maintainers to review changes.
+## Environment Setup
 
-## Project Setup
+- If the project is open in a Dev Container, continue developing there.
+- If the project is open on a Windows host, use the Dev Container CLI to develop in a Dev Container.
+- If the project is open on a Linux host:
+  - Develop on the host if mise is available.
+  - Otherwise, develop in a Dev Container.
 
-TorchFont uses `mise` for tool versions and repeatable project tasks. Use the
-Dev Container when it is available, then install dependencies with:
+## Dev Container
 
-```bash
-mise run sync
-```
+- On Windows, use one of the following to run Dev Containers:
+  - Docker Desktop
+  - WSL2 + Docker Engine
+  - WSL Containers
+- Use the `mounts` configuration to persist specific directories.
+  - Persist mise and uv caches in named volumes shared across projects.
+  - Persist project-specific caches such as `.venv`, `node_modules`, and `target` in separate volumes for each project using the `${devcontainerId}` parameter.
+  - Use `onCreateCommand` to fix permissions on mounted directories.
+- For `.gitattributes`, refer to the [VS Code documentation](https://code.visualstudio.com/docs/devcontainers/tips-and-tricks#_resolving-git-line-ending-issues-in-containers-resulting-in-many-modified-files).
 
-This installs the Python, Rust, and Node tooling used by the repository. For
-data-backed examples or tests, sync submodules with:
+## Visual Studio Code
 
-```bash
-mise run data-sync
-```
+- Specify VS Code extensions for both Dev Container and host development.
+  - Use `customizations > vscode > extensions` in `.devcontainer/devcontainer.json` for Dev Container extensions.
+  - Use `recommendations` in `.vscode/extensions.json` for host extensions.
+- Configure VS Code editor settings according to the development environment.
+  - Put general settings in `.vscode/settings.json`.
+  - Put settings needed only in Dev Containers in `.devcontainer/devcontainer.json`.
 
-## Coding Standards
+## Mise
 
-- The minimum supported Python version is 3.10. Avoid syntax that would break on
-  that interpreter.
-- Keep Python thin, typed, and pickle-friendly; put font parsing and heavier
-  deterministic computation in Rust.
-- Public APIs live under `torchfont.datasets`, `torchfont.transforms`, and
-  related metadata helpers.
-- Avoid broad fallback paths or hidden network/git behavior unless they protect
-  a real external boundary.
+- Use mise to manage Python, Rust, and JavaScript development tools consistently.
+- Also use mise as a task runner.
+- Also use mise to manage APT packages.
 
-## Transform Architecture
+## Coding Style
 
-Transform modules are organized by font-domain responsibility:
+- Avoid overengineering.
+- Backward compatibility is not required while the library is in beta.
+- Do not add compatibility aliases or fallbacks.
+- Follow the "Parse, don't validate" principle: validate only at external boundaries and avoid excessive exception handling.
+- Make effective use of libraries and keep custom implementations to a minimum.
 
-- `torchfont` exports core semantic values such as `Outline` and `CodepointData`.
-  Rasterized glyphs remain plain tensors and enter image semantics explicitly
-  through TorchVision.
-- `torchfont.transforms._transform` contains only the transform engine, while
-  `_container` contains composition primitives.
-- Class transforms are split into `_glyph`, `_curves`, `_geometry`, `_outline`,
-  `_subpath`, and `_bitmap` modules.
-- `torchfont.transforms.functional` mirrors those domains. Its public functions
-  are deterministic semantic kernels; `_utils` contains shared helpers for the
-  Rust/NumPy boundary.
+## Python
 
-Keep class transforms configuration-only and use `make_params()` for random
-sampling. Put deterministic behavior in the corresponding functional module so
-class and direct functional calls share one kernel implementation. Add a new
-domain module only when the operation does not fit an existing font concept.
-Do not add a kernel registry until more than one semantic representation needs
-dispatch.
+- Use uv as the Python package manager.
+- Avoid conventional Python tools such as pip and venv whenever possible.
+- Manage PyTorch using uv's PyTorch integration.
+- Follow the conventions of the PyTorch ecosystem.
+  - Use the internal designs of libraries such as PyTorch and TorchVision as references.
+  - Follow their approaches to compatibility, variable naming, and directory structure.
+  - Support features such as `torch.compile`.
+- Prefer standard PyTorch types and protocols. Introduce custom types only for font invariants that cannot otherwise be expressed.
+- Return rasterized bitmaps as ordinary tensors usable by TorchVision. Do not import or depend on TorchVision at runtime; development and interoperability tests may use it.
+- Do not modify shared PyTorch settings to change the default behavior of components such as DataLoader. Let users explicitly choose any custom collation behavior.
+- Use maturin to integrate high-performance Rust font libraries.
 
-## Formatting, Checks, and Tests
+## Rust
 
-Run the project tasks before requesting review:
+- Use Cargo as the Rust package manager.
+- Use the following Rust libraries for font processing:
+  - Google Fonts' `fontations` crates
+  - Crates developed by linebender
+  - Bindings such as `skia-safe`
+- Keep the Rust side stateless and the Python side picklable.
+- Keep Rust functions deterministic and control stochastic operations from Python.
 
-```bash
-mise run format
-mise run check
-mise run test
-```
+## Code Checks
 
-`mise run check` covers Rust formatting, clippy, cargo check, Ruff, and `ty`.
-`mise run test` builds the Rust extension with `maturin develop` before running
-pytest.
+- Run formatting, linting, type checks, and tests.
+- When warnings need to be suppressed, use an appropriate scope, such as the relevant code, file, or project.
+- Keep tests focused and sufficient, without redundant coverage.
 
 ## Documentation
 
-Docs use VitePress. Build them with:
+- Do not add comments to source code.
+- Use VitePress for documentation.
+- Include only information intended for library users in documentation and docstrings.
+- Do not write docstrings for private APIs.
+- Do not include maintainer information, such as implementation history.
+- Keep Japanese and English documentation aligned in content.
+- Prioritize consistency with existing documentation and avoid adding information indiscriminately.
+- Publish documentation on Read the Docs.
 
-```bash
-npm ci
-npm run docs:build
-```
+## Datasets
 
-Keep `docs/en/` and `docs/ja/` aligned when changing user-facing docs.
+- Manage the Google Fonts dataset as a Git submodule, since it is hosted on GitHub.
+- Persist datasets in named volumes.
+  - This keeps the local environment clean.
+  - This improves I/O performance.
+- Use `.ignore` to exclude datasets from agent searches.
 
-## Git Workflow
+## Git
 
-- Create topic branches off `main`.
-- Write descriptive commit messages. Mention the relevant issue when applicable.
-- Keep pull requests focused. Separate unrelated refactors or formatting changes
-  into their own PRs.
+- Build `.gitignore` by combining GitHub's gitignore templates.
+
+## GitHub
+
+- Use the GitHub CLI for GitHub operations.
 - Ensure CI passes before requesting review.
+
+## CI/CD
+
+- Base the release workflow on the template files generated by maturin.
 
 ## Release
 
@@ -133,9 +153,3 @@ Use these upstream references when reviewing the matrix:
    and source distribution to PyPI.
 5. Verify the published GitHub Release and the wheel and source distributions
    for the new version on PyPI.
-
-## Need Help?
-
-Open a GitHub Discussion or issue if anything here is unclear. The more context
-you provide, such as logs, screenshots, or sample fonts, the faster reviewers can
-help.
