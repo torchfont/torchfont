@@ -75,6 +75,8 @@
 
 ## Documentation
 
+- Use existing documentation to judge whether changes are needed; internal implementation changes alone do not justify them.
+- Do not make unnecessary documentation edits just to feel that you have accomplished work.
 - Do not add comments to source code.
 - Use VitePress for documentation.
 - Include only information intended for library users in documentation and docstrings.
