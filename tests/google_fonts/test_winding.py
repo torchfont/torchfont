@@ -69,11 +69,9 @@ class _CheckWinding:
         )
         mismatch = False
         for fill_rule in ("winding", "even_odd"):
-            original = F.render_bitmap(outline, 128, mode="bbox", fill_rule=fill_rule)
+            original = F.render_bitmap(outline, 128, fill_rule=fill_rule)
             for result in results:
-                rendered = F.render_bitmap(
-                    result, 128, mode="bbox", fill_rule=fill_rule
-                )
+                rendered = F.render_bitmap(result, 128, fill_rule=fill_rule)
                 hard_diff = ((original == 255) & (rendered == 0)) | (
                     (original == 0) & (rendered == 255)
                 )

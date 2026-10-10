@@ -18,9 +18,11 @@ def normalize_winding(inpt: Outline, *, clockwise: bool = True) -> Outline:
     including containment and transitive overlaps. Contours with disjoint fills
     can belong to the same group when their bounding boxes overlap.
     Each group's largest absolute signed area
-    contour determines whether the group is reversed; ties prefer the first
-    contour. ``clockwise=True`` chooses clockwise in y-up font coordinates.
+    contour determines whether the group is reversed; areas equal within
+    floating-point roundoff prefer the first contour. ``clockwise=True`` chooses
+    clockwise in y-up font coordinates.
     Groups with open subpaths or only zero-area contours are unchanged.
+    Areas within floating-point roundoff are treated as zero.
 
     Disjoint groups can be reversed independently. Relative winding within a
     group is preserved, so complex groups may retain mixed outer directions.

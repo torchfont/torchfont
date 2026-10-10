@@ -1,8 +1,10 @@
-use kurbo::Shape;
+use kurbo::{ParamCurveArea, Shape};
 use skia_safe::{Path, PathFillType};
 
 use super::skia::build_skia_path_builder;
-use crate::outline::{BezPath, PathEl, bounds_from_subpath, subpath_is_closed};
+use crate::outline::{
+    BezPath, PathEl, bounds_from_subpath, subpath_elements, subpath_is_closed, subpath_start,
+};
 
 pub(crate) fn reverse_subpath(subpath: &[PathEl]) -> BezPath {
     BezPath::from_vec(subpath.to_vec()).reverse_subpaths()
@@ -28,7 +30,7 @@ pub(crate) fn normalize_winding(
     let mut preserve = true;
     let mut reverse = true;
     for path in outline.subpaths() {
-        let area = subpath_area(path);
+        let (area, _) = subpath_area(path);
         let aligned = area == 0.0 || (area < 0.0) == clockwise;
         preserve &= aligned;
         reverse &= !aligned && subpath_is_closed(path);
@@ -44,10 +46,12 @@ pub(crate) fn normalize_winding(
     }
     transform_groups(outline, |_, group, paths| {
         let mut largest_area = 0.0_f64;
+        let mut largest_error = 0.0_f64;
         for &index in group {
-            let area = subpath_area(paths[index]);
-            if area.abs() > largest_area.abs() {
+            let (area, error) = subpath_area(paths[index]);
+            if area.abs() > largest_area.abs() + largest_error + error {
                 largest_area = area;
+                largest_error = error;
             }
         }
         Ok(largest_area != 0.0 && (largest_area < 0.0) != clockwise)
@@ -159,7 +163,7 @@ fn subpath_skia_path(subpath: &[PathEl]) -> Option<Path> {
 pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     let mut contours: Vec<_> = outline
         .subpaths()
-        .map(|subpath| (subpath_area(subpath), subpath))
+        .map(|subpath| (subpath_area(subpath).0, subpath))
         .collect();
     if let [(area, subpath)] = contours.as_slice() {
         return if *area < 0.0 {
@@ -207,18 +211,42 @@ pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     result
 }
 
-fn subpath_area(subpath: &[PathEl]) -> f64 {
-    if subpath_is_closed(subpath) {
-        return subpath.area();
+fn subpath_area(subpath: &[PathEl]) -> (f64, f64) {
+    let translation = kurbo::TranslateScale::translate(-subpath_start(subpath).to_vec2());
+    let mut extent = kurbo::Vec2::ZERO;
+    let mut start = kurbo::Point::ORIGIN;
+    let mut area = 0.0;
+    for &element in subpath_elements(subpath) {
+        let mut include = |point: kurbo::Point| {
+            extent.x = extent.x.max(point.x.abs());
+            extent.y = extent.y.max(point.y.abs());
+        };
+        let (end, segment_area) = match translation * element {
+            PathEl::LineTo(end) => (end, kurbo::Line::new(start, end).signed_area()),
+            PathEl::QuadTo(control, end) => {
+                include(control);
+                (end, kurbo::QuadBez::new(start, control, end).signed_area())
+            }
+            PathEl::CurveTo(control1, control2, end) => {
+                include(control1);
+                include(control2);
+                (
+                    end,
+                    kurbo::CubicBez::new(start, control1, control2, end).signed_area(),
+                )
+            }
+            PathEl::MoveTo(_) | PathEl::ClosePath => unreachable!(),
+        };
+        include(end);
+        area += segment_area;
+        start = end;
     }
-    kurbo::segments(
-        subpath
-            .iter()
-            .copied()
-            .chain(std::iter::once(PathEl::ClosePath)),
-    )
-    .map(|segment| segment.area())
-    .sum()
+    let error = 32.0 * f64::EPSILON * extent.x * extent.y * subpath.len() as f64;
+    if area.abs() <= error {
+        (0.0, error)
+    } else {
+        (area, error)
+    }
 }
 
 #[cfg(test)]
@@ -349,7 +377,7 @@ mod tests {
         open.line_to((1.0, 5.0));
 
         let raw_area = open.elements().area();
-        let closed_area = super::subpath_area(open.elements());
+        let (closed_area, _) = super::subpath_area(open.elements());
 
         assert_ne!(raw_area, closed_area);
         assert!((closed_area.abs() - 8.0).abs() < 1e-9);
