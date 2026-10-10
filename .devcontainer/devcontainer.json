@@ -4,6 +4,9 @@
 	"features": {
 		"ghcr.io/devcontainers/features/common-utils:2.7.0": {}
 	},
+	"runArgs": [
+		"--shm-size=2g"
+	],
 	"mounts": [
 		{
 			"source": "mise",
