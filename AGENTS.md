@@ -28,5 +28,6 @@ If the two documents differ, follow `CONTRIBUTING.md`.
 ## Documentation
 
 - Follow existing documentation scope; avoid unnecessary edits just to feel productive.
+- Keep `examples/` focused on library users; do not add benchmarks or an example for every change.
 - Do not add source comments or private API docstrings. Keep documentation and public docstrings focused on library users.
 - Keep Japanese and English documentation aligned and consistent with existing documentation.

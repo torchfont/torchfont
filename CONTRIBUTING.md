@@ -86,6 +86,12 @@
 - Prioritize consistency with existing documentation and avoid adding information indiscriminately.
 - Publish documentation on Read the Docs.
 
+## Examples
+
+- Keep `examples/` focused on library users.
+- Do not put benchmark scripts in `examples/`.
+- Do not add an example for every change.
+
 ## Datasets
 
 - Manage the Google Fonts dataset as a Git submodule, since it is hosted on GitHub.
