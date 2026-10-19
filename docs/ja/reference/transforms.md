@@ -161,7 +161,7 @@ Functional API は乱数を生成しません。ランダムな選択とパラ�
 | `horizontal_flip`, `vertical_flip` | `preserve_winding=False` のときのみ |
 | `quad_to_cubic`, `cubic_to_quad`, `merge_curves`, `split_segments` | いいえ |
 | `remove_overlaps`, `remove_overlap_groups` | いいえ |
-| `normalize_winding`, `reverse_winding_groups` | いいえ |
+| `normalize_winding` | いいえ |
 | `split_subpaths`, `truncate_subpaths`, `drop_subpaths`, `drop_subpaths_to_fit`, `normalize_subpath_start_points`, `normalize_subpath_order`, `set_subpath_start_points`, `reorder_subpaths` | いいえ |
 | `render_bitmap` | いいえ |
 

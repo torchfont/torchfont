@@ -313,7 +313,7 @@ pub(crate) fn reverse_closed_subpaths<'py>(
     coords: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    let result = py.detach(|| winding::reverse_closed_subpaths(&outline));
+    let result = py.detach(|| subpath::reverse_closed_subpaths(&outline));
     Ok(encode(py, &result))
 }
 
@@ -322,26 +322,12 @@ pub(crate) fn normalize_winding<'py>(
     py: Python<'py>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-    clockwise: bool,
+    clockwise: PyReadonlyArray1<'_, bool>,
 ) -> PyResult<OutlineArrays<'py>> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
+    let clockwise = clockwise.as_slice()?;
     let result = py
         .detach(|| winding::normalize_winding(&outline, clockwise))
-        .map_err(pyo3::exceptions::PyValueError::new_err)?;
-    Ok(encode(py, &result))
-}
-
-#[pyfunction]
-pub(crate) fn reverse_winding_groups<'py>(
-    py: Python<'py>,
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-    reversal_mask: PyReadonlyArray1<'_, bool>,
-) -> PyResult<OutlineArrays<'py>> {
-    let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    let mask = reversal_mask.as_slice()?;
-    let result = py
-        .detach(|| winding::reverse_winding_groups(&outline, mask))
         .map_err(pyo3::exceptions::PyValueError::new_err)?;
     Ok(encode(py, &result))
 }
@@ -481,7 +467,6 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(randomize_subpath_start_points, m)?)?;
     m.add_function(wrap_pyfunction!(reverse_closed_subpaths, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_winding, m)?)?;
-    m.add_function(wrap_pyfunction!(reverse_winding_groups, m)?)?;
     m.add_function(wrap_pyfunction!(tight_bbox, m)?)?;
     m.add_function(wrap_pyfunction!(render_bitmap, m)?)?;
     Ok(())

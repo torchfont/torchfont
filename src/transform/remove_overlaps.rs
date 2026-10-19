@@ -2,7 +2,6 @@ use skia_safe::{Path, PathFillType, PathVerb};
 
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{PATHOPS_SCALE, build_skia_path};
-use super::winding::winding_from_even_odd;
 use crate::outline::{
     BezPath, Bounds, PathEl, Point, bounds_from_outline, bounds_from_subpath, subpath_is_closed,
 };
@@ -156,10 +155,8 @@ fn render_coverage(outline: &BezPath, bounds: Bounds, size: u32) -> Vec<u8> {
 fn simplify(outline: &BezPath) -> Option<BezPath> {
     let path = build_skia_path(outline)?;
     let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;
-    let simplified = scaled.simplify()?;
-
-    let simplified = outline_from_path(&simplified)?;
-    let mut winding = winding_from_even_odd(&simplified);
+    let simplified = scaled.simplify()?.as_winding()?;
+    let mut winding = outline_from_path(&simplified)?;
     winding.apply_affine(kurbo::Affine::scale(f64::from(PATHOPS_SCALE.recip())));
     Some(winding)
 }
@@ -283,5 +280,26 @@ mod tests {
         assert_eq!(unverified.subpaths().count(), 1);
         assert_eq!(verified.subpaths().count(), 1);
         assert!(super::renders_match(&unverified, &verified, 128));
+    }
+    #[test]
+    fn simplify_preserves_nested_holes_islands_and_disjoint_contours() {
+        let mut outline = rectangle(Rect::new(0.0, 0.0, 100.0, 100.0));
+        outline.extend(rectangle(Rect::new(20.0, 20.0, 80.0, 80.0)).reverse_subpaths());
+        outline.extend(rectangle(Rect::new(40.0, 40.0, 60.0, 60.0)));
+        outline.extend(rectangle(Rect::new(120.0, 0.0, 140.0, 20.0)));
+
+        let simplified = super::simplify(&outline).expect("valid nested contours");
+
+        for (point, filled) in [
+            ((-10.0, 50.0), false),
+            ((10.0, 50.0), true),
+            ((30.0, 50.0), false),
+            ((50.0, 50.0), true),
+            ((110.0, 10.0), false),
+            ((130.0, 10.0), true),
+        ] {
+            assert_eq!(outline.winding(point.into()) != 0, filled);
+            assert_eq!(simplified.winding(point.into()) != 0, filled);
+        }
     }
 }

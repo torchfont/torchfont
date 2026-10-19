@@ -12,6 +12,20 @@ pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
         .collect()
 }
 
+pub(crate) fn reverse_closed_subpaths(outline: &BezPath) -> BezPath {
+    outline
+        .subpaths()
+        .flat_map(|elements| {
+            let path = BezPath::from_vec(elements.to_vec());
+            if subpath_is_closed(elements) {
+                path.reverse_subpaths()
+            } else {
+                path
+            }
+        })
+        .collect()
+}
+
 pub(crate) fn drop_subpaths(outline: &BezPath, drop_mask: &[bool]) -> BezPath {
     let mut result = BezPath::new();
     for (subpath, &drop) in outline.subpaths().zip(drop_mask) {
@@ -180,7 +194,6 @@ fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
 mod tests {
     use super::*;
     use crate::outline::PathEl;
-    use crate::transform::winding::reverse_subpath;
 
     fn pt(x: f32, y: f32) -> Point {
         Point::new(x.into(), y.into())
@@ -211,6 +224,25 @@ mod tests {
         let outline = outline_from_subpaths([first.clone(), second.clone()]);
 
         assert_eq!(split_subpaths(&outline), [first, second]);
+    }
+
+    #[test]
+    fn reverse_closed_subpaths_skips_open() {
+        let subpath = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
+        let outline = outline_from_subpaths([subpath.clone()]);
+        let result = reverse_closed_subpaths(&outline);
+        assert_eq!(subpaths(&result)[0], subpath);
+    }
+
+    #[test]
+    fn reverse_closed_subpaths_reverses_closed() {
+        let outline =
+            outline_from_subpaths([closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)])]);
+        let result = reverse_closed_subpaths(&outline);
+        let result_subpaths = subpaths(&result);
+        let s = &result_subpaths[0];
+        assert_eq!(subpath_start(s.elements()), pt(0.5, 1.0));
+        assert!(subpath_is_closed(s.elements()));
     }
 
     #[test]
@@ -379,7 +411,7 @@ mod tests {
         let right = closed(pt(10.0, 0.0), vec![line(12.0, 0.0), line(11.0, 1.0)]);
         let left = closed(pt(2.0, 0.0), vec![line(0.0, 0.0), line(1.0, 1.0)]);
         let outline = outline_from_subpaths([right.clone(), left.clone()]);
-        let changed = outline_from_subpaths([reverse_subpath(right.elements()), left.clone()]);
+        let changed = outline_from_subpaths([right.reverse_subpaths(), left.clone()]);
 
         assert_eq!(
             subpaths(&normalize_subpath_order(&outline)),
@@ -387,7 +419,7 @@ mod tests {
         );
         assert_eq!(
             subpaths(&normalize_subpath_order(&changed)),
-            vec![left, reverse_subpath(right.elements())]
+            vec![left, right.reverse_subpaths()]
         );
     }
 
