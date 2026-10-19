@@ -67,7 +67,10 @@ class RemoveOverlaps(Transform):
 
 
 class RandomRemoveOverlaps(Transform):
-    """Randomly simplify bbox-connected overlap groups.
+    """Randomly simplify groups with overlapping non-zero filled interiors.
+
+    Groups contain closed contours connected by interior overlap, including
+    containment. Point and shared-edge contacts alone do not join groups.
 
     Args:
         verify: Whether to preserve the input when coverage changes.

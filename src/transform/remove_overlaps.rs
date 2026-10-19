@@ -1,10 +1,9 @@
 use skia_safe::{Path, PathFillType, PathVerb};
 
+use super::overlap::{overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{PATHOPS_SCALE, build_skia_path};
-use crate::outline::{
-    BezPath, Bounds, PathEl, Point, bounds_from_outline, bounds_from_subpath, subpath_is_closed,
-};
+use crate::outline::{BezPath, Bounds, PathEl, Point, bounds_from_outline, subpath_is_closed};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
     let Some(simplified) = simplify(outline) else {
@@ -21,39 +20,23 @@ pub(crate) fn random_remove_overlaps(
     random_values: &[f32],
     verify: bool,
     verify_size: u32,
-) -> BezPath {
+) -> Result<BezPath, &'static str> {
     let source: Vec<_> = outline.subpaths().collect();
-    let bounds: Vec<_> = source
+    let (indices, closed): (Vec<_>, Vec<_>) = source
         .iter()
-        .map(|subpath| bounds_from_subpath(subpath))
-        .collect();
-    let mut parent: Vec<_> = (0..source.len()).collect();
-
-    for left in 0..source.len() {
-        if !subpath_is_closed(source[left]) {
-            continue;
-        }
-        for right in left + 1..source.len() {
-            if subpath_is_closed(source[right]) && bounds_overlap(bounds[left], bounds[right]) {
-                union(&mut parent, left, right);
-            }
-        }
-    }
-    for index in 0..parent.len() {
-        parent[index] = find(&mut parent, index);
-    }
-
-    let mut members = vec![Vec::new(); source.len()];
-    for (index, &root) in parent.iter().enumerate() {
-        members[root].push(index);
-    }
-    let groups: Vec<Vec<_>> = members
+        .copied()
+        .enumerate()
+        .filter(|(_, path)| subpath_is_closed(path))
+        .unzip();
+    let areas: Vec<_> = closed.iter().map(|path| subpath_area(path)).collect();
+    let groups: Vec<Vec<_>> = overlap_groups(&closed, &areas)?
         .into_iter()
-        .filter(|group: &Vec<_>| group.len() > 1)
+        .filter(|group| group.len() > 1)
+        .map(|group| group.into_iter().map(|index| indices[index]).collect())
         .collect();
 
     if groups.is_empty() {
-        return outline.clone();
+        return Ok(outline.clone());
     }
 
     let values = &random_values[..groups.len()];
@@ -101,31 +84,11 @@ pub(crate) fn random_remove_overlaps(
             }
         }
     }
-    if verify && !renders_match(outline, &result, verify_size) {
+    Ok(if verify && !renders_match(outline, &result, verify_size) {
         outline.clone()
     } else {
         result
-    }
-}
-
-fn bounds_overlap(a: Bounds, b: Bounds) -> bool {
-    a.x_min < b.x_max && b.x_min < a.x_max && a.y_min < b.y_max && b.y_min < a.y_max
-}
-
-fn find(parent: &mut [usize], index: usize) -> usize {
-    if parent[index] != index {
-        parent[index] = find(parent, parent[index]);
-    }
-    parent[index]
-}
-
-fn union(parent: &mut [usize], left: usize, right: usize) {
-    let left = find(parent, left);
-    let right = find(parent, right);
-    if left != right {
-        parent[right] = left.min(right);
-        parent[left] = left.min(right);
-    }
+    })
 }
 
 fn renders_match(original: &BezPath, candidate: &BezPath, size: u32) -> bool {
@@ -186,7 +149,7 @@ fn outline_from_path(path: &Path) -> Option<BezPath> {
     }
     commit_subpath(&mut outline, &mut start, &mut elements, false);
 
-    (!outline.elements().is_empty()).then_some(outline)
+    Some(outline)
 }
 
 fn commit_subpath(
@@ -281,6 +244,7 @@ mod tests {
         assert_eq!(verified.subpaths().count(), 1);
         assert!(super::renders_match(&unverified, &verified, 128));
     }
+
     #[test]
     fn simplify_preserves_nested_holes_islands_and_disjoint_contours() {
         let mut outline = rectangle(Rect::new(0.0, 0.0, 100.0, 100.0));

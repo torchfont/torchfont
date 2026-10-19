@@ -40,6 +40,52 @@ def _four_squares() -> tuple[torch.Tensor, torch.Tensor]:
     return _rectangles([(0.0, 2.0), (1.0, 3.0), (10.0, 12.0), (11.0, 13.0)])
 
 
+def _polygons(*polygons: list[tuple[float, float]]) -> Outline:
+    types: list[int] = []
+    coords: list[list[float]] = []
+    for polygon in polygons:
+        types.extend([ElementType.MOVE_TO.value])
+        types.extend([ElementType.LINE_TO.value] * (len(polygon) - 1))
+        types.append(ElementType.CLOSE.value)
+        coords.extend([[0, 0, 0, 0, x, y] for x, y in polygon])
+        coords.append([0, 0, 0, 0, 0, 0])
+    types.append(ElementType.END.value)
+    coords.append([0, 0, 0, 0, 0, 0])
+    return Outline(torch.tensor(types), torch.tensor(coords, dtype=torch.float32))
+
+
+def test_random_remove_overlaps_ignores_overlapping_bounds() -> None:
+    outline = _polygons([(0, 0), (2, 0), (0, 2)], [(2, 2), (2, 0.8), (0.8, 2)])
+
+    output = RandomRemoveOverlaps()(outline)
+
+    assert torch.equal(output.types, outline.types)
+    assert torch.equal(output.coords, outline.coords)
+
+
+@pytest.mark.parametrize("offset", [(2, 0), (2, 2)])
+def test_random_remove_overlaps_ignores_boundary_contacts(
+    offset: tuple[int, int],
+) -> None:
+    square: list[tuple[float, float]] = [(0, 0), (2, 0), (2, 2), (0, 2)]
+    dx, dy = offset
+    outline = _polygons(square, [(x + dx, y + dy) for x, y in square])
+
+    output = RandomRemoveOverlaps()(outline)
+
+    assert torch.equal(output.types, outline.types)
+    assert torch.equal(output.coords, outline.coords)
+
+
+def test_random_remove_overlaps_cancels_opposite_contours() -> None:
+    square: list[tuple[float, float]] = [(0, 0), (2, 0), (2, 2), (0, 2)]
+    outline = _polygons(square, list(reversed(square)))
+
+    output = RandomRemoveOverlaps()(outline)
+
+    assert output.types.tolist() == [ElementType.END.value]
+
+
 def test_random_remove_overlaps_can_merge_multiple_groups() -> None:
     types, coords = _four_squares()
     torch.manual_seed(3)

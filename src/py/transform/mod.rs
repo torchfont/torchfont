@@ -367,14 +367,16 @@ pub(crate) fn random_remove_overlaps<'py>(
         ));
     }
     let random_values = random_values.to_vec();
-    let result = py.detach(|| {
-        crate::transform::remove_overlaps::random_remove_overlaps(
-            &outline,
-            &random_values,
-            verify,
-            verify_size,
-        )
-    });
+    let result = py
+        .detach(|| {
+            crate::transform::remove_overlaps::random_remove_overlaps(
+                &outline,
+                &random_values,
+                verify,
+                verify_size,
+            )
+        })
+        .map_err(pyo3::exceptions::PyValueError::new_err)?;
     Ok(encode(py, &result))
 }
 

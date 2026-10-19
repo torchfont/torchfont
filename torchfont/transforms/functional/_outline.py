@@ -70,8 +70,9 @@ def remove_overlap_groups(
     """Simplify overlap groups according to explicit selection values.
 
     Args:
-        inpt: Glyph outline whose bbox-connected overlap groups are selected
-            for simplification.
+        inpt: Glyph outline whose closed contours are grouped by overlapping
+            non-zero filled interiors for simplification. Point and shared-edge
+            contacts alone do not join groups.
         selection_values: Per-group selection values; see
             :class:`~torchfont.transforms.RandomRemoveOverlaps`.
         verify: Whether to preserve ``inpt`` when coverage changes.
