@@ -24,6 +24,7 @@ If the two documents differ, follow `CONTRIBUTING.md`.
 ## Code Checks
 
 - Run formatting, linting, type checks, and tests. Keep tests focused and avoid redundant coverage.
+- Validate with Google Fonts in `data/google/fonts/`; randomly sample across the full corpus for performance checks and increase sample sizes within practical runtimes.
 
 ## Documentation
 

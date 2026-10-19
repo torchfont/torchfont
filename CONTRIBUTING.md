@@ -78,6 +78,9 @@
 - Run formatting, linting, type checks, and tests.
 - When warnings need to be suppressed, use an appropriate scope, such as the relevant code, file, or project.
 - Keep tests focused and sufficient, without redundant coverage.
+- Use the Google Fonts checkout at `data/google/fonts/` for validation with real font data.
+- For performance checks, randomly sample glyphs from the entire Google Fonts corpus. Do not restrict the sample to particular fonts, scripts, or character ranges.
+- Start with a small glyph sample and progressively increase the sample size while checks remain feasible within a practical turnaround time. Validate as broadly as that time allows.
 
 ## Documentation
 
