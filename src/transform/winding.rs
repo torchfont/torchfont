@@ -1,5 +1,5 @@
 use super::overlap::{overlap_groups, subpath_area};
-use crate::outline::{BezPath, subpath_is_closed};
+use crate::outline::BezPath;
 
 pub(crate) fn normalize_winding(
     outline: &BezPath,
@@ -16,7 +16,7 @@ pub(crate) fn normalize_winding(
         let clockwise = clockwise[if clockwise.len() == 1 { 0 } else { index }];
         let area = group_area(group.iter().map(|&index| areas[index]));
         let selected = area != 0.0 && (area < 0.0) != clockwise;
-        if selected && group.iter().all(|&index| subpath_is_closed(paths[index])) {
+        if selected {
             for &index in group {
                 reverse[index] = true;
             }

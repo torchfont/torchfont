@@ -28,7 +28,8 @@ def normalize_winding(inpt: Outline, *, clockwise: bool | Tensor = True) -> Outl
     ``clockwise=True`` chooses a negative signed area in y-up font coordinates.
     A boolean tensor specifies one direction per group in input order; a single
     entry applies to all groups. Extra entries are ignored.
-    Groups containing open subpaths are unchanged.
+    Open subpaths are implicitly closed for fill and area calculations;
+    their open or closed status is preserved in the output.
 
     Only whole contours are reversed. Relative winding within a group is
     preserved, so complex groups may retain mixed outer directions.

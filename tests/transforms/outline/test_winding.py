@@ -548,22 +548,85 @@ def test_normalization_keeps_an_independent_zero_area_contour() -> None:
     assert torch.equal(output.coords[5:], outline.coords[5:])
 
 
-def test_normalization_reverses_closed_contours_but_keeps_open_contours() -> None:
+def test_normalization_reverses_closed_and_open_contours() -> None:
     outline = _outline(list(reversed(_SQUARE)), list(reversed(_ACCENT)))
     close = (outline.types == ElementType.CLOSE).nonzero().flatten()[-1]
     keep = torch.arange(outline.types.numel()) != close
     outline = Outline(outline.types[keep], outline.coords[keep])
-    assert _signs(F.normalize_winding(outline, clockwise=False)) == [1, -1]
+    assert _signs(F.normalize_winding(outline, clockwise=False)) == [1, 1]
 
 
-def test_normalization_keeps_a_group_with_an_open_contour() -> None:
+def test_normalization_reverses_a_group_with_an_open_contour() -> None:
     outline = _outline(_SQUARE, _HOLE)
     close = (outline.types == ElementType.CLOSE).nonzero().flatten()[-1]
     keep = torch.arange(outline.types.numel()) != close
     outline = Outline(outline.types[keep], outline.coords[keep])
     output = F.normalize_winding(outline, clockwise=True)
-    assert torch.equal(output.types, outline.types)
-    assert torch.equal(output.coords, outline.coords)
+    assert _signs(output) == [-1, 1]
+    assert (output.types == ElementType.CLOSE).sum() == 1
+    assert torch.equal(
+        F.normalize_winding(output, clockwise=False).coords, outline.coords
+    )
+
+
+def test_open_curves_reverse_with_closed_group_without_adding_close() -> None:
+    closed = _outline([(-1, -3), (4, -3), (4, 3), (-1, 3)])
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO,
+            ElementType.QUAD_TO,
+            ElementType.CURVE_TO,
+            ElementType.LINE_TO,
+        ]
+    )
+    coords = torch.tensor(
+        [
+            [0, 0, 0, 0, 0, 0],
+            [1, -2, 0, 0, 2, 0],
+            [3, 0, 3, 2, 2, 2],
+            [0, 0, 0, 0, 0, 2],
+        ],
+        dtype=torch.float32,
+    )
+    outline = Outline(
+        torch.cat((types, closed.types)), torch.cat((coords, closed.coords))
+    )
+    output = F.normalize_winding(outline)
+    reversed_closed = Outline(
+        *_ops.reverse_closed_subpaths(closed.types, closed.coords)
+    )
+    expected_types = torch.cat(
+        (
+            torch.tensor(
+                [
+                    ElementType.MOVE_TO,
+                    ElementType.LINE_TO,
+                    ElementType.CURVE_TO,
+                    ElementType.QUAD_TO,
+                ]
+            ),
+            reversed_closed.types,
+        )
+    )
+    expected_coords = torch.cat(
+        (
+            torch.tensor(
+                [
+                    [0, 0, 0, 0, 0, 2],
+                    [0, 0, 0, 0, 2, 2],
+                    [3, 2, 3, 0, 2, 0],
+                    [1, -2, 0, 0, 0, 0],
+                ],
+                dtype=torch.float32,
+            ),
+            reversed_closed.coords,
+        )
+    )
+    assert torch.equal(output.types, expected_types)
+    assert torch.equal(output.coords, expected_coords)
+    restored = F.normalize_winding(output, clockwise=False)
+    assert torch.equal(restored.types, outline.types)
+    assert torch.equal(restored.coords, outline.coords)
 
 
 @pytest.mark.parametrize("zero_area", [False, True], ids=["empty", "zero_area"])
@@ -577,12 +640,12 @@ def test_empty_and_zero_area_outlines_are_unchanged(*, zero_area: bool) -> None:
         assert torch.equal(output.coords, outline.coords)
 
 
-def test_open_contour_keeps_only_its_interacting_group_unchanged() -> None:
+def test_open_contour_normalizes_with_its_interacting_group() -> None:
     outline = _outline(_SQUARE, _HOLE, _ACCENT)
     close_indices = (outline.types == ElementType.CLOSE).nonzero().flatten()
     keep = torch.arange(outline.types.numel()) != close_indices[1]
     outline = Outline(outline.types[keep], outline.coords[keep])
-    assert _signs(F.normalize_winding(outline)) == [1, -1, -1]
+    assert _signs(F.normalize_winding(outline)) == [-1, 1, -1]
 
 
 @pytest.mark.parametrize("fixture", ["quad_outline", "cubic_outline"])
