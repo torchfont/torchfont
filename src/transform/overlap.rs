@@ -92,11 +92,7 @@ pub(super) fn subpath_area(subpath: &[PathEl]) -> (f64, f64) {
     let extent_y = bounds.y0.abs().max(bounds.y1.abs());
     let area = path.area();
     let error = 32.0 * f64::EPSILON * extent_x * extent_y * subpath.len() as f64;
-    if area.abs() <= error {
-        (0.0, error)
-    } else {
-        (area, error)
-    }
+    (area, error)
 }
 
 #[cfg(test)]
@@ -151,6 +147,30 @@ mod tests {
             overlap_groups(&paths, &areas).unwrap(),
             vec![vec![0], vec![1], vec![2]]
         );
+    }
+
+    #[test]
+    fn subpath_area_retains_residuals_within_roundoff() {
+        let mut path = BezPath::new();
+        path.move_to((0.0, 0.0));
+        for point in [
+            (1.0, 0.0),
+            (1.0, 1.0),
+            (0.0, 1.0),
+            (0.0, 0.0),
+            (0.0, 1.0),
+            (1.0, 1.0),
+            (1.0, 1e-14),
+            (0.0, 1e-14),
+        ] {
+            path.line_to(point);
+        }
+        path.close_path();
+
+        let (area, error) = subpath_area(path.elements());
+
+        assert!(area > 0.0);
+        assert!(area < error);
     }
 
     #[test]

@@ -24,13 +24,11 @@ def normalize_winding(inpt: Outline, *, clockwise: bool | Tensor = True) -> Outl
     numerical precision.
 
     Each group's sum of signed contour areas determines its direction.
-    If the sum is zero within floating-point roundoff, the contour with the
-    largest absolute signed area determines the direction; ties within roundoff
-    prefer the first contour. ``clockwise=True`` chooses a negative signed area
-    in y-up font coordinates. A boolean tensor specifies one direction per
-    group in input order; a single entry applies to all groups. Extra entries
-    are ignored. Groups with open subpaths or only zero-area contours are
-    unchanged.
+    Groups whose sum is zero within floating-point roundoff are unchanged.
+    ``clockwise=True`` chooses a negative signed area in y-up font coordinates.
+    A boolean tensor specifies one direction per group in input order; a single
+    entry applies to all groups. Extra entries are ignored.
+    Groups containing open subpaths are unchanged.
 
     Only whole contours are reversed. Relative winding within a group is
     preserved, so complex groups may retain mixed outer directions.

@@ -370,9 +370,17 @@ def test_nested_group_uses_total_signed_area() -> None:
     assert _signs(F.normalize_winding(outline)) == [1, -1]
 
 
-def test_equal_absolute_areas_prefer_the_first_contour() -> None:
-    outline = _outline(_SQUARE, list(reversed(_SQUARE)))
-    assert _signs(F.normalize_winding(outline)) == [-1, 1]
+@pytest.mark.parametrize("shift", [0.0, 0.5])
+def test_zero_sum_group_is_unchanged(shift: float) -> None:
+    opposite = [(x + shift, y) for x, y in reversed(_SQUARE)]
+    outline = _outline(_SQUARE, opposite)
+    for output in (
+        F.normalize_winding(outline),
+        F.normalize_winding(outline, clockwise=False),
+        RandomWinding()(outline),
+    ):
+        assert torch.equal(output.types, outline.types)
+        assert torch.equal(output.coords, outline.coords)
 
 
 def test_disjoint_contours_with_overlapping_bounds_are_independent() -> None:
@@ -637,7 +645,7 @@ def test_small_nonzero_areas_still_have_a_direction(scale: float) -> None:
 
 
 @pytest.mark.parametrize("sample", range(16))
-def test_opposite_duplicate_curves_prefer_the_first_contour(sample: int) -> None:
+def test_opposite_duplicate_curves_remain_unchanged(sample: int) -> None:
     generator = torch.Generator().manual_seed(1)
     coords = torch.rand(sample + 1, 7, 6, generator=generator)[-1]
     coords[0, :4] = 0
@@ -657,17 +665,13 @@ def test_opposite_duplicate_curves_prefer_the_first_contour(sample: int) -> None
         torch.cat((outline.types[:-1], reversed_outline.types)),
         torch.cat((outline.coords[:-1], reversed_outline.coords)),
     )
-    for clockwise in (False, True):
-        output = F.normalize_winding(pair, clockwise=clockwise)
-        expected_first = F.normalize_winding(outline, clockwise=clockwise)
-        assert torch.equal(output.coords[:6], expected_first.coords[:-1])
-        repeated = F.normalize_winding(output, clockwise=clockwise)
-        assert torch.equal(repeated.coords, output.coords)
-    torch.manual_seed(sample)
-    random_output = RandomWinding()(pair)
-    torch.manual_seed(sample)
-    random_first = RandomWinding()(outline)
-    assert torch.equal(random_output.coords[:6], random_first.coords[:-1])
+    for output in (
+        F.normalize_winding(pair),
+        F.normalize_winding(pair, clockwise=False),
+        RandomWinding()(pair),
+    ):
+        assert torch.equal(output.types, pair.types)
+        assert torch.equal(output.coords, pair.coords)
 
 
 @pytest.mark.parametrize("seed", range(32))

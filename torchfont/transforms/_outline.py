@@ -31,8 +31,8 @@ class RandomWinding(Transform):
     """Choose clockwise or counterclockwise for each group with equal probability.
 
     Grouping and direction follow :class:`NormalizeWinding`; relative winding
-    within each group is preserved. Groups containing open subpaths are
-    unchanged. Groups with only zero-area contours have no defined direction.
+    within each group is preserved. Groups containing open subpaths or whose
+    summed signed area is zero within floating-point roundoff are unchanged.
     Corresponding groups in one call share the sampled directions.
     """
 

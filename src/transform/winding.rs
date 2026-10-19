@@ -41,21 +41,15 @@ fn group_area(areas: impl Iterator<Item = (f64, f64)>) -> f64 {
     let mut error = 0.0;
     let mut magnitude = 0.0;
     let mut count = 0;
-    let mut largest = 0.0_f64;
-    let mut largest_error = 0.0;
     for (area, area_error) in areas {
         total += area;
         magnitude += area.abs();
         error += area_error;
         count += 1;
-        if area.abs() > largest.abs() + largest_error + area_error {
-            largest = area;
-            largest_error = area_error;
-        }
     }
     if total.abs() > error + f64::EPSILON * magnitude * f64::from(count) {
         total
     } else {
-        largest
+        0.0
     }
 }
