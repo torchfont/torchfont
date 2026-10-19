@@ -1,5 +1,11 @@
 # Contributing to TorchFont
 
+## Maintaining Development Guidelines
+
+- `AGENTS.md` should summarize actionable development rules so they can be understood without following references. `CONTRIBUTING.md` contains their detailed criteria and procedures. Keep summaries aligned with those details; do not copy the full rules or replace summaries with reference-only instructions.
+- Before changing a development rule, read the documents' existing structure and identify the activity the rule governs, its authoritative document, and the appropriate section. Choose placement by the governed activity rather than the file type being edited. Update `AGENTS.md` only when its summary also needs to change.
+- After editing, review the full guideline diff in the context of the surrounding documents for section placement, scope, level of detail, duplicated rules, and conflicting responsibilities.
+
 ## Environment Setup
 
 - If the project is open in a Dev Container, continue developing there.
@@ -75,15 +81,16 @@
 
 ## Documentation
 
-- Use existing documentation to judge whether changes are needed; internal implementation changes alone do not justify them.
-- Do not make unnecessary documentation edits just to feel that you have accomplished work.
+- For implementation tasks, update existing documentation and public docstrings only where the change makes their current content incorrect or misleading.
+- Preserve each document's existing scope, structure, and level of detail. A public behavior change alone does not justify adding a new page, section, example, or explanation.
+- Keep API-specific behavior in the existing public API docstrings unless the documentation already describes comparable APIs at that level of detail. Do not duplicate those details in overview or reference pages.
+- Add documentation beyond these limits only when the user explicitly requests that documentation expansion.
 - Do not add comments to source code.
 - Use VitePress for documentation.
 - Include only information intended for library users in documentation and docstrings.
 - Do not write docstrings for private APIs.
 - Do not include maintainer information, such as implementation history.
 - Keep Japanese and English documentation aligned in content.
-- Prioritize consistency with existing documentation and avoid adding information indiscriminately.
 - Publish documentation on Read the Docs.
 
 ## Examples
