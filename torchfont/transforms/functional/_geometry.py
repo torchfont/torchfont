@@ -32,10 +32,6 @@ def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
     return pair0, pair1, pair2
 
 
-def _bbox_center(types: Tensor, coords: Tensor) -> Tensor:
-    return _ops.bbox_center(types.detach(), coords.detach())
-
-
 def _apply_matrix(
     types: Tensor,
     coords: Tensor,
@@ -76,13 +72,6 @@ def _rotation_scale_shear_matrix(
     )
 
 
-def _preserve_closed_subpath_winding(
-    types: Tensor,
-    coords: Tensor,
-) -> tuple[Tensor, Tensor]:
-    return _ops.reverse_closed_subpaths(types.detach(), coords.detach())
-
-
 def _horizontal_flip(
     types: Tensor,
     coords: Tensor,
@@ -90,10 +79,10 @@ def _horizontal_flip(
     preserve_winding: bool = True,
 ) -> tuple[Tensor, Tensor]:
     matrix = coords.new_tensor([[-1.0, 0.0], [0.0, 1.0]])
-    center = _bbox_center(types, coords)
+    center = _ops.bbox_center(types.detach(), coords.detach())
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
     if preserve_winding:
-        return _preserve_closed_subpath_winding(types, out_coords)
+        return _ops.reverse_subpaths(types.detach(), out_coords.detach())
     return types, out_coords
 
 
@@ -104,10 +93,10 @@ def _vertical_flip(
     preserve_winding: bool = True,
 ) -> tuple[Tensor, Tensor]:
     matrix = coords.new_tensor([[1.0, 0.0], [0.0, -1.0]])
-    center = _bbox_center(types, coords)
+    center = _ops.bbox_center(types.detach(), coords.detach())
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
     if preserve_winding:
-        return _preserve_closed_subpath_winding(types, out_coords)
+        return _ops.reverse_subpaths(types.detach(), out_coords.detach())
     return types, out_coords
 
 
@@ -134,12 +123,14 @@ def _affine(
         msg = "translate values must be finite"
         raise ValueError(msg)
     matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
-    center = _bbox_center(types, coords)
+    center = _ops.bbox_center(types.detach(), coords.detach())
     return types, _apply_matrix(types, coords, matrix, center, translate)
 
 
 def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     """Flip an outline horizontally around its tight bounding-box centre.
+
+    ``preserve_winding`` applies to both open and closed subpaths.
 
     Differentiable only when ``preserve_winding`` is ``False``; reversing
     subpaths reorders elements in Rust and defines no gradient.
@@ -154,6 +145,8 @@ def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
 
 def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     """Flip an outline vertically around its tight bounding-box centre.
+
+    ``preserve_winding`` applies to both open and closed subpaths.
 
     Differentiable only when ``preserve_winding`` is ``False``; reversing
     subpaths reorders elements in Rust and defines no gradient.
@@ -204,7 +197,7 @@ def scale(inpt: Outline, factors: tuple[float, float]) -> Outline:
         msg = "scale factors must be positive and finite"
         raise ValueError(msg)
     matrix = inpt.coords.new_tensor([[scale_x, 0.0], [0.0, scale_y]])
-    center = _bbox_center(inpt.types, inpt.coords)
+    center = _ops.bbox_center(inpt.types.detach(), inpt.coords.detach())
     return _same_types(
         inpt,
         _apply_matrix(inpt.types, inpt.coords, matrix, center, (0.0, 0.0)),

@@ -112,14 +112,14 @@ def test_horizontal_flip_can_leave_reflected_winding(
     assert _signed_area(out_types, out) == pytest.approx(-_signed_area(types, coords))
 
 
-def test_horizontal_flip_does_not_reverse_open_subpaths(
+def test_horizontal_flip_reverses_open_subpaths(
     open_subpath: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
     types, coords = open_subpath
     out_types, out = horizontal_flip(types, coords)
     assert torch.equal(out_types, types)
-    assert out[0, 4].item() == pytest.approx(1.0)
-    assert out[1, 4].item() == pytest.approx(2.0)
+    assert out[0, 4].item() == pytest.approx(2.0)
+    assert out[1, 4].item() == pytest.approx(1.0)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")

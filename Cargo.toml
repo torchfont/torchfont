@@ -15,6 +15,7 @@ ignore = "0.4.28"
 kurbo = "0.13.1"
 memmap2 = "0.9.11"
 numpy = "0.29.0"
+petgraph = { version = "0.7.1", default-features = false }
 shellexpand = "3.1.2"
 smallvec = "1.15.2"
 # Intentionally non-optional: PyPI wheels are compiled binaries and Cargo

@@ -3,7 +3,7 @@ from typing import Literal
 import pytest
 import torch
 
-from torchfont import ElementType, Outline
+from torchfont import ElementType, Outline, _ops
 from torchfont.transforms import NormalizeWinding, RandomWinding
 from torchfont.transforms import functional as F  # noqa: N812
 
@@ -273,18 +273,14 @@ def test_difficult_curve_intersections_preserve_fill(
         torch.tensor(types, dtype=torch.long),
         torch.tensor(coords, dtype=torch.float32),
     )
-    reversed_outline = F.reverse_winding_groups(outline, torch.tensor([True, True]))
-    restored = F.reverse_winding_groups(reversed_outline, torch.tensor([True, True]))
-    assert torch.equal(restored.types, outline.types)
-    assert torch.equal(restored.coords, outline.coords)
     torch.manual_seed(0)
     results = [
         F.normalize_winding(outline, clockwise=clockwise) for clockwise in (True, False)
     ]
     results.append(RandomWinding()(outline))
     results.extend(
-        F.reverse_winding_groups(outline, torch.tensor(mask))
-        for mask in ([False, False], [True, False], [False, True], [True, True])
+        F.normalize_winding(outline, clockwise=torch.tensor(clockwise))
+        for clockwise in ([True, False], [False, True])
     )
     original = F.render_bitmap(outline, 128, mode="bbox", fill_rule=fill_rule)
     for result in results:
@@ -339,50 +335,84 @@ def test_normalizes_uniformly_oriented_contours(*, clockwise: bool) -> None:
     assert _signs(output) == [sign, sign]
 
 
-def test_largest_absolute_area_determines_group_direction() -> None:
+def test_normalization_accepts_per_group_directions() -> None:
+    outline = _outline(_SQUARE, _HOLE, _ACCENT)
+    output = F.normalize_winding(outline, clockwise=torch.tensor([False, True]))
+    assert _signs(output) == [1, -1, -1]
+    repeated = F.normalize_winding(output, clockwise=torch.tensor([False, True, False]))
+    assert torch.equal(repeated.types, output.types)
+    assert torch.equal(repeated.coords, output.coords)
+
+
+@pytest.mark.parametrize("clockwise", [True, False])
+def test_single_direction_tensor_applies_to_all_groups(*, clockwise: bool) -> None:
+    outline = _outline(_SQUARE, _HOLE, _ACCENT)
+    scalar = F.normalize_winding(outline, clockwise=clockwise)
+    tensor = F.normalize_winding(outline, clockwise=torch.tensor([clockwise]))
+    assert torch.equal(scalar.types, tensor.types)
+    assert torch.equal(scalar.coords, tensor.coords)
+
+
+@pytest.mark.parametrize("clockwise", [[], [True, False]])
+def test_normalization_requires_directions_for_all_groups(
+    clockwise: list[bool],
+) -> None:
+    third = [(x + 2, y) for x, y in _ACCENT]
+    with pytest.raises(ValueError, match="one value per winding group"):
+        F.normalize_winding(
+            _outline(_SQUARE, _ACCENT, third),
+            clockwise=torch.tensor(clockwise, dtype=torch.bool),
+        )
+
+
+def test_nested_group_uses_total_signed_area() -> None:
     outline = _outline(list(reversed(_HOLE)), list(reversed(_SQUARE)))
     assert _signs(F.normalize_winding(outline)) == [1, -1]
 
 
-def test_equal_absolute_areas_prefer_the_first_contour() -> None:
-    outline = _outline(_SQUARE, list(reversed(_SQUARE)))
-    assert _signs(F.normalize_winding(outline)) == [-1, 1]
+@pytest.mark.parametrize("shift", [0.0, 0.5])
+def test_zero_sum_group_is_unchanged(shift: float) -> None:
+    opposite = [(x + shift, y) for x, y in reversed(_SQUARE)]
+    outline = _outline(_SQUARE, opposite)
+    for output in (
+        F.normalize_winding(outline),
+        F.normalize_winding(outline, clockwise=False),
+        RandomWinding()(outline),
+    ):
+        assert torch.equal(output.types, outline.types)
+        assert torch.equal(output.coords, outline.coords)
 
 
-def test_disjoint_contours_with_overlapping_bounds_share_a_group() -> None:
+def test_disjoint_contours_with_overlapping_bounds_are_independent() -> None:
     outline = _outline([(0, 0), (2, 0), (0, 2)], [(2, 2), (2, 0.8), (0.8, 2)])
-    assert _signs(F.normalize_winding(outline)) == [-1, 1]
-    assert _signs(F.reverse_winding_groups(outline, torch.tensor([True, False]))) == [
-        -1,
-        1,
-    ]
+    assert _signs(F.normalize_winding(outline)) == [-1, -1]
 
 
-def test_contour_in_a_concave_gap_shares_a_bounding_box_group() -> None:
+def test_contour_in_a_concave_gap_is_independent() -> None:
     outline = _outline(
         [(0, 0), (3, 0), (3, 1), (1, 1), (1, 2), (3, 2), (3, 3), (0, 3)],
         [(2, 1.2), (2.5, 1.2), (2.5, 1.8), (2, 1.8)],
     )
-    output = F.reverse_winding_groups(outline, torch.tensor([True, False]))
-    assert _signs(output) == [-1, -1]
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
+    assert _signs(output) == [-1, 1]
 
 
 @pytest.mark.parametrize(
-    ("mask", "expected"),
+    ("clockwise", "expected"),
     [([True, False], [-1, -1, 1]), ([False, True], [1, 1, -1])],
 )
 def test_group_order_follows_input_when_spatial_order_is_reversed(
-    mask: list[bool], expected: list[int]
+    clockwise: list[bool], expected: list[int]
 ) -> None:
     outline = _outline(_ACCENT, _HOLE, _SQUARE)
-    output = F.reverse_winding_groups(outline, torch.tensor(mask))
+    output = F.normalize_winding(outline, clockwise=torch.tensor(clockwise))
     assert _signs(output) == expected
 
 
-def test_shared_diagonal_with_overlapping_bounds_forms_one_group() -> None:
+def test_shared_diagonal_without_interior_overlap_is_independent() -> None:
     outline = _outline([(0, 0), (1, 0), (0, 1)], [(1, 1), (0, 1), (1, 0)])
-    output = F.reverse_winding_groups(outline, torch.tensor([True, False]))
-    assert _signs(output) == [-1, -1]
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
+    assert _signs(output) == [-1, 1]
 
 
 def test_crossing_contours_without_contained_vertices_form_one_group() -> None:
@@ -390,7 +420,7 @@ def test_crossing_contours_without_contained_vertices_form_one_group() -> None:
         [(-1, 0.4), (2, 0.4), (2, 0.6), (-1, 0.6)],
         [(0.4, -1), (0.6, -1), (0.6, 2), (0.4, 2)],
     )
-    output = F.reverse_winding_groups(outline, torch.tensor([True]))
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
     assert _signs(output) == [-1, -1]
 
 
@@ -398,28 +428,26 @@ def test_transitive_intersections_form_one_group() -> None:
     right = [(x + 1.2, y) for x, y in reversed(_SQUARE)]
     bridge = [(x + 0.5, y) for x, y in _SQUARE]
     outline = _outline(right, _SQUARE, bridge)
-    output = F.reverse_winding_groups(outline, torch.tensor([True]))
+    output = F.normalize_winding(outline)
     assert _signs(output) == [1, -1, -1]
 
 
 @pytest.mark.parametrize("filled", [True, False])
-def test_zero_signed_area_contours_are_grouped_by_bounds(*, filled: bool) -> None:
+def test_zero_signed_area_contours_use_nonzero_interiors(*, filled: bool) -> None:
     points = (
         [(0.2, 0.2), (0.8, 0.8), (0.2, 0.8), (0.8, 0.2)]
         if filled
         else [(0.2, 0.2), (0.8, 0.2), (0.2, 0.8), (0.8, 0.2)]
     )
     outline = _outline(_SQUARE, points)
-    mask = torch.tensor([True])
-    output = F.reverse_winding_groups(outline, mask)
-    for fill_rule in ("winding", "even_odd"):
-        assert torch.equal(
-            F.render_bitmap(output, 96, fill_rule=fill_rule, antialias=False),
-            F.render_bitmap(outline, 96, fill_rule=fill_rule, antialias=False),
-        )
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
+    reversed_all = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
+    assert torch.equal(output.coords[:5], reversed_all.coords[:5])
+    expected = reversed_all if filled else outline
+    assert torch.equal(output.coords[5:], expected.coords[5:])
 
 
-def test_retraced_cubic_with_roundoff_preserves_fill_in_a_bounding_box_group() -> None:
+def test_retraced_cubic_with_roundoff_has_an_independent_empty_interior() -> None:
     points = torch.tensor(
         [
             [0.41692355275154114, 0.11778823286294937],
@@ -451,8 +479,9 @@ def test_retraced_cubic_with_roundoff_preserves_fill_in_a_bounding_box_group() -
         ),
         torch.cat((square.coords[:-1], coords)),
     )
-    output = F.reverse_winding_groups(outline, torch.tensor([True]))
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
     assert _signs(output)[0] == -1
+    assert torch.equal(output.coords[5:], outline.coords[5:])
     for fill_rule in ("winding", "even_odd"):
         assert torch.equal(
             F.render_bitmap(output, 128, fill_rule=fill_rule, antialias=False),
@@ -477,9 +506,11 @@ def test_preserves_fill(fill_rule: Literal["winding", "even_odd"], case: str) ->
     }[case]
     outline = _outline(*contours)
     normalized = F.normalize_winding(outline)
-    reversed_groups = F.reverse_winding_groups(outline, torch.tensor([True, False]))
+    mixed_clockwise = F.normalize_winding(
+        outline, clockwise=torch.tensor([False, True])
+    )
     original = F.render_bitmap(outline, 96, fill_rule=fill_rule, antialias=False)
-    for result in (normalized, reversed_groups):
+    for result in (normalized, mixed_clockwise):
         assert torch.equal(
             original, F.render_bitmap(result, 96, fill_rule=fill_rule, antialias=False)
         )
@@ -510,23 +541,6 @@ def test_random_directions_do_not_depend_on_input_winding(
     assert _signs(output) == [1, -1, -1]
 
 
-@pytest.mark.parametrize("selected", [False, True])
-def test_mask_must_cover_every_group(*, selected: bool) -> None:
-    with pytest.raises(ValueError, match="one value per winding group"):
-        F.reverse_winding_groups(_outline(_SQUARE, _ACCENT), torch.tensor([selected]))
-
-
-@pytest.mark.parametrize("selected", [False, True])
-def test_mask_covers_groups_and_ignores_extra_entries(*, selected: bool) -> None:
-    outline = _outline(_SQUARE, _HOLE, _ACCENT)
-    short = F.reverse_winding_groups(outline, torch.tensor([selected, selected]))
-    long = F.reverse_winding_groups(
-        outline, torch.tensor([selected, selected, selected, not selected])
-    )
-    assert torch.equal(long.types, short.types)
-    assert torch.equal(long.coords, short.coords)
-
-
 def test_normalization_keeps_an_independent_zero_area_contour() -> None:
     outline = _outline(_SQUARE, [(2, 0), (3, 0)])
     output = F.normalize_winding(outline)
@@ -534,47 +548,102 @@ def test_normalization_keeps_an_independent_zero_area_contour() -> None:
     assert torch.equal(output.coords[5:], outline.coords[5:])
 
 
-def test_normalization_reverses_closed_contours_but_keeps_open_contours() -> None:
+def test_normalization_reverses_closed_and_open_contours() -> None:
     outline = _outline(list(reversed(_SQUARE)), list(reversed(_ACCENT)))
     close = (outline.types == ElementType.CLOSE).nonzero().flatten()[-1]
     keep = torch.arange(outline.types.numel()) != close
     outline = Outline(outline.types[keep], outline.coords[keep])
-    assert _signs(F.normalize_winding(outline, clockwise=False)) == [1, -1]
+    assert _signs(F.normalize_winding(outline, clockwise=False)) == [1, 1]
 
 
-def test_uniform_reversal_keeps_a_group_with_an_open_contour() -> None:
+def test_normalization_reverses_a_group_with_an_open_contour() -> None:
     outline = _outline(_SQUARE, _HOLE)
     close = (outline.types == ElementType.CLOSE).nonzero().flatten()[-1]
     keep = torch.arange(outline.types.numel()) != close
     outline = Outline(outline.types[keep], outline.coords[keep])
-    output = F.reverse_winding_groups(outline, torch.tensor([True, True]))
-    assert torch.equal(output.types, outline.types)
-    assert torch.equal(output.coords, outline.coords)
+    output = F.normalize_winding(outline, clockwise=True)
+    assert _signs(output) == [-1, 1]
+    assert (output.types == ElementType.CLOSE).sum() == 1
+    assert torch.equal(
+        F.normalize_winding(output, clockwise=False).coords, outline.coords
+    )
+
+
+def test_open_curves_reverse_with_closed_group_without_adding_close() -> None:
+    closed = _outline([(-1, -3), (4, -3), (4, 3), (-1, 3)])
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO,
+            ElementType.QUAD_TO,
+            ElementType.CURVE_TO,
+            ElementType.LINE_TO,
+        ]
+    )
+    coords = torch.tensor(
+        [
+            [0, 0, 0, 0, 0, 0],
+            [1, -2, 0, 0, 2, 0],
+            [3, 0, 3, 2, 2, 2],
+            [0, 0, 0, 0, 0, 2],
+        ],
+        dtype=torch.float32,
+    )
+    outline = Outline(
+        torch.cat((types, closed.types)), torch.cat((coords, closed.coords))
+    )
+    output = F.normalize_winding(outline)
+    reversed_closed = Outline(*_ops.reverse_subpaths(closed.types, closed.coords))
+    expected_types = torch.cat(
+        (
+            torch.tensor(
+                [
+                    ElementType.MOVE_TO,
+                    ElementType.LINE_TO,
+                    ElementType.CURVE_TO,
+                    ElementType.QUAD_TO,
+                ]
+            ),
+            reversed_closed.types,
+        )
+    )
+    expected_coords = torch.cat(
+        (
+            torch.tensor(
+                [
+                    [0, 0, 0, 0, 0, 2],
+                    [0, 0, 0, 0, 2, 2],
+                    [3, 2, 3, 0, 2, 0],
+                    [1, -2, 0, 0, 0, 0],
+                ],
+                dtype=torch.float32,
+            ),
+            reversed_closed.coords,
+        )
+    )
+    assert torch.equal(output.types, expected_types)
+    assert torch.equal(output.coords, expected_coords)
+    restored = F.normalize_winding(output, clockwise=False)
+    assert torch.equal(restored.types, outline.types)
+    assert torch.equal(restored.coords, outline.coords)
 
 
 @pytest.mark.parametrize("zero_area", [False, True], ids=["empty", "zero_area"])
 def test_empty_and_zero_area_outlines_are_unchanged(*, zero_area: bool) -> None:
     outline = _outline([(0, 0), (1, 0)]) if zero_area else _outline()
-    mask = torch.zeros(int(zero_area), dtype=torch.bool)
     for output in (
         F.normalize_winding(outline),
-        F.reverse_winding_groups(outline, mask),
+        F.normalize_winding(outline, clockwise=False),
     ):
         assert torch.equal(output.types, outline.types)
         assert torch.equal(output.coords, outline.coords)
 
 
-def test_open_contour_keeps_only_its_interacting_group_unchanged() -> None:
+def test_open_contour_normalizes_with_its_interacting_group() -> None:
     outline = _outline(_SQUARE, _HOLE, _ACCENT)
     close_indices = (outline.types == ElementType.CLOSE).nonzero().flatten()
     keep = torch.arange(outline.types.numel()) != close_indices[1]
     outline = Outline(outline.types[keep], outline.coords[keep])
-    assert _signs(F.normalize_winding(outline)) == [1, -1, -1]
-    assert _signs(F.reverse_winding_groups(outline, torch.tensor([True, True]))) == [
-        1,
-        -1,
-        -1,
-    ]
+    assert _signs(F.normalize_winding(outline)) == [-1, 1, -1]
 
 
 @pytest.mark.parametrize("fixture", ["quad_outline", "cubic_outline"])
@@ -586,10 +655,10 @@ def test_preserves_curve_geometry(request: pytest.FixtureRequest, fixture: str) 
         torch.cat((outline.coords[:-1], crossing.coords)),
     )
     original = F.render_bitmap(outline, 96)
-    reversed_outline = F.reverse_winding_groups(outline, torch.tensor([True]))
+    reversed_outline = F.normalize_winding(outline, clockwise=False)
     assert not torch.equal(reversed_outline.coords, outline.coords)
     for output in (
-        F.normalize_winding(outline, clockwise=False),
+        F.normalize_winding(outline),
         RandomWinding()(outline),
         reversed_outline,
     ):
@@ -637,7 +706,7 @@ def test_small_nonzero_areas_still_have_a_direction(scale: float) -> None:
 
 
 @pytest.mark.parametrize("sample", range(16))
-def test_opposite_duplicate_curves_prefer_the_first_contour(sample: int) -> None:
+def test_opposite_duplicate_curves_remain_unchanged(sample: int) -> None:
     generator = torch.Generator().manual_seed(1)
     coords = torch.rand(sample + 1, 7, 6, generator=generator)[-1]
     coords[0, :4] = 0
@@ -650,22 +719,18 @@ def test_opposite_duplicate_curves_prefer_the_first_contour(sample: int) -> None
         ),
         coords,
     )
-    reversed_outline = F.reverse_winding_groups(outline, torch.tensor([True]))
+    reversed_outline = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
     pair = Outline(
         torch.cat((outline.types[:-1], reversed_outline.types)),
         torch.cat((outline.coords[:-1], reversed_outline.coords)),
     )
-    for clockwise in (False, True):
-        output = F.normalize_winding(pair, clockwise=clockwise)
-        expected_first = F.normalize_winding(outline, clockwise=clockwise)
-        assert torch.equal(output.coords[:6], expected_first.coords[:-1])
-        repeated = F.normalize_winding(output, clockwise=clockwise)
-        assert torch.equal(repeated.coords, output.coords)
-    torch.manual_seed(sample)
-    random_output = RandomWinding()(pair)
-    torch.manual_seed(sample)
-    random_first = RandomWinding()(outline)
-    assert torch.equal(random_output.coords[:6], random_first.coords[:-1])
+    for output in (
+        F.normalize_winding(pair),
+        F.normalize_winding(pair, clockwise=False),
+        RandomWinding()(pair),
+    ):
+        assert torch.equal(output.types, pair.types)
+        assert torch.equal(output.coords, pair.coords)
 
 
 @pytest.mark.parametrize("seed", range(32))
@@ -692,11 +757,6 @@ def test_cubic_normalization_is_translation_invariant_and_idempotent(seed: int) 
         assert torch.equal(output.coords, expected)
         repeated = F.normalize_winding(output, clockwise=clockwise)
         assert torch.equal(repeated.coords, output.coords)
-    mask = torch.tensor([True])
-    reversed_outline = F.reverse_winding_groups(shifted, mask)
-    restored = F.reverse_winding_groups(reversed_outline, mask)
-    assert torch.equal(restored.types, shifted.types)
-    assert torch.equal(restored.coords, shifted.coords)
     torch.manual_seed(seed)
     random_output = RandomWinding()(shifted)
     torch.manual_seed(seed)
@@ -704,3 +764,105 @@ def test_cubic_normalization_is_translation_invariant_and_idempotent(seed: int) 
     random_expected[0, :4] = 0
     random_expected[-2:] = 0
     assert torch.equal(random_output.coords, random_expected)
+
+
+@pytest.mark.parametrize("clockwise", [True, False])
+def test_group_direction_uses_area_sum_instead_of_largest_contour(
+    *, clockwise: bool
+) -> None:
+    outer = [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)]
+    first = [(0.5, 0.5), (0.5, 3.5), (3.5, 3.5), (3.5, 0.5)]
+    second = [(0.75, 0.75), (0.75, 3.75), (3.75, 3.75), (3.75, 0.75)]
+    outline = _outline(outer, first, second)
+    output = F.normalize_winding(outline, clockwise=clockwise)
+    assert _signs(output) == ([1, -1, -1] if clockwise else [-1, 1, 1])
+    repeated = F.normalize_winding(output, clockwise=clockwise)
+    assert torch.equal(repeated.types, output.types)
+    assert torch.equal(repeated.coords, output.coords)
+
+
+@pytest.mark.parametrize("shift", [(1.0, 0.0), (1.0, 1.0)])
+def test_edge_and_point_contacts_are_independent(shift: tuple[float, float]) -> None:
+    neighbor = [(x + shift[0], y + shift[1]) for x, y in _SQUARE]
+    output = F.normalize_winding(
+        _outline(_SQUARE, neighbor), clockwise=torch.tensor([True, False])
+    )
+    assert _signs(output) == [-1, 1]
+
+
+def test_doubly_traced_contour_groups_using_nonzero_instead_of_even_odd() -> None:
+    twice = [*_SQUARE, *_SQUARE]
+    outline = _outline(twice, list(reversed(_HOLE)))
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
+    assert _signs(output) == [-1, -1]
+
+
+@pytest.mark.parametrize("overlap", [False, True])
+@pytest.mark.parametrize("offset", [0.0, 1024.0])
+def test_quadratic_interiors_determine_groups_with_overlapping_bounds(
+    *, overlap: bool, offset: float
+) -> None:
+    types = torch.tensor(
+        [
+            ElementType.MOVE_TO,
+            ElementType.QUAD_TO,
+            ElementType.QUAD_TO,
+            ElementType.CLOSE,
+        ]
+    )
+    coords = torch.tensor(
+        [[0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 2, 0], [1, -2, 0, 0, 0, 0], [0] * 6],
+        dtype=torch.float32,
+    )
+    coords[:3, :2] += offset
+    coords[:3, 4:] += offset
+    coords[0, :4] = 0
+    shifted = coords.clone()
+    shifted[:3, :2] += 0.5 if overlap else 1.5
+    shifted[:3, 4:] += 0.5 if overlap else 1.5
+    shifted[0, :4] = 0
+    outline = Outline(
+        torch.cat((types, types, torch.tensor([ElementType.END]))),
+        torch.cat((coords, shifted, torch.zeros((1, 6)))),
+    )
+    output = F.normalize_winding(outline, clockwise=torch.tensor([False, True]))
+    reversed_all = F.normalize_winding(outline, clockwise=False)
+    assert torch.equal(output.coords[:4], reversed_all.coords[:4])
+    expected = reversed_all if overlap else outline
+    assert torch.equal(output.coords[4:], expected.coords[4:])
+    repeated = F.normalize_winding(output, clockwise=torch.tensor([False, True]))
+    assert torch.equal(repeated.types, output.types)
+    assert torch.equal(repeated.coords, output.coords)
+
+
+@pytest.mark.parametrize("gap", [-1e-4, 0.0, 1e-4])
+def test_near_tangent_cubic_circles_group_only_when_interiors_overlap(
+    gap: float,
+) -> None:
+    control = 0.5522847498307936
+    types = torch.tensor(
+        [ElementType.MOVE_TO] + [ElementType.CURVE_TO] * 4 + [ElementType.CLOSE]
+    )
+    coords = torch.tensor(
+        [
+            [0, 0, 0, 0, 1, 0],
+            [1, control, control, 1, 0, 1],
+            [-control, 1, -1, control, -1, 0],
+            [-1, -control, -control, -1, 0, -1],
+            [control, -1, 1, -control, 1, 0],
+            [0] * 6,
+        ],
+        dtype=torch.float32,
+    )
+    shifted = coords.clone()
+    shifted[:5, ::2] += 2 + gap
+    shifted[0, :4] = 0
+    outline = Outline(
+        torch.cat((types, types, torch.tensor([ElementType.END]))),
+        torch.cat((coords, shifted, torch.zeros((1, 6)))),
+    )
+    output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
+    reversed_all = F.normalize_winding(outline, clockwise=True)
+    assert torch.equal(output.coords[:6], reversed_all.coords[:6])
+    expected = reversed_all if gap < 0 else outline
+    assert torch.equal(output.coords[6:], expected.coords[6:])

@@ -1270,6 +1270,7 @@ dependencies = [
  "kurbo",
  "memmap2",
  "numpy",
+ "petgraph",
  "pyo3",
  "shellexpand",
  "skia-safe",

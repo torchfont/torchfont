@@ -63,14 +63,11 @@ def randomize_subpath_order(
 def randomize_subpath_start_points(
     types: np.ndarray, coords: np.ndarray, random_values: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]: ...
-def reverse_closed_subpaths(
+def reverse_subpaths(
     types: np.ndarray, coords: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def normalize_winding(
-    types: np.ndarray, coords: np.ndarray, clockwise: bool
-) -> tuple[np.ndarray, np.ndarray]: ...
-def reverse_winding_groups(
-    types: np.ndarray, coords: np.ndarray, reversal_mask: np.ndarray
+    types: np.ndarray, coords: np.ndarray, clockwise: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]: ...
 def remove_overlaps(
     types: np.ndarray, coords: np.ndarray, verify: bool, verify_size: int

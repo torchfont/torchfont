@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from torchfont import ElementType, Outline, _torchfont
-from torchfont.transforms import RandomRemoveOverlaps
+from torchfont.transforms import RandomRemoveOverlaps, functional
 
 
 def _rectangles(
@@ -38,6 +38,100 @@ def _rectangles(
 
 def _four_squares() -> tuple[torch.Tensor, torch.Tensor]:
     return _rectangles([(0.0, 2.0), (1.0, 3.0), (10.0, 12.0), (11.0, 13.0)])
+
+
+def _polygons(*polygons: list[tuple[float, float]]) -> Outline:
+    types: list[int] = []
+    coords: list[list[float]] = []
+    for polygon in polygons:
+        types.extend([ElementType.MOVE_TO.value])
+        types.extend([ElementType.LINE_TO.value] * (len(polygon) - 1))
+        types.append(ElementType.CLOSE.value)
+        coords.extend([[0, 0, 0, 0, x, y] for x, y in polygon])
+        coords.append([0, 0, 0, 0, 0, 0])
+    types.append(ElementType.END.value)
+    coords.append([0, 0, 0, 0, 0, 0])
+    return Outline(torch.tensor(types), torch.tensor(coords, dtype=torch.float32))
+
+
+def test_random_remove_overlaps_ignores_overlapping_bounds() -> None:
+    outline = _polygons([(0, 0), (2, 0), (0, 2)], [(2, 2), (2, 0.8), (0.8, 2)])
+
+    output = functional.remove_overlap_groups(
+        outline, torch.zeros(outline.types.size(0))
+    )
+
+    assert torch.equal(output.types, outline.types)
+    assert torch.equal(
+        functional.render_bitmap(output), functional.render_bitmap(outline)
+    )
+
+
+@pytest.mark.parametrize("offset", [(2, 0), (2, 2)])
+def test_random_remove_overlaps_ignores_boundary_contacts(
+    offset: tuple[int, int],
+) -> None:
+    square: list[tuple[float, float]] = [(0, 0), (2, 0), (2, 2), (0, 2)]
+    dx, dy = offset
+    outline = _polygons(square, [(x + dx, y + dy) for x, y in square])
+
+    output = RandomRemoveOverlaps()(outline)
+
+    assert torch.equal(output.types, outline.types)
+    assert torch.equal(output.coords, outline.coords)
+
+
+def test_random_remove_overlaps_cancels_opposite_contours() -> None:
+    square: list[tuple[float, float]] = [(0, 0), (2, 0), (2, 2), (0, 2)]
+    outline = _polygons(square, list(reversed(square)))
+
+    output = RandomRemoveOverlaps()(outline)
+
+    assert output.types.tolist() == [ElementType.END.value]
+
+
+def test_random_remove_overlaps_simplifies_single_self_intersection() -> None:
+    outline = _polygons([(0, 0), (2, 2), (0, 2), (2, 0)])
+
+    output = RandomRemoveOverlaps()(outline)
+    expected = functional.remove_overlaps(outline)
+
+    assert output.types.tolist().count(ElementType.MOVE_TO.value) == 2
+    assert torch.equal(output.types, expected.types)
+    assert torch.equal(output.coords, expected.coords)
+
+
+@pytest.mark.parametrize("values", [[0.0, 1.0], [1.0, 0.0], [0.9, 0.8]])
+def test_random_remove_overlaps_selects_single_contour_groups(
+    values: list[float],
+) -> None:
+    bowtie = [(0.0, 0.0), (2.0, 2.0), (0.0, 2.0), (2.0, 0.0)]
+    outline = _polygons(bowtie, [(x + 4, y) for x, y in bowtie])
+
+    selection = torch.ones(outline.types.size(0))
+    selection[:2] = torch.tensor(values)
+    output = functional.remove_overlap_groups(outline, selection)
+
+    assert output.types.tolist().count(ElementType.MOVE_TO.value) == 3
+    start = 0 if values[0] > values[1] else len(output.types) - 6
+    assert torch.equal(output.types[start : start + 5], outline.types[:5])
+    source = outline.coords[:5] if values[0] > values[1] else outline.coords[5:10]
+    assert torch.equal(output.coords[start : start + 5], source)
+
+
+def test_random_remove_overlaps_simplifies_single_open_self_intersection() -> None:
+    outline = _polygons([(0, 0), (2, 2), (0, 2), (2, 0)])
+    outline = Outline(
+        torch.cat([outline.types[:-2], outline.types[-1:]]),
+        torch.cat([outline.coords[:-2], outline.coords[-1:]]),
+    )
+
+    output = RandomRemoveOverlaps()(outline)
+
+    expected = functional.remove_overlaps(outline)
+    assert output.types.tolist().count(ElementType.MOVE_TO.value) == 2
+    assert torch.equal(output.types, expected.types)
+    assert torch.equal(output.coords, expected.coords)
 
 
 def test_random_remove_overlaps_can_merge_multiple_groups() -> None:
@@ -76,14 +170,14 @@ def test_random_remove_overlaps_uses_connected_components() -> None:
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 1
 
 
-def test_random_remove_overlaps_excludes_open_subpaths() -> None:
+def test_random_remove_overlaps_includes_open_subpaths() -> None:
     types, coords = _rectangles(
         [(0.0, 2.0), (1.0, 3.0), (1.25, 1.75)], closed=[True, True, False]
     )
 
     out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 
-    assert out_types.tolist().count(ElementType.MOVE_TO.value) == 2
+    assert out_types.tolist().count(ElementType.MOVE_TO.value) == 1
     assert out_types.tolist().count(ElementType.CLOSE.value) == 1
 
 

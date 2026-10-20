@@ -180,7 +180,6 @@ fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
 mod tests {
     use super::*;
     use crate::outline::PathEl;
-    use crate::transform::winding::reverse_subpath;
 
     fn pt(x: f32, y: f32) -> Point {
         Point::new(x.into(), y.into())
@@ -379,7 +378,7 @@ mod tests {
         let right = closed(pt(10.0, 0.0), vec![line(12.0, 0.0), line(11.0, 1.0)]);
         let left = closed(pt(2.0, 0.0), vec![line(0.0, 0.0), line(1.0, 1.0)]);
         let outline = outline_from_subpaths([right.clone(), left.clone()]);
-        let changed = outline_from_subpaths([reverse_subpath(right.elements()), left.clone()]);
+        let changed = outline_from_subpaths([right.reverse_subpaths(), left.clone()]);
 
         assert_eq!(
             subpaths(&normalize_subpath_order(&outline)),
@@ -387,7 +386,7 @@ mod tests {
         );
         assert_eq!(
             subpaths(&normalize_subpath_order(&changed)),
-            vec![left, reverse_subpath(right.elements())]
+            vec![left, right.reverse_subpaths()]
         );
     }
 

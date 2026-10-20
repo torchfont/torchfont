@@ -21,7 +21,6 @@ from torchfont.transforms.functional._outline import (
     normalize_winding,
     remove_overlap_groups,
     remove_overlaps,
-    reverse_winding_groups,
 )
 from torchfont.transforms.functional._subpath import (
     drop_subpaths,
@@ -52,7 +51,6 @@ __all__ = [
     "remove_overlaps",
     "render_bitmap",
     "reorder_subpaths",
-    "reverse_winding_groups",
     "rotate",
     "scale",
     "set_subpath_start_points",

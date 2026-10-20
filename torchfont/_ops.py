@@ -337,14 +337,14 @@ def _(
 
 
 @torch.library.custom_op(
-    "torchfont::reverse_closed_subpaths", mutates_args=(), device_types="cpu"
+    "torchfont::reverse_subpaths", mutates_args=(), device_types="cpu"
 )
-def reverse_closed_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    out = _torchfont.reverse_closed_subpaths(*_arrays(types, coords))
+def reverse_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
+    out = _torchfont.reverse_subpaths(*_arrays(types, coords))
     return _restore(*out)
 
 
-@reverse_closed_subpaths.register_fake
+@reverse_subpaths.register_fake
 def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _dynamic_outline(types, coords)
 
@@ -353,33 +353,15 @@ def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     "torchfont::normalize_winding", mutates_args=(), device_types="cpu"
 )
 def normalize_winding(
-    types: Tensor, coords: Tensor, clockwise: bool
+    types: Tensor, coords: Tensor, clockwise: Tensor
 ) -> tuple[Tensor, Tensor]:
-    out = _torchfont.normalize_winding(*_arrays(types, coords), clockwise)
+    out = _torchfont.normalize_winding(*_arrays(types, coords), _mask(clockwise))
     return _restore(*out)
 
 
 @normalize_winding.register_fake
-def _(types: Tensor, coords: Tensor, clockwise: bool) -> tuple[Tensor, Tensor]:
+def _(types: Tensor, coords: Tensor, clockwise: Tensor) -> tuple[Tensor, Tensor]:
     del clockwise
-    return _dynamic_outline(types, coords)
-
-
-@torch.library.custom_op(
-    "torchfont::reverse_winding_groups", mutates_args=(), device_types="cpu"
-)
-def reverse_winding_groups(
-    types: Tensor, coords: Tensor, reversal_mask: Tensor
-) -> tuple[Tensor, Tensor]:
-    out = _torchfont.reverse_winding_groups(
-        *_arrays(types, coords), _mask(reversal_mask)
-    )
-    return _restore(*out)
-
-
-@reverse_winding_groups.register_fake
-def _(types: Tensor, coords: Tensor, reversal_mask: Tensor) -> tuple[Tensor, Tensor]:
-    del reversal_mask
     return _dynamic_outline(types, coords)
 
 
@@ -450,8 +432,7 @@ __all__ = [
     "remove_overlaps",
     "render_bitmap",
     "reorder_subpaths",
-    "reverse_closed_subpaths",
-    "reverse_winding_groups",
+    "reverse_subpaths",
     "set_subpath_start_points",
     "split_segments",
     "truncate_subpaths",

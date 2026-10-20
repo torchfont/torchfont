@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import torch
+
 from torchfont import _ops
 from torchfont.transforms.functional._utils import _native_outline
 
@@ -11,38 +13,32 @@ if TYPE_CHECKING:
     from torchfont._outline import Outline
 
 
-def normalize_winding(inpt: Outline, *, clockwise: bool = True) -> Outline:
+def normalize_winding(inpt: Outline, *, clockwise: bool | Tensor = True) -> Outline:
     """Normalize winding while preserving non-zero and even-odd fills.
 
-    Contours whose tight bounding boxes overlap with positive area form groups,
-    including containment and transitive overlaps. Contours with disjoint fills
-    can belong to the same group when their bounding boxes overlap.
-    Each group's largest absolute signed area
-    contour determines whether the group is reversed; areas equal within
-    floating-point roundoff prefer the first contour. ``clockwise=True`` chooses
-    clockwise in y-up font coordinates.
-    Groups with open subpaths or only zero-area contours are unchanged.
-    Areas within floating-point roundoff are treated as zero.
+    Contours form a group when their individual non-zero filled interiors
+    overlap, including containment and transitive overlaps. Touching only at
+    points or along shared edges does not join groups. Grouping uses curve
+    geometry without rasterization. Overlap tests use floating-point geometry;
+    extremely narrow overlaps may be missed, limiting fill preservation at that
+    numerical precision.
 
-    Disjoint groups can be reversed independently. Relative winding within a
-    group is preserved, so complex groups may retain mixed outer directions.
+    Each group's sum of signed contour areas determines its direction.
+    Groups whose sum is zero within floating-point roundoff are unchanged.
+    ``clockwise=True`` chooses a negative signed area in y-up font coordinates.
+    A boolean tensor specifies one direction per group in input order; a single
+    entry applies to all groups. Extra entries are ignored.
+    Open subpaths are implicitly closed for fill and area calculations;
+    their open or closed status is preserved in the output.
+
+    Only whole contours are reversed. Relative winding within a group is
+    preserved, so complex groups may retain mixed outer directions.
     Start points may change; contour order and curve geometry are preserved.
     """
+    if isinstance(clockwise, bool):
+        clockwise = torch.tensor([clockwise])
     return _native_outline(
         inpt, _ops.normalize_winding, clockwise, name="normalize_winding"
-    )
-
-
-def reverse_winding_groups(inpt: Outline, reversal_mask: Tensor) -> Outline:
-    """Reverse winding groups selected by an explicit boolean mask.
-
-    Groups are formed as in :func:`normalize_winding` and ordered by their first
-    contour in the input. ``reversal_mask`` must have at least one entry per
-    group; extra entries are ignored. Groups containing open subpaths are
-    unchanged. Geometry, non-zero fill, and even-odd fill are preserved.
-    """
-    return _native_outline(
-        inpt, _ops.reverse_winding_groups, reversal_mask, name="reverse_winding_groups"
     )
 
 
@@ -50,6 +46,8 @@ def remove_overlaps(
     inpt: Outline, *, verify: bool = False, verify_size: int = 256
 ) -> Outline:
     """Merge overlapping subpaths.
+
+    Open subpaths are implicitly closed for filling and may become closed.
 
     Args:
         inpt: Glyph outline to simplify.
@@ -73,8 +71,11 @@ def remove_overlap_groups(
     """Simplify overlap groups according to explicit selection values.
 
     Args:
-        inpt: Glyph outline whose bbox-connected overlap groups are selected
-            for simplification.
+        inpt: Glyph outline whose contours are grouped by overlapping
+            non-zero filled interiors for simplification. Point and shared-edge
+            contacts alone do not join groups. Single contours are also
+            eligible. Open subpaths are implicitly closed for filling and may
+            become closed.
         selection_values: Per-group selection values; see
             :class:`~torchfont.transforms.RandomRemoveOverlaps`.
         verify: Whether to preserve ``inpt`` when coverage changes.
@@ -96,5 +97,4 @@ __all__ = [
     "normalize_winding",
     "remove_overlap_groups",
     "remove_overlaps",
-    "reverse_winding_groups",
 ]

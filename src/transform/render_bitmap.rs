@@ -32,7 +32,8 @@ pub(crate) fn render_bitmap(
     fill_rule: PathFillType,
     antialias: bool,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let path = build_skia_path(outline).filter(|path| !path.segment_masks().is_empty());
+    let path =
+        Some(build_skia_path(outline.elements())).filter(|path| !path.segment_masks().is_empty());
     let bounds = if matches!(mode, RenderMode::Fixed) {
         None
     } else {
@@ -62,7 +63,8 @@ pub(crate) fn render_bitmap_in_bounds(
     fill_rule: PathFillType,
     antialias: bool,
 ) -> RenderedBitmap {
-    let path = build_skia_path(outline).filter(|path| !path.segment_masks().is_empty());
+    let path =
+        Some(build_skia_path(outline.elements())).filter(|path| !path.segment_masks().is_empty());
     let target = render_target(Some(bounds), size as f32, RenderMode::BboxSquare)
         .expect("bbox-square rendering never errors");
     let (Some(path), Some((width, height, transform))) = (path, target) else {
