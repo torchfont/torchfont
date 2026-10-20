@@ -2,29 +2,14 @@ use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
 use crate::outline::{BezPath, PathEl, Point};
 
-const PATHOPS_SCALE: f32 = 16_384.0;
+pub(super) const SKIA_SCALE: f32 = 16_384.0;
 
-pub(super) fn build_skia_path(outline: &BezPath) -> Option<Path> {
-    let mut builder = build_skia_path_builder(outline.elements(), PathFillType::Winding);
-    (!builder.is_empty()).then(|| builder.detach())
-}
-
-pub(super) fn build_pathops_path(elements: &[PathEl]) -> Option<Path> {
-    build_skia_path_builder(elements, PathFillType::Winding)
-        .detach()
-        .try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))
-}
-
-pub(super) fn outline_from_pathops_path(path: &Path) -> Option<BezPath> {
-    outline_from_path(&path.try_make_scale((PATHOPS_SCALE.recip(), PATHOPS_SCALE.recip()))?)
-}
-
-pub(super) fn build_skia_path_builder(elements: &[PathEl], fill_type: PathFillType) -> PathBuilder {
-    let mut builder = PathBuilder::new_with_fill_type(fill_type);
+pub(super) fn build_skia_path(elements: &[PathEl]) -> Option<Path> {
+    let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
     for &element in elements {
         push_skia_element(&mut builder, element);
     }
-    builder
+    builder.detach().try_make_scale((SKIA_SCALE, SKIA_SCALE))
 }
 
 fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
@@ -100,5 +85,5 @@ fn commit_subpath(
 }
 
 fn point(point: skia_safe::Point) -> Point {
-    Point::new(point.x.into(), point.y.into())
+    Point::new((point.x / SKIA_SCALE).into(), (point.y / SKIA_SCALE).into())
 }

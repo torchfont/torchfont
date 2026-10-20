@@ -1,9 +1,8 @@
-use kurbo::Shape;
 use skia_safe::PathFillType;
 
 use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
-use super::skia::{build_pathops_path, outline_from_pathops_path};
+use super::skia::{build_skia_path, outline_from_path};
 use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline, subpath_is_closed};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
@@ -107,8 +106,7 @@ fn render_coverage(outline: &BezPath, bounds: Bounds, size: u32) -> Vec<u8> {
 
 fn simplify_bounds_groups(outline: &BezPath) -> Option<BezPath> {
     let paths: Vec<_> = outline.subpaths().collect();
-    let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
-    let groups = bounds_groups(&bounds, true, |_, _| true);
+    let groups = bounds_groups(&paths, true, |_, _| true);
     let mut result = BezPath::new();
     for group in &groups {
         result.extend(simplify(&component(&paths, group))?);
@@ -124,8 +122,8 @@ fn component(paths: &[&[PathEl]], group: &[usize]) -> BezPath {
 }
 
 fn simplify(outline: &BezPath) -> Option<BezPath> {
-    let path = build_pathops_path(outline.elements())?;
-    outline_from_pathops_path(&path.simplify()?.as_winding()?)
+    let path = build_skia_path(outline.elements())?;
+    outline_from_path(&path.simplify()?.as_winding()?)
 }
 
 #[cfg(test)]
@@ -133,7 +131,7 @@ mod tests {
     use kurbo::{BezPath, Rect, Shape};
     use skia_safe::{PathBuilder, PathFillType};
 
-    use crate::transform::skia::outline_from_path;
+    use crate::transform::skia::{SKIA_SCALE, outline_from_path};
 
     fn rectangle(rect: Rect) -> BezPath {
         rect.to_path(0.1)
@@ -147,12 +145,16 @@ mod tests {
         builder.line_to((10.0, 0.0));
         builder.line_to((10.0, 10.0));
         builder.close();
-        let path = builder.detach();
+        let path = builder
+            .detach()
+            .try_make_scale((SKIA_SCALE, SKIA_SCALE))
+            .unwrap();
 
         let outline = outline_from_path(&path).expect("path has real segments");
         let subpath_count = outline.subpaths().count();
 
         assert_eq!(subpath_count, 1);
+        assert_eq!(outline.bounding_box(), Rect::new(0.0, 0.0, 10.0, 10.0));
     }
 
     #[test]

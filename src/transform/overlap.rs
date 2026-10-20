@@ -1,15 +1,14 @@
-use kurbo::{Rect, Shape};
+use kurbo::Shape;
 use petgraph::unionfind::UnionFind;
 use skia_safe::PathOp;
 
-use super::skia::build_pathops_path;
+use super::skia::build_skia_path;
 use crate::outline::{BezPath, PathEl, subpath_start};
 
 pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<Vec<usize>> {
     if paths.len() < 2 {
         return (0..paths.len()).map(|index| vec![index]).collect();
     }
-    let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
     let filled: Vec<_> = paths
         .iter()
         .zip(areas)
@@ -20,10 +19,10 @@ pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<V
             } else {
                 path
             };
-            build_pathops_path(path.elements())
+            build_skia_path(path.elements())
         })
         .collect();
-    bounds_groups(&bounds, false, |left, right| {
+    bounds_groups(paths, false, |left, right| {
         let (Some(left), Some(right)) = (&filled[left], &filled[right]) else {
             return true;
         };
@@ -33,10 +32,11 @@ pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<V
 }
 
 pub(super) fn bounds_groups(
-    bounds: &[Rect],
+    paths: &[&[PathEl]],
     touching: bool,
     mut overlap: impl FnMut(usize, usize) -> bool,
 ) -> Vec<Vec<usize>> {
+    let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
     let mut roots = UnionFind::new(bounds.len());
     let mut ordered: Vec<_> = (0..bounds.len()).collect();
     ordered.sort_unstable_by(|&left, &right| bounds[left].x0.total_cmp(&bounds[right].x0));
@@ -186,7 +186,7 @@ mod tests {
                 } else {
                     path
                 };
-                build_pathops_path(path.elements()).unwrap()
+                build_skia_path(path.elements()).unwrap()
             })
             .collect();
 
