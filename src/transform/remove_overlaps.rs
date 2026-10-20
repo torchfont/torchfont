@@ -63,7 +63,11 @@ fn renders_match(original: &BezPath, candidate: &BezPath, size: u32) -> bool {
     let Some(bounds) = combined_bounds(original, candidate) else {
         return true;
     };
-    render_coverage(original, bounds, size) == render_coverage(candidate, bounds, size)
+    let original =
+        render_bitmap_in_bounds(original, size, bounds, PathFillType::Winding, false).data;
+    let candidate =
+        render_bitmap_in_bounds(candidate, size, bounds, PathFillType::Winding, false).data;
+    original == candidate
 }
 
 fn combined_bounds(first: &BezPath, second: &BezPath) -> Option<Bounds> {
@@ -77,10 +81,6 @@ fn combined_bounds(first: &BezPath, second: &BezPath) -> Option<Bounds> {
         (bounds @ Some(_), None) | (None, bounds @ Some(_)) => bounds,
         (None, None) => None,
     }
-}
-
-fn render_coverage(outline: &BezPath, bounds: Bounds, size: u32) -> Vec<u8> {
-    render_bitmap_in_bounds(outline, size, bounds, PathFillType::Winding, false).data
 }
 
 fn simplify_bounds_groups(outline: &BezPath) -> Option<BezPath> {
