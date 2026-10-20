@@ -21,7 +21,7 @@ pub(crate) fn random_remove_overlaps(
     random_values: &[f32],
     verify: bool,
     verify_size: u32,
-) -> Result<BezPath, &'static str> {
+) -> BezPath {
     let paths: Vec<_> = outline.subpaths().collect();
     let (indices, closed): (Vec<_>, Vec<_>) = paths
         .iter()
@@ -30,7 +30,7 @@ pub(crate) fn random_remove_overlaps(
         .filter(|(_, path)| subpath_is_closed(path))
         .unzip();
     let areas: Vec<_> = closed.iter().map(|path| subpath_area(path)).collect();
-    let mut groups: Vec<Vec<_>> = overlap_groups(&closed, &areas)?
+    let mut groups: Vec<Vec<_>> = overlap_groups(&closed, &areas)
         .into_iter()
         .map(|group| group.into_iter().map(|index| indices[index]).collect())
         .collect();
@@ -45,7 +45,7 @@ pub(crate) fn random_remove_overlaps(
         .filter(|&index| groups[index].len() > 1)
         .collect();
     if overlapping.is_empty() {
-        return Ok(outline.clone());
+        return outline.clone();
     }
 
     let values = &random_values[..overlapping.len()];
@@ -74,11 +74,11 @@ pub(crate) fn random_remove_overlaps(
             }
         })
         .collect();
-    Ok(if verify && !renders_match(outline, &result, verify_size) {
+    if verify && !renders_match(outline, &result, verify_size) {
         outline.clone()
     } else {
         result
-    })
+    }
 }
 
 fn renders_match(original: &BezPath, candidate: &BezPath, size: u32) -> bool {
@@ -108,7 +108,7 @@ fn render_coverage(outline: &BezPath, bounds: Bounds, size: u32) -> Vec<u8> {
 fn simplify_bounds_groups(outline: &BezPath) -> Option<BezPath> {
     let paths: Vec<_> = outline.subpaths().collect();
     let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
-    let groups = bounds_groups(&bounds, true, |_, _| Ok(true)).ok()?;
+    let groups = bounds_groups(&bounds, true, |_, _| true);
     let mut result = BezPath::new();
     for group in &groups {
         result.extend(simplify(&component(&paths, group))?);

@@ -7,7 +7,7 @@ pub(crate) fn normalize_winding(
 ) -> Result<BezPath, &'static str> {
     let paths: Vec<_> = outline.subpaths().collect();
     let areas: Vec<_> = paths.iter().map(|path| subpath_area(path)).collect();
-    let groups = overlap_groups(&paths, &areas)?;
+    let groups = overlap_groups(&paths, &areas);
     if clockwise.len() != 1 && clockwise.len() < groups.len() {
         return Err("clockwise must contain at least one value per winding group");
     }

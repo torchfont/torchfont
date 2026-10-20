@@ -5,12 +5,9 @@ use skia_safe::PathOp;
 use super::skia::build_pathops_path;
 use crate::outline::{BezPath, PathEl, subpath_start};
 
-pub(super) fn overlap_groups(
-    paths: &[&[PathEl]],
-    areas: &[(f64, f64)],
-) -> Result<Vec<Vec<usize>>, &'static str> {
+pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<Vec<usize>> {
     if paths.len() < 2 {
-        return Ok((0..paths.len()).map(|index| vec![index]).collect());
+        return (0..paths.len()).map(|index| vec![index]).collect();
     }
     let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
     let filled: Vec<_> = paths
@@ -24,27 +21,22 @@ pub(super) fn overlap_groups(
                 path
             };
             build_pathops_path(path.elements())
-                .ok_or("could not build contour fills for overlap groups")
         })
-        .collect::<Result<_, _>>()?;
+        .collect();
     bounds_groups(&bounds, false, |left, right| {
-        let intersection = [(1.0, 1.0), (1.0, -1.0)]
-            .into_iter()
-            .find_map(|scale| {
-                filled[left]
-                    .try_make_scale(scale)?
-                    .op(&filled[right].try_make_scale(scale)?, PathOp::Intersect)
-            })
-            .ok_or("could not intersect contour fills for overlap groups")?;
-        Ok(!intersection.is_empty())
+        let (Some(left), Some(right)) = (&filled[left], &filled[right]) else {
+            return true;
+        };
+        left.op(right, PathOp::Intersect)
+            .is_none_or(|intersection| !intersection.is_empty())
     })
 }
 
 pub(super) fn bounds_groups(
     bounds: &[Rect],
     touching: bool,
-    mut overlap: impl FnMut(usize, usize) -> Result<bool, &'static str>,
-) -> Result<Vec<Vec<usize>>, &'static str> {
+    mut overlap: impl FnMut(usize, usize) -> bool,
+) -> Vec<Vec<usize>> {
     let mut roots = UnionFind::new(bounds.len());
     let mut ordered: Vec<_> = (0..bounds.len()).collect();
     ordered.sort_unstable_by(|&left, &right| bounds[left].x0.total_cmp(&bounds[right].x0));
@@ -58,7 +50,7 @@ pub(super) fn bounds_groups(
             } else {
                 !bounds[left].intersect(bounds[right]).is_zero_area()
             };
-            if candidate && !roots.equiv(left, right) && overlap(left, right)? {
+            if candidate && !roots.equiv(left, right) && overlap(left, right) {
                 roots.union(left, right);
             }
         }
@@ -73,7 +65,7 @@ pub(super) fn bounds_groups(
         .filter(|group| !group.is_empty())
         .collect();
     groups.sort_unstable_by_key(|group| group[0]);
-    Ok(groups)
+    groups
 }
 
 pub(super) fn subpath_area(subpath: &[PathEl]) -> (f64, f64) {
@@ -121,7 +113,7 @@ mod tests {
         let paths: Vec<_> = paths.iter().map(|p| p.elements()).collect();
         let areas: Vec<_> = paths.iter().map(|path| subpath_area(path)).collect();
         assert_eq!(
-            overlap_groups(&paths, &areas).unwrap(),
+            overlap_groups(&paths, &areas),
             vec![vec![0, 1, 2, 3], vec![4]]
         );
     }
@@ -148,7 +140,7 @@ mod tests {
         let paths: Vec<_> = paths.iter().map(|p| p.elements()).collect();
         let areas: Vec<_> = paths.iter().map(|path| subpath_area(path)).collect();
         assert_eq!(
-            overlap_groups(&paths, &areas).unwrap(),
+            overlap_groups(&paths, &areas),
             vec![vec![0], vec![1], vec![2], vec![3], vec![4]]
         );
     }
