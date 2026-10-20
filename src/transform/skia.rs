@@ -1,6 +1,6 @@
-use skia_safe::{Path, PathBuilder, PathFillType};
+use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
-use crate::outline::{BezPath, PathEl};
+use crate::outline::{BezPath, PathEl, Point};
 
 pub(super) const PATHOPS_SCALE: f32 = 131_072.0;
 
@@ -42,4 +42,53 @@ fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
             builder.close();
         }
     };
+}
+
+pub(super) fn outline_from_path(path: &Path) -> Option<BezPath> {
+    let mut outline = BezPath::new();
+    let mut start = None;
+    let mut elements: Vec<PathEl> = Vec::new();
+
+    for record in path.iter() {
+        let points = record.points();
+        match record.verb() {
+            PathVerb::Move => {
+                commit_subpath(&mut outline, &mut start, &mut elements, false);
+                start = Some(point(points[0]));
+            }
+            PathVerb::Line => elements.push(PathEl::LineTo(point(points[1]))),
+            PathVerb::Quad => elements.push(PathEl::QuadTo(point(points[1]), point(points[2]))),
+            PathVerb::Cubic => elements.push(PathEl::CurveTo(
+                point(points[1]),
+                point(points[2]),
+                point(points[3]),
+            )),
+            PathVerb::Close => commit_subpath(&mut outline, &mut start, &mut elements, true),
+            PathVerb::Conic => return None,
+        }
+    }
+    commit_subpath(&mut outline, &mut start, &mut elements, false);
+
+    Some(outline)
+}
+
+fn commit_subpath(
+    outline: &mut BezPath,
+    start: &mut Option<Point>,
+    elements: &mut Vec<PathEl>,
+    closed: bool,
+) {
+    if let Some(start) = start.take()
+        && !elements.is_empty()
+    {
+        outline.move_to(start);
+        outline.extend(elements.drain(..));
+        if closed {
+            outline.close_path();
+        }
+    }
+}
+
+fn point(point: skia_safe::Point) -> Point {
+    Point::new(point.x.into(), point.y.into())
 }
