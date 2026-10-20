@@ -1,12 +1,13 @@
+use kurbo::Shape;
 use skia_safe::PathFillType;
 
-use super::overlap::{overlap_groups, subpath_area};
+use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{PATHOPS_SCALE, build_skia_path, outline_from_path};
-use crate::outline::{BezPath, Bounds, bounds_from_outline, subpath_is_closed};
+use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline, subpath_is_closed};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
-    let Some(simplified) = simplify(outline) else {
+    let Some(simplified) = simplify_bounds_groups(outline) else {
         return outline.clone();
     };
     if verify && !renders_match(outline, &simplified, verify_size) {
@@ -21,69 +22,58 @@ pub(crate) fn random_remove_overlaps(
     verify: bool,
     verify_size: u32,
 ) -> Result<BezPath, &'static str> {
-    let source: Vec<_> = outline.subpaths().collect();
-    let (indices, closed): (Vec<_>, Vec<_>) = source
+    let paths: Vec<_> = outline.subpaths().collect();
+    let (indices, closed): (Vec<_>, Vec<_>) = paths
         .iter()
         .copied()
         .enumerate()
         .filter(|(_, path)| subpath_is_closed(path))
         .unzip();
     let areas: Vec<_> = closed.iter().map(|path| subpath_area(path)).collect();
-    let groups: Vec<Vec<_>> = overlap_groups(&closed, &areas)?
+    let mut groups: Vec<Vec<_>> = overlap_groups(&closed, &areas)?
         .into_iter()
-        .filter(|group| group.len() > 1)
         .map(|group| group.into_iter().map(|index| indices[index]).collect())
         .collect();
+    groups.extend(
+        (0..paths.len())
+            .filter(|&index| !subpath_is_closed(paths[index]))
+            .map(|index| vec![index]),
+    );
+    groups.sort_unstable_by_key(|group| group[0]);
 
-    if groups.is_empty() {
+    let overlapping: Vec<_> = (0..groups.len())
+        .filter(|&index| groups[index].len() > 1)
+        .collect();
+    if overlapping.is_empty() {
         return Ok(outline.clone());
     }
 
-    let values = &random_values[..groups.len()];
-    let mut selected: Vec<_> = groups
-        .iter()
-        .enumerate()
-        .map(|(index, _)| values[index] < 0.5)
-        .collect();
-    if !selected.iter().any(|&value| value) {
+    let values = &random_values[..overlapping.len()];
+    let mut selected = vec![false; groups.len()];
+    for (&index, &value) in overlapping.iter().zip(values) {
+        selected[index] = value < 0.5;
+    }
+    if !selected.contains(&true) {
         let index = values
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| a.total_cmp(b))
             .map_or(0, |(index, _)| index);
-        selected[index] = true;
+        selected[overlapping[index]] = true;
     }
 
-    let mut group_of = vec![None; source.len()];
-    for (group_index, group) in groups.iter().enumerate() {
-        for &index in group {
-            group_of[index] = Some(group_index);
-        }
-    }
-
-    let mut result = BezPath::new();
-    for index in 0..source.len() {
-        let Some(group_index) = group_of[index] else {
-            result.extend(source[index].iter().copied());
-            continue;
-        };
-        let group = &groups[group_index];
-        if group[0] != index {
-            continue;
-        }
-        if selected[group_index] {
-            let mut component = BezPath::new();
-            for &other in group {
-                component.extend(source[other].iter().copied());
+    let result = groups
+        .iter()
+        .zip(selected)
+        .flat_map(|(group, selected)| {
+            let component = component(&paths, group);
+            if selected {
+                simplify(&component).unwrap_or(component)
+            } else {
+                component
             }
-            let chosen = simplify(&component).unwrap_or(component);
-            result.extend(chosen.elements().iter().copied());
-        } else {
-            for &other in group {
-                result.extend(source[other].iter().copied());
-            }
-        }
-    }
+        })
+        .collect();
     Ok(if verify && !renders_match(outline, &result, verify_size) {
         outline.clone()
     } else {
@@ -113,6 +103,24 @@ fn combined_bounds(first: &BezPath, second: &BezPath) -> Option<Bounds> {
 
 fn render_coverage(outline: &BezPath, bounds: Bounds, size: u32) -> Vec<u8> {
     render_bitmap_in_bounds(outline, size, bounds, PathFillType::Winding, false).data
+}
+
+fn simplify_bounds_groups(outline: &BezPath) -> Option<BezPath> {
+    let paths: Vec<_> = outline.subpaths().collect();
+    let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
+    let groups = bounds_groups(&bounds, true, |_, _| Ok(true)).ok()?;
+    let mut result = BezPath::new();
+    for group in &groups {
+        result.extend(simplify(&component(&paths, group))?);
+    }
+    Some(result)
+}
+
+fn component(paths: &[&[PathEl]], group: &[usize]) -> BezPath {
+    group
+        .iter()
+        .flat_map(|&index| paths[index].iter().copied())
+        .collect()
 }
 
 fn simplify(outline: &BezPath) -> Option<BezPath> {
@@ -194,6 +202,19 @@ mod tests {
         assert_eq!(unverified.subpaths().count(), 1);
         assert_eq!(verified.subpaths().count(), 1);
         assert!(super::renders_match(&unverified, &verified, 128));
+    }
+
+    #[test]
+    fn remove_overlaps_merges_touching_contours_and_keeps_disjoint_ones() {
+        let mut outline = rectangle(Rect::new(0.0, 0.0, 100.0, 100.0));
+        outline.extend(rectangle(Rect::new(100.0, 0.0, 200.0, 100.0)));
+        outline.extend(rectangle(Rect::new(100.0, 100.0, 200.0, 200.0)));
+        outline.extend(rectangle(Rect::new(300.0, 0.0, 400.0, 100.0)));
+
+        let simplified = super::remove_overlaps(&outline, false, 128);
+
+        assert_eq!(simplified.subpaths().count(), 2);
+        assert!(super::renders_match(&outline, &simplified, 128));
     }
 
     #[test]

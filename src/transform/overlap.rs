@@ -1,4 +1,4 @@
-use kurbo::Shape;
+use kurbo::{Rect, Shape};
 use petgraph::unionfind::UnionFind;
 use skia_safe::{PathFillType, PathOp};
 
@@ -12,15 +12,15 @@ pub(super) fn overlap_groups(
     if paths.len() < 2 {
         return Ok((0..paths.len()).map(|index| vec![index]).collect());
     }
-    let mut bounds = paths[0].bounding_box();
-    for path in &paths[1..] {
-        bounds = bounds.union(path.bounding_box());
-    }
-    if bounds.is_zero_area() {
+    let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
+    let union = bounds[1..]
+        .iter()
+        .fold(bounds[0], |union, &rect| union.union(rect));
+    if union.is_zero_area() {
         return Ok((0..paths.len()).map(|index| vec![index]).collect());
     }
     let transform = kurbo::Affine::scale(f64::from(PATHOPS_SCALE))
-        * kurbo::Affine::map_unit_square(bounds).inverse();
+        * kurbo::Affine::map_unit_square(union).inverse();
     let filled: Vec<_> = paths
         .iter()
         .zip(areas)
@@ -37,43 +37,46 @@ pub(super) fn overlap_groups(
             builder.detach()
         })
         .collect();
-    let mut roots = UnionFind::new(paths.len());
-    let mut ordered: Vec<_> = (0..paths.len()).collect();
-    ordered.sort_unstable_by(|&left, &right| {
-        filled[left]
-            .bounds()
-            .left
-            .total_cmp(&filled[right].bounds().left)
-    });
+    bounds_groups(&bounds, false, |left, right| {
+        let intersection = filled[left]
+            .op(&filled[right], PathOp::Intersect)
+            .or_else(|| {
+                filled[left].try_make_scale((1.0, -1.0))?.op(
+                    &filled[right].try_make_scale((1.0, -1.0))?,
+                    PathOp::Intersect,
+                )
+            })
+            .ok_or("could not intersect contour fills for overlap groups")?;
+        Ok(!intersection.is_empty())
+    })
+}
+
+pub(super) fn bounds_groups(
+    bounds: &[Rect],
+    touching: bool,
+    mut overlap: impl FnMut(usize, usize) -> Result<bool, &'static str>,
+) -> Result<Vec<Vec<usize>>, &'static str> {
+    let mut roots = UnionFind::new(bounds.len());
+    let mut ordered: Vec<_> = (0..bounds.len()).collect();
+    ordered.sort_unstable_by(|&left, &right| bounds[left].x0.total_cmp(&bounds[right].x0));
     for (position, &left) in ordered.iter().enumerate() {
-        let left_bounds = filled[left].bounds();
         for &right in &ordered[position + 1..] {
-            let right_bounds = filled[right].bounds();
-            if right_bounds.left >= left_bounds.right {
+            if bounds[right].x0 > bounds[left].x1 {
                 break;
             }
-            if !left_bounds.intersects(right_bounds) {
-                continue;
-            }
-            if roots.equiv(left, right) {
-                continue;
-            }
-            let intersection = filled[left]
-                .op(&filled[right], PathOp::Intersect)
-                .or_else(|| {
-                    filled[left].try_make_scale((1.0, -1.0))?.op(
-                        &filled[right].try_make_scale((1.0, -1.0))?,
-                        PathOp::Intersect,
-                    )
-                })
-                .ok_or("could not intersect contour fills for overlap groups")?;
-            if !intersection.is_empty() {
+            let candidate = if touching {
+                bounds[left].overlaps(bounds[right])
+            } else {
+                !bounds[left].intersect(bounds[right]).is_zero_area()
+            };
+            if candidate && !roots.equiv(left, right) && overlap(left, right)? {
                 roots.union(left, right);
             }
         }
     }
-    let mut members = vec![Vec::new(); paths.len()];
-    for (index, group) in roots.into_labeling().into_iter().enumerate() {
+    let labels = roots.into_labeling();
+    let mut members = vec![Vec::new(); labels.len()];
+    for (index, group) in labels.into_iter().enumerate() {
         members[group].push(index);
     }
     let mut groups: Vec<_> = members
