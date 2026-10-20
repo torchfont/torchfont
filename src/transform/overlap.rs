@@ -1,8 +1,8 @@
-use kurbo::{ParamCurveNearest, Shape};
+use kurbo::Shape;
 use petgraph::unionfind::UnionFind;
 use skia_safe::{PathFillType, PathOp};
 
-use super::skia::{PATHOPS_SCALE, build_skia_path_builder, outline_from_path};
+use super::skia::{PATHOPS_SCALE, build_skia_path_builder};
 use crate::outline::{BezPath, PathEl, subpath_start};
 
 pub(super) fn overlap_groups(
@@ -37,18 +37,6 @@ pub(super) fn overlap_groups(
             builder.detach()
         })
         .collect();
-    let witnesses: Vec<_> = filled
-        .iter()
-        .map(|path| {
-            let center = path.bounds().center();
-            let rect = skia_safe::Rect::from_xywh(center.x - 0.5, center.y - 0.5, 1.0, 1.0);
-            path.conservatively_contains_rect(rect).then_some(center)
-        })
-        .collect();
-    let boundaries: Vec<_> = filled
-        .iter()
-        .map(|path| outline_from_path(path).unwrap())
-        .collect();
     let mut roots = UnionFind::new(paths.len());
     let mut ordered: Vec<_> = (0..paths.len()).collect();
     ordered.sort_unstable_by(|&left, &right| {
@@ -68,20 +56,6 @@ pub(super) fn overlap_groups(
                 continue;
             }
             if roots.equiv(left, right) {
-                continue;
-            }
-            let contains = |index: usize, point: skia_safe::Point| {
-                let point = kurbo::Point::new(point.x.into(), point.y.into());
-                boundaries[index].winding(point) != 0
-                    && boundaries[index].segments().all(|segment| {
-                        segment.nearest(point, 1e-9).distance_sq
-                            > f64::from(f32::EPSILON * PATHOPS_SCALE).powi(2)
-                    })
-            };
-            if witnesses[left].is_some_and(|point| contains(right, point))
-                || witnesses[right].is_some_and(|point| contains(left, point))
-            {
-                roots.union(left, right);
                 continue;
             }
             let intersection = filled[left]
