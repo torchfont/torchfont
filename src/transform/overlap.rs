@@ -93,12 +93,105 @@ mod tests {
         PathEl::LineTo(pt(x, y))
     }
 
+    fn curve(x0: f32, y0: f32, x1: f32, y1: f32, x: f32, y: f32) -> PathEl {
+        PathEl::CurveTo(pt(x0, y0), pt(x1, y1), pt(x, y))
+    }
+
     fn closed(start: Point, elements: Vec<PathEl>) -> BezPath {
         subpath_from_elements(start, elements, true)
     }
 
     fn rectangle(rect: Rect) -> BezPath {
         rect.to_path(0.1)
+    }
+
+    #[test]
+    fn contours_that_pathops_cannot_intersect_join_one_group() {
+        let paths = [
+            closed(
+                pt(0.742_541_2, 0.668_623),
+                vec![
+                    line(0.769_798_46, 0.630_166_05),
+                    curve(
+                        0.737_004_76,
+                        0.594_638_2,
+                        0.686_106_15,
+                        0.552_403,
+                        0.648_498_5,
+                        0.522_434_3,
+                    ),
+                    line(0.597_005_3, 0.583_727_54),
+                    curve(
+                        0.637_774_94,
+                        0.600_433_5,
+                        0.651_300_8,
+                        0.614_271_6,
+                        0.683_370_05,
+                        0.634_912_3,
+                    ),
+                    curve(
+                        0.702_241_7,
+                        0.650_161_6,
+                        0.709_872_25,
+                        0.671_301_4,
+                        0.728_635_8,
+                        0.688_607_16,
+                    ),
+                    line(0.735_493_54, 0.655_443_1),
+                ],
+            ),
+            closed(
+                pt(0.575_259_4, 0.770_773_35),
+                vec![
+                    curve(
+                        0.591_229_26,
+                        0.757_481_5,
+                        0.616_278,
+                        0.725_683_3,
+                        0.714_425_7,
+                        0.633_487_46,
+                    ),
+                    line(0.676_852_4, 0.576_843_5),
+                    line(0.545_650_36, 0.685_919),
+                    line(0.529_213_5, 0.717_811_9),
+                    line(0.552_695_3, 0.779_385_7),
+                    curve(
+                        0.560_307_6,
+                        0.786_794,
+                        0.561_504_66,
+                        0.771_635_65,
+                        0.562_448_44,
+                        0.772_919_24,
+                    ),
+                    curve(
+                        0.567_667_96,
+                        0.776_633,
+                        0.548_577_1,
+                        0.778_467_1,
+                        0.576_196_4,
+                        0.763_719_4,
+                    ),
+                ],
+            ),
+        ];
+        let paths: Vec<_> = paths.iter().map(|p| p.elements()).collect();
+        let areas: Vec<_> = paths.iter().map(|path| subpath_area(path)).collect();
+        let fills: Vec<_> = paths
+            .iter()
+            .zip(&areas)
+            .map(|(path, &(area, _))| {
+                let path = BezPath::from_vec(path.to_vec());
+                let path = if area < 0.0 {
+                    path.reverse_subpaths()
+                } else {
+                    path
+                };
+                build_pathops_path(path.elements()).unwrap()
+            })
+            .collect();
+
+        assert!(fills[0].op(&fills[1], PathOp::Intersect).is_none());
+        assert_eq!(overlap_groups(&paths, &areas), vec![vec![0, 1]]);
     }
 
     #[test]
