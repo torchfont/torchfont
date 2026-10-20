@@ -2,11 +2,21 @@ use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
 use crate::outline::{BezPath, PathEl, Point};
 
-pub(super) const PATHOPS_SCALE: f32 = 131_072.0;
+const PATHOPS_SCALE: f32 = 131_072.0;
 
 pub(super) fn build_skia_path(outline: &BezPath) -> Option<Path> {
     let mut builder = build_skia_path_builder(outline.elements(), PathFillType::Winding);
     (!builder.is_empty()).then(|| builder.detach())
+}
+
+pub(super) fn build_pathops_path(elements: &[PathEl]) -> Option<Path> {
+    build_skia_path_builder(elements, PathFillType::Winding)
+        .detach()
+        .try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))
+}
+
+pub(super) fn outline_from_pathops_path(path: &Path) -> Option<BezPath> {
+    outline_from_path(&path.try_make_scale((PATHOPS_SCALE.recip(), PATHOPS_SCALE.recip()))?)
 }
 
 pub(super) fn build_skia_path_builder(elements: &[PathEl], fill_type: PathFillType) -> PathBuilder {

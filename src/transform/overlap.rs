@@ -1,8 +1,8 @@
 use kurbo::{Rect, Shape};
 use petgraph::unionfind::UnionFind;
-use skia_safe::{PathFillType, PathOp};
+use skia_safe::PathOp;
 
-use super::skia::{PATHOPS_SCALE, build_skia_path_builder};
+use super::skia::build_pathops_path;
 use crate::outline::{BezPath, PathEl, subpath_start};
 
 pub(super) fn overlap_groups(
@@ -13,14 +13,6 @@ pub(super) fn overlap_groups(
         return Ok((0..paths.len()).map(|index| vec![index]).collect());
     }
     let bounds: Vec<_> = paths.iter().map(|path| path.bounding_box()).collect();
-    let union = bounds[1..]
-        .iter()
-        .fold(bounds[0], |union, &rect| union.union(rect));
-    if union.is_zero_area() {
-        return Ok((0..paths.len()).map(|index| vec![index]).collect());
-    }
-    let transform = kurbo::Affine::scale(f64::from(PATHOPS_SCALE))
-        * kurbo::Affine::map_unit_square(union).inverse();
     let filled: Vec<_> = paths
         .iter()
         .zip(areas)
@@ -31,20 +23,17 @@ pub(super) fn overlap_groups(
             } else {
                 path
             };
-            let elements: Vec<_> = path.iter().map(|element| transform * element).collect();
-            let mut builder = build_skia_path_builder(&elements, PathFillType::Winding);
-            builder.close();
-            builder.detach()
+            build_pathops_path(path.elements())
+                .ok_or("could not build contour fills for overlap groups")
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
     bounds_groups(&bounds, false, |left, right| {
-        let intersection = filled[left]
-            .op(&filled[right], PathOp::Intersect)
-            .or_else(|| {
-                filled[left].try_make_scale((1.0, -1.0))?.op(
-                    &filled[right].try_make_scale((1.0, -1.0))?,
-                    PathOp::Intersect,
-                )
+        let intersection = [(1.0, 1.0), (1.0, -1.0), (0.5, 0.5)]
+            .into_iter()
+            .find_map(|scale| {
+                filled[left]
+                    .try_make_scale(scale)?
+                    .op(&filled[right].try_make_scale(scale)?, PathOp::Intersect)
             })
             .ok_or("could not intersect contour fills for overlap groups")?;
         Ok(!intersection.is_empty())

@@ -3,7 +3,7 @@ use skia_safe::PathFillType;
 
 use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
-use super::skia::{PATHOPS_SCALE, build_skia_path, outline_from_path};
+use super::skia::{build_pathops_path, outline_from_pathops_path};
 use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline, subpath_is_closed};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
@@ -124,12 +124,8 @@ fn component(paths: &[&[PathEl]], group: &[usize]) -> BezPath {
 }
 
 fn simplify(outline: &BezPath) -> Option<BezPath> {
-    let path = build_skia_path(outline)?;
-    let scaled = path.try_make_scale((PATHOPS_SCALE, PATHOPS_SCALE))?;
-    let simplified = scaled.simplify()?.as_winding()?;
-    let mut winding = outline_from_path(&simplified)?;
-    winding.apply_affine(kurbo::Affine::scale(f64::from(PATHOPS_SCALE.recip())));
-    Some(winding)
+    let path = build_pathops_path(outline.elements())?;
+    outline_from_pathops_path(&path.simplify()?.as_winding()?)
 }
 
 #[cfg(test)]
@@ -137,7 +133,7 @@ mod tests {
     use kurbo::{BezPath, Rect, Shape};
     use skia_safe::{PathBuilder, PathFillType};
 
-    use super::outline_from_path;
+    use crate::transform::skia::outline_from_path;
 
     fn rectangle(rect: Rect) -> BezPath {
         rect.to_path(0.1)
