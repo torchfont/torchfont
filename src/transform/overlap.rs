@@ -1,7 +1,8 @@
-use kurbo::Shape;
+use kurbo::{ParamCurveNearest, Shape};
+use petgraph::unionfind::UnionFind;
 use skia_safe::{PathFillType, PathOp};
 
-use super::skia::{PATHOPS_SCALE, build_skia_path_builder};
+use super::skia::{PATHOPS_SCALE, build_skia_path_builder, outline_from_path};
 use crate::outline::{BezPath, PathEl, subpath_start};
 
 pub(super) fn overlap_groups(
@@ -15,18 +16,11 @@ pub(super) fn overlap_groups(
     for path in &paths[1..] {
         bounds = bounds.union(path.bounding_box());
     }
-    let scale_x = if bounds.width() > 0.0 {
-        f64::from(PATHOPS_SCALE) / bounds.width()
-    } else {
-        1.0
-    };
-    let scale_y = if bounds.height() > 0.0 {
-        f64::from(PATHOPS_SCALE) / bounds.height()
-    } else {
-        1.0
-    };
-    let transform = kurbo::Affine::scale_non_uniform(scale_x, scale_y)
-        * kurbo::Affine::translate((-bounds.x0, -bounds.y0));
+    if bounds.is_zero_area() {
+        return Ok((0..paths.len()).map(|index| vec![index]).collect());
+    }
+    let transform = kurbo::Affine::scale(f64::from(PATHOPS_SCALE))
+        * kurbo::Affine::map_unit_square(bounds).inverse();
     let filled: Vec<_> = paths
         .iter()
         .zip(areas)
@@ -43,12 +37,51 @@ pub(super) fn overlap_groups(
             builder.detach()
         })
         .collect();
-    let mut roots: Vec<_> = (0..paths.len()).collect();
-    for left in 0..paths.len() {
-        for right in left + 1..paths.len() {
-            let left_root = root(&mut roots, left);
-            let right_root = root(&mut roots, right);
-            if left_root == right_root {
+    let witnesses: Vec<_> = filled
+        .iter()
+        .map(|path| {
+            let center = path.bounds().center();
+            let rect = skia_safe::Rect::from_xywh(center.x - 0.5, center.y - 0.5, 1.0, 1.0);
+            path.conservatively_contains_rect(rect).then_some(center)
+        })
+        .collect();
+    let boundaries: Vec<_> = filled
+        .iter()
+        .map(|path| outline_from_path(path).unwrap())
+        .collect();
+    let mut roots = UnionFind::new(paths.len());
+    let mut ordered: Vec<_> = (0..paths.len()).collect();
+    ordered.sort_unstable_by(|&left, &right| {
+        filled[left]
+            .bounds()
+            .left
+            .total_cmp(&filled[right].bounds().left)
+    });
+    for (position, &left) in ordered.iter().enumerate() {
+        let left_bounds = filled[left].bounds();
+        for &right in &ordered[position + 1..] {
+            let right_bounds = filled[right].bounds();
+            if right_bounds.left >= left_bounds.right {
+                break;
+            }
+            if !left_bounds.intersects(right_bounds) {
+                continue;
+            }
+            if roots.equiv(left, right) {
+                continue;
+            }
+            let contains = |index: usize, point: skia_safe::Point| {
+                let point = kurbo::Point::new(point.x.into(), point.y.into());
+                boundaries[index].winding(point) != 0
+                    && boundaries[index].segments().all(|segment| {
+                        segment.nearest(point, 1e-9).distance_sq
+                            > f64::from(f32::EPSILON * PATHOPS_SCALE).powi(2)
+                    })
+            };
+            if witnesses[left].is_some_and(|point| contains(right, point))
+                || witnesses[right].is_some_and(|point| contains(left, point))
+            {
+                roots.union(left, right);
                 continue;
             }
             let intersection = filled[left]
@@ -61,27 +94,20 @@ pub(super) fn overlap_groups(
                 })
                 .ok_or("could not intersect contour fills for overlap groups")?;
             if !intersection.is_empty() {
-                roots[left_root.max(right_root)] = left_root.min(right_root);
+                roots.union(left, right);
             }
         }
     }
     let mut members = vec![Vec::new(); paths.len()];
-    for index in 0..paths.len() {
-        let group = root(&mut roots, index);
+    for (index, group) in roots.into_labeling().into_iter().enumerate() {
         members[group].push(index);
     }
-    Ok(members
+    let mut groups: Vec<_> = members
         .into_iter()
         .filter(|group| !group.is_empty())
-        .collect())
-}
-
-fn root(roots: &mut [usize], mut index: usize) -> usize {
-    while roots[index] != index {
-        roots[index] = roots[roots[index]];
-        index = roots[index];
-    }
-    index
+        .collect();
+    groups.sort_unstable_by_key(|group| group[0]);
+    Ok(groups)
 }
 
 pub(super) fn subpath_area(subpath: &[PathEl]) -> (f64, f64) {
@@ -140,12 +166,24 @@ mod tests {
             rectangle(Rect::new(0.0, 0.0, 1.0, 1.0)),
             rectangle(Rect::new(1.0, 0.0, 2.0, 1.0)),
             closed(pt(0.5, 0.2), vec![line(0.5, 0.8)]),
+            rectangle(Rect::new(0.0, 2.0, 1.0, 3.0)),
+            closed(
+                pt(-2.0, 0.0),
+                vec![
+                    line(-1.0, 0.0),
+                    line(-1.0, 1.0),
+                    line(-2.0, 1.0),
+                    line(-2.0, 0.0),
+                    line(0.5, 0.5),
+                    line(-2.0, 0.0),
+                ],
+            ),
         ];
         let paths: Vec<_> = paths.iter().map(|p| p.elements()).collect();
         let areas: Vec<_> = paths.iter().map(|path| subpath_area(path)).collect();
         assert_eq!(
             overlap_groups(&paths, &areas).unwrap(),
-            vec![vec![0], vec![1], vec![2]]
+            vec![vec![0], vec![1], vec![2], vec![3], vec![4]]
         );
     }
 
