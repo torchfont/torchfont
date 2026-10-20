@@ -28,7 +28,7 @@ pub(super) fn overlap_groups(
         })
         .collect::<Result<_, _>>()?;
     bounds_groups(&bounds, false, |left, right| {
-        let intersection = [(1.0, 1.0), (1.0, -1.0), (0.5, 0.5)]
+        let intersection = [(1.0, 1.0), (1.0, -1.0)]
             .into_iter()
             .find_map(|scale| {
                 filled[left]
