@@ -57,10 +57,14 @@ def _polygons(*polygons: list[tuple[float, float]]) -> Outline:
 def test_random_remove_overlaps_ignores_overlapping_bounds() -> None:
     outline = _polygons([(0, 0), (2, 0), (0, 2)], [(2, 2), (2, 0.8), (0.8, 2)])
 
-    output = RandomRemoveOverlaps()(outline)
+    output = functional.remove_overlap_groups(
+        outline, torch.zeros(outline.types.size(0))
+    )
 
     assert torch.equal(output.types, outline.types)
-    assert torch.equal(output.coords, outline.coords)
+    assert torch.equal(
+        functional.render_bitmap(output), functional.render_bitmap(outline)
+    )
 
 
 @pytest.mark.parametrize("offset", [(2, 0), (2, 2)])

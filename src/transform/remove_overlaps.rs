@@ -3,6 +3,7 @@ use skia_safe::PathFillType;
 use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{build_skia_path, outline_from_path};
+use super::winding::winding_from_even_odd;
 use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline, subpath_is_closed};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
@@ -123,7 +124,8 @@ fn component(paths: &[&[PathEl]], group: &[usize]) -> BezPath {
 
 fn simplify(outline: &BezPath) -> Option<BezPath> {
     let path = build_skia_path(outline.elements())?;
-    outline_from_path(&path.simplify()?.as_winding()?)
+    let simplified = outline_from_path(&path.simplify()?)?;
+    Some(winding_from_even_odd(&simplified))
 }
 
 #[cfg(test)]
@@ -135,6 +137,42 @@ mod tests {
 
     fn rectangle(rect: Rect) -> BezPath {
         rect.to_path(0.1)
+    }
+
+    #[test]
+    fn simplify_preserves_fill_with_curved_contours() {
+        let mut outline = BezPath::new();
+        outline.move_to((764.0, 774.0));
+        outline.quad_to((214.0, 464.0), (255.0, 464.0));
+        outline.line_to((833.0, 464.0));
+        outline.close_path();
+        outline.move_to((720.0, 375.0));
+        outline.quad_to((720.0, 470.0), (690.0, 470.0));
+        outline.line_to((365.0, 446.0));
+        outline.quad_to((365.0, 470.0), (335.0, 470.0));
+        outline.quad_to((93.0, 326.0), (121.0, 326.0));
+        outline.close_path();
+
+        for simplified in [
+            super::remove_overlaps(&outline, false, 128),
+            super::random_remove_overlaps(&outline, &[0.0; 16], false, 128),
+        ] {
+            for size in [128, 1024] {
+                let bounds = super::combined_bounds(&outline, &simplified).unwrap();
+                let render = |path| {
+                    super::render_bitmap_in_bounds(path, size, bounds, PathFillType::Winding, true)
+                        .data
+                };
+                let original = render(&outline);
+                let result = render(&simplified);
+                assert!(
+                    original
+                        .iter()
+                        .zip(result)
+                        .all(|(&a, b)| { !matches!((a, b), (0, 255) | (255, 0)) })
+                );
+            }
+        }
     }
 
     #[test]
