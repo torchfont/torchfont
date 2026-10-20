@@ -2,7 +2,7 @@ use skia_safe::PathFillType;
 
 use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
-use super::skia::{build_skia_path, outline_from_path};
+use super::skia::{SKIA_SCALE, build_skia_path, outline_from_path};
 use super::winding::winding_from_even_odd;
 use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline};
 
@@ -101,8 +101,11 @@ fn component(paths: &[&[PathEl]], group: &[usize]) -> BezPath {
 }
 
 fn simplify(outline: &BezPath) -> Option<BezPath> {
-    let path = build_skia_path(outline.elements())?;
-    let simplified = outline_from_path(&path.simplify()?)?;
+    let simplified = build_skia_path(outline.elements())
+        .try_make_scale((SKIA_SCALE, SKIA_SCALE))?
+        .simplify()?
+        .try_make_scale((SKIA_SCALE.recip(), SKIA_SCALE.recip()))?;
+    let simplified = outline_from_path(&simplified)?;
     Some(winding_from_even_odd(&simplified))
 }
 
@@ -111,7 +114,7 @@ mod tests {
     use kurbo::{BezPath, Rect, Shape};
     use skia_safe::{PathBuilder, PathFillType};
 
-    use crate::transform::skia::{SKIA_SCALE, outline_from_path};
+    use crate::transform::skia::outline_from_path;
 
     fn rectangle(rect: Rect) -> BezPath {
         rect.to_path(0.1)
@@ -161,10 +164,7 @@ mod tests {
         builder.line_to((10.0, 0.0));
         builder.line_to((10.0, 10.0));
         builder.close();
-        let path = builder
-            .detach()
-            .try_make_scale((SKIA_SCALE, SKIA_SCALE))
-            .unwrap();
+        let path = builder.detach();
 
         let outline = outline_from_path(&path).expect("path has real segments");
         let subpath_count = outline.subpaths().count();

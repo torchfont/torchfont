@@ -2,7 +2,7 @@ use kurbo::Shape;
 use petgraph::unionfind::UnionFind;
 use skia_safe::PathOp;
 
-use super::skia::build_skia_path;
+use super::skia::{SKIA_SCALE, build_skia_path};
 use crate::outline::{BezPath, PathEl, subpath_start};
 
 pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<Vec<usize>> {
@@ -19,7 +19,7 @@ pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<V
             } else {
                 path
             };
-            build_skia_path(path.elements())
+            build_skia_path(path.elements()).try_make_scale((SKIA_SCALE, SKIA_SCALE))
         })
         .collect();
     bounds_groups(paths, false, |left, right| {
@@ -186,7 +186,9 @@ mod tests {
                 } else {
                     path
                 };
-                build_skia_path(path.elements()).unwrap()
+                build_skia_path(path.elements())
+                    .try_make_scale((SKIA_SCALE, SKIA_SCALE))
+                    .unwrap()
             })
             .collect();
 

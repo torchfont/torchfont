@@ -90,10 +90,12 @@ pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
             let is_inside = bounding_boxes[outer].contains_rect(bounding_boxes[inner])
                 && skia_paths[outer]
                     .get_or_insert_with(|| {
-                        build_skia_path(contours[outer].1).map(|mut path| {
-                            path.set_fill_type(PathFillType::EvenOdd);
-                            path
-                        })
+                        build_skia_path(contours[outer].1)
+                            .try_make_scale((SKIA_SCALE, SKIA_SCALE))
+                            .map(|mut path| {
+                                path.set_fill_type(PathFillType::EvenOdd);
+                                path
+                            })
                     })
                     .as_ref()
                     .is_some_and(|path| {

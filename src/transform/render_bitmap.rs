@@ -1,6 +1,6 @@
 use skia_safe::{Canvas, Color, ImageInfo, Matrix, Paint, Path, PathFillType};
 
-use super::skia::{SKIA_SCALE, build_skia_path};
+use super::skia::build_skia_path;
 use crate::outline::{BezPath, Bounds, bounds_from_outline};
 
 const FIXED_MIN: f32 = -0.25;
@@ -32,7 +32,8 @@ pub(crate) fn render_bitmap(
     fill_rule: PathFillType,
     antialias: bool,
 ) -> Result<RenderedBitmap, RenderBitmapError> {
-    let path = build_skia_path(outline.elements()).filter(|path| !path.segment_masks().is_empty());
+    let path =
+        Some(build_skia_path(outline.elements())).filter(|path| !path.segment_masks().is_empty());
     let bounds = if matches!(mode, RenderMode::Fixed) {
         None
     } else {
@@ -62,7 +63,8 @@ pub(crate) fn render_bitmap_in_bounds(
     fill_rule: PathFillType,
     antialias: bool,
 ) -> RenderedBitmap {
-    let path = build_skia_path(outline.elements()).filter(|path| !path.segment_masks().is_empty());
+    let path =
+        Some(build_skia_path(outline.elements())).filter(|path| !path.segment_masks().is_empty());
     let target = render_target(Some(bounds), size as f32, RenderMode::BboxSquare)
         .expect("bbox-square rendering never errors");
     let (Some(path), Some((width, height, transform))) = (path, target) else {
@@ -158,7 +160,6 @@ fn nonempty_bounds(bounds: Option<Bounds>) -> Option<(Bounds, f32, f32)> {
 }
 
 fn render_transform(scale: f32, tx: f32, ty: f32) -> Matrix {
-    let scale = scale / SKIA_SCALE;
     Matrix::new_all(scale, 0.0, tx, 0.0, -scale, ty, 0.0, 0.0, 1.0)
 }
 

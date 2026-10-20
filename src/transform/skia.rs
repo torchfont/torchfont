@@ -4,12 +4,12 @@ use crate::outline::{BezPath, PathEl, Point};
 
 pub(super) const SKIA_SCALE: f32 = 16_384.0;
 
-pub(super) fn build_skia_path(elements: &[PathEl]) -> Option<Path> {
+pub(super) fn build_skia_path(elements: &[PathEl]) -> Path {
     let mut builder = PathBuilder::new_with_fill_type(PathFillType::Winding);
     for &element in elements {
         push_skia_element(&mut builder, element);
     }
-    builder.detach().try_make_scale((SKIA_SCALE, SKIA_SCALE))
+    builder.detach()
 }
 
 fn push_skia_element(builder: &mut PathBuilder, element: PathEl) {
@@ -85,5 +85,5 @@ fn commit_subpath(
 }
 
 fn point(point: skia_safe::Point) -> Point {
-    Point::new((point.x / SKIA_SCALE).into(), (point.y / SKIA_SCALE).into())
+    Point::new(point.x.into(), point.y.into())
 }
