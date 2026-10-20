@@ -40,16 +40,16 @@ pub(crate) fn random_remove_overlaps(
     );
     groups.sort_unstable_by_key(|group| group[0]);
 
-    let overlapping: Vec<_> = (0..groups.len())
-        .filter(|&index| groups[index].len() > 1)
+    let candidates: Vec<_> = (0..groups.len())
+        .filter(|&index| subpath_is_closed(paths[groups[index][0]]))
         .collect();
-    if overlapping.is_empty() {
+    if candidates.is_empty() {
         return outline.clone();
     }
 
-    let values = &random_values[..overlapping.len()];
+    let values = &random_values[..candidates.len()];
     let mut selected = vec![false; groups.len()];
-    for (&index, &value) in overlapping.iter().zip(values) {
+    for (&index, &value) in candidates.iter().zip(values) {
         selected[index] = value < 0.5;
     }
     if !selected.contains(&true) {
@@ -58,7 +58,7 @@ pub(crate) fn random_remove_overlaps(
             .enumerate()
             .min_by(|(_, a), (_, b)| a.total_cmp(b))
             .map_or(0, |(index, _)| index);
-        selected[overlapping[index]] = true;
+        selected[candidates[index]] = true;
     }
 
     let result = groups

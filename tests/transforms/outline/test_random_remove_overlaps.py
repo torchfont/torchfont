@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from torchfont import ElementType, Outline, _torchfont
-from torchfont.transforms import RandomRemoveOverlaps
+from torchfont.transforms import RandomRemoveOverlaps, functional
 
 
 def _rectangles(
@@ -84,6 +84,48 @@ def test_random_remove_overlaps_cancels_opposite_contours() -> None:
     output = RandomRemoveOverlaps()(outline)
 
     assert output.types.tolist() == [ElementType.END.value]
+
+
+def test_random_remove_overlaps_simplifies_single_self_intersection() -> None:
+    outline = _polygons([(0, 0), (2, 2), (0, 2), (2, 0)])
+
+    output = RandomRemoveOverlaps()(outline)
+    expected = functional.remove_overlaps(outline)
+
+    assert output.types.tolist().count(ElementType.MOVE_TO.value) == 2
+    assert torch.equal(output.types, expected.types)
+    assert torch.equal(output.coords, expected.coords)
+
+
+@pytest.mark.parametrize("values", [[0.0, 1.0], [1.0, 0.0], [0.9, 0.8]])
+def test_random_remove_overlaps_selects_single_contour_groups(
+    values: list[float],
+) -> None:
+    bowtie = [(0.0, 0.0), (2.0, 2.0), (0.0, 2.0), (2.0, 0.0)]
+    outline = _polygons(bowtie, [(x + 4, y) for x, y in bowtie])
+
+    selection = torch.ones(outline.types.size(0))
+    selection[:2] = torch.tensor(values)
+    output = functional.remove_overlap_groups(outline, selection)
+
+    assert output.types.tolist().count(ElementType.MOVE_TO.value) == 3
+    start = 0 if values[0] > values[1] else len(output.types) - 6
+    assert torch.equal(output.types[start : start + 5], outline.types[:5])
+    source = outline.coords[:5] if values[0] > values[1] else outline.coords[5:10]
+    assert torch.equal(output.coords[start : start + 5], source)
+
+
+def test_random_remove_overlaps_preserves_single_open_self_intersection() -> None:
+    outline = _polygons([(0, 0), (2, 2), (0, 2), (2, 0)])
+    outline = Outline(
+        torch.cat([outline.types[:-2], outline.types[-1:]]),
+        torch.cat([outline.coords[:-2], outline.coords[-1:]]),
+    )
+
+    output = RandomRemoveOverlaps()(outline)
+
+    assert torch.equal(output.types, outline.types)
+    assert torch.equal(output.coords, outline.coords)
 
 
 def test_random_remove_overlaps_can_merge_multiple_groups() -> None:

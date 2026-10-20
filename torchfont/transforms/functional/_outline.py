@@ -71,7 +71,8 @@ def remove_overlap_groups(
     Args:
         inpt: Glyph outline whose closed contours are grouped by overlapping
             non-zero filled interiors for simplification. Point and shared-edge
-            contacts alone do not join groups.
+            contacts alone do not join groups. Single closed contours are also
+            eligible.
         selection_values: Per-group selection values; see
             :class:`~torchfont.transforms.RandomRemoveOverlaps`.
         verify: Whether to preserve ``inpt`` when coverage changes.
