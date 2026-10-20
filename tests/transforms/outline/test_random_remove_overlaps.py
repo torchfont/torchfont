@@ -119,7 +119,7 @@ def test_random_remove_overlaps_selects_single_contour_groups(
     assert torch.equal(output.coords[start : start + 5], source)
 
 
-def test_random_remove_overlaps_preserves_single_open_self_intersection() -> None:
+def test_random_remove_overlaps_simplifies_single_open_self_intersection() -> None:
     outline = _polygons([(0, 0), (2, 2), (0, 2), (2, 0)])
     outline = Outline(
         torch.cat([outline.types[:-2], outline.types[-1:]]),
@@ -128,8 +128,10 @@ def test_random_remove_overlaps_preserves_single_open_self_intersection() -> Non
 
     output = RandomRemoveOverlaps()(outline)
 
-    assert torch.equal(output.types, outline.types)
-    assert torch.equal(output.coords, outline.coords)
+    expected = functional.remove_overlaps(outline)
+    assert output.types.tolist().count(ElementType.MOVE_TO.value) == 2
+    assert torch.equal(output.types, expected.types)
+    assert torch.equal(output.coords, expected.coords)
 
 
 def test_random_remove_overlaps_can_merge_multiple_groups() -> None:
@@ -168,14 +170,14 @@ def test_random_remove_overlaps_uses_connected_components() -> None:
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 1
 
 
-def test_random_remove_overlaps_excludes_open_subpaths() -> None:
+def test_random_remove_overlaps_includes_open_subpaths() -> None:
     types, coords = _rectangles(
         [(0.0, 2.0), (1.0, 3.0), (1.25, 1.75)], closed=[True, True, False]
     )
 
     out_types = RandomRemoveOverlaps()(Outline(types, coords)).types
 
-    assert out_types.tolist().count(ElementType.MOVE_TO.value) == 2
+    assert out_types.tolist().count(ElementType.MOVE_TO.value) == 1
     assert out_types.tolist().count(ElementType.CLOSE.value) == 1
 
 

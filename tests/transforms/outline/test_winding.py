@@ -441,7 +441,7 @@ def test_zero_signed_area_contours_use_nonzero_interiors(*, filled: bool) -> Non
     )
     outline = _outline(_SQUARE, points)
     output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
-    reversed_all = Outline(*_ops.reverse_closed_subpaths(outline.types, outline.coords))
+    reversed_all = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
     assert torch.equal(output.coords[:5], reversed_all.coords[:5])
     expected = reversed_all if filled else outline
     assert torch.equal(output.coords[5:], expected.coords[5:])
@@ -592,9 +592,7 @@ def test_open_curves_reverse_with_closed_group_without_adding_close() -> None:
         torch.cat((types, closed.types)), torch.cat((coords, closed.coords))
     )
     output = F.normalize_winding(outline)
-    reversed_closed = Outline(
-        *_ops.reverse_closed_subpaths(closed.types, closed.coords)
-    )
+    reversed_closed = Outline(*_ops.reverse_subpaths(closed.types, closed.coords))
     expected_types = torch.cat(
         (
             torch.tensor(
@@ -721,9 +719,7 @@ def test_opposite_duplicate_curves_remain_unchanged(sample: int) -> None:
         ),
         coords,
     )
-    reversed_outline = Outline(
-        *_ops.reverse_closed_subpaths(outline.types, outline.coords)
-    )
+    reversed_outline = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
     pair = Outline(
         torch.cat((outline.types[:-1], reversed_outline.types)),
         torch.cat((outline.coords[:-1], reversed_outline.coords)),

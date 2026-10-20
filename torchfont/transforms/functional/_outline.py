@@ -47,6 +47,8 @@ def remove_overlaps(
 ) -> Outline:
     """Merge overlapping subpaths.
 
+    Open subpaths are implicitly closed for filling and may become closed.
+
     Args:
         inpt: Glyph outline to simplify.
         verify: Whether to preserve ``inpt`` when coverage changes.
@@ -69,10 +71,11 @@ def remove_overlap_groups(
     """Simplify overlap groups according to explicit selection values.
 
     Args:
-        inpt: Glyph outline whose closed contours are grouped by overlapping
+        inpt: Glyph outline whose contours are grouped by overlapping
             non-zero filled interiors for simplification. Point and shared-edge
-            contacts alone do not join groups. Single closed contours are also
-            eligible.
+            contacts alone do not join groups. Single contours are also
+            eligible. Open subpaths are implicitly closed for filling and may
+            become closed.
         selection_values: Per-group selection values; see
             :class:`~torchfont.transforms.RandomRemoveOverlaps`.
         verify: Whether to preserve ``inpt`` when coverage changes.

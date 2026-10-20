@@ -72,7 +72,7 @@ def _cases() -> list[tuple[str, CustomOpDef, tuple[object, ...]]]:
             pair,
         ),
         ("normalize_subpath_order", ops.normalize_subpath_order, pair),
-        ("reverse_closed_subpaths", ops.reverse_closed_subpaths, pair),
+        ("reverse_subpaths", ops.reverse_subpaths, pair),
         ("normalize_winding", ops.normalize_winding, (*pair, values < 0.5)),
         ("bbox_center", ops.bbox_center, pair),
         ("set_subpath_start_points", ops.set_subpath_start_points, (*pair, values)),

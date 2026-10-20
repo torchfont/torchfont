@@ -4,7 +4,7 @@ use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{build_skia_path, outline_from_path};
 use super::winding::winding_from_even_odd;
-use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline, subpath_is_closed};
+use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
     let Some(simplified) = simplify_bounds_groups(outline) else {
@@ -23,43 +23,21 @@ pub(crate) fn random_remove_overlaps(
     verify_size: u32,
 ) -> BezPath {
     let paths: Vec<_> = outline.subpaths().collect();
-    let (indices, closed): (Vec<_>, Vec<_>) = paths
-        .iter()
-        .copied()
-        .enumerate()
-        .filter(|(_, path)| subpath_is_closed(path))
-        .unzip();
-    let areas: Vec<_> = closed.iter().map(|path| subpath_area(path)).collect();
-    let mut groups: Vec<Vec<_>> = overlap_groups(&closed, &areas)
-        .into_iter()
-        .map(|group| group.into_iter().map(|index| indices[index]).collect())
-        .collect();
-    groups.extend(
-        (0..paths.len())
-            .filter(|&index| !subpath_is_closed(paths[index]))
-            .map(|index| vec![index]),
-    );
-    groups.sort_unstable_by_key(|group| group[0]);
-
-    let candidates: Vec<_> = (0..groups.len())
-        .filter(|&index| subpath_is_closed(paths[groups[index][0]]))
-        .collect();
-    if candidates.is_empty() {
+    let areas: Vec<_> = paths.iter().map(|path| subpath_area(path)).collect();
+    let groups = overlap_groups(&paths, &areas);
+    if groups.is_empty() {
         return outline.clone();
     }
 
-    let values = &random_values[..candidates.len()];
-    let mut selected = vec![false; groups.len()];
-    for (&index, &value) in candidates.iter().zip(values) {
-        selected[index] = value < 0.5;
-    }
+    let values = &random_values[..groups.len()];
+    let mut selected: Vec<_> = values.iter().map(|&value| value < 0.5).collect();
     if !selected.contains(&true) {
         let index = values
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| a.total_cmp(b))
             .map_or(0, |(index, _)| index);
-        selected[candidates[index]] = true;
+        selected[index] = true;
     }
 
     let result = groups

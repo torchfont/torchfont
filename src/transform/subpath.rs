@@ -12,20 +12,6 @@ pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
         .collect()
 }
 
-pub(crate) fn reverse_closed_subpaths(outline: &BezPath) -> BezPath {
-    outline
-        .subpaths()
-        .flat_map(|elements| {
-            let path = BezPath::from_vec(elements.to_vec());
-            if subpath_is_closed(elements) {
-                path.reverse_subpaths()
-            } else {
-                path
-            }
-        })
-        .collect()
-}
-
 pub(crate) fn drop_subpaths(outline: &BezPath, drop_mask: &[bool]) -> BezPath {
     let mut result = BezPath::new();
     for (subpath, &drop) in outline.subpaths().zip(drop_mask) {
@@ -224,25 +210,6 @@ mod tests {
         let outline = outline_from_subpaths([first.clone(), second.clone()]);
 
         assert_eq!(split_subpaths(&outline), [first, second]);
-    }
-
-    #[test]
-    fn reverse_closed_subpaths_skips_open() {
-        let subpath = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
-        let outline = outline_from_subpaths([subpath.clone()]);
-        let result = reverse_closed_subpaths(&outline);
-        assert_eq!(subpaths(&result)[0], subpath);
-    }
-
-    #[test]
-    fn reverse_closed_subpaths_reverses_closed() {
-        let outline =
-            outline_from_subpaths([closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)])]);
-        let result = reverse_closed_subpaths(&outline);
-        let result_subpaths = subpaths(&result);
-        let s = &result_subpaths[0];
-        assert_eq!(subpath_start(s.elements()), pt(0.5, 1.0));
-        assert!(subpath_is_closed(s.elements()));
     }
 
     #[test]

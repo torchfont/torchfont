@@ -76,13 +76,6 @@ def _rotation_scale_shear_matrix(
     )
 
 
-def _preserve_closed_subpath_winding(
-    types: Tensor,
-    coords: Tensor,
-) -> tuple[Tensor, Tensor]:
-    return _ops.reverse_closed_subpaths(types.detach(), coords.detach())
-
-
 def _horizontal_flip(
     types: Tensor,
     coords: Tensor,
@@ -93,7 +86,7 @@ def _horizontal_flip(
     center = _bbox_center(types, coords)
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
     if preserve_winding:
-        return _preserve_closed_subpath_winding(types, out_coords)
+        return _ops.reverse_subpaths(types.detach(), out_coords.detach())
     return types, out_coords
 
 
@@ -107,7 +100,7 @@ def _vertical_flip(
     center = _bbox_center(types, coords)
     out_coords = _apply_matrix(types, coords, matrix, center, (0.0, 0.0))
     if preserve_winding:
-        return _preserve_closed_subpath_winding(types, out_coords)
+        return _ops.reverse_subpaths(types.detach(), out_coords.detach())
     return types, out_coords
 
 
@@ -141,6 +134,8 @@ def _affine(
 def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     """Flip an outline horizontally around its tight bounding-box centre.
 
+    ``preserve_winding`` applies to both open and closed subpaths.
+
     Differentiable only when ``preserve_winding`` is ``False``; reversing
     subpaths reorders elements in Rust and defines no gradient.
     """
@@ -154,6 +149,8 @@ def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
 
 def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     """Flip an outline vertically around its tight bounding-box centre.
+
+    ``preserve_winding`` applies to both open and closed subpaths.
 
     Differentiable only when ``preserve_winding`` is ``False``; reversing
     subpaths reorders elements in Rust and defines no gradient.

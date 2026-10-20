@@ -67,11 +67,11 @@ class RemoveOverlaps(Transform):
 
 
 class RandomRemoveOverlaps(Transform):
-    """Randomly simplify groups of closed contours.
+    """Randomly simplify groups of contours.
 
-    Groups contain closed contours connected by interior overlap, including
+    Groups contain contours connected by interior overlap, including
     containment. Point and shared-edge contacts alone do not join groups.
-    A single closed contour is also eligible, including self-intersections.
+    A single contour is also eligible, including self-intersections.
 
     Args:
         verify: Whether to preserve the input when coverage changes.
