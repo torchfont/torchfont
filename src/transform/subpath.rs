@@ -1,8 +1,10 @@
+use kurbo::Shape;
+
 #[cfg(test)]
 use crate::outline::outline_from_subpaths;
 use crate::outline::{
-    BezPath, Bounds, PathEl, Point, bounds_from_subpath, path_element_end, subpath_elements,
-    subpath_from_elements, subpath_is_closed, subpath_start,
+    BezPath, PathEl, Point, path_element_end, subpath_elements, subpath_from_elements,
+    subpath_is_closed, subpath_start,
 };
 
 pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
@@ -111,7 +113,12 @@ pub(crate) fn randomize_subpath_order(outline: &BezPath, random_values: &[f32]) 
 pub(crate) fn normalize_subpath_order(outline: &BezPath) -> BezPath {
     let mut subpaths: Vec<_> = outline.subpaths().enumerate().collect();
     subpaths.sort_by(|(a_idx, a), (b_idx, b)| {
-        compare_bounds(bounds_from_subpath(a), bounds_from_subpath(b))
+        let a = a.bounding_box();
+        let b = b.bounding_box();
+        a.x0.total_cmp(&b.x0)
+            .then_with(|| a.y0.total_cmp(&b.y0))
+            .then_with(|| a.x1.total_cmp(&b.x1))
+            .then_with(|| a.y1.total_cmp(&b.y1))
             .then_with(|| a_idx.cmp(b_idx))
     });
     let mut result = BezPath::new();
@@ -119,14 +126,6 @@ pub(crate) fn normalize_subpath_order(outline: &BezPath) -> BezPath {
         result.extend(subpath.iter().copied());
     }
     result
-}
-
-fn compare_bounds(a: Bounds, b: Bounds) -> std::cmp::Ordering {
-    a.x_min
-        .total_cmp(&b.x_min)
-        .then_with(|| a.y_min.total_cmp(&b.y_min))
-        .then_with(|| a.x_max.total_cmp(&b.x_max))
-        .then_with(|| a.y_max.total_cmp(&b.y_max))
 }
 
 fn transform_start_points(

@@ -1,10 +1,8 @@
-mod bounds;
 mod encoding;
 mod path;
 
-pub(crate) use bounds::{Bounds, bounds_from_outline, bounds_from_subpath};
 pub(crate) use encoding::{DecodeError, ElementType, decode, encode};
-pub(crate) use kurbo::{BezPath, PathEl, Point, Vec2};
+pub(crate) use kurbo::{BezPath, PathEl, Point, Rect, Vec2};
 #[cfg(test)]
 pub(crate) use path::outline_from_subpaths;
 pub(crate) use path::{

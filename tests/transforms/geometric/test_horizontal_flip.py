@@ -130,3 +130,21 @@ def test_horizontal_flip_rejects_cuda_input(
 
     with pytest.raises(NotImplementedError, match="CUDA"):
         horizontal_flip(types, coords)
+
+
+@pytest.mark.parametrize("drawn", [False, True])
+def test_horizontal_flip_bbox_ignores_move_only_contours(*, drawn: bool) -> None:
+    types = [ElementType.MOVE_TO.value]
+    coords = [[0.0, 0.0, 0.0, 0.0, 100.0, 20.0]]
+    if drawn:
+        types += [ElementType.MOVE_TO.value, ElementType.LINE_TO.value]
+        coords += [
+            [0.0, 0.0, 0.0, 0.0, 2.0, 3.0],
+            [0.0, 0.0, 0.0, 0.0, 4.0, 5.0],
+        ]
+    _, output = horizontal_flip(
+        torch.tensor(types), torch.tensor(coords), preserve_winding=False
+    )
+
+    expected_x = [6.0 - 100.0, 4.0, 2.0] if drawn else [-100.0]
+    torch.testing.assert_close(output[:, 4], torch.tensor(expected_x))

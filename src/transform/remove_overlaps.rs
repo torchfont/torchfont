@@ -1,10 +1,11 @@
+use kurbo::Shape;
 use skia_safe::PathFillType;
 
 use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{SKIA_SCALE, build_skia_path, outline_from_path};
 use super::winding::winding_from_even_odd;
-use crate::outline::{BezPath, Bounds, PathEl, bounds_from_outline};
+use crate::outline::{BezPath, PathEl};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
     let Some(simplified) = simplify_bounds_groups(outline) else {
@@ -60,27 +61,12 @@ pub(crate) fn random_remove_overlaps(
 }
 
 fn renders_match(original: &BezPath, candidate: &BezPath, size: u32) -> bool {
-    let Some(bounds) = combined_bounds(original, candidate) else {
-        return true;
-    };
+    let bounds = original.bounding_box().union(candidate.bounding_box());
     let original =
         render_bitmap_in_bounds(original, size, bounds, PathFillType::Winding, false).data;
     let candidate =
         render_bitmap_in_bounds(candidate, size, bounds, PathFillType::Winding, false).data;
     original == candidate
-}
-
-fn combined_bounds(first: &BezPath, second: &BezPath) -> Option<Bounds> {
-    match (bounds_from_outline(first), bounds_from_outline(second)) {
-        (Some(first), Some(second)) => Some(Bounds {
-            x_min: first.x_min.min(second.x_min),
-            y_min: first.y_min.min(second.y_min),
-            x_max: first.x_max.max(second.x_max),
-            y_max: first.y_max.max(second.y_max),
-        }),
-        (bounds @ Some(_), None) | (None, bounds @ Some(_)) => bounds,
-        (None, None) => None,
-    }
 }
 
 fn simplify_bounds_groups(outline: &BezPath) -> Option<BezPath> {
@@ -139,7 +125,7 @@ mod tests {
             super::random_remove_overlaps(&outline, &[0.0; 16], false, 128),
         ] {
             for size in [128, 1024] {
-                let bounds = super::combined_bounds(&outline, &simplified).unwrap();
+                let bounds = outline.bounding_box().union(simplified.bounding_box());
                 let render = |path| {
                     super::render_bitmap_in_bounds(path, size, bounds, PathFillType::Winding, true)
                         .data

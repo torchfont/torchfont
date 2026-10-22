@@ -367,11 +367,7 @@ def _(types: Tensor, coords: Tensor, clockwise: Tensor) -> tuple[Tensor, Tensor]
 
 @torch.library.custom_op("torchfont::bbox_center", mutates_args=(), device_types="cpu")
 def bbox_center(types: Tensor, coords: Tensor) -> Tensor:
-    result = _torchfont.tight_bbox(*_arrays(types, coords))
-    if result is None:
-        return coords.new_zeros(2)
-    x_min, y_min, x_max, y_max = result
-    return coords.new_tensor([(x_min + x_max) / 2.0, (y_min + y_max) / 2.0])
+    return coords.new_tensor(_torchfont.bbox_center(*_arrays(types, coords)))
 
 
 @bbox_center.register_fake
