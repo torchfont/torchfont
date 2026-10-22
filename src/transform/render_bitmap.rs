@@ -1,10 +1,11 @@
+use kurbo::{Affine, Shape};
 use skia_safe::{Canvas, Color, ImageInfo, Matrix, Paint, Path, PathFillType};
 
 use super::skia::build_skia_path;
-use crate::outline::{BezPath, Bounds, bounds_from_outline};
+use crate::outline::{BezPath, Rect};
 
-const FIXED_MIN: f32 = -0.25;
-const FIXED_MAX: f32 = 1.25;
+const FIXED_MIN: f64 = -0.25;
+const FIXED_MAX: f64 = 1.25;
 const MAX_BITMAP_SIDE: u32 = 4096;
 
 #[derive(Clone, Copy)]
@@ -34,58 +35,50 @@ pub(crate) fn render_bitmap(
 ) -> Result<RenderedBitmap, RenderBitmapError> {
     let path =
         Some(build_skia_path(outline.elements())).filter(|path| !path.segment_masks().is_empty());
-    let bounds = if matches!(mode, RenderMode::Fixed) {
-        None
-    } else {
-        bounds_from_outline(outline)
-    };
     let Some(path) = path else {
         return Ok(blank_for_mode(size, mode));
     };
 
-    let bitmap_size = size as f32;
+    let bounds = match mode {
+        RenderMode::Fixed => Rect::ZERO,
+        RenderMode::Bbox | RenderMode::BboxSquare => outline.bounding_box(),
+    };
+    let bitmap_size = f64::from(size);
     let Some((width, height, transform)) = render_target(bounds, bitmap_size, mode)? else {
         return Ok(blank_for_mode(size, mode));
     };
 
-    let data = draw_alpha_path(path, width, height, transform, fill_rule, antialias);
-    Ok(RenderedBitmap {
-        data,
-        width,
-        height,
-    })
+    Ok(draw_alpha_path(
+        path, width, height, transform, fill_rule, antialias,
+    ))
 }
 
 pub(crate) fn render_bitmap_in_bounds(
     outline: &BezPath,
     size: u32,
-    bounds: Bounds,
+    bounds: Rect,
     fill_rule: PathFillType,
     antialias: bool,
 ) -> RenderedBitmap {
     let path =
         Some(build_skia_path(outline.elements())).filter(|path| !path.segment_masks().is_empty());
-    let target = render_target(Some(bounds), size as f32, RenderMode::BboxSquare)
+    let target = render_target(bounds, f64::from(size), RenderMode::BboxSquare)
         .expect("bbox-square rendering never errors");
     let (Some(path), Some((width, height, transform))) = (path, target) else {
         return blank_bitmap(size, size);
     };
 
-    RenderedBitmap {
-        data: draw_alpha_path(path, width, height, transform, fill_rule, antialias),
-        width,
-        height,
-    }
+    draw_alpha_path(path, width, height, transform, fill_rule, antialias)
 }
 
 fn draw_alpha_path(
     mut path: Path,
     width: u32,
     height: u32,
-    transform: Matrix,
+    transform: Affine,
     fill_rule: PathFillType,
     antialias: bool,
-) -> Vec<u8> {
+) -> RenderedBitmap {
     path.set_fill_type(fill_rule);
     let mut data = vec![0u8; width as usize * height as usize];
     let info = ImageInfo::new_a8((width as i32, height as i32));
@@ -94,32 +87,41 @@ fn draw_alpha_path(
             .expect("valid alpha bitmap");
         let mut paint = Paint::default();
         paint.set_color(Color::WHITE).set_anti_alias(antialias);
-        canvas.concat(&transform).draw_path(&path, &paint);
+        let matrix = Matrix::from_affine(&transform.as_coeffs().map(|value| value as f32));
+        canvas.concat(&matrix).draw_path(&path, &paint);
     }
-    data
+    RenderedBitmap {
+        data,
+        width,
+        height,
+    }
 }
 
 fn render_target(
-    bounds: Option<Bounds>,
-    bitmap_size: f32,
+    bounds: Rect,
+    bitmap_size: f64,
     mode: RenderMode,
-) -> Result<Option<(u32, u32, Matrix)>, RenderBitmapError> {
+) -> Result<Option<(u32, u32, Affine)>, RenderBitmapError> {
+    let size = bounds.size();
+    if !matches!(mode, RenderMode::Fixed) && size.is_zero_area() {
+        return Ok(None);
+    }
     match mode {
         RenderMode::Fixed => {
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
             Ok(Some((
                 bitmap_size as u32,
                 bitmap_size as u32,
-                render_transform(scale, -FIXED_MIN * scale, bitmap_size + FIXED_MIN * scale),
+                Affine::FLIP_Y
+                    .then_scale(scale)
+                    .then_translate((-FIXED_MIN * scale, bitmap_size + FIXED_MIN * scale).into()),
             )))
         }
         RenderMode::Bbox => {
-            let Some((bounds, width, height)) = nonempty_bounds(bounds) else {
-                return Ok(None);
-            };
             let scale = bitmap_size / (FIXED_MAX - FIXED_MIN);
-            let bitmap_width = (width * scale).ceil() as u32;
-            let bitmap_height = (height * scale).ceil() as u32;
+            let bitmap = (size * scale).ceil();
+            let bitmap_width = bitmap.width as u32;
+            let bitmap_height = bitmap.height as u32;
             if bitmap_width == 0 || bitmap_height == 0 {
                 return Ok(None);
             }
@@ -129,38 +131,20 @@ fn render_target(
             Ok(Some((
                 bitmap_width,
                 bitmap_height,
-                render_transform(scale, -bounds.x_min * scale, bounds.y_max * scale),
+                Affine::translate((-bounds.x0, -bounds.y1)).then_scale_non_uniform(scale, -scale),
             )))
         }
         RenderMode::BboxSquare => {
-            let Some((bounds, width, height)) = nonempty_bounds(bounds) else {
-                return Ok(None);
-            };
-            let scale = bitmap_size / width.max(height);
-            let offset_x = (bitmap_size - width * scale) * 0.5;
-            let offset_y = (bitmap_size - height * scale) * 0.5;
+            let scale = bitmap_size / size.max_side();
             Ok(Some((
                 bitmap_size as u32,
                 bitmap_size as u32,
-                render_transform(
-                    scale,
-                    offset_x - bounds.x_min * scale,
-                    offset_y + bounds.y_max * scale,
-                ),
+                Affine::translate(-bounds.center().to_vec2())
+                    .then_scale_non_uniform(scale, -scale)
+                    .then_translate((bitmap_size * 0.5, bitmap_size * 0.5).into()),
             )))
         }
     }
-}
-
-fn nonempty_bounds(bounds: Option<Bounds>) -> Option<(Bounds, f32, f32)> {
-    let b = bounds?;
-    let w = b.width();
-    let h = b.height();
-    (w > f32::EPSILON && h > f32::EPSILON).then_some((b, w, h))
-}
-
-fn render_transform(scale: f32, tx: f32, ty: f32) -> Matrix {
-    Matrix::new_all(scale, 0.0, tx, 0.0, -scale, ty, 0.0, 0.0, 1.0)
 }
 
 fn blank_bitmap(width: u32, height: u32) -> RenderedBitmap {
@@ -202,6 +186,23 @@ mod tests {
                 assert_eq!(bitmap.data, vec![255; (size * size) as usize]);
             }
         }
+    }
+
+    #[test]
+    fn square_crop_is_invariant_to_small_outline_scales() {
+        let render = |extent| {
+            render_bitmap(
+                &Rect::new(0.0, 0.0, extent, extent).to_path(0.1),
+                17,
+                RenderMode::BboxSquare,
+                PathFillType::Winding,
+                true,
+            )
+            .unwrap()
+            .data
+        };
+        assert_eq!(render(1e-10), render(1.0));
+        assert_eq!(render(1.0), vec![255; 17 * 17]);
     }
 
     #[test]

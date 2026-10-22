@@ -1,3 +1,4 @@
+use kurbo::Shape;
 use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 use skia_safe::PathFillType;
@@ -379,15 +380,14 @@ pub(crate) fn random_remove_overlaps<'py>(
 }
 
 #[pyfunction]
-pub(crate) fn tight_bbox(
+pub(crate) fn bbox_center(
     py: Python<'_>,
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
-) -> PyResult<Option<(f32, f32, f32, f32)>> {
+) -> PyResult<(f64, f64)> {
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
-    Ok(py
-        .detach(|| crate::outline::bounds_from_outline(&outline))
-        .map(|b| (b.x_min, b.y_min, b.x_max, b.y_max)))
+    let center = py.detach(|| outline.bounding_box().center());
+    Ok((center.x, center.y))
 }
 
 #[pyfunction]
@@ -467,7 +467,7 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(randomize_subpath_start_points, m)?)?;
     m.add_function(wrap_pyfunction!(reverse_subpaths, m)?)?;
     m.add_function(wrap_pyfunction!(normalize_winding, m)?)?;
-    m.add_function(wrap_pyfunction!(tight_bbox, m)?)?;
+    m.add_function(wrap_pyfunction!(bbox_center, m)?)?;
     m.add_function(wrap_pyfunction!(render_bitmap, m)?)?;
     Ok(())
 }

@@ -82,9 +82,7 @@ def random_remove_overlaps(
 def quad_to_cubic(
     types: np.ndarray, coords: np.ndarray, merge_curves: bool
 ) -> tuple[np.ndarray, np.ndarray]: ...
-def tight_bbox(
-    types: np.ndarray, coords: np.ndarray
-) -> tuple[float, float, float, float] | None: ...
+def bbox_center(types: np.ndarray, coords: np.ndarray) -> tuple[float, float]: ...
 def index_codepoints(
     root: str,
     codepoints: Sequence[int] | None,
