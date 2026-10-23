@@ -31,6 +31,29 @@ def _outline_pair(sample: GlyphIdSample) -> tuple[torch.Tensor, torch.Tensor]:
     return outline.types, outline.coords
 
 
+def _check_child_dataset_indexes(expected: tuple[int, int]) -> None:
+    glyphs = GlyphIdDataset("tests/fonts", patterns=STATIC_FONT)
+    codepoints = CodepointDataset("tests/fonts", patterns=STATIC_FONT)
+    assert (len(glyphs), len(codepoints)) == expected
+
+
+@pytest.mark.skipif("fork" not in mp.get_all_start_methods(), reason="requires fork")
+def test_dataset_indexes_after_fork() -> None:
+    glyphs = GlyphIdDataset("tests/fonts", patterns=STATIC_FONT)
+    codepoints = CodepointDataset("tests/fonts", patterns=STATIC_FONT)
+    process = mp.get_context("fork").Process(
+        target=_check_child_dataset_indexes, args=((len(glyphs), len(codepoints)),)
+    )
+    process.start()
+    try:
+        process.join(timeout=10)
+        assert process.exitcode == 0
+    finally:
+        if process.is_alive():
+            process.kill()
+            process.join()
+
+
 def test_dataset_indexes_every_outline_glyph_of_each_face() -> None:
     dataset = GlyphIdDataset("tests/fonts", patterns=STATIC_FONT)
     font = TTFont(f"tests/fonts/{STATIC_FONT}")
