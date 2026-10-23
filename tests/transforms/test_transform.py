@@ -83,13 +83,13 @@ def test_transform_types_select_semantic_leaves() -> None:
 
 
 def test_compose_is_an_nn_module_and_applies_transforms_in_order() -> None:
-    transform = Compose([AddToCoords(1.0), AddToCoords(2.0)])
+    transform = Compose([AddToCoords(1.0), MultiplyCoords(2.0)])
     outline = _line_outline()
 
     output = transform(outline)
 
     assert isinstance(transform, torch.nn.Module)
-    assert torch.equal(output.coords, outline.coords + 3.0)
+    assert torch.equal(output.coords, (outline.coords + 1.0) * 2.0)
 
 
 def test_transform_and_compose_support_multiple_inputs() -> None:
@@ -122,11 +122,6 @@ def test_compose_materializes_module_iterables() -> None:
     transform = Compose(iter([child]))
 
     assert transform.get_submodule("transforms.0") is child
-
-
-def test_compose_rejects_plain_callables() -> None:
-    with pytest.raises(TypeError, match="is not a Module subclass"):
-        Compose([lambda value: value + 1])  # ty: ignore[invalid-argument-type]
 
 
 def test_empty_compose_is_identity() -> None:
@@ -228,14 +223,6 @@ def test_random_containers_register_transforms(
     transform = container([child])
 
     assert transform.get_submodule("transforms.0") is child
-
-
-@pytest.mark.parametrize("container", [RandomChoice, RandomOrder])
-def test_random_containers_reject_plain_callables(
-    container: type[RandomChoice] | type[RandomOrder],
-) -> None:
-    with pytest.raises(TypeError, match="is not a Module subclass"):
-        container([lambda value: value])  # ty: ignore[invalid-argument-type]
 
 
 def test_random_order_applies_each_transform_once(

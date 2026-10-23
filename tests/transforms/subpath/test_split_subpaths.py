@@ -93,10 +93,14 @@ def test_following_transform_processes_each_subpath() -> None:
         ]
     )
 
-    subpaths = Compose([SplitSubpaths(), Affine(angle=10.0)])(outline)
+    transform = Affine(angle=10.0)
+    originals = functional.split_subpaths(outline)
+    subpaths = Compose([SplitSubpaths(), transform])(outline)
 
     assert len(subpaths) == 2
     assert all(isinstance(subpath, Outline) for subpath in subpaths)
-    assert all(
-        not torch.equal(subpath.coords[:-1], outline.coords[:2]) for subpath in subpaths
-    )
+    for original, subpath in zip(originals, subpaths, strict=True):
+        expected = transform(original)
+        assert torch.equal(subpath.types, expected.types)
+        assert torch.equal(subpath.coords, expected.coords)
+        assert not torch.equal(subpath.coords, original.coords)

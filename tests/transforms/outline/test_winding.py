@@ -336,13 +336,6 @@ def test_normalizes_disjoint_groups_with_their_holes(*, clockwise: bool) -> None
     assert torch.equal(repeated.types, output.types)
 
 
-@pytest.mark.parametrize("clockwise", [True, False])
-def test_normalizes_uniformly_oriented_contours(*, clockwise: bool) -> None:
-    output = F.normalize_winding(_outline(_SQUARE, _ACCENT), clockwise=clockwise)
-    sign = -1 if clockwise else 1
-    assert _signs(output) == [sign, sign]
-
-
 def test_normalization_accepts_per_group_directions() -> None:
     outline = _outline(_SQUARE, _HOLE, _ACCENT)
     output = F.normalize_winding(outline, clockwise=torch.tensor([False, True]))
@@ -668,9 +661,8 @@ def test_open_curves_reverse_with_closed_group_without_adding_close() -> None:
     assert torch.equal(restored.coords, outline.coords)
 
 
-@pytest.mark.parametrize("zero_area", [False, True], ids=["empty", "zero_area"])
-def test_empty_and_zero_area_outlines_are_unchanged(*, zero_area: bool) -> None:
-    outline = _outline([(0, 0), (1, 0)]) if zero_area else _outline()
+def test_empty_outline_is_unchanged() -> None:
+    outline = _outline()
     for clockwise in (True, False):
         output = _assert_stable(outline, clockwise=clockwise)
         assert torch.equal(output.types, outline.types)

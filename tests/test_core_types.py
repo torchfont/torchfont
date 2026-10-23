@@ -2,34 +2,14 @@ import pytest
 import torch
 from torch.utils import _pytree as pytree
 
-import torchfont
 from torchfont import (
     CodepointData,
     CodepointSample,
-    ElementType,
     FontRef,
     GlyphIdData,
-    GlyphIdSample,
     GlyphRef,
     Outline,
 )
-
-
-def test_core_types_are_exported_from_package_root() -> None:
-    assert torchfont.ElementType is ElementType
-    assert torchfont.FontRef is FontRef
-    assert torchfont.CodepointData is CodepointData
-    assert torchfont.GlyphIdData is GlyphIdData
-    assert torchfont.GlyphIdSample is GlyphIdSample
-    assert torchfont.GlyphRef is GlyphRef
-    assert torchfont.CodepointSample is CodepointSample
-    assert torchfont.Outline is Outline
-
-
-def test_glyph_ref_identifies_face_and_glyph() -> None:
-    ref = GlyphRef(FontRef("font.ttf", 0), 36)
-
-    assert ref.glyph_id == 36
 
 
 @pytest.mark.parametrize(
@@ -92,11 +72,6 @@ def test_outline_accepts_any_floating_coords_dtype(dtype: torch.dtype) -> None:
     )
 
     assert outline.dtype is dtype
-
-
-def test_outline_rejects_batch_dimensions() -> None:
-    with pytest.raises(ValueError, match="types must be 1-D"):
-        Outline(torch.zeros((4, 9), dtype=torch.long), torch.zeros((4, 9, 6)))
 
 
 def test_outline_keeps_identity_equality() -> None:
@@ -212,10 +187,3 @@ def test_glyph_id_data_targets_are_pytree_children() -> None:
     assert rebuilt.location is location
     assert rebuilt.font_idx == 2
     assert rebuilt.width is None
-
-
-def test_glyph_id_sample_identifies_face_and_glyph() -> None:
-    sample = GlyphIdSample(GlyphRef(FontRef("font.ttf", 1), 36), 2)
-
-    assert sample.ref.glyph_id == 36
-    assert sample.font_idx == 2

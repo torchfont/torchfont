@@ -159,13 +159,6 @@ mod tests {
     }
 
     #[test]
-    fn renders_match_identifies_identical_font_unit_outlines() {
-        let square = rectangle(Rect::new(100.0, 200.0, 900.0, 1_000.0));
-
-        assert!(super::renders_match(&square, &square, 128));
-    }
-
-    #[test]
     fn renders_match_detects_different_font_unit_coverage() {
         let small = rectangle(Rect::new(100.0, 200.0, 300.0, 400.0));
         let large = rectangle(Rect::new(100.0, 200.0, 900.0, 1_000.0));

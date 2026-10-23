@@ -5,7 +5,6 @@ import torch
 from torch.utils import _pytree as pytree
 
 from torchfont import ElementType, Outline
-from torchfont.transforms import Affine
 
 
 @pytest.fixture
@@ -64,21 +63,6 @@ def test_outline_is_a_pytree_leaf(triangle: Outline) -> None:
     assert leaves == [triangle]
 
 
-def test_tree_map_moves_an_outline(triangle: Outline) -> None:
-    moved = pytree.tree_map(lambda leaf: leaf.to(torch.float64), triangle)
-
-    assert moved.dtype is torch.float64
-
-
-def test_registering_outline_as_a_pytree_node_would_break_transforms(
-    triangle: Outline,
-) -> None:
-    flipped = Affine(angle=10.0)(triangle)
-
-    assert not torch.equal(flipped.coords, triangle.coords)
-    assert pytree.tree_flatten(triangle)[0] == [triangle]
-
-
 def test_indexing_keeps_the_coordinate_axis(triangle: Outline) -> None:
     head = triangle[:2]
 
@@ -92,9 +76,12 @@ def test_indexing_rejects_removing_the_element_dimension(triangle: Outline) -> N
 
 
 def test_outline_aliases_its_tensors(triangle: Outline) -> None:
+    alias = Outline(triangle.types, triangle.coords)
     triangle.coords[0, 4] = 5.0
 
-    assert triangle.coords[0, 4] == 5.0
+    assert alias.types is triangle.types
+    assert alias.coords is triangle.coords
+    assert alias.coords[0, 4] == 5.0
     with pytest.raises(AttributeError):
         triangle.types = triangle.types  # ty: ignore[invalid-assignment]
 

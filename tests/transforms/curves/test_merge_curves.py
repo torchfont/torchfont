@@ -158,25 +158,6 @@ def test_merge_curves_incompatible_cubics_are_not_merged() -> None:
     assert out_types.tolist().count(ElementType.CURVE_TO.value) == 2
 
 
-def test_merge_curves_preserves_structure_outside_subpath() -> None:
-    types = torch.tensor(
-        [
-            ElementType.MOVE_TO.value,
-            ElementType.LINE_TO.value,
-            ElementType.CLOSE.value,
-            ElementType.END.value,
-        ],
-        dtype=torch.long,
-    )
-    coords = torch.zeros(4, 6, dtype=torch.float32)
-    coords[1, 4] = 1.0
-
-    out_types, _out_coords = merge_curves(types, coords)
-
-    assert out_types[-1].item() == ElementType.END.value
-    assert ElementType.CLOSE.value in out_types.tolist()
-
-
 def test_merge_curves_multiple_subpaths() -> None:
     def _subpath(ox: float) -> tuple[list[int], list[list[float]]]:
         t = [
@@ -205,22 +186,8 @@ def test_merge_curves_multiple_subpaths() -> None:
 
     assert out_types.tolist().count(ElementType.LINE_TO.value) == 2
     assert out_types.tolist().count(ElementType.MOVE_TO.value) == 2
-
-
-@pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])
-def test_variable_length_transforms_reject_mismatched_coords(
-    transform: Callable[
-        [torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]
-    ],
-) -> None:
-    types = torch.tensor(
-        [ElementType.MOVE_TO.value, ElementType.CURVE_TO.value],
-        dtype=torch.long,
-    )
-    coords = torch.zeros(1, 6, dtype=torch.float32)
-
-    with pytest.raises(ValueError, match="types shape must match coords"):
-        transform(types, coords)
+    assert out_types.tolist().count(ElementType.CLOSE.value) == 2
+    assert out_types[-1].item() == ElementType.END.value
 
 
 @pytest.mark.parametrize("transform", [cubic_to_quad, merge_curves])

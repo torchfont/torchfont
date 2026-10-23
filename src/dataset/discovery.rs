@@ -109,10 +109,14 @@ mod tests {
     }
 
     #[test]
-    fn builds_entries_in_file_order() {
+    fn flattens_face_entries_in_file_order() {
         let files = numbered_files(1000);
-        let entries = build_from_files(&files, |path| Ok(vec![number(path)])).unwrap();
-        assert_eq!(entries, (0..1000).collect::<Vec<_>>());
+        let entries = build_from_files(&files, |path| {
+            let first = number(path) * 2;
+            Ok(vec![first, first + 1])
+        })
+        .unwrap();
+        assert_eq!(entries, (0..2000).collect::<Vec<_>>());
     }
 
     #[test]

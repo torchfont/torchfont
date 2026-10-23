@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from tests._pairs import cubic_to_quad, quad_to_cubic
-from torchfont import ElementType
+from torchfont import ElementType, _torchfont
 
 from ._helpers import (
     _CUBIC_CURVES,
@@ -87,7 +87,7 @@ def test_quad_to_cubic_returns_equal_tensors_when_no_quadratic_segments() -> Non
     assert out_coords.device.type == "cpu"
 
 
-def test_quad_to_cubic_rejects_mismatched_coords() -> None:
+def test_quad_to_cubic_native_rejects_mismatched_coords() -> None:
     types = torch.tensor(
         [
             ElementType.MOVE_TO.value,
@@ -98,8 +98,12 @@ def test_quad_to_cubic_rejects_mismatched_coords() -> None:
     )
     coords = torch.zeros(2, 6, dtype=torch.float32)
 
-    with pytest.raises(ValueError, match="types shape must match coords"):
-        quad_to_cubic(types, coords)
+    with pytest.raises(
+        ValueError, match="coords length must equal types length times 6"
+    ):
+        _torchfont.quad_to_cubic(
+            types.numpy(), coords.reshape(-1).numpy(), merge_curves=False
+        )
 
 
 def test_quad_to_cubic_can_merge_curves_in_same_transform() -> None:
