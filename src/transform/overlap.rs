@@ -1,9 +1,9 @@
-use kurbo::Shape;
+use kurbo::{BezPath, PathEl, Shape};
 use petgraph::unionfind::UnionFind;
 use skia_safe::PathOp;
 
 use super::skia::{SKIA_SCALE, build_skia_path};
-use crate::outline::{BezPath, PathEl, subpath_start};
+use crate::outline::subpath_start;
 
 pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[f64]) -> Vec<Vec<usize>> {
     if paths.len() < 2 {
@@ -77,8 +77,7 @@ pub(super) fn subpath_area(subpath: &[PathEl]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::outline::{Point, subpath_from_elements};
-    use kurbo::Rect;
+    use kurbo::{Point, Rect};
 
     fn pt(x: f32, y: f32) -> Point {
         Point::new(x.into(), y.into())
@@ -93,7 +92,10 @@ mod tests {
     }
 
     fn closed(start: Point, elements: Vec<PathEl>) -> BezPath {
-        subpath_from_elements(start, elements, true)
+        std::iter::once(PathEl::MoveTo(start))
+            .chain(elements)
+            .chain([PathEl::ClosePath])
+            .collect()
     }
 
     fn rectangle(rect: Rect) -> BezPath {

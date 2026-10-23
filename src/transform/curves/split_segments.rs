@@ -1,9 +1,6 @@
-use kurbo::ParamCurve;
+use kurbo::{BezPath, ParamCurve};
 
-use crate::outline::{
-    BezPath, PathEl, Point, path_element_end, path_seg, subpath_elements, subpath_is_closed,
-    subpath_start,
-};
+use crate::outline::{subpath_is_closed, subpath_segments, subpath_start};
 
 pub(crate) fn random_split_segments(
     outline: &BezPath,
@@ -14,7 +11,7 @@ pub(crate) fn random_split_segments(
 ) -> BezPath {
     let segment_count: usize = outline
         .subpaths()
-        .map(|subpath| subpath_elements(subpath).len())
+        .map(|subpath| subpath_segments(subpath).count())
         .sum();
     if segment_count == 0 {
         return outline.clone();
@@ -27,16 +24,18 @@ pub(crate) fn random_split_segments(
     for subpath in outline.subpaths() {
         let subpath_start = subpath_start(subpath);
         result.move_to(subpath_start);
-        let mut start = subpath_start;
-        for &element in subpath_elements(subpath) {
+        for segment in subpath_segments(subpath) {
             if selection_values[value_index] < split_probability {
                 let t =
                     split_range.0 + (split_range.1 - split_range.0) * position_values[value_index];
-                result.extend(split_segment(start, element, t));
+                let t = f64::from(t);
+                result.extend(
+                    [segment.subsegment(0.0..t), segment.subsegment(t..1.0)]
+                        .map(|segment| segment.as_path_el()),
+                );
             } else {
-                result.push(element);
+                result.push(segment.as_path_el());
             }
-            start = path_element_end(element);
             value_index += 1;
         }
         if subpath_is_closed(subpath) {
@@ -44,10 +43,4 @@ pub(crate) fn random_split_segments(
         }
     }
     result
-}
-
-fn split_segment(start: Point, element: PathEl, t: f32) -> [PathEl; 2] {
-    let segment = path_seg(start, element);
-    let t = t.into();
-    [segment.subsegment(0.0..t), segment.subsegment(t..1.0)].map(|segment| segment.as_path_el())
 }

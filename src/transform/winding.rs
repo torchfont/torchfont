@@ -1,7 +1,6 @@
 use super::overlap::{overlap_groups, subpath_area};
 use super::skia::{SKIA_SCALE, build_skia_path};
-use crate::outline::{BezPath, PathEl};
-use kurbo::Shape;
+use kurbo::{BezPath, PathEl, Shape};
 use skia_safe::PathFillType;
 
 pub(crate) fn normalize_winding(

@@ -1,11 +1,10 @@
-use kurbo::Shape;
+use kurbo::{BezPath, PathEl, Shape};
 use skia_safe::PathFillType;
 
 use super::overlap::{bounds_groups, overlap_groups, subpath_area};
 use super::render_bitmap::render_bitmap_in_bounds;
 use super::skia::{SKIA_SCALE, build_skia_path, outline_from_path};
 use super::winding::winding_from_even_odd;
-use crate::outline::{BezPath, PathEl};
 
 pub(crate) fn remove_overlaps(outline: &BezPath, verify: bool, verify_size: u32) -> BezPath {
     let Some(simplified) = simplify_bounds_groups(outline) else {

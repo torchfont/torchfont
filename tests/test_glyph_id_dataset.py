@@ -20,6 +20,7 @@ from torchfont.transforms import functional as _functional
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
 
 STATIC_FONT = "source-sans/SourceSans3-Regular.ttf"
 VARIABLE_FONT = "source-serif/SourceSerif4Variable-Roman.ttf"
@@ -158,6 +159,20 @@ def test_load_glyph_samples_one_location_reproducibly() -> None:
 
     assert first.location == second.location
     assert set(first.location) == {"opsz", "wght"}
+
+
+def test_load_glyph_uses_head_attribute_fallback(tmp_path: Path) -> None:
+    path = tmp_path / "fallback.ttf"
+    with TTFont(f"tests/fonts/{STATIC_FONT}") as font:
+        del font["OS/2"]
+        cast("Any", font["head"]).macStyle = 3
+        font.save(path)
+
+    data = LoadGlyph()(GlyphIdDataset(tmp_path)[0])
+
+    assert data.weight == 700.0
+    assert data.width == 100.0
+    assert data.italic == 1.0
 
 
 def test_dataset_supports_multiprocessing_transform() -> None:

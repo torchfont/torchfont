@@ -1,23 +1,29 @@
 use std::{collections::BTreeMap, path::Path};
 
+use kurbo::BezPath;
 use skrifa::{
-    GlyphId, MetadataProvider,
+    GlyphId, MetadataProvider, Tag,
+    attribute::Style,
     instance::{LocationRef, Size},
     outline::DrawSettings,
     raw::TableProvider,
+    setting::VariationSetting,
 };
 
 use crate::{
     error::Error,
-    font::{
-        canonicalize_location, extract_glyph_outline, map_font_file, parse_font_ref,
-        registered_axis_values,
-    },
-    outline::BezPath,
+    font::{extract_glyph_outline, map_font_file, parse_font_ref},
 };
 
-type AxisValues = (f32, f32, f32, f32, f32);
-type LoadedGlyph = (BezPath, Vec<(String, f32)>, AxisValues);
+const REGISTERED_AXIS_TAGS: [Tag; 5] = [
+    Tag::new(b"wght"),
+    Tag::new(b"wdth"),
+    Tag::new(b"ital"),
+    Tag::new(b"slnt"),
+    Tag::new(b"opsz"),
+];
+
+type LoadedGlyph = (BezPath, Vec<VariationSetting>, [f32; 5]);
 
 pub(crate) fn load_glyph(
     path: &Path,
@@ -42,7 +48,7 @@ pub(crate) fn load_glyph(
             path.display()
         )));
     }
-    let location = canonicalize_location(&font, path, face_index, location)?;
+    let location = canonicalize_location(&font, location)?;
     let glyph = font
         .outline_glyphs()
         .get(GlyphId::new(glyph_id))
@@ -52,9 +58,7 @@ pub(crate) fn load_glyph(
                 path.display()
             ))
         })?;
-    let skrifa_location = font
-        .axes()
-        .location(location.iter().map(|(tag, value)| (tag.as_str(), *value)));
+    let skrifa_location = font.axes().location(&location);
     let outline = extract_glyph_outline(
         &glyph,
         DrawSettings::unhinted(Size::unscaled(), LocationRef::from(&skrifa_location)),
@@ -62,17 +66,50 @@ pub(crate) fn load_glyph(
     )
     .map_err(|err| Error::Parse(format!("failed to draw glyph: {err}")))?;
     let values = registered_axis_values(&font, &location);
-    Ok((
-        outline,
-        location,
-        (
-            values.weight,
-            values.width,
-            values.italic,
-            values.slant,
-            values.optical_size,
-        ),
-    ))
+    Ok((outline, location, values))
+}
+
+fn canonicalize_location(
+    font: &skrifa::FontRef<'_>,
+    location: Option<&BTreeMap<String, f32>>,
+) -> Result<Vec<VariationSetting>, Error> {
+    for (tag, value) in location.into_iter().flatten() {
+        if !value.is_finite() {
+            return Err(Error::Parse(format!(
+                "variation axis '{tag}' value must be finite"
+            )));
+        }
+    }
+    let axes = font.axes();
+    let defaults = axes
+        .iter()
+        .map(|axis| VariationSetting::new(axis.tag(), axis.default_value()));
+    let requested = location
+        .into_iter()
+        .flatten()
+        .map(|(tag, &value)| (tag.as_str(), value).into());
+    Ok(axes.filter(defaults.chain(requested)).collect())
+}
+
+fn registered_axis_values(font: &skrifa::FontRef<'_>, location: &[VariationSetting]) -> [f32; 5] {
+    let attributes = font.attributes();
+    let mut values = [
+        attributes.weight.value(),
+        attributes.stretch.percentage(),
+        f32::from(matches!(attributes.style, Style::Italic)),
+        font.post()
+            .map_or(f32::NAN, |post| post.italic_angle().to_f64() as f32),
+        f32::NAN,
+    ];
+    for setting in location {
+        if let Some(index) = REGISTERED_AXIS_TAGS
+            .iter()
+            .position(|&tag| tag == setting.selector)
+        {
+            values[index] = setting.value;
+        }
+    }
+    values
 }
 
 #[cfg(test)]
@@ -86,7 +123,7 @@ mod tests {
         font::{map_font_file, parse_font_ref},
     };
 
-    use super::load_glyph;
+    use super::{load_glyph, registered_axis_values};
 
     fn test_font() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -112,5 +149,23 @@ mod tests {
             panic!("missing glyph id must fail");
         };
         assert!(matches!(error, Error::OutOfRange(_)));
+    }
+
+    #[test]
+    fn variation_location_overrides_font_attributes() {
+        let path = test_font();
+        let data = map_font_file(&path).unwrap();
+        let font = parse_font_ref(&data[..], &path, 0).unwrap();
+        let values = registered_axis_values(
+            &font,
+            &[
+                ("wght", 700.0).into(),
+                ("wdth", 75.0).into(),
+                ("ital", 0.5).into(),
+                ("slnt", -10.0).into(),
+                ("opsz", 12.0).into(),
+            ],
+        );
+        assert_eq!(values, [700.0, 75.0, 0.5, -10.0, 12.0]);
     }
 }

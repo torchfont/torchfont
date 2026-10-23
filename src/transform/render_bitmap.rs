@@ -1,8 +1,7 @@
-use kurbo::{Affine, Shape};
+use kurbo::{Affine, BezPath, Rect, Shape};
 use skia_safe::{Canvas, Color, ImageInfo, Matrix, Paint, Path, PathFillType};
 
 use super::skia::build_skia_path;
-use crate::outline::{BezPath, Rect};
 
 const FIXED_MIN: f64 = -0.25;
 const FIXED_MAX: f64 = 1.25;

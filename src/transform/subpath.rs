@@ -1,11 +1,6 @@
-use kurbo::Shape;
+use kurbo::{BezPath, PathEl, Point, Shape};
 
-#[cfg(test)]
-use crate::outline::outline_from_subpaths;
-use crate::outline::{
-    BezPath, PathEl, Point, path_element_end, subpath_elements, subpath_from_elements,
-    subpath_is_closed, subpath_start,
-};
+use crate::outline::{subpath_is_closed, subpath_start};
 
 pub(crate) fn split_subpaths(outline: &BezPath) -> Vec<BezPath> {
     outline
@@ -150,8 +145,8 @@ fn rotate_closed_subpath(subpath: &[PathEl], start_idx: usize) -> BezPath {
         return BezPath::from_vec(subpath.to_vec());
     }
 
-    let start = path_element_end(source[start_idx - 1]);
-    let mut elements = Vec::with_capacity(source.len() + 1);
+    let mut elements = Vec::with_capacity(source.len() + 3);
+    elements.push(PathEl::MoveTo(path_element_end(source[start_idx - 1])));
     elements.extend_from_slice(&source[start_idx..]);
     if source
         .last()
@@ -160,7 +155,8 @@ fn rotate_closed_subpath(subpath: &[PathEl], start_idx: usize) -> BezPath {
         elements.push(PathEl::LineTo(subpath_start(subpath)));
     }
     elements.extend_from_slice(&source[..start_idx]);
-    subpath_from_elements(start, elements, true)
+    elements.push(PathEl::ClosePath);
+    BezPath::from_vec(elements)
 }
 
 fn nodes(subpath: &[PathEl]) -> impl Iterator<Item = Point> + '_ {
@@ -171,6 +167,16 @@ fn nodes(subpath: &[PathEl]) -> impl Iterator<Item = Point> + '_ {
     )
 }
 
+fn subpath_elements(subpath: &[PathEl]) -> &[PathEl] {
+    &subpath[1..subpath.len() - usize::from(subpath_is_closed(subpath))]
+}
+
+fn path_element_end(element: PathEl) -> Point {
+    element
+        .end_point()
+        .expect("drawing elements always have an end point")
+}
+
 fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
     a.x.total_cmp(&b.x).then_with(|| a.y.total_cmp(&b.y))
 }
@@ -178,7 +184,10 @@ fn compare_points(a: Point, b: Point) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::outline::PathEl;
+
+    fn outline_from_subpaths(subpaths: impl IntoIterator<Item = BezPath>) -> BezPath {
+        subpaths.into_iter().flatten().collect()
+    }
 
     fn pt(x: f32, y: f32) -> Point {
         Point::new(x.into(), y.into())
@@ -189,11 +198,16 @@ mod tests {
     }
 
     fn closed(start: Point, elements: Vec<PathEl>) -> BezPath {
-        subpath_from_elements(start, elements, true)
+        std::iter::once(PathEl::MoveTo(start))
+            .chain(elements)
+            .chain([PathEl::ClosePath])
+            .collect()
     }
 
     fn open(start: Point, elements: Vec<PathEl>) -> BezPath {
-        subpath_from_elements(start, elements, false)
+        std::iter::once(PathEl::MoveTo(start))
+            .chain(elements)
+            .collect()
     }
 
     fn subpaths(path: &BezPath) -> Vec<BezPath> {

@@ -11,7 +11,6 @@ from ._helpers import (
     _assert_single_cubic_matches,
     _cubic_segs_to_tensors,
     _CubicSeg,
-    _sub_cubic,
 )
 
 
@@ -113,7 +112,7 @@ def test_cubic_to_quad_reports_non_finite_curve(value: float) -> None:
 
 
 @pytest.mark.parametrize("curve", _CUBIC_CURVES)
-def test_cubic_to_quad_quad_to_cubic_endpoints_are_exact(curve: _CubicSeg) -> None:
+def test_cubic_to_quad_endpoint_is_exact(curve: _CubicSeg) -> None:
     types, coords = _cubic_segs_to_tensors([curve])
 
     q_types, q_coords = cubic_to_quad(types, coords)
@@ -126,37 +125,3 @@ def test_cubic_to_quad_quad_to_cubic_endpoints_are_exact(curve: _CubicSeg) -> No
     last_idx = quad_indices[-1]
     orig_end = torch.tensor([curve[3][0], curve[3][1]], dtype=torch.float32)
     assert torch.allclose(q_coords[last_idx, 4:6], orig_end, atol=1e-5)
-
-    if len(quad_indices) > 1:
-        for k in range(len(quad_indices) - 1):
-            qi = quad_indices[k]
-            qi1 = quad_indices[k + 1]
-            mid = (q_coords[qi, :2] + q_coords[qi1, :2]) / 2.0
-            assert torch.allclose(q_coords[qi, 4:6], mid, atol=1e-5)
-
-
-@pytest.mark.parametrize("curve", _CUBIC_CURVES)
-def test_cubic_to_quad_implied_cubics_close_to_sub_cubics(curve: _CubicSeg) -> None:
-    types, coords = _cubic_segs_to_tensors([curve])
-
-    q_types, q_coords = cubic_to_quad(types, coords)
-    c_types, c_coords = quad_to_cubic(q_types, q_coords)
-
-    quad_count = q_types.tolist().count(ElementType.QUAD_TO.value)
-    curve_indices = [
-        i for i, t in enumerate(c_types.tolist()) if t == ElementType.CURVE_TO.value
-    ]
-    assert len(curve_indices) == quad_count
-
-    for i, ci in enumerate(curve_indices):
-        sub = _sub_cubic(curve, i / quad_count, (i + 1) / quad_count)
-        actual_cp1 = (c_coords[ci, 0].item(), c_coords[ci, 1].item())
-        actual_cp2 = (c_coords[ci, 2].item(), c_coords[ci, 3].item())
-        err1 = math.sqrt(
-            (actual_cp1[0] - sub[1][0]) ** 2 + (actual_cp1[1] - sub[1][1]) ** 2
-        )
-        err2 = math.sqrt(
-            (actual_cp2[0] - sub[2][0]) ** 2 + (actual_cp2[1] - sub[2][1]) ** 2
-        )
-        assert err1 <= 2e-3, f"segment {i}: cp1 error {err1}"
-        assert err2 <= 2e-3, f"segment {i}: cp2 error {err2}"

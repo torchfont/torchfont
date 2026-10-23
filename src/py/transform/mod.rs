@@ -1,9 +1,9 @@
-use kurbo::Shape;
+use kurbo::{BezPath, Shape};
 use numpy::{IntoPyArray as _, PyArray1, PyReadonlyArray1};
 use pyo3::{Bound, prelude::*, types::PyModule};
 use skia_safe::PathFillType;
 
-use crate::outline::{BezPath, DecodeError};
+use crate::outline::DecodeError;
 use crate::transform::render_bitmap::RenderMode;
 use crate::transform::{curves, subpath, winding};
 
@@ -161,7 +161,7 @@ pub(crate) fn cubic_to_quad<'py>(
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     py.detach(|| curves::cubic_to_quad::cubic_to_quad(&outline))
         .map(|outline| encode(py, &outline))
-        .map_err(|_| {
+        .ok_or_else(|| {
             pyo3::exceptions::PyValueError::new_err(
                 "cubic_to_quad could not approximate a curve within tolerance",
             )
