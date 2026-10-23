@@ -131,37 +131,18 @@ def test_pipeline_compiles_into_one_graph() -> None:
     assert explanation.graph_count == 1
 
 
-def test_compiled_pipeline_matches_eager() -> None:
-    torch._dynamo.reset()  # noqa: SLF001
-    outline = _outline()
-    compiled = _compile_pipeline()
-
-    result = compiled(outline.types, outline.coords)
-
-    assert torch.equal(result, _pipeline(outline.types, outline.coords))
-
-
-@pytest.mark.parametrize("elements", [5, 9, 17, 33])
-def test_compiled_pipeline_handles_varying_element_counts(elements: int) -> None:
-    outline = _outline(elements)
-    compiled = _compile_pipeline()
-
-    result = compiled(outline.types, outline.coords)
-
-    assert torch.equal(result, _pipeline(outline.types, outline.coords))
-
-
 @pytest.mark.parametrize("dynamic", [None, True, False], ids=["auto", "on", "off"])
 def test_pipeline_compiles_under_every_dynamic_setting(
     dynamic: bool | None,  # noqa: FBT001
 ) -> None:
     torch._dynamo.reset()  # noqa: SLF001
-    outline = _outline()
     compiled = _compile_pipeline(dynamic=dynamic)
 
-    result = compiled(outline.types, outline.coords)
+    for elements in (5, 9, 17, 33):
+        outline = _outline(elements)
+        result = compiled(outline.types, outline.coords)
 
-    assert torch.equal(result, _pipeline(outline.types, outline.coords))
+        assert torch.equal(result, _pipeline(outline.types, outline.coords))
 
 
 def test_bbox_center_shifts_with_the_outline() -> None:

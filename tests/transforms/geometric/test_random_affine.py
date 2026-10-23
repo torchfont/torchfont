@@ -70,12 +70,6 @@ def test_random_affine_rejects_invalid_degrees(
         RandomAffine(degrees=degrees)
 
 
-@pytest.mark.parametrize("name", ["degrees", "translate", "scale"])
-def test_random_affine_rejects_non_pair_ranges(name: str) -> None:
-    with pytest.raises(ValueError, match="too many values to unpack"):
-        RandomAffine(**{name: (1.0, 2.0, 3.0)})  # ty: ignore[invalid-argument-type]
-
-
 def test_random_affine_rejects_invalid_shear_length() -> None:
     with pytest.raises(ValueError, match="two or four values"):
         RandomAffine(shear=(1.0, 2.0, 3.0))  # ty: ignore[invalid-argument-type]

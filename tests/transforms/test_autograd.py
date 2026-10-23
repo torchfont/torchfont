@@ -50,11 +50,22 @@ def test_affine_is_differentiable() -> None:
 def test_affine_does_not_backpropagate_through_the_bbox_centre() -> None:
     outline, coords = _grad_outline()
 
-    F.affine(outline, translate=(0.25, 0.0)).coords.sum().backward()
+    F.affine(outline, scale=2.0).coords.sum().backward()
 
-    active = F.affine(outline, translate=(0.25, 0.0)).coords != 0
     assert coords.grad is not None
-    assert torch.equal(coords.grad[active.detach()], torch.ones(int(active.sum())))
+    assert torch.equal(
+        coords.grad,
+        torch.tensor(
+            [
+                [1, 1, 1, 1, 2, 2],
+                [2, 2, 2, 2, 2, 2],
+                [1, 1, 1, 1, 2, 2],
+                [1, 1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1, 1],
+            ],
+            dtype=coords.dtype,
+        ),
+    )
 
 
 def test_add_coordinate_noise_is_differentiable_in_both_arguments() -> None:

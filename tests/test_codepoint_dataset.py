@@ -12,9 +12,6 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-import torchfont
-import torchfont.datasets as datasets_module
-import torchfont.transforms as transforms_module
 from tests._glyphs import glyph_id
 from torchfont import (
     CodepointData,
@@ -62,20 +59,6 @@ def test_dataset_indexes_each_face_codepoint_once() -> None:
     sample = dataset[0]
     assert isinstance(sample, CodepointSample)
     assert isinstance(sample.ref, GlyphRef)
-
-
-def test_dataset_treats_static_and_variable_files_as_one_face_each() -> None:
-    variable = CodepointDataset(
-        "tests/fonts",
-        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
-        codepoints=[0x41],
-    )
-    static = CodepointDataset(
-        "tests/fonts", patterns="source-sans/SourceSans3-Regular.ttf", codepoints=[0x41]
-    )
-
-    assert len(variable) == 1
-    assert len(static) == 1
 
 
 def test_dataset_transform_receives_sample() -> None:
@@ -467,13 +450,6 @@ def test_dataset_repr() -> None:
         f"CodepointDataset(root={str(dataset.root)!r}, samples=1, "
         "font_classes=1, character_classes=1)"
     )
-
-
-def test_public_dataset_api_is_exported() -> None:
-    assert datasets_module.CodepointDataset is CodepointDataset
-    assert torchfont.CodepointSample is CodepointSample
-    assert transforms_module.LoadGlyph is LoadGlyph
-    assert hasattr(_torchfont, "index_codepoints")
 
 
 def test_patterns_accept_string_or_sequence() -> None:

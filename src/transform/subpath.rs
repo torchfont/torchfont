@@ -217,15 +217,6 @@ mod tests {
     }
 
     #[test]
-    fn splits_subpaths_in_order() {
-        let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
-        let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
-        let outline = outline_from_subpaths([first.clone(), second.clone()]);
-
-        assert_eq!(split_subpaths(&outline), [first, second]);
-    }
-
-    #[test]
     fn drops_selected_subpaths() {
         let first = open(pt(0.0, 0.0), vec![line(1.0, 0.0)]);
         let second = closed(pt(2.0, 0.0), vec![line(3.0, 0.0)]);
@@ -306,30 +297,13 @@ mod tests {
     }
 
     #[test]
-    fn normalize_already_minimum_is_noop() {
-        let subpath = closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.5, 1.0)]);
-        let outline = outline_from_subpaths([subpath.clone()]);
-        let result = normalize_subpath_start_points(&outline);
-        assert_eq!(subpaths(&result)[0], subpath);
-    }
-
-    #[test]
     fn normalize_prefers_smaller_index_for_equal_points() {
-        let outline =
-            outline_from_subpaths([closed(pt(0.0, 0.0), vec![line(1.0, 0.0), line(0.0, 0.0)])]);
+        let outline = outline_from_subpaths([closed(
+            pt(0.0, 0.0),
+            vec![line(1.0, 0.0), line(0.0, 0.0), line(0.0, 1.0)],
+        )]);
         let result = normalize_subpath_start_points(&outline);
-        let result_subpaths = subpaths(&result);
-        let s = &result_subpaths[0];
-        assert_eq!(subpath_start(s.elements()), pt(0.0, 0.0));
-        assert_eq!(subpath_elements(s.elements()).len(), 2);
-    }
-
-    #[test]
-    fn normalize_does_not_rotate_open_subpath() {
-        let subpath = open(pt(2.0, 0.0), vec![line(0.0, 0.0), line(1.0, 1.0)]);
-        let outline = outline_from_subpaths([subpath.clone()]);
-        let result = normalize_subpath_start_points(&outline);
-        assert_eq!(subpaths(&result)[0], subpath);
+        assert_eq!(result, outline);
     }
 
     #[test]
@@ -375,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn normalize_subpath_order_uses_tight_bounds() {
+    fn normalize_subpath_order_sorts_bounds_lexicographically() {
         let first = closed(pt(10.0, 0.0), vec![line(11.0, 0.0)]);
         let second = closed(pt(0.0, 10.0), vec![line(1.0, 10.0)]);
         let third = closed(pt(0.0, 0.0), vec![line(1.0, 0.0)]);

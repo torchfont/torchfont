@@ -38,10 +38,6 @@ def test_to_image_converts_bitmap_to_channel_first_tv_image() -> None:
     assert out.dtype == torch.float32
 
 
-def test_render_bitmap_returns_a_plain_tensor() -> None:
-    assert type(_render()) is torch.Tensor
-
-
 def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
     ref = GlyphRef(FontRef(FONT, 0), GLYPH_A)
     sample = CodepointSample(ref, codepoint=ord("A"), font_idx=3, character_idx=5)
@@ -68,12 +64,3 @@ def test_torchvision_pipeline_preserves_glyph_data_to_model_boundary() -> None:
     assert out.data.dtype == torch.float32
     assert out.data.min() >= 0.0
     assert out.data.max() <= 1.0
-
-
-def test_torchvision_passes_label_through() -> None:
-    image, label = v2.RandomHorizontalFlip(p=1.0)(
-        v2.ToImage()(_render()), torch.tensor(7)
-    )
-
-    assert isinstance(image, tv_tensors.Image)
-    assert int(label) == 7

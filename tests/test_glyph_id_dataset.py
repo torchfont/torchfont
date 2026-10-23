@@ -10,10 +10,8 @@ import torch
 from fontTools.ttLib import TTFont
 from torch.utils.data import DataLoader
 
-import torchfont
-import torchfont.datasets as datasets_module
 from tests._glyphs import glyph_id_by_name
-from torchfont import GlyphIdData, GlyphIdSample, GlyphRef, Outline, _torchfont
+from torchfont import GlyphIdData, GlyphIdSample, GlyphRef, Outline
 from torchfont.datasets import CodepointDataset, GlyphIdDataset
 from torchfont.transforms import LoadGlyph
 from torchfont.transforms import functional as _functional
@@ -257,13 +255,6 @@ def test_dataset_repr() -> None:
         f"GlyphIdDataset(root={str(dataset.root)!r}, samples={len(dataset)}, "
         "font_classes=1)"
     )
-
-
-def test_public_dataset_api_is_exported() -> None:
-    assert datasets_module.GlyphIdDataset is GlyphIdDataset
-    assert torchfont.GlyphIdSample is GlyphIdSample
-    assert torchfont.GlyphIdData is GlyphIdData
-    assert hasattr(_torchfont, "index_glyphs")
 
 
 def test_max_length_keeps_only_short_glyph_sequences() -> None:

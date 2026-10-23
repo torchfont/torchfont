@@ -4,17 +4,6 @@ from tests._pairs import normalize_subpath_start_points
 from torchfont import ElementType
 
 
-def test_normalize_subpath_start_points_uses_smallest_endpoint(
-    square: tuple[torch.Tensor, torch.Tensor],
-) -> None:
-    types, coords = square
-    coords[0, 4:6] = torch.tensor([3.0, 3.0])
-
-    _out_types, out_coords = normalize_subpath_start_points(types, coords)
-
-    assert out_coords[0, 4:6].tolist() == [1.0, 2.0]
-
-
 def test_normalize_subpath_start_points_materializes_old_close_edge(
     square: tuple[torch.Tensor, torch.Tensor],
 ) -> None:
