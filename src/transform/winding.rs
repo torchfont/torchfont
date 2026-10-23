@@ -14,64 +14,33 @@ pub(crate) fn normalize_winding(
     if clockwise.len() != 1 && clockwise.len() < groups.len() {
         return Err("clockwise must contain at least one value per winding group");
     }
-    let mut reverse = vec![false; paths.len()];
+    let mut result: Vec<_> = paths
+        .iter()
+        .map(|path| BezPath::from_vec(path.to_vec()))
+        .collect();
     for (index, group) in groups.iter().enumerate() {
         let clockwise = clockwise[if clockwise.len() == 1 { 0 } else { index }];
-        let area = group_area(group.iter().map(|&index| areas[index]));
-        let selected = area != 0.0 && (area < 0.0) != clockwise;
-        if selected {
-            for &index in group {
-                reverse[index] = true;
+        let forward: BezPath = group
+            .iter()
+            .flat_map(|&index| paths[index].iter().copied())
+            .collect();
+        let reversed = forward.reverse_subpaths();
+        let area: f64 = group.iter().map(|&index| areas[index]).sum();
+        let reversed_area: f64 = reversed.subpaths().map(subpath_area).sum();
+        if (clockwise && area > reversed_area) || (!clockwise && area < reversed_area) {
+            for (&index, path) in group.iter().zip(reversed.subpaths()) {
+                result[index] = BezPath::from_vec(path.to_vec());
             }
         }
     }
-    Ok(paths
-        .into_iter()
-        .zip(reverse)
-        .flat_map(|(path, reverse)| {
-            let path = BezPath::from_vec(path.to_vec());
-            if reverse {
-                path.reverse_subpaths()
-            } else {
-                path
-            }
-        })
-        .collect())
-}
-
-fn group_area(areas: impl Iterator<Item = (f64, f64)>) -> f64 {
-    let mut total = 0.0;
-    let mut error = 0.0;
-    let mut magnitude = 0.0;
-    let mut count = 0;
-    for (area, area_error) in areas {
-        total += area;
-        magnitude += area.abs();
-        error += area_error;
-        count += 1;
-    }
-    if total.abs() > error + f64::EPSILON * magnitude * f64::from(count) {
-        total
-    } else {
-        0.0
-    }
+    Ok(result.into_iter().flatten().collect())
 }
 
 pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
     let mut contours: Vec<_> = outline
         .subpaths()
-        .map(|subpath| {
-            let (area, error) = subpath_area(subpath);
-            (if area.abs() <= error { 0.0 } else { area }, subpath)
-        })
+        .map(|subpath| (subpath_area(subpath), subpath))
         .collect();
-    if let [(area, subpath)] = contours.as_slice() {
-        return if *area < 0.0 {
-            BezPath::from_vec(subpath.to_vec()).reverse_subpaths()
-        } else {
-            outline.clone()
-        };
-    }
     contours.sort_by(|a, b| {
         b.0.abs()
             .partial_cmp(&a.0.abs())
@@ -118,19 +87,35 @@ pub(crate) fn winding_from_even_odd(outline: &BezPath) -> BezPath {
 
     let mut result = BezPath::new();
     for ((area, subpath), depth) in contours.into_iter().zip(nesting) {
-        let is_clockwise = area < 0.0;
-        let is_outer = depth.is_multiple_of(2);
-        if is_clockwise == is_outer {
-            result.extend(
-                BezPath::from_vec(subpath.to_vec())
-                    .reverse_subpaths()
-                    .elements()
-                    .iter()
-                    .copied(),
-            );
+        let reversed = BezPath::from_vec(subpath.to_vec()).reverse_subpaths();
+        let reversed_area = subpath_area(reversed.elements());
+        let clockwise = !depth.is_multiple_of(2);
+        if (clockwise && area > reversed_area) || (!clockwise && area < reversed_area) {
+            result.extend(reversed);
         } else {
             result.extend(subpath.iter().copied());
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use kurbo::{BezPath, Rect, Shape};
+
+    use super::winding_from_even_odd;
+
+    #[test]
+    fn equal_area_directions_preserve_contours() {
+        let mut contour = BezPath::new();
+        contour.move_to((1.0, 1.0));
+        contour.curve_to((2.0, 1.0), (3.0, 1.0), (4.0, 1.0));
+        contour.close_path();
+        for contour in [contour.clone(), contour.reverse_subpaths()] {
+            assert_eq!(winding_from_even_odd(&contour), contour);
+            let mut nested = Rect::new(0.0, 0.0, 5.0, 5.0).to_path(0.1);
+            nested.extend(contour.iter());
+            assert_eq!(winding_from_even_odd(&nested), nested);
+        }
+    }
 }

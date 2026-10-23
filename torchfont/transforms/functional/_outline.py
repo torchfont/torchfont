@@ -23,9 +23,9 @@ def normalize_winding(inpt: Outline, *, clockwise: bool | Tensor = True) -> Outl
     extremely narrow overlaps may be missed, limiting fill preservation at that
     numerical precision.
 
-    Each group's sum of signed contour areas determines its direction.
-    Groups whose sum is zero within floating-point roundoff are unchanged.
-    ``clockwise=True`` chooses a negative signed area in y-up font coordinates.
+    ``clockwise=True`` requests clockwise winding in y-up font coordinates;
+    ``False`` requests counterclockwise. Groups with numerically
+    indistinguishable directions are unchanged.
     A boolean tensor specifies one direction per group in input order; a single
     entry applies to all groups. Extra entries are ignored.
     Open subpaths are implicitly closed for fill and area calculations;
