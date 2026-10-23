@@ -25,7 +25,7 @@ class Transform(nn.Module):
         """Transform one selected input using parameters from ``make_params``."""
         raise NotImplementedError
 
-    def forward(self, *inputs: object) -> object:
+    def forward(self, *inputs: object) -> object:  # ty: ignore[invalid-mutable-override]
         """Transform semantic leaves and preserve the enclosing pytree."""
         inpt = inputs if len(inputs) > 1 else inputs[0]
         flat_inputs, tree_spec = tree_flatten(inpt)

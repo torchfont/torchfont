@@ -40,7 +40,7 @@ class TransformPipeline(torch.nn.Module):
             ]
         )
 
-    def forward(
+    def forward(  # ty: ignore[invalid-mutable-override]
         self, sample: CodepointSample
     ) -> tuple[Tensor, Tensor, Tensor, int, int, float | None]:
         data = cast("CodepointData[Outline]", self.prepare_outline(sample))
