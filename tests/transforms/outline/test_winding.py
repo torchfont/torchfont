@@ -317,6 +317,14 @@ def _signs(outline: Outline) -> list[int]:
     return result
 
 
+def _assert_stable(outline: Outline, *, clockwise: bool) -> Outline:
+    output = F.normalize_winding(outline, clockwise=clockwise)
+    repeated = F.normalize_winding(output, clockwise=clockwise)
+    assert torch.equal(repeated.types, output.types)
+    assert torch.equal(repeated.coords, output.coords)
+    return output
+
+
 @pytest.mark.parametrize("clockwise", [True, False])
 def test_normalizes_disjoint_groups_with_their_holes(*, clockwise: bool) -> None:
     outline = _outline(_SQUARE, _HOLE, list(reversed(_ACCENT)))
@@ -374,13 +382,43 @@ def test_nested_group_uses_total_signed_area() -> None:
 def test_zero_sum_group_is_unchanged(shift: float) -> None:
     opposite = [(x + shift, y) for x, y in reversed(_SQUARE)]
     outline = _outline(_SQUARE, opposite)
-    for output in (
-        F.normalize_winding(outline),
-        F.normalize_winding(outline, clockwise=False),
-        RandomWinding()(outline),
-    ):
+    for clockwise in (True, False):
+        output = _assert_stable(outline, clockwise=clockwise)
         assert torch.equal(output.types, outline.types)
         assert torch.equal(output.coords, outline.coords)
+
+
+@pytest.mark.parametrize("clockwise", [True, False])
+def test_zero_area_direction_tie_preserves_input(*, clockwise: bool) -> None:
+    outline = _outline([(1, 0), (0, 0)])
+    reversed_outline = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
+    for candidate in (outline, reversed_outline):
+        output = _assert_stable(candidate, clockwise=clockwise)
+        assert torch.equal(output.types, candidate.types)
+        assert torch.equal(output.coords, candidate.coords)
+
+
+@pytest.mark.parametrize("clockwise", [True, False])
+def test_equal_area_curve_directions_preserve_input(*, clockwise: bool) -> None:
+    outline = Outline(
+        torch.tensor(
+            [
+                ElementType.MOVE_TO,
+                ElementType.CURVE_TO,
+                ElementType.CLOSE,
+                ElementType.END,
+            ]
+        ),
+        torch.tensor(
+            [[0, 0, 0, 0, 0, 0], [2, 0, 1, 0, 0, 0], [0] * 6, [0] * 6],
+            dtype=torch.float32,
+        ),
+    )
+    reversed_outline = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
+    for candidate in (outline, reversed_outline):
+        output = _assert_stable(candidate, clockwise=clockwise)
+        assert torch.equal(output.types, candidate.types)
+        assert torch.equal(output.coords, candidate.coords)
 
 
 def test_disjoint_contours_with_overlapping_bounds_are_independent() -> None:
@@ -443,8 +481,11 @@ def test_zero_signed_area_contours_use_nonzero_interiors(*, filled: bool) -> Non
     output = F.normalize_winding(outline, clockwise=torch.tensor([True, False]))
     reversed_all = Outline(*_ops.reverse_subpaths(outline.types, outline.coords))
     assert torch.equal(output.coords[:5], reversed_all.coords[:5])
-    expected = reversed_all if filled else outline
-    assert torch.equal(output.coords[5:], expected.coords[5:])
+    if filled:
+        assert torch.equal(output.coords[5:], reversed_all.coords[5:])
+    else:
+        separate = F.normalize_winding(_outline(points), clockwise=False)
+        assert torch.equal(output.coords[5:], separate.coords)
 
 
 def test_retraced_cubic_with_roundoff_has_an_independent_empty_interior() -> None:
@@ -630,10 +671,8 @@ def test_open_curves_reverse_with_closed_group_without_adding_close() -> None:
 @pytest.mark.parametrize("zero_area", [False, True], ids=["empty", "zero_area"])
 def test_empty_and_zero_area_outlines_are_unchanged(*, zero_area: bool) -> None:
     outline = _outline([(0, 0), (1, 0)]) if zero_area else _outline()
-    for output in (
-        F.normalize_winding(outline),
-        F.normalize_winding(outline, clockwise=False),
-    ):
+    for clockwise in (True, False):
+        output = _assert_stable(outline, clockwise=clockwise)
         assert torch.equal(output.types, outline.types)
         assert torch.equal(output.coords, outline.coords)
 
@@ -693,7 +732,7 @@ def test_cancelling_cubic_areas_remain_unchanged(
         ),
         coords,
     )
-    output = F.normalize_winding(outline, clockwise=clockwise)
+    output = _assert_stable(outline, clockwise=clockwise)
     assert torch.equal(output.types, outline.types)
     assert torch.equal(output.coords, outline.coords)
 
@@ -724,13 +763,14 @@ def test_opposite_duplicate_curves_remain_unchanged(sample: int) -> None:
         torch.cat((outline.types[:-1], reversed_outline.types)),
         torch.cat((outline.coords[:-1], reversed_outline.coords)),
     )
-    for output in (
-        F.normalize_winding(pair),
-        F.normalize_winding(pair, clockwise=False),
-        RandomWinding()(pair),
-    ):
+    for clockwise in (True, False):
+        output = _assert_stable(pair, clockwise=clockwise)
         assert torch.equal(output.types, pair.types)
         assert torch.equal(output.coords, pair.coords)
+    torch.manual_seed(sample)
+    output = RandomWinding()(pair)
+    assert torch.equal(output.types, pair.types)
+    assert torch.equal(output.coords, pair.coords)
 
 
 @pytest.mark.parametrize("seed", range(32))

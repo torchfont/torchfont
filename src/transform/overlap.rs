@@ -5,14 +5,14 @@ use skia_safe::PathOp;
 use super::skia::{SKIA_SCALE, build_skia_path};
 use crate::outline::{BezPath, PathEl, subpath_start};
 
-pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[(f64, f64)]) -> Vec<Vec<usize>> {
+pub(super) fn overlap_groups(paths: &[&[PathEl]], areas: &[f64]) -> Vec<Vec<usize>> {
     if paths.len() < 2 {
         return (0..paths.len()).map(|index| vec![index]).collect();
     }
     let filled: Vec<_> = paths
         .iter()
         .zip(areas)
-        .map(|(path, &(area, _))| {
+        .map(|(path, &area)| {
             let path = BezPath::from_vec(path.to_vec());
             let path = if area < 0.0 {
                 path.reverse_subpaths()
@@ -68,15 +68,10 @@ pub(super) fn bounds_groups(
     groups
 }
 
-pub(super) fn subpath_area(subpath: &[PathEl]) -> (f64, f64) {
+pub(super) fn subpath_area(subpath: &[PathEl]) -> f64 {
     let mut path = BezPath::from_vec(subpath.to_vec());
     path.apply_affine(kurbo::Affine::translate(-subpath_start(subpath).to_vec2()));
-    let bounds = path.control_box();
-    let extent_x = bounds.x0.abs().max(bounds.x1.abs());
-    let extent_y = bounds.y0.abs().max(bounds.y1.abs());
-    let area = path.area();
-    let error = 32.0 * f64::EPSILON * extent_x * extent_y * subpath.len() as f64;
-    (area, error)
+    path.area()
 }
 
 #[cfg(test)]
@@ -179,7 +174,7 @@ mod tests {
         let fills: Vec<_> = paths
             .iter()
             .zip(&areas)
-            .map(|(path, &(area, _))| {
+            .map(|(path, &area)| {
                 let path = BezPath::from_vec(path.to_vec());
                 let path = if area < 0.0 {
                     path.reverse_subpaths()
@@ -241,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn subpath_area_retains_residuals_within_roundoff() {
+    fn subpath_area_retains_small_nonzero_areas() {
         let mut path = BezPath::new();
         path.move_to((0.0, 0.0));
         for point in [
@@ -258,10 +253,9 @@ mod tests {
         }
         path.close_path();
 
-        let (area, error) = subpath_area(path.elements());
+        let area = subpath_area(path.elements());
 
         assert!(area > 0.0);
-        assert!(area < error);
     }
 
     #[test]
@@ -272,7 +266,7 @@ mod tests {
         open.line_to((1.0, 5.0));
 
         let raw_area = open.elements().area();
-        let (closed_area, _) = super::subpath_area(open.elements());
+        let closed_area = super::subpath_area(open.elements());
 
         assert_ne!(raw_area, closed_area);
         assert!((closed_area.abs() - 8.0).abs() < 1e-9);
