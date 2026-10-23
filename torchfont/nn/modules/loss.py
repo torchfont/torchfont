@@ -32,7 +32,7 @@ class OutlineLoss(nn.Module):
         self.coordinate_weight = coordinate_weight
         self.reduction = reduction
 
-    def forward(
+    def forward(  # ty: ignore[invalid-mutable-override]
         self,
         type_logits: Tensor,
         coordinate_prediction: Tensor,

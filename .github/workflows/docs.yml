@@ -12,6 +12,7 @@ on:
       - 'mise.toml'
       - 'mise.lock'
       - '.github/workflows/docs.yml'
+      - '.github/workflows/actions.lock'
   pull_request:
     paths:
       - 'docs/**'
@@ -21,6 +22,7 @@ on:
       - 'mise.toml'
       - 'mise.lock'
       - '.github/workflows/docs.yml'
+      - '.github/workflows/actions.lock'
   workflow_dispatch:
 
 permissions:
@@ -31,10 +33,10 @@ jobs:
     name: Build docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: 24
+          node-version: 26
           cache: npm
       - run: npm ci
       - run: npm run docs:build

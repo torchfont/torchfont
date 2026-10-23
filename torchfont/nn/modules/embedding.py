@@ -55,7 +55,7 @@ class OutlineEmbedding(nn.Module):
         with torch.no_grad():
             self.type_embedding.weight[ElementType.PAD.value].zero_()
 
-    def forward(self, types: Tensor, coords: Tensor) -> Tensor:
+    def forward(self, types: Tensor, coords: Tensor) -> Tensor:  # ty: ignore[invalid-mutable-override]
         """Return the sum of element-type and coordinate embeddings."""
         _validate_outline_tensors(types, coords)
         active_coords = torch.where(_active_coordinate_mask(types), coords, 0)

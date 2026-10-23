@@ -30,7 +30,7 @@ class Compose(nn.Module):
         super().__init__()
         self.transforms = _module_list(transforms)
 
-    def forward(self, *inputs: object) -> object:
+    def forward(self, *inputs: object) -> object:  # ty: ignore[invalid-mutable-override]
         """Apply all configured transforms to the inputs."""
         unpack = len(inputs) > 1
         output: object = inputs if unpack else inputs[0]
@@ -58,7 +58,7 @@ class RandomApply(nn.Module):
             raise ValueError(msg)
         self.p = p
 
-    def forward(self, *inputs: object) -> object:
+    def forward(self, *inputs: object) -> object:  # ty: ignore[invalid-mutable-override]
         """Apply the configured transform or return inputs unchanged."""
         unpack = len(inputs) > 1
         if torch.rand(()) >= self.p:
@@ -101,7 +101,7 @@ class RandomChoice(nn.Module):
             raise ValueError(msg)
         self.p = [probability / total for probability in p]
 
-    def forward(self, *inputs: object) -> object:
+    def forward(self, *inputs: object) -> object:  # ty: ignore[invalid-mutable-override]
         """Apply the randomly selected transform to all inputs."""
         index = int(torch.multinomial(torch.tensor(self.p), 1).item())
         return self.transforms[index](*inputs)
@@ -123,7 +123,7 @@ class RandomOrder(nn.Module):
             msg = "transforms must contain at least one transform"
             raise ValueError(msg)
 
-    def forward(self, *inputs: object) -> object:
+    def forward(self, *inputs: object) -> object:  # ty: ignore[invalid-mutable-override]
         """Apply all configured transforms in a randomly sampled order."""
         unpack = len(inputs) > 1
         output: object = inputs if unpack else inputs[0]

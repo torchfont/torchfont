@@ -3,7 +3,7 @@ min_version = "2026.6.14"
 [tools]
 uv = "latest"
 npm = "latest"
-node = "24"
+node = "26"
 
 [settings]
 lockfile = true
