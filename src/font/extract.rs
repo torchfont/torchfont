@@ -1,6 +1,6 @@
 use skrifa::outline::{DrawError, DrawSettings, OutlineGlyph, OutlinePen};
 
-use crate::outline::{BezPath, Point};
+use kurbo::{BezPath, Point};
 
 struct ElementCountingPen {
     count: usize,

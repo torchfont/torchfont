@@ -123,16 +123,6 @@ def _split_cubic(curve: _CubicSeg, ts: tuple[float, ...]) -> list[_CubicSeg]:
     return pieces
 
 
-def _sub_cubic(curve: _CubicSeg, t1: float, t2: float) -> _CubicSeg:
-    if t1 == 0.0:
-        left, _ = _casteljau_split(*curve, t2)
-        return left
-    _, right = _casteljau_split(*curve, t1)
-    t_adj = (t2 - t1) / (1.0 - t1)
-    left, _ = _casteljau_split(*right, t_adj)
-    return left
-
-
 def _cubic_coords(curve: _CubicSeg) -> torch.Tensor:
     p1, p2, p3 = curve[1], curve[2], curve[3]
     return torch.tensor([p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]], dtype=torch.float32)

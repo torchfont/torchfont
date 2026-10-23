@@ -1,75 +1,56 @@
-use kurbo::{CubicBez, cubics_to_quadratic_splines};
+use kurbo::{BezPath, CubicBez, PathEl, PathSeg, Point, QuadBez};
 
-use crate::outline::{
-    BezPath, PathEl, Point, Vec2, path_element_end, subpath_elements, subpath_is_closed,
-    subpath_start,
-};
+use crate::outline::{subpath_is_closed, subpath_segments, subpath_start};
 use crate::transform::curves::{TOLERANCE, cubic_farthest_fit_inside};
 
-pub(crate) enum CubicToQuadError {
-    ApproximationFailed,
-}
-
-pub(crate) fn cubic_to_quad(outline: &BezPath) -> Result<BezPath, CubicToQuadError> {
+pub(crate) fn cubic_to_quad(outline: &BezPath) -> Option<BezPath> {
     let mut result = BezPath::new();
 
     for subpath in outline.subpaths() {
         let start = subpath_start(subpath);
         result.move_to(start);
-        let mut prev = start;
-        for element in subpath_elements(subpath) {
-            match *element {
-                PathEl::CurveTo(control0, control1, end) => {
-                    append_cubic_as_quads(&mut result, prev, control0, control1, end)?;
-                    prev = end;
-                }
-                other => {
-                    result.push(other);
-                    prev = path_element_end(other);
-                }
+        for segment in subpath_segments(subpath) {
+            if let PathSeg::Cubic(cubic) = segment {
+                append_cubic_as_quads(&mut result, cubic)?;
+            } else {
+                result.push(segment.as_path_el());
             }
         }
         if subpath_is_closed(subpath) {
             result.close_path();
         }
     }
-    Ok(result)
+    Some(result)
 }
 
-fn append_cubic_as_quads(
-    result: &mut BezPath,
-    p0: Point,
-    p1: Point,
-    p2: Point,
-    p3: Point,
-) -> Result<(), CubicToQuadError> {
-    let cubic = CubicBez::new(p0, p1, p2, p3);
+fn append_cubic_as_quads(result: &mut BezPath, cubic: CubicBez) -> Option<()> {
     if !cubic.is_finite() {
-        return Err(CubicToQuadError::ApproximationFailed);
+        return None;
     }
-    if let Some(control) = degree_reduced_control(p0, p1, p2, p3) {
-        result.quad_to(control, p3);
-        return Ok(());
+    if let Some(control) = degree_reduced_control(cubic) {
+        result.quad_to(control, cubic.p3);
+        return Some(());
     }
-    let spline = cubics_to_quadratic_splines(&[cubic], TOLERANCE)
-        .ok_or(CubicToQuadError::ApproximationFailed)?
-        .pop()
-        .expect("one cubic produces one spline");
+    let spline = cubic.approx_spline(TOLERANCE)?;
     result.extend(
         spline
             .to_quads()
             .map(|quad| PathEl::QuadTo(quad.p1, quad.p2)),
     );
-    Ok(())
+    Some(())
 }
 
-fn degree_reduced_control(p0: Point, p1: Point, p2: Point, p3: Point) -> Option<Point> {
+fn degree_reduced_control(cubic: CubicBez) -> Option<Point> {
+    let CubicBez { p0, p1, p2, p3 } = cubic;
     let from_start = p0.lerp(p1, 1.5);
     let from_end = p3.lerp(p2, 1.5);
     let control = from_start.midpoint(from_end);
-    let cubic_control0 = p0.lerp(control, 2.0 / 3.0);
-    let cubic_control1 = p3.lerp(control, 2.0 / 3.0);
-    let d1 = cubic_control0 - p1;
-    let d2 = cubic_control1 - p2;
-    cubic_farthest_fit_inside(Vec2::ZERO, d1, d2, Vec2::ZERO, TOLERANCE).then_some(control)
+    let raised = QuadBez::new(p0, control, p3).raise();
+    let deviation = CubicBez::new(
+        Point::ZERO,
+        raised.p1 - p1.to_vec2(),
+        raised.p2 - p2.to_vec2(),
+        Point::ZERO,
+    );
+    cubic_farthest_fit_inside(deviation, TOLERANCE).then_some(control)
 }

@@ -161,19 +161,44 @@ def test_dataset_rejects_non_integer_codepoints(codepoint: object) -> None:
         )
 
 
-def test_explicit_location_validation() -> None:
+@pytest.mark.parametrize(
+    ("requested", "expected_weight"),
+    [
+        ({"wght": 10_000.0}, 900.0),
+        ({"wght": -10_000.0}, 200.0),
+        ({"xxxx": 1.0}, 400.0),
+    ],
+)
+def test_explicit_location_is_filtered_and_clamped(
+    requested: dict[str, float], expected_weight: float
+) -> None:
     ref = CodepointDataset(
         "tests/fonts",
         patterns="source-serif/SourceSerif4Variable-Roman.ttf",
         codepoints=[0x41],
     )[0].ref
 
-    with pytest.raises(ValueError, match="no variation axis 'xxxx'"):
-        _functional.load_glyph(ref, {"xxxx": 1.0})
-    with pytest.raises(ValueError, match="outside"):
-        _functional.load_glyph(ref, {"wght": 10_000.0})
+    (types, coords), location, values = _torchfont.load_glyph(
+        ref.font.path, ref.font.face_index, ref.glyph_id, requested
+    )
+
+    assert dict(location) == {"opsz": 20.0, "wght": expected_weight}
+    assert values[0] == expected_weight
+    expected = _functional.load_glyph(ref, {"wght": expected_weight})
+    assert torch.equal(torch.from_numpy(types), expected.types)
+    assert torch.equal(torch.from_numpy(coords).view(-1, 6), expected.coords)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_explicit_location_rejects_nonfinite_values(value: float) -> None:
+    ref = CodepointDataset(
+        "tests/fonts",
+        patterns="source-serif/SourceSerif4Variable-Roman.ttf",
+        codepoints=[0x41],
+    )[0].ref
+
     with pytest.raises(ValueError, match="finite"):
-        _functional.load_glyph(ref, {"wght": float("nan")})
+        _functional.load_glyph(ref, {"wght": value})
 
 
 def test_load_glyph_uses_default_location() -> None:

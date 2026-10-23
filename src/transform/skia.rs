@@ -1,6 +1,6 @@
 use skia_safe::{Path, PathBuilder, PathFillType, PathVerb};
 
-use crate::outline::{BezPath, PathEl, Point};
+use kurbo::{BezPath, PathEl, Point};
 
 pub(super) const SKIA_SCALE: f32 = 16_384.0;
 

@@ -167,3 +167,33 @@ def test_random_split_segments_native_rejects_too_few_selection_values() -> None
             0.2,
             (0.2, 0.8),
         )
+
+
+def test_random_split_segments_excludes_implicit_closing_edges() -> None:
+    types = np.array([1, 2, 5, 1, 3, 6], dtype=np.int64)
+    coords = np.array(
+        [
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 2, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 3, 0],
+            [4, 2, 0, 0, 5, 0],
+            [0, 0, 0, 0, 0, 0],
+        ],
+        dtype=np.float32,
+    )
+
+    out_types, flat_coords = _torchfont.random_split_segments(
+        types,
+        coords.reshape(-1),
+        np.array([1, 0, 1, 1, 0, 1], dtype=np.float32),
+        np.full(types.size, 0.5, dtype=np.float32),
+        1.0,
+        (0.2, 0.8),
+    )
+
+    assert out_types.tolist() == [1, 2, 2, 5, 1, 3, 3, 6]
+    out_coords = flat_coords.reshape(-1, 6)
+    np.testing.assert_array_equal(
+        out_coords[[1, 2, 5, 6], 4:6], [[1, 0], [2, 0], [4, 1], [5, 0]]
+    )

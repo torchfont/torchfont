@@ -17,7 +17,10 @@ def load_glyph(
     ref: GlyphRef,
     location: Mapping[str, float] | None = None,
 ) -> Outline:
-    """Load one glyph outline at an explicit or default location."""
+    """Load one glyph outline at a default or clamped explicit location.
+
+    Unknown axes are ignored and provided values must be finite.
+    """
     normalized_location = (
         None
         if location is None

@@ -1,24 +1,18 @@
-use kurbo::QuadBez;
+use kurbo::{BezPath, PathSeg};
 
-use crate::outline::{
-    BezPath, PathEl, path_element_end, subpath_elements, subpath_is_closed, subpath_start,
-};
+use crate::outline::{subpath_is_closed, subpath_segments, subpath_start};
 
 pub(crate) fn quad_to_cubic(outline: &BezPath) -> BezPath {
     let mut result = BezPath::new();
     for subpath in outline.subpaths() {
         let start = subpath_start(subpath);
         result.move_to(start);
-        let mut prev = start;
-        result.extend(subpath_elements(subpath).iter().map(|&el| {
-            let converted = if let PathEl::QuadTo(control, end) = el {
-                let cubic = QuadBez::new(prev, control, end).raise();
-                PathEl::CurveTo(cubic.p1, cubic.p2, cubic.p3)
+        result.extend(subpath_segments(subpath).map(|segment| {
+            if let PathSeg::Quad(quad) = segment {
+                PathSeg::Cubic(quad.raise()).as_path_el()
             } else {
-                el
-            };
-            prev = path_element_end(converted);
-            converted
+                segment.as_path_el()
+            }
         }));
         if subpath_is_closed(subpath) {
             result.close_path();

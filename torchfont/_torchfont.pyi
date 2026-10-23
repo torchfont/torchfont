@@ -110,7 +110,7 @@ def load_glyph(
     path: str,
     face_index: int,
     glyph_id: int,
-    location: dict[str, float] | None = ...,
+    location: dict[str, float] | None,
 ) -> tuple[
     tuple[np.ndarray, np.ndarray],
     list[tuple[str, float]],

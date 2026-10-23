@@ -2,7 +2,9 @@ use pyo3::prelude::*;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use crate::font::{axis_info, map_font_file, parse_font_ref};
+use skrifa::MetadataProvider;
+
+use crate::font::{map_font_file, parse_font_ref};
 use crate::transform::load::load_glyph as load;
 
 #[pyfunction]
@@ -14,16 +16,26 @@ pub(crate) fn variation_axes(
     py.detach(|| {
         let data = map_font_file(&path)?;
         let font = parse_font_ref(&data[..], &path, face_index)?;
-        Ok(axis_info(&font)
-            .into_iter()
-            .map(|axis| (axis.tag, axis.min_value, axis.default_value, axis.max_value))
+        Ok(font
+            .axes()
+            .iter()
+            .map(|axis| {
+                (
+                    axis.tag().to_string(),
+                    axis.min_value(),
+                    axis.default_value(),
+                    axis.max_value(),
+                )
+            })
             .collect())
     })
 }
 
-type AxisValues = (f32, f32, f32, f32, f32);
-
-type LoadedGlyphArrays<'py> = (super::OutlineArrays<'py>, Vec<(String, f32)>, AxisValues);
+type LoadedGlyphArrays<'py> = (
+    super::OutlineArrays<'py>,
+    Vec<(String, f32)>,
+    (f32, f32, f32, f32, f32),
+);
 
 #[pyfunction]
 pub(crate) fn load_glyph<'py>(
@@ -35,5 +47,12 @@ pub(crate) fn load_glyph<'py>(
 ) -> PyResult<LoadedGlyphArrays<'py>> {
     let (outline, location, axis_values) =
         py.detach(|| load(&path, face_index, glyph_id, location.as_ref()))?;
-    Ok((super::encode(py, &outline), location, axis_values))
+    Ok((
+        super::encode(py, &outline),
+        location
+            .into_iter()
+            .map(|setting| (setting.selector.to_string(), setting.value))
+            .collect(),
+        axis_values.into(),
+    ))
 }

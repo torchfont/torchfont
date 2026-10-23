@@ -1,5 +1,4 @@
-use super::BezPath;
-use kurbo::{PathEl, Point};
+use kurbo::{BezPath, PathEl, Point};
 
 #[derive(Debug)]
 pub(crate) enum DecodeError {
@@ -13,58 +12,47 @@ pub(crate) fn decode(types: &[i64], coords: &[f32]) -> Result<BezPath, DecodeErr
     if coords.len() != types.len() * 6 {
         return Err(DecodeError::CoordsLen);
     }
-    let len = types
-        .iter()
-        .position(|&v| v == ElementType::End as i64)
-        .map_or(types.len(), |i| i + 1);
-    if let Some((index, value)) = types[..len]
-        .iter()
-        .copied()
-        .enumerate()
-        .find(|&(_, v)| !(1..=ElementType::End as i64).contains(&v))
-    {
-        return Err(DecodeError::InvalidElementType { index, value });
-    }
+    let mut path = BezPath::new();
     let mut inside = false;
-    for (index, &value) in types[..len].iter().enumerate() {
-        match ElementType::try_from(value) {
-            Ok(ElementType::MoveTo) => inside = true,
-            Ok(ElementType::LineTo | ElementType::QuadTo | ElementType::CurveTo) if !inside => {
+    for (index, (&value, v)) in types.iter().zip(coords.as_chunks::<6>().0).enumerate() {
+        let element = ElementType::try_from(value)
+            .map_err(|()| DecodeError::InvalidElementType { index, value })?;
+        match element {
+            ElementType::LineTo
+            | ElementType::QuadTo
+            | ElementType::CurveTo
+            | ElementType::Close
+                if !inside =>
+            {
                 return Err(DecodeError::ElementOutsideSubpath { index, value });
             }
-            Ok(ElementType::Close) => {
-                if !inside {
-                    return Err(DecodeError::ElementOutsideSubpath { index, value });
-                }
+            ElementType::MoveTo => {
+                path.move_to(point(v[4], v[5]));
+                inside = true;
+            }
+            ElementType::LineTo => path.line_to(point(v[4], v[5])),
+            ElementType::QuadTo => path.quad_to(point(v[0], v[1]), point(v[4], v[5])),
+            ElementType::CurveTo => {
+                path.curve_to(point(v[0], v[1]), point(v[2], v[3]), point(v[4], v[5]));
+            }
+            ElementType::Close => {
+                path.close_path();
                 inside = false;
             }
-            Ok(ElementType::End) => break,
-            Ok(_) | Err(_) => {}
-        }
-    }
-    if let Some((offset, value)) = types[len..]
-        .iter()
-        .copied()
-        .enumerate()
-        .find(|&(_, v)| v != 0)
-    {
-        return Err(DecodeError::NonPaddingAfterEnd {
-            index: len + offset,
-            value,
-        });
-    }
-    let mut path = BezPath::new();
-    let coords = coords[..len * 6].as_chunks::<6>().0;
-    for (&ty, v) in types[..len].iter().zip(coords) {
-        match ElementType::try_from(ty) {
-            Ok(ElementType::MoveTo) => path.move_to(point(v[4], v[5])),
-            Ok(ElementType::LineTo) => path.line_to(point(v[4], v[5])),
-            Ok(ElementType::QuadTo) => path.quad_to(point(v[0], v[1]), point(v[4], v[5])),
-            Ok(ElementType::CurveTo) => {
-                path.curve_to(point(v[0], v[1]), point(v[2], v[3]), point(v[4], v[5]))
+            ElementType::End => {
+                if let Some((offset, value)) = types[index + 1..]
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .find(|&(_, value)| value != 0)
+                {
+                    return Err(DecodeError::NonPaddingAfterEnd {
+                        index: index + 1 + offset,
+                        value,
+                    });
+                }
+                break;
             }
-            Ok(ElementType::Close) => path.close_path(),
-            Ok(ElementType::End) | Err(_) => break,
         }
     }
     Ok(path)
