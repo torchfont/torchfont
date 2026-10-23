@@ -9,16 +9,6 @@ pub(crate) fn random_split_segments(
     split_probability: f32,
     split_range: (f32, f32),
 ) -> BezPath {
-    let segment_count: usize = outline
-        .subpaths()
-        .map(|subpath| subpath_segments(subpath).count())
-        .sum();
-    if segment_count == 0 {
-        return outline.clone();
-    }
-
-    let selection_values = &selection_values[..segment_count];
-    let position_values = &position_values[..segment_count];
     let mut value_index = 0;
     let mut result = BezPath::new();
     for subpath in outline.subpaths() {

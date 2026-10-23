@@ -6,9 +6,11 @@ use crate::transform::curves::{TOLERANCE, cubic_farthest_fit_inside};
 
 pub(crate) fn merge_curves(outline: &BezPath) -> BezPath {
     let mut result = BezPath::new();
+    let mut segments = Vec::new();
     for subpath in outline.subpaths() {
         result.move_to(subpath_start(subpath));
-        let segments: Vec<_> = subpath_segments(subpath).collect();
+        segments.clear();
+        segments.extend(subpath_segments(subpath));
         for mut run in segments.chunk_by(junction_is_mergeable) {
             let merge = match run[0] {
                 PathSeg::Line(_) => try_merge_lines_n,
