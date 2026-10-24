@@ -35,6 +35,25 @@ class ElementType(IntEnum):
 _COORD_DIM = 6
 
 
+def _validate_outline_tensors(types: Tensor, coords: Tensor) -> None:
+    expected = (*types.shape, _COORD_DIM)
+    if coords.shape != expected:
+        msg = f"coords must have shape {expected} for types, got {tuple(coords.shape)}"
+        raise ValueError(msg)
+
+
+def _active_coordinate_mask(types: Tensor) -> Tensor:
+    pair0 = (types == ElementType.QUAD_TO.value) | (types == ElementType.CURVE_TO.value)
+    pair1 = types == ElementType.CURVE_TO.value
+    pair2 = (
+        (types == ElementType.MOVE_TO.value)
+        | (types == ElementType.LINE_TO.value)
+        | (types == ElementType.QUAD_TO.value)
+        | (types == ElementType.CURVE_TO.value)
+    )
+    return torch.stack((pair0, pair0, pair1, pair1, pair2, pair2), dim=-1)
+
+
 @dataclass(frozen=True, eq=False)
 class Outline:
     """Glyph outlines encoded by two coupled tensors.
@@ -79,10 +98,6 @@ class Outline:
             msg = "types and coords must be on the same device"
             raise ValueError(msg)
 
-    @classmethod
-    def _wrap(cls, types: Tensor, coords: Tensor) -> Outline:
-        return cls(types, coords)
-
     @property
     def shape(self) -> torch.Size:
         """Shape of ``types``, that is ``(N,)``."""
@@ -124,14 +139,14 @@ class Outline:
         if dtype is not None and not dtype.is_floating_point:
             msg = f"dtype must be floating point, got {dtype}"
             raise TypeError(msg)
-        return self._wrap(
+        return type(self)(
             self.types.to(device=device, non_blocking=non_blocking),
             self.coords.to(device=device, dtype=dtype, non_blocking=non_blocking),
         )
 
     def pin_memory(self) -> Outline:
         """Return this outline with both tensors in pinned memory."""
-        return self._wrap(self.types.pin_memory(), self.coords.pin_memory())
+        return type(self)(self.types.pin_memory(), self.coords.pin_memory())
 
     def __len__(self) -> int:
         """Size of the first dimension, following :func:`len` on a tensor."""
@@ -147,7 +162,7 @@ class Outline:
         if types.ndim == 0:
             msg = "indexing must preserve the outline element dimension"
             raise IndexError(msg)
-        return self._wrap(types, coords)
+        return type(self)(types, coords)
 
     def __repr__(self) -> str:
         return (

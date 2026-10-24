@@ -91,33 +91,27 @@ pub(crate) fn randomize_subpath_start_points(outline: &BezPath, random_values: &
 }
 
 pub(crate) fn randomize_subpath_order(outline: &BezPath, random_values: &[f32]) -> BezPath {
-    let mut keyed_subpaths: Vec<_> = outline
-        .subpaths()
-        .zip(random_values.iter().copied())
-        .enumerate()
-        .collect();
-    keyed_subpaths
-        .sort_by(|(a_idx, (_, a)), (b_idx, (_, b))| a.total_cmp(b).then_with(|| a_idx.cmp(b_idx)));
+    let mut subpaths: Vec<_> = outline.subpaths().zip(random_values).collect();
+    subpaths.sort_by(|(_, a), (_, b)| a.total_cmp(b));
     let mut result = BezPath::new();
-    for (_, (subpath, _)) in keyed_subpaths {
-        result.extend(subpath.iter().copied());
+    for (path, _) in subpaths {
+        result.extend(path.iter().copied());
     }
     result
 }
 
 pub(crate) fn normalize_subpath_order(outline: &BezPath) -> BezPath {
-    let mut subpaths: Vec<_> = outline.subpaths().enumerate().collect();
-    subpaths.sort_by(|(a_idx, a), (b_idx, b)| {
+    let mut subpaths: Vec<_> = outline.subpaths().collect();
+    subpaths.sort_by(|a, b| {
         let a = a.bounding_box();
         let b = b.bounding_box();
         a.x0.total_cmp(&b.x0)
             .then_with(|| a.y0.total_cmp(&b.y0))
             .then_with(|| a.x1.total_cmp(&b.x1))
             .then_with(|| a.y1.total_cmp(&b.y1))
-            .then_with(|| a_idx.cmp(b_idx))
     });
     let mut result = BezPath::new();
-    for (_, subpath) in subpaths {
+    for subpath in subpaths {
         result.extend(subpath.iter().copied());
     }
     result

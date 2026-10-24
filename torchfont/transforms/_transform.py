@@ -37,12 +37,10 @@ class Transform(nn.Module):
             if selected
         ]
         params = self.make_params(selected) if selected else {}
-        flat_outputs = []
-        for item, selected in zip(flat_inputs, needs_transform, strict=True):
-            if not selected:
-                flat_outputs.append(item)
-                continue
-            flat_outputs.append(self.transform(item, params))
+        flat_outputs = [
+            self.transform(item, params) if selected else item
+            for item, selected in zip(flat_inputs, needs_transform, strict=True)
+        ]
         return tree_unflatten(flat_outputs, tree_spec)
 
     def _needs_transform_list(self, flat_inputs: list[Any]) -> list[bool]:

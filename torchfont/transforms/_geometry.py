@@ -134,14 +134,7 @@ class RandomAffine(Transform):
                 msg = "translate values must be non-negative and finite"
                 raise ValueError(msg)
         if scale is not None:
-            scale_min, scale_max = scale
-            scale = (float(scale_min), float(scale_max))
-            if not all(math.isfinite(value) and value > 0.0 for value in scale):
-                msg = "scale values must be positive and finite"
-                raise ValueError(msg)
-            if scale[0] > scale[1]:
-                msg = "scale values must be ordered"
-                raise ValueError(msg)
+            scale = _positive_range(scale, "scale")
         self.translate = translate
         self.scale = scale
         if isinstance(shear, (float, int)) or len(shear) == _SHEAR_RANGE_SIZE:

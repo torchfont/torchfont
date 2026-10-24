@@ -71,14 +71,7 @@ pub(crate) fn drop_subpaths<'py>(
     Ok(encode(py, &result))
 }
 
-#[pyfunction]
-pub(crate) fn truncate_subpaths<'py>(
-    py: Python<'py>,
-    types: PyReadonlyArray1<'_, i64>,
-    coords: PyReadonlyArray1<'_, f32>,
-    max_length: Option<usize>,
-    max_subpaths: Option<usize>,
-) -> PyResult<OutlineArrays<'py>> {
+fn validate_subpath_limits(max_length: Option<usize>, max_subpaths: Option<usize>) -> PyResult<()> {
     if max_length == Some(0) {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "max_length must be positive",
@@ -89,6 +82,18 @@ pub(crate) fn truncate_subpaths<'py>(
             "max_length or max_subpaths must be specified",
         ));
     }
+    Ok(())
+}
+
+#[pyfunction]
+pub(crate) fn truncate_subpaths<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    max_length: Option<usize>,
+    max_subpaths: Option<usize>,
+) -> PyResult<OutlineArrays<'py>> {
+    validate_subpath_limits(max_length, max_subpaths)?;
     let outline = decode(types.as_slice()?, coords.as_slice()?)?;
     let result = py.detach(|| subpath::truncate_subpaths(&outline, max_length, max_subpaths));
     Ok(encode(py, &result))
@@ -104,16 +109,7 @@ pub(crate) fn drop_subpaths_to_fit<'py>(
     max_subpaths: Option<usize>,
 ) -> PyResult<OutlineArrays<'py>> {
     use crate::outline::ElementType;
-    if max_length == Some(0) {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "max_length must be positive",
-        ));
-    }
-    if max_length.is_none() && max_subpaths.is_none() {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "max_length or max_subpaths must be specified",
-        ));
-    }
+    validate_subpath_limits(max_length, max_subpaths)?;
     let types = types.as_slice()?;
     let values = removal_values.as_slice()?;
     let outline = decode(types, coords.as_slice()?)?;
@@ -245,13 +241,11 @@ pub(crate) fn normalize_subpath_start_points<'py>(
     Ok(encode(py, &result))
 }
 
-#[pyfunction]
-pub(crate) fn randomize_subpath_start_points<'py>(
-    py: Python<'py>,
+fn decode_subpath_values(
     types: PyReadonlyArray1<'_, i64>,
     coords: PyReadonlyArray1<'_, f32>,
     random_values: PyReadonlyArray1<'_, f32>,
-) -> PyResult<OutlineArrays<'py>> {
+) -> PyResult<(BezPath, Vec<f32>)> {
     use crate::outline::ElementType;
     let t = types.as_slice()?;
     let r = random_values.as_slice()?;
@@ -266,6 +260,17 @@ pub(crate) fn randomize_subpath_start_points<'py>(
         .zip(r)
         .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
         .collect();
+    Ok((outline, subpath_random_values))
+}
+
+#[pyfunction]
+pub(crate) fn randomize_subpath_start_points<'py>(
+    py: Python<'py>,
+    types: PyReadonlyArray1<'_, i64>,
+    coords: PyReadonlyArray1<'_, f32>,
+    random_values: PyReadonlyArray1<'_, f32>,
+) -> PyResult<OutlineArrays<'py>> {
+    let (outline, subpath_random_values) = decode_subpath_values(types, coords, random_values)?;
     let result =
         py.detach(|| subpath::randomize_subpath_start_points(&outline, &subpath_random_values));
     Ok(encode(py, &result))
@@ -278,20 +283,7 @@ pub(crate) fn randomize_subpath_order<'py>(
     coords: PyReadonlyArray1<'_, f32>,
     random_values: PyReadonlyArray1<'_, f32>,
 ) -> PyResult<OutlineArrays<'py>> {
-    use crate::outline::ElementType;
-    let t = types.as_slice()?;
-    let r = random_values.as_slice()?;
-    let outline = decode(t, coords.as_slice()?)?;
-    if r.len() < t.len() {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "random_values length must be at least types length",
-        ));
-    }
-    let subpath_random_values: Vec<f32> = t
-        .iter()
-        .zip(r)
-        .filter_map(|(&ty, &rv)| (ty == ElementType::MoveTo as i64).then_some(rv))
-        .collect();
+    let (outline, subpath_random_values) = decode_subpath_values(types, coords, random_values)?;
     let result = py.detach(|| subpath::randomize_subpath_order(&outline, &subpath_random_values));
     Ok(encode(py, &result))
 }

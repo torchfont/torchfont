@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
@@ -60,10 +59,7 @@ class RandomSplitSegments(Transform):
         if not 0.0 <= split_probability <= 1.0:
             msg = "split_probability must be between 0 and 1"
             raise ValueError(msg)
-        if not (
-            0.0 < split_range[0] <= split_range[1] < 1.0
-            and all(math.isfinite(value) for value in split_range)
-        ):
+        if not (0.0 < split_range[0] <= split_range[1] < 1.0):
             msg = "split_range must satisfy 0 < min <= max < 1"
             raise ValueError(msg)
         self.split_probability = split_probability

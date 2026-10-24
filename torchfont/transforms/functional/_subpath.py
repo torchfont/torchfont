@@ -3,14 +3,30 @@ from __future__ import annotations
 from operator import index
 from typing import TYPE_CHECKING, SupportsIndex
 
-import torch
-
 from torchfont import _ops, _torchfont
-from torchfont._outline import _COORD_DIM, Outline
+from torchfont._ops import _arrays, _restore
+from torchfont._outline import Outline
 from torchfont.transforms.functional._utils import _native_outline, _require_no_grad
 
 if TYPE_CHECKING:
     from torch import Tensor
+
+
+def _subpath_limits(
+    max_length: SupportsIndex | None, max_subpaths: SupportsIndex | None
+) -> tuple[int | None, int | None]:
+    max_length = None if max_length is None else index(max_length)
+    max_subpaths = None if max_subpaths is None else index(max_subpaths)
+    if max_length is None and max_subpaths is None:
+        msg = "max_length or max_subpaths must be specified"
+        raise ValueError(msg)
+    if max_length is not None and max_length < 1:
+        msg = "max_length must be positive"
+        raise ValueError(msg)
+    if max_subpaths is not None and max_subpaths < 0:
+        msg = "max_subpaths must be non-negative"
+        raise ValueError(msg)
+    return max_length, max_subpaths
 
 
 def split_subpaths(inpt: Outline) -> tuple[Outline, ...]:
@@ -26,15 +42,9 @@ def split_subpaths(inpt: Outline) -> tuple[Outline, ...]:
     """
     _require_no_grad(inpt, "split_subpaths")
     arrays = _torchfont.split_subpaths(
-        inpt.types.detach().contiguous().numpy(),
-        inpt.coords.detach().contiguous().reshape(-1).numpy(),
+        *_arrays(inpt.types, inpt.coords),
     )
-    return tuple(
-        Outline._wrap(  # noqa: SLF001
-            torch.from_numpy(types), torch.from_numpy(coords).view(-1, _COORD_DIM)
-        )
-        for types, coords in arrays
-    )
+    return tuple(Outline(*_restore(types, coords)) for types, coords in arrays)
 
 
 def drop_subpaths(
@@ -61,17 +71,7 @@ def truncate_subpaths(
     the number of retained subpaths. At least one limit must be specified. No
     subpath is partially retained.
     """
-    max_length = None if max_length is None else index(max_length)
-    max_subpaths = None if max_subpaths is None else index(max_subpaths)
-    if max_length is None and max_subpaths is None:
-        msg = "max_length or max_subpaths must be specified"
-        raise ValueError(msg)
-    if max_length is not None and max_length < 1:
-        msg = "max_length must be positive"
-        raise ValueError(msg)
-    if max_subpaths is not None and max_subpaths < 0:
-        msg = "max_subpaths must be non-negative"
-        raise ValueError(msg)
+    max_length, max_subpaths = _subpath_limits(max_length, max_subpaths)
     return _native_outline(
         inpt,
         _ops.truncate_subpaths,
@@ -92,17 +92,7 @@ def drop_subpaths_to_fit(
     Smaller ``removal_values`` are removed first. The retained subpaths keep
     their original order.
     """
-    max_length = None if max_length is None else index(max_length)
-    max_subpaths = None if max_subpaths is None else index(max_subpaths)
-    if max_length is None and max_subpaths is None:
-        msg = "max_length or max_subpaths must be specified"
-        raise ValueError(msg)
-    if max_length is not None and max_length < 1:
-        msg = "max_length must be positive"
-        raise ValueError(msg)
-    if max_subpaths is not None and max_subpaths < 0:
-        msg = "max_subpaths must be non-negative"
-        raise ValueError(msg)
+    max_length, max_subpaths = _subpath_limits(max_length, max_subpaths)
     return _native_outline(
         inpt,
         _ops.drop_subpaths_to_fit,
