@@ -84,9 +84,7 @@ def cubic_to_quad(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _restore(*out)
 
 
-@cubic_to_quad.register_fake
-def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    return _dynamic_outline(types, coords)
+cubic_to_quad.register_fake(_dynamic_outline)
 
 
 @torch.library.custom_op("torchfont::merge_curves", mutates_args=(), device_types="cpu")
@@ -95,9 +93,7 @@ def merge_curves(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _restore(*out)
 
 
-@merge_curves.register_fake
-def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    return _dynamic_outline(types, coords)
+merge_curves.register_fake(_dynamic_outline)
 
 
 @torch.library.custom_op(
@@ -200,9 +196,7 @@ def normalize_subpath_start_points(
     return _restore(*out)
 
 
-@normalize_subpath_start_points.register_fake
-def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    return _dynamic_outline(types, coords)
+normalize_subpath_start_points.register_fake(_dynamic_outline)
 
 
 @torch.library.custom_op(
@@ -215,9 +209,7 @@ def normalize_subpath_order(types: Tensor, coords: Tensor) -> tuple[Tensor, Tens
     return _restore(*out)
 
 
-@normalize_subpath_order.register_fake
-def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    return _dynamic_outline(types, coords)
+normalize_subpath_order.register_fake(_dynamic_outline)
 
 
 @torch.library.custom_op(
@@ -344,9 +336,7 @@ def reverse_subpaths(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
     return _restore(*out)
 
 
-@reverse_subpaths.register_fake
-def _(types: Tensor, coords: Tensor) -> tuple[Tensor, Tensor]:
-    return _dynamic_outline(types, coords)
+reverse_subpaths.register_fake(_dynamic_outline)
 
 
 @torch.library.custom_op(

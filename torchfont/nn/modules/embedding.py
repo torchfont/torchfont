@@ -7,8 +7,12 @@ import math
 import torch
 from torch import Tensor, nn
 
-from torchfont._outline import _COORD_DIM, ElementType
-from torchfont.nn._utils import _active_coordinate_mask, _validate_outline_tensors
+from torchfont._outline import (
+    _COORD_DIM,
+    ElementType,
+    _active_coordinate_mask,
+    _validate_outline_tensors,
+)
 
 _NUM_ELEMENT_TYPES = len(ElementType)
 

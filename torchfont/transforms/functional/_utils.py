@@ -27,8 +27,4 @@ def _native_outline(
 ) -> Outline:
     _require_no_grad(inpt, name)
     out_types, out_coords = operation(inpt.types, inpt.coords, *args)
-    return Outline._wrap(out_types, out_coords)  # noqa: SLF001
-
-
-def _same_types(inpt: Outline, coords: Tensor) -> Outline:
-    return Outline._wrap(inpt.types, coords)  # noqa: SLF001
+    return Outline(out_types, out_coords)

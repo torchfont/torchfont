@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import torch
-
 from torchfont import _torchfont
-from torchfont._outline import _COORD_DIM, Outline
+from torchfont._ops import _restore
+from torchfont._outline import Outline
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -32,10 +31,7 @@ def load_glyph(
         ref.glyph_id,
         normalized_location,
     )
-    return Outline._wrap(  # noqa: SLF001
-        torch.from_numpy(raw_types),
-        torch.from_numpy(raw_coords).view(-1, _COORD_DIM),
-    )
+    return Outline(*_restore(raw_types, raw_coords))
 
 
 __all__ = ["load_glyph"]

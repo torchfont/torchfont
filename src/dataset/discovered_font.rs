@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use skrifa::{
     GlyphId, MetadataProvider,
@@ -10,53 +10,14 @@ use skrifa::{
 use crate::error::Error;
 use crate::font::{count_glyph_elements, map_font_file};
 
-pub(crate) struct DiscoveredCodepoints {
-    path: PathBuf,
-    face_index: u32,
-    codepoints: Vec<u32>,
-    glyph_ids: Vec<u32>,
-    outline_lengths: Vec<u32>,
-}
+use super::index::{IndexedCodepointFace, IndexedGlyphFace};
 
-pub(crate) struct DiscoveredGlyphs {
-    path: PathBuf,
-    face_index: u32,
-    glyph_ids: Vec<u32>,
-    outline_lengths: Vec<u32>,
-}
-
-impl DiscoveredCodepoints {
-    pub(crate) fn from_file(
-        path: &Path,
-        filter: Option<&[u32]>,
-        max_length: Option<usize>,
-    ) -> Result<Vec<Self>, Error> {
-        read_faces(path, |face_index, font| {
-            Self::from_font(path, face_index, font, filter, max_length)
-        })
-    }
-
-    pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>, Vec<u32>, Vec<u32>) {
-        (
-            self.path,
-            self.face_index,
-            self.codepoints,
-            self.glyph_ids,
-            self.outline_lengths,
-        )
-    }
-
-    pub(crate) fn codepoint_count(&self) -> usize {
-        self.codepoints.len()
-    }
-
-    fn from_font(
-        path: &Path,
-        face_index: u32,
-        font: &skrifa::FontRef<'_>,
-        filter: Option<&[u32]>,
-        max_length: Option<usize>,
-    ) -> Result<Self, Error> {
+pub(crate) fn discover_codepoints(
+    path: &Path,
+    filter: Option<&[u32]>,
+    max_length: Option<usize>,
+) -> Result<Vec<IndexedCodepointFace>, Error> {
+    read_faces(path, |face_index, font| {
         let outline_glyphs = font.outline_glyphs();
         let mut mappings = Vec::new();
         for (codepoint, glyph_id) in font.charmap().mappings() {
@@ -81,42 +42,21 @@ impl DiscoveredCodepoints {
             glyph_ids.push(glyph_id.to_u32());
             outline_lengths.push(length);
         }
-        Ok(Self {
+        Ok(IndexedCodepointFace {
             path: path.to_path_buf(),
             face_index,
             codepoints,
             glyph_ids,
             outline_lengths,
         })
-    }
+    })
 }
 
-impl DiscoveredGlyphs {
-    pub(crate) fn from_file(path: &Path, max_length: Option<usize>) -> Result<Vec<Self>, Error> {
-        read_faces(path, |face_index, font| {
-            Self::from_font(path, face_index, font, max_length)
-        })
-    }
-
-    pub(crate) fn into_parts(self) -> (PathBuf, u32, Vec<u32>, Vec<u32>) {
-        (
-            self.path,
-            self.face_index,
-            self.glyph_ids,
-            self.outline_lengths,
-        )
-    }
-
-    pub(crate) fn glyph_count(&self) -> usize {
-        self.glyph_ids.len()
-    }
-
-    fn from_font(
-        path: &Path,
-        face_index: u32,
-        font: &skrifa::FontRef<'_>,
-        max_length: Option<usize>,
-    ) -> Result<Self, Error> {
+pub(crate) fn discover_glyphs(
+    path: &Path,
+    max_length: Option<usize>,
+) -> Result<Vec<IndexedGlyphFace>, Error> {
+    read_faces(path, |face_index, font| {
         let mut glyph_ids = Vec::new();
         let mut outline_lengths = Vec::new();
         for (glyph_id, glyph) in font.outline_glyphs().iter() {
@@ -127,13 +67,13 @@ impl DiscoveredGlyphs {
             glyph_ids.push(glyph_id.to_u32());
             outline_lengths.push(length);
         }
-        Ok(Self {
+        Ok(IndexedGlyphFace {
             path: path.to_path_buf(),
             face_index,
             glyph_ids,
             outline_lengths,
         })
-    }
+    })
 }
 
 fn glyph_length(

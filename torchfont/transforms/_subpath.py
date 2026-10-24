@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from operator import index
 from typing import TYPE_CHECKING, Any, ClassVar, SupportsIndex
 
 import torch
 
 from torchfont.transforms import functional as _functional
 from torchfont.transforms._transform import Transform
+from torchfont.transforms.functional._subpath import _subpath_limits
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -47,17 +47,7 @@ class TruncateSubpaths(Transform):
         max_subpaths: SupportsIndex | None = None,
     ) -> None:
         super().__init__()
-        self.max_length = None if max_length is None else index(max_length)
-        self.max_subpaths = None if max_subpaths is None else index(max_subpaths)
-        if self.max_length is None and self.max_subpaths is None:
-            msg = "max_length or max_subpaths must be specified"
-            raise ValueError(msg)
-        if self.max_length is not None and self.max_length < 1:
-            msg = "max_length must be positive"
-            raise ValueError(msg)
-        if self.max_subpaths is not None and self.max_subpaths < 0:
-            msg = "max_subpaths must be non-negative"
-            raise ValueError(msg)
+        self.max_length, self.max_subpaths = _subpath_limits(max_length, max_subpaths)
 
     def transform(self, inpt: Outline, params: dict[str, Any]) -> Outline:
         del params
@@ -77,17 +67,7 @@ class RandomTruncateSubpaths(Transform):
         max_subpaths: SupportsIndex | None = None,
     ) -> None:
         super().__init__()
-        self.max_length = None if max_length is None else index(max_length)
-        self.max_subpaths = None if max_subpaths is None else index(max_subpaths)
-        if self.max_length is None and self.max_subpaths is None:
-            msg = "max_length or max_subpaths must be specified"
-            raise ValueError(msg)
-        if self.max_length is not None and self.max_length < 1:
-            msg = "max_length must be positive"
-            raise ValueError(msg)
-        if self.max_subpaths is not None and self.max_subpaths < 0:
-            msg = "max_subpaths must be non-negative"
-            raise ValueError(msg)
+        self.max_length, self.max_subpaths = _subpath_limits(max_length, max_subpaths)
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
         length = max((inpt.types.size(0) for inpt in flat_inputs), default=0)

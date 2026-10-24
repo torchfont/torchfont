@@ -13,8 +13,8 @@ from torchfont._glyph import (
     GlyphRef,
     _registered_axis_targets,
 )
-from torchfont._outline import _COORD_DIM, Outline
-from torchfont.transforms import functional as _functional
+from torchfont._ops import _restore
+from torchfont._outline import Outline
 from torchfont.transforms._transform import Transform
 
 
@@ -47,8 +47,6 @@ class LoadGlyph(Transform):
         params: dict[str, Any],
     ) -> CodepointData | GlyphIdData | Outline:
         """Load one referenced glyph using the shared parameters."""
-        if isinstance(inpt, GlyphRef) and self.location == "default":
-            return _functional.load_glyph(inpt)
         ref = inpt if isinstance(inpt, GlyphRef) else inpt.ref
         requested_location = (
             None
@@ -61,10 +59,7 @@ class LoadGlyph(Transform):
             ref.glyph_id,
             requested_location,
         )
-        outline = Outline._wrap(  # noqa: SLF001
-            torch.from_numpy(raw_types),
-            torch.from_numpy(raw_coords).view(-1, _COORD_DIM),
-        )
+        outline = Outline(*_restore(raw_types, raw_coords))
         location = dict(location_items)
         if isinstance(inpt, GlyphRef):
             return outline

@@ -5,31 +5,12 @@ from torch import Tensor
 from torch.nn import functional as nn_functional
 
 from torchfont import _ops
-from torchfont._outline import ElementType, Outline
-from torchfont.transforms.functional._utils import (
-    _require_no_grad,
-    _same_types,
-)
+from torchfont._outline import Outline, _active_coordinate_mask
+from torchfont.transforms.functional._utils import _require_no_grad
 
 
-def _is_nan(value: float) -> bool:
-    return not (value <= 0.0 or value > 0.0)
-
-
-def _is_infinite(value: float) -> bool:
-    return abs(value) == math.inf
-
-
-def _active_pairs(types: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-    pair0 = (types == ElementType.QUAD_TO.value) | (types == ElementType.CURVE_TO.value)
-    pair1 = types == ElementType.CURVE_TO.value
-    pair2 = (
-        (types == ElementType.MOVE_TO.value)
-        | (types == ElementType.LINE_TO.value)
-        | (types == ElementType.QUAD_TO.value)
-        | (types == ElementType.CURVE_TO.value)
-    )
-    return pair0, pair1, pair2
+def _is_finite(value: float) -> bool:
+    return -math.inf < value < math.inf
 
 
 def _apply_matrix(
@@ -41,7 +22,7 @@ def _apply_matrix(
 ) -> Tensor:
     c = center
     t = coords.new_tensor(translate)
-    active = torch.stack(list(_active_pairs(types)), dim=1).unsqueeze(-1)
+    active = _active_coordinate_mask(types).reshape(-1, 3, 2)
     pts = coords.reshape(-1, 3, 2)
     transformed = (pts - c) @ matrix.T + c + t
     return torch.where(active, transformed, pts).reshape_as(coords)
@@ -109,17 +90,17 @@ def _affine(
     scale: float = 1.0,
     shear: float | tuple[float, float] = 0.0,
 ) -> tuple[Tensor, Tensor]:
-    if _is_nan(scale) or _is_infinite(scale) or scale <= 0:
+    if not _is_finite(scale) or scale <= 0:
         msg = "scale must be positive and finite"
         raise ValueError(msg)
-    if _is_nan(angle) or _is_infinite(angle):
+    if not _is_finite(angle):
         msg = "angle must be finite"
         raise ValueError(msg)
     shear_values = shear if isinstance(shear, tuple) else (shear,)
-    if any(_is_nan(value) or _is_infinite(value) for value in shear_values):
+    if any(not _is_finite(value) for value in shear_values):
         msg = "shear values must be finite"
         raise ValueError(msg)
-    if any(_is_nan(value) or _is_infinite(value) for value in translate):
+    if any(not _is_finite(value) for value in translate):
         msg = "translate values must be finite"
         raise ValueError(msg)
     matrix = _rotation_scale_shear_matrix(angle, scale, shear, like=coords)
@@ -139,7 +120,7 @@ def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     out_types, out_coords = _horizontal_flip(
         inpt.types, inpt.coords, preserve_winding=preserve_winding
     )
-    return Outline._wrap(out_types, out_coords)  # noqa: SLF001
+    return Outline(out_types, out_coords)
 
 
 def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
@@ -154,7 +135,7 @@ def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
     out_types, out_coords = _vertical_flip(
         inpt.types, inpt.coords, preserve_winding=preserve_winding
     )
-    return Outline._wrap(out_types, out_coords)  # noqa: SLF001
+    return Outline(out_types, out_coords)
 
 
 def affine(
@@ -170,8 +151,8 @@ def affine(
     Differentiable with respect to ``coords``. The bounding-box centre the
     transform pivots around is treated as a constant reference frame.
     """
-    return _same_types(
-        inpt,
+    return Outline(
+        inpt.types,
         _affine(
             inpt.types,
             inpt.coords,
@@ -191,13 +172,13 @@ def scale(inpt: Outline, factors: tuple[float, float]) -> Outline:
     ``(scale_x, scale_y)`` multipliers.
     """
     scale_x, scale_y = factors
-    if any(_is_nan(value) or _is_infinite(value) or value <= 0.0 for value in factors):
+    if any(not _is_finite(value) or value <= 0.0 for value in factors):
         msg = "scale factors must be positive and finite"
         raise ValueError(msg)
     matrix = inpt.coords.new_tensor([[scale_x, 0.0], [0.0, scale_y]])
     center = _ops.bbox_center(inpt.types.detach(), inpt.coords.detach())
-    return _same_types(
-        inpt,
+    return Outline(
+        inpt.types,
         _apply_matrix(inpt.types, inpt.coords, matrix, center, (0.0, 0.0)),
     )
 
@@ -223,11 +204,11 @@ def add_coordinate_noise(inpt: Outline, noise: Tensor) -> Outline:
     if noise.shape[0] < types.shape[0]:
         msg = "noise must have at least as many rows as the outline"
         raise ValueError(msg)
-    active = torch.stack(_active_pairs(types), dim=1).unsqueeze(-1)
+    active = _active_coordinate_mask(types).reshape(-1, 3, 2)
     points = coords.reshape(-1, 3, 2)
     noise = noise[: types.size(0)].to(device=coords.device, dtype=coords.dtype)
-    return _same_types(
-        inpt, torch.where(active, points + noise, points).reshape_as(coords)
+    return Outline(
+        inpt.types, torch.where(active, points + noise, points).reshape_as(coords)
     )
 
 
@@ -272,9 +253,9 @@ def elastic(inpt: Outline, displacement: Tensor) -> Outline:
         .reshape(2, -1)
         .T.reshape_as(points)
     )
-    active = torch.stack(_active_pairs(types), dim=1).unsqueeze(-1)
-    return _same_types(
-        inpt, torch.where(active, points + offsets, points).reshape_as(coords)
+    active = _active_coordinate_mask(types).reshape(-1, 3, 2)
+    return Outline(
+        inpt.types, torch.where(active, points + offsets, points).reshape_as(coords)
     )
 
 

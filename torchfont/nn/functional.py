@@ -7,8 +7,11 @@ from typing import TYPE_CHECKING, Literal
 import torch
 from torch.nn import functional as _functional
 
-from torchfont._outline import ElementType
-from torchfont.nn._utils import _active_coordinate_mask, _validate_outline_tensors
+from torchfont._outline import (
+    ElementType,
+    _active_coordinate_mask,
+    _validate_outline_tensors,
+)
 
 if TYPE_CHECKING:
     from torch import Tensor
