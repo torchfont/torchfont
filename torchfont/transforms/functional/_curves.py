@@ -19,9 +19,8 @@ def quad_to_cubic(inpt: Outline, *, merge_curves: bool = False) -> Outline:
 
     Args:
         inpt: Outline to convert.
-        merge_curves: Merge adjacent mergeable curves and lines in the same Rust
-            call after conversion. The output length may then differ from the
-            input.
+        merge_curves: Merge adjacent mergeable curves and lines after conversion.
+            The output length may then differ from the input.
 
     """
     return _native_outline(
@@ -35,11 +34,8 @@ def quad_to_cubic(inpt: Outline, *, merge_curves: bool = False) -> Outline:
 def cubic_to_quad(inpt: Outline) -> Outline:
     """Convert ``CURVE_TO`` elements to sequences of ``QUAD_TO`` elements.
 
-    Each cubic Bezier segment is replaced by the minimum number of quadratic
-    Bezier segments needed to approximate it within ~1e-3 em units (roughly one
-    font unit in a 1000-UPM font), following the fontTools cu2qu approach.
-    Consecutive quadratics share implicit on-curve points at the midpoints of
-    adjacent off-curve control points, as TrueType splines do.
+    Each cubic Bezier segment is approximated by quadratic Bezier segments
+    within ~1e-3 em units (roughly one font unit in a 1000-UPM font).
 
     Unlike :func:`quad_to_cubic`, the output length may differ from the input
     because one cubic can expand into several quadratics.
@@ -51,13 +47,11 @@ def merge_curves(inpt: Outline) -> Outline:
     """Merge adjacent pieces of the same parent curve or line.
 
     Adjacent cubic and quadratic Bezier segments are merged when they are pieces
-    of a single parent curve, that is when they join at smooth split points
-    determined via de Casteljau. Adjacent ``LINE_TO`` segments are merged when
+    of a single parent curve. Adjacent ``LINE_TO`` segments are merged when
     the three points are collinear and the segments run in the same direction.
-    Unlike the fontTools ``merge_curves`` helper this also handles line segments.
 
     The comparison tolerance is ~1e-3 em units, roughly one font unit in a
-    1000-UPM font, matching the precision fontTools typically uses.
+    1000-UPM font.
     """
     return _native_outline(inpt, _ops.merge_curves, name="merge_curves")
 

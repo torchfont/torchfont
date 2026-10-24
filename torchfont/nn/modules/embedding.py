@@ -48,7 +48,7 @@ class OutlineEmbedding(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        """Draw both branches from one uniform bound over the combined width."""
+        """Reset the learnable parameters to their initial distributions."""
         bound = 1 / math.sqrt(_NUM_ELEMENT_TYPES + _COORD_DIM)
         nn.init.uniform_(self.type_embedding.weight, -bound, bound)
         nn.init.uniform_(self.coord_projection.weight, -bound, bound)

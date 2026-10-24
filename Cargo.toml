@@ -19,8 +19,6 @@ petgraph = { version = "0.8.3", default-features = false }
 rayon = "1.12.0"
 shellexpand = "3.1.2"
 smallvec = "1.16.4"
-# Intentionally non-optional: PyPI wheels are compiled binaries and Cargo
-# features cannot be selected via pip install.
 skia-safe = "0.153.3"
 skrifa = "0.49.0"
 google-fonts-glyphsets = "1.1.3"

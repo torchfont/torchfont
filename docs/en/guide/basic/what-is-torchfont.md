@@ -22,10 +22,10 @@ of that work:
   TorchFont exposes scalable vector outlines directly instead of requiring an
   intermediate bitmap representation.
 - **Fast on-the-fly processing**:
-  the Rust backend reads font files during dataset access, so pipelines can work
-  from the original files without a required preprocessing format.
+  a Rust backend enables fast font loading and outline processing without
+  conversion to an intermediate format.
 - **Composable transforms**:
   an `Outline`-aware class API provides `torchvision.transforms.v2`-style `Transform`,
   `Compose`, `RandomApply`, `RandomChoice`, and `RandomOrder` building blocks for
   reusable data pipelines.
-  Deterministic functionals remain available as low-level kernels.
+  Deterministic transforms are also available through the functional API.

@@ -132,8 +132,7 @@ def horizontal_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
 
     ``preserve_winding`` applies to both open and closed subpaths.
 
-    Differentiable only when ``preserve_winding`` is ``False``; reversing
-    subpaths reorders elements in Rust and defines no gradient.
+    Differentiable only when ``preserve_winding`` is ``False``.
     """
     if preserve_winding:
         _require_no_grad(inpt, "horizontal_flip(preserve_winding=True)")
@@ -148,8 +147,7 @@ def vertical_flip(inpt: Outline, *, preserve_winding: bool = True) -> Outline:
 
     ``preserve_winding`` applies to both open and closed subpaths.
 
-    Differentiable only when ``preserve_winding`` is ``False``; reversing
-    subpaths reorders elements in Rust and defines no gradient.
+    Differentiable only when ``preserve_winding`` is ``False``.
     """
     if preserve_winding:
         _require_no_grad(inpt, "vertical_flip(preserve_winding=True)")

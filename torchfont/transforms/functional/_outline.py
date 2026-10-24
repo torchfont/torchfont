@@ -18,10 +18,8 @@ def normalize_winding(inpt: Outline, *, clockwise: bool | Tensor = True) -> Outl
 
     Contours form a group when their individual non-zero filled interiors
     overlap, including containment and transitive overlaps. Touching only at
-    points or along shared edges does not join groups. Grouping uses curve
-    geometry without rasterization. Overlap tests use floating-point geometry;
-    extremely narrow overlaps may be missed, limiting fill preservation at that
-    numerical precision.
+    points or along shared edges does not join groups. Extremely narrow overlaps
+    may be missed due to numerical precision.
 
     ``clockwise=True`` requests clockwise winding in y-up font coordinates;
     ``False`` requests counterclockwise. Groups with numerically

@@ -1,33 +1,11 @@
-"""TorchFont: A PyTorch-native toolkit for modeling and processing vector fonts.
+"""PyTorch datasets and transforms for vector fonts.
 
-Notes:
-    TorchFont is local-first. You point it at a directory of font files or an
-    already-synced repository checkout on disk, and it returns glyph samples
-    suitable for PyTorch training code.
+Load local font files as glyph samples, transform their outlines, and render
+PyTorch tensors with a Rust backend.
 
-Features:
-    * A ``CodepointDataset`` API indexing every codepoint each face supports,
-      and a ``GlyphIdDataset`` API indexing every glyph each face draws.
-    * A Rust backend that renders glyph outlines directly into PyTorch-ready
-      tensors.
-    * Semantic, composable transform pipelines for adapting glyph samples.
-
-Examples:
-    Assemble a dataset from local fonts::
-
-        from torchfont.datasets import CodepointDataset
-
-        ds = CodepointDataset(root="~/fonts")
-
-References:
-    The project README covers installation, advanced usage, and contribution
-    guidelines in greater depth.
-
-Package Layout:
-    Core data types are available directly from ``torchfont``. Other public
-    APIs live in submodules such as ``torchfont.datasets``,
-    ``torchfont.glyphsets``, ``torchfont.nn`` and ``torchfont.transforms``.
-
+Core data types are available directly from ``torchfont``. Other public APIs
+are in ``torchfont.datasets``, ``torchfont.glyphsets``, ``torchfont.nn``, and
+``torchfont.transforms``.
 """
 
 from torchfont._font import FontRef

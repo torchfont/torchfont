@@ -49,7 +49,7 @@ Dataset Sample はマルチプロセスの DataLoader でも使用できます�
 
 `CodepointData` は変換後の Payload、Glyph 参照、Variation Location、
 並列な `codepoint`、`font_idx`、`character_idx`、`weight`、`width`、`italic`、
-`slant`、`optical_size` Target を保持します。取得できない連続 Target は `None` です。
+`slant`、`optical_size` Target を保持します。
 
 `location` は Glyph の読み込みに使った OpenType Axis Tag と値を保持する通常の
 `dict[str, float]` です。

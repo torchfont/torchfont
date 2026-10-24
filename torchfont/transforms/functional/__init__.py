@@ -1,4 +1,4 @@
-"""Deterministic functional kernels for semantic font data."""
+"""Deterministic transforms for font data."""
 
 from torchfont.transforms.functional._bitmap import render_bitmap
 from torchfont.transforms.functional._curves import (

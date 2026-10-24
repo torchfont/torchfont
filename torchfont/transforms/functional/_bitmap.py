@@ -42,8 +42,7 @@ def render_bitmap(
         ``"bbox"``.
 
     Notes:
-        Integer coverage defines no gradient, so an outline that requires grad is
-        rejected.
+        Not differentiable; outlines that require gradients are rejected.
 
     """
     _require_no_grad(inpt, "render_bitmap")

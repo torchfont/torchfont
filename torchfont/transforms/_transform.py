@@ -10,7 +10,7 @@ from torchfont._outline import Outline
 
 
 class Transform(nn.Module):
-    """Base class for type-directed transforms over nested pytree inputs."""
+    """Base class for transforms that preserve nested input structures."""
 
     _transformed_types: ClassVar[tuple[type[Any], ...]] = (Outline,)
 
@@ -26,7 +26,7 @@ class Transform(nn.Module):
         raise NotImplementedError
 
     def forward(self, *inputs: object) -> object:  # ty: ignore[invalid-mutable-override]
-        """Transform semantic leaves and preserve the enclosing pytree."""
+        """Transform supported inputs and preserve their enclosing structure."""
         inpt = inputs if len(inputs) > 1 else inputs[0]
         flat_inputs, tree_spec = tree_flatten(inpt)
         self.check_inputs(flat_inputs)
@@ -49,7 +49,7 @@ class Transform(nn.Module):
         return [isinstance(inpt, self._transformed_types) for inpt in flat_inputs]
 
     def extra_repr(self) -> str:
-        """Show simple public configuration values in module representations."""
+        """Return the transform configuration for :func:`repr`."""
         printable = (bool, int, float, str, tuple, list, Enum)
         return ", ".join(
             f"{name}={value}"
