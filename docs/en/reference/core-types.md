@@ -52,7 +52,7 @@ either attribute raises an error.
 `CodepointData` contains a transformed payload, glyph reference, resolved
 variation location, and the parallel `codepoint`,
 `font_idx`, `character_idx`, `weight`, `width`, `italic`, `slant`, and
-`optical_size` targets. Unavailable continuous targets are `None`.
+`optical_size` targets.
 
 `location` is an ordinary `dict[str, float]` mapping OpenType axis tags to the
 values used to load the glyph.

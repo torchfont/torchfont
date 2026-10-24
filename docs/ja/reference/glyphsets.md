@@ -2,10 +2,8 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Google Fonts の `glyphsets` リポジトリに定義されたコードポイントグループの集
-合です。これらのグループを使うと、フォント内のグリフを特定のスクリプトに
-関連するものだけに絞り込んだり、フォントサイズを抑えるためにグリフ数を制
-限したりできます。
+Google Fonts の `glyphsets` リポジトリに定義されたコードポイントグループです。
+データセットをスクリプトや文字の範囲で絞り込む際に使えます。
 
 ```python
 from torchfont.glyphsets import LATIN_CORE, LATIN_KERNEL, get_glyphset_codepoints

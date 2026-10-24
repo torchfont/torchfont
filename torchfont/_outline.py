@@ -47,11 +47,6 @@ class Outline:
     An ``Outline`` holds references to its tensors rather than copies, so
     mutating ``types`` or ``coords`` in place is visible through it, as tensor
     aliasing normally behaves. Assigning to either attribute raises instead.
-
-    Warning:
-        Do not register ``Outline`` as a pytree node. Every transform would
-        silently stop doing anything.
-
     """
 
     types: Tensor

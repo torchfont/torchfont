@@ -1,4 +1,4 @@
-"""Composable transforms for semantic font data."""
+"""Composable transforms for glyph samples and outlines."""
 
 from torchfont.transforms import functional
 from torchfont.transforms._bitmap import RenderBitmap

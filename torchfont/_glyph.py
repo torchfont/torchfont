@@ -56,9 +56,6 @@ class CodepointData(Generic[T]):
 
     Indices are Python integers and continuous targets are floats. An unavailable
     continuous target is ``None``.
-
-    ``ref`` and ``location`` are metadata that no tensor can represent. Targets
-    remain pytree children so their values do not become part of its structure.
     """
 
     data: T

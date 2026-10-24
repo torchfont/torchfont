@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class FontRef:
-    """Persistent file-local reference to one font."""
+    """Reference to a font face by file path and face index."""
 
     path: str
     face_index: int

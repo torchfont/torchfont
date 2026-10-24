@@ -36,9 +36,8 @@ print(bitmap.dtype)  # torch.uint8
 
 `fullgraph=True` makes compilation fail when the function contains a graph
 break, which is useful for checking that the complete transform pipeline was
-captured. TorchFont's native operations remain CPU custom operations; compiling
-the pipeline captures the surrounding PyTorch graph but does not fuse the
-implementation inside those operations.
+captured. Compilation does not change the supported devices or guarantee a
+speedup for every pipeline.
 
 ## Dynamic outline lengths
 
