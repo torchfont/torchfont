@@ -20,18 +20,13 @@ _Reduction = Literal["none", "mean", "sum"]
 _NUM_ELEMENT_TYPES = len(ElementType)
 
 
-def coordinate_mse_loss(
+def _coordinate_loss(
     prediction: Tensor,
     target_types: Tensor,
     target_coords: Tensor,
-    reduction: _Reduction = "mean",
+    coordinate_loss: Literal["l1", "l2", "smooth_l1"],
+    reduction: _Reduction,
 ) -> Tensor:
-    """Compute squared error over coordinates active for each target type.
-
-    ``prediction`` and ``target_coords`` have shape ``(..., N, 6)`` while
-    ``target_types`` has shape ``(..., N)``. Inactive control points and
-    coordinates belonging to ``CLOSE``, ``END``, or ``PAD`` do not contribute.
-    """
     if prediction.shape != target_coords.shape:
         msg = (
             "prediction must have the same shape as the target coordinates, "
@@ -42,7 +37,17 @@ def coordinate_mse_loss(
 
     mask = _active_coordinate_mask(target_types)
     difference = torch.where(mask, prediction - target_coords, 0)
-    loss = difference.square()
+    if coordinate_loss == "l1":
+        loss = difference.abs()
+    elif coordinate_loss == "l2":
+        loss = difference.square()
+    elif coordinate_loss == "smooth_l1":
+        loss = _functional.smooth_l1_loss(
+            difference, torch.zeros_like(difference), reduction="none"
+        )
+    else:
+        msg = f"{coordinate_loss!r} is not a valid value for coordinate_loss"
+        raise ValueError(msg)
     if reduction == "none":
         return loss
     if reduction == "sum":
@@ -59,11 +64,16 @@ def outline_loss(
     target_types: Tensor,
     target_coords: Tensor,
     *,
+    coordinate_loss: Literal["l1", "l2", "smooth_l1"] = "l2",
     type_weight: float = 1.0,
     coordinate_weight: float = 100.0,
     reduction: _Reduction = "mean",
 ) -> Tensor:
     """Combine element-type classification and active-coordinate regression.
+
+    ``coordinate_loss`` selects squared error (``"l2"``, the default),
+    absolute error (``"l1"``), or smooth L1 error (``"smooth_l1"``,
+    with beta 1) for active coordinate scalars.
 
     With ``reduction="none"``, losses are summed within each outline and the
     result has shape ``target_types.shape[:-1]``. ``"sum"`` sums those outline
@@ -88,8 +98,8 @@ def outline_loss(
         ignore_index=ElementType.PAD.value,
         reduction="none",
     ).reshape(target_types.shape)
-    coords_loss = coordinate_mse_loss(
-        coordinate_prediction, target_types, target_coords, reduction=reduction
+    coords_loss = _coordinate_loss(
+        coordinate_prediction, target_types, target_coords, coordinate_loss, reduction
     )
     if reduction == "none":
         return type_weight * type_loss.sum(
@@ -106,4 +116,4 @@ def outline_loss(
     raise ValueError(msg)
 
 
-__all__ = ["coordinate_mse_loss", "outline_loss"]
+__all__ = ["outline_loss"]

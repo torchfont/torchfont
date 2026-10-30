@@ -1,3 +1,5 @@
+from typing import Literal
+
 import pytest
 import torch
 from torch.nn import functional as torch_functional
@@ -13,7 +15,7 @@ def _inputs() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     target_types = torch.tensor(
         [ElementType.MOVE_TO, ElementType.CURVE_TO, ElementType.PAD]
     )
-    target_coords = torch.ones_like(coordinate_prediction)
+    target_coords = torch.full_like(coordinate_prediction, 0.5)
     return type_logits, coordinate_prediction, target_types, target_coords
 
 
@@ -34,9 +36,7 @@ def test_outline_loss_combines_independently_averaged_losses() -> None:
         target_types,
         ignore_index=ElementType.PAD,
     )
-    expected_coord_loss = font_functional.coordinate_mse_loss(
-        prediction, target_types, target_coords
-    )
+    expected_coord_loss = torch.tensor(0.25)
     assert torch.allclose(loss, 2 * expected_type_loss + 3 * expected_coord_loss)
 
 
@@ -54,7 +54,8 @@ def test_outline_loss_module_delegates_to_functional_loss() -> None:
 
     assert torch.equal(actual, expected)
     assert repr(criterion) == (
-        "OutlineLoss(type_weight=0.25, coordinate_weight=2.0, reduction='sum')"
+        "OutlineLoss(coordinate_loss='l2', type_weight=0.25, "
+        "coordinate_weight=2.0, reduction='sum')"
     )
 
 
@@ -80,9 +81,7 @@ def test_outline_loss_none_returns_loss_per_outline() -> None:
         ignore_index=ElementType.PAD,
         reduction="none",
     ).sum(dim=-1)
-    expected_coord_loss = font_functional.coordinate_mse_loss(
-        prediction, target_types, target_coords, reduction="none"
-    ).sum(dim=(-2, -1))
+    expected_coord_loss = torch.full((2,), 2.0)
 
     assert loss.shape == (2,)
     assert torch.allclose(loss, 2 * expected_type_loss + 3 * expected_coord_loss)
@@ -157,3 +156,53 @@ def test_outline_loss_rejects_invalid_reduction() -> None:
             *_inputs(),
             reduction="invalid",  # ty: ignore[invalid-argument-type]
         )
+
+
+@pytest.mark.parametrize("coordinate_loss", ["l1", "l2", "smooth_l1"])
+@pytest.mark.parametrize("reduction", ["none", "mean", "sum"])
+def test_outline_loss_selects_coordinate_error(
+    coordinate_loss: Literal["l1", "l2", "smooth_l1"],
+    reduction: Literal["none", "mean", "sum"],
+) -> None:
+    inputs = _inputs()
+    error = {"l1": 0.5, "l2": 0.25, "smooth_l1": 0.125}[coordinate_loss]
+    expected = torch.tensor(error if reduction == "mean" else 8 * error)
+    criterion = OutlineLoss(
+        coordinate_loss=coordinate_loss,
+        type_weight=0.0,
+        coordinate_weight=1.0,
+        reduction=reduction,
+    )
+    assert torch.equal(criterion(*inputs), expected)
+
+
+def test_outline_loss_rejects_invalid_coordinate_loss() -> None:
+    with pytest.raises(ValueError, match="not a valid value for coordinate_loss"):
+        font_functional.outline_loss(
+            *_inputs(),
+            coordinate_loss="invalid",  # ty: ignore[invalid-argument-type]
+        )
+
+
+def test_outline_loss_smooth_l1_masks_coordinates_and_backpropagates() -> None:
+    target_types = torch.tensor([ElementType.MOVE_TO, ElementType.PAD])
+    prediction = torch.zeros((2, 6), requires_grad=True)
+    target_coords = torch.full_like(prediction, torch.nan)
+    target_coords[0, -2:] = torch.tensor([0.5, 2.0])
+
+    loss = font_functional.outline_loss(
+        torch.zeros((2, len(ElementType))),
+        prediction,
+        target_types,
+        target_coords,
+        coordinate_loss="smooth_l1",
+        type_weight=0.0,
+        coordinate_weight=1.0,
+    )
+    loss.backward()
+
+    assert loss.item() == (0.125 + 1.5) / 2
+    torch.testing.assert_close(
+        prediction.grad,
+        torch.tensor([[0.0, 0.0, 0.0, 0.0, -0.25, -0.5], [0.0] * 6]),
+    )
