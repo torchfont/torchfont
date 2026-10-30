@@ -36,29 +36,6 @@ The constructor accepts PyTorch-style `device` and `dtype` keyword arguments:
 embedding = OutlineEmbedding(256, device="cuda", dtype=torch.float16)
 ```
 
-## `coordinate_mse_loss`
-
-`coordinate_mse_loss` computes squared error only over coordinates that carry
-meaning for the target element type:
-
-```python
-from torchfont.nn import functional as F
-
-loss = F.coordinate_mse_loss(predicted_coords, target_types, target_coords)
-```
-
-- `MOVE_TO` and `LINE_TO`: endpoint only
-- `QUAD_TO`: first control point and endpoint
-- `CURVE_TO`: both control points and endpoint
-- `CLOSE`, `END`, and `PAD`: no coordinates
-
-Predictions and target coordinates have shape `(..., N, 6)`, while target
-types have shape `(..., N)`.
-Supported reductions are `"none"`, `"mean"`, and `"sum"`.
-The mean is taken over active coordinate scalars rather than padded storage.
-If there are no active coordinates, the mean is a differentiable zero.
-Non-finite values in inactive coordinate slots are ignored.
-
 ## `OutlineLoss`
 
 `OutlineLoss` combines element-type classification and coordinate regression
@@ -76,7 +53,7 @@ loss = criterion(type_logits, predicted_coords, target_types, target_coords)
 ```
 
 `type_logits` has shape `(..., N, len(ElementType))`. Cross entropy and
-coordinate error are combined using `type_weight` and `coordinate_weight`.
+coordinate error (MSE by default) are combined using `type_weight` and `coordinate_weight`.
 Padding elements and inactive coordinate slots do not contribute. An
 all-padding input produces a differentiable zero loss.
 
@@ -86,6 +63,4 @@ With `"sum"`, these outline losses are summed. With `"mean"` (the default),
 cross entropy is averaged over all non-padding elements and coordinate error is
 averaged independently over all active coordinate scalars.
 
-PyTorch cross entropy and `coordinate_mse_loss` provide the individual
-classification and coordinate components. The equivalent functional API for
-the combined loss is `torchfont.nn.functional.outline_loss`.
+The equivalent functional API is `torchfont.nn.functional.outline_loss`.

@@ -34,25 +34,6 @@ Constructor は PyTorch と同様に `device` と `dtype` Keyword Argument を�
 embedding = OutlineEmbedding(256, device="cuda", dtype=torch.float16)
 ```
 
-## `coordinate_mse_loss`
-
-`coordinate_mse_loss` は、Target の要素型に対して意味を持つ座標だけの二乗誤差を計算します。
-
-```python
-from torchfont.nn import functional as F
-
-loss = F.coordinate_mse_loss(predicted_coords, target_types, target_coords)
-```
-
-- `MOVE_TO` と `LINE_TO`: End Point のみ
-- `QUAD_TO`: 一つ目の Control Point と End Point
-- `CURVE_TO`: 二つの Control Point と End Point
-- `CLOSE`、`END`、`PAD`: 座標なし
-
-Prediction と Target 座標の Shape は `(..., N, 6)`、Target 型は `(..., N)` です。Reduction は `"none"`、`"mean"`、`"sum"` に対応します。Mean は Padding を含む格納領域ではなく、
-有効な座標 Scalar に対して計算されます。有効な座標がない場合、Mean は微分可能なゼロになります。
-無効な座標 Slot にある非有限値は無視されます。
-
 ## `OutlineLoss`
 
 `OutlineLoss` は、要素型の分類と座標の回帰を一つの学習目的に統合します。
@@ -68,7 +49,7 @@ criterion = OutlineLoss(
 loss = criterion(type_logits, predicted_coords, target_types, target_coords)
 ```
 
-`type_logits` の Shape は `(..., N, len(ElementType))` です。Cross Entropy と座標誤差を
+`type_logits` の Shape は `(..., N, len(ElementType))` です。Cross Entropy と座標誤差（既定は MSE）を
 `type_weight` と `coordinate_weight` で重み付けします。Padding 要素と無効な座標 Slot は
 Loss に寄与しません。すべてが Padding の Input に対しては、微分可能なゼロ Loss を返します。
 
@@ -77,5 +58,4 @@ Loss を合計し、`target_types.shape[:-1]` Shape の Tensor を返します�
 さらに合計します。既定の `"mean"` では、Cross Entropy をすべての Padding 以外の要素で、
 座標誤差をすべての有効な座標 Scalar で独立に平均します。
 
-PyTorch の Cross Entropy と `coordinate_mse_loss` は、分類と座標の各成分を個別に提供します。
-組み合わせた Loss の同等の関数 API は `torchfont.nn.functional.outline_loss` です。
+同等の関数 API は `torchfont.nn.functional.outline_loss` です。
