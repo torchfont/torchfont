@@ -4,3 +4,4 @@
 	branch = main
 	shallow = true
 	ignore = dirty
+	update = none
