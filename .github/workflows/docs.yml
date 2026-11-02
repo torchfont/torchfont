@@ -9,8 +9,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.readthedocs.yaml'
-      - 'mise.toml'
-      - 'mise.lock'
       - '.github/workflows/docs.yml'
       - '.github/workflows/actions.lock'
   pull_request:
@@ -19,8 +17,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.readthedocs.yaml'
-      - 'mise.toml'
-      - 'mise.lock'
       - '.github/workflows/docs.yml'
       - '.github/workflows/actions.lock'
   workflow_dispatch:
