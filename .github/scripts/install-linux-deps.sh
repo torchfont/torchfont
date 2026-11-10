@@ -3,9 +3,28 @@ set -eu
 
 target="${1:-host}"
 
+apt_update() {
+  retries=5
+  attempt=1
+
+  while [ "${attempt}" -le "${retries}" ]; do
+    if apt-get update "$@"; then
+      return 0
+    fi
+
+    if [ "${attempt}" -eq "${retries}" ]; then
+      return 1
+    fi
+
+    rm -rf /var/lib/apt/lists/*
+    sleep 10
+    attempt=$((attempt + 1))
+  done
+}
+
 case "${target}" in
   host)
-    apt-get update \
+    apt_update \
       -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources \
       -o Dir::Etc::sourceparts=-
     apt-get install -y --no-install-recommends \
@@ -30,7 +49,7 @@ deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-update
 deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main
 EOF
 
-    apt-get update
+    apt_update
     apt-get install -y --no-install-recommends \
       pkg-config \
       libfreetype6-dev:arm64 \
