@@ -75,7 +75,7 @@ def collate_fn(
 def main() -> None:
     dataset = CodepointDataset(
         codepoints=LATIN_CORE,
-        root="data/google/fonts",
+        root="third_party/google/fonts",
         patterns=(
             "apache/*/*.ttf",
             "ofl/*/*.ttf",

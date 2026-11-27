@@ -13,7 +13,7 @@ from torchfont.transforms import functional as F  # noqa: N812
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_FONTS_ROOT = Path("data/google/fonts")
+GOOGLE_FONTS_ROOT = Path("third_party/google/fonts")
 
 
 def _augmentation() -> T.Compose:

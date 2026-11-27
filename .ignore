@@ -1,6 +1,6 @@
 # Large optional data submodule. Keep it out of default repository searches;
 # search it explicitly with `rg -u` or a direct path when needed.
-data/google/fonts/
+third_party/google/fonts/
 
 # Keep shared repository tooling discoverable in default ripgrep file searches.
 !/.devcontainer/

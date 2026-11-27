@@ -18,5 +18,5 @@
 `--depth 1` で最新のコミットのみを取得し、ダウンロードサイズを抑えます。
 
 ```bash
-git clone --depth 1 https://github.com/google/fonts.git data/google/fonts
+git clone --depth 1 https://github.com/google/fonts.git third_party/google/fonts
 ```

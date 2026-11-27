@@ -5,7 +5,7 @@ from torchfont.datasets import CodepointDataset
 
 def main() -> None:
     dataset = CodepointDataset(
-        root="data/google/fonts",
+        root="third_party/google/fonts",
         patterns=(
             "apache/*/*.ttf",
             "ofl/*/*.ttf",

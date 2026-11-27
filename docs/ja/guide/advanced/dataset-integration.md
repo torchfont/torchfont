@@ -5,10 +5,10 @@
 
 ## リポジトリを追加する
 
-`data/` 以下のパスを決め、リポジトリを追加します。
+`third_party/` 以下のパスを決め、リポジトリを追加します。
 
 ```bash
-git submodule add --depth 1 https://github.com/google/fonts.git data/google/fonts
+git submodule add --depth 1 https://github.com/google/fonts.git third_party/google/fonts
 ```
 
 生成された `.gitmodules` と記録されたサブモジュールのリビジョンをコミットします。親
@@ -25,7 +25,7 @@ git submodule update --init --depth 1
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
 )
 ```
@@ -40,7 +40,7 @@ dataset = CodepointDataset(
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=("apache/*/*.ttf", "ofl/*/*.ttf", "ufl/*/*.ttf"),
 )
 ```
@@ -54,12 +54,12 @@ dataset = CodepointDataset(
 ```bash
 git submodule add --depth 1 \
     https://github.com/google/material-design-icons.git \
-    data/google/material-design-icons
+    third_party/google/material-design-icons
 ```
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/material-design-icons",
+    root="third_party/google/material-design-icons",
     patterns=("font/*.ttf", "font/*.otf", "variablefont/*.ttf"),
 )
 ```
@@ -72,12 +72,12 @@ dataset = CodepointDataset(
 ```bash
 git submodule add --depth 1 \
     https://github.com/FortAwesome/Font-Awesome.git \
-    data/fortawesome/font-awesome
+    third_party/fortawesome/font-awesome
 ```
 
 ```python
 dataset = CodepointDataset(
-    root="data/fortawesome/font-awesome",
+    root="third_party/fortawesome/font-awesome",
     patterns=("otfs/*.otf",),
 )
 ```
@@ -92,12 +92,12 @@ dataset = CodepointDataset(
 ```bash
 git submodule add --depth 1 \
     https://github.com/adobe-fonts/source-han-code-jp.git \
-    data/adobe/source-han-code-jp
+    third_party/adobe/source-han-code-jp
 ```
 
 ```python
 dataset = CodepointDataset(
-    root="data/adobe/source-han-code-jp",
+    root="third_party/adobe/source-han-code-jp",
     patterns=("OTC/*.ttc",),
 )
 ```

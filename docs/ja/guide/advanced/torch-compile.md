@@ -11,7 +11,7 @@ from torchfont import Outline
 from torchfont.datasets import CodepointDataset
 from torchfont.transforms import functional as F
 
-dataset = CodepointDataset("data/fonts", codepoints=[ord("A")])
+dataset = CodepointDataset("third_party/fonts", codepoints=[ord("A")])
 outline = F.load_glyph(dataset[0].ref)
 
 
