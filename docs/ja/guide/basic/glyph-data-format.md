@@ -11,7 +11,7 @@ from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -69,7 +69,7 @@ from torchfont.transforms import LoadGlyph
 from torchfont import ElementType
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -109,7 +109,7 @@ from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -160,7 +160,7 @@ shape を固定するため、すべての要素が 6 個の値を持ちます�
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -189,7 +189,7 @@ FontRef(path='.../Aclonica-Regular.ttf', face_index=0)
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",

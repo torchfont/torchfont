@@ -5,7 +5,7 @@
 ```python
 from torchfont.datasets import CodepointDataset
 
-dataset = CodepointDataset(root="data/google/fonts")
+dataset = CodepointDataset(root="third_party/google/fonts")
 
 print(len(dataset))
 print(len(dataset.font_classes))
@@ -20,7 +20,7 @@ print(len(dataset.character_classes))
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -36,7 +36,7 @@ dataset = CodepointDataset(
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     codepoints=range(0x41, 0x5B),
 )
 ```
@@ -50,7 +50,7 @@ dataset = CodepointDataset(
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     max_length=128,
 )
 ```
@@ -66,7 +66,7 @@ OpenType の機能で置換されるグリフは現れません。フェイス�
 ```python
 from torchfont.datasets import GlyphIdDataset
 
-dataset = GlyphIdDataset(root="data/google/fonts")
+dataset = GlyphIdDataset(root="third_party/google/fonts")
 
 print(len(dataset))
 print(len(dataset.font_classes))
@@ -84,14 +84,14 @@ print(len(dataset.font_classes))
 ```python
 from torchfont.transforms import LoadGlyph
 
-dataset = CodepointDataset(root="data/google/fonts", transform=LoadGlyph())
+dataset = CodepointDataset(root="third_party/google/fonts", transform=LoadGlyph())
 ```
 
 学習時はアクセスごとに位置を 1 点抽出できます。
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     transform=LoadGlyph(location="random"),
 )
 ```

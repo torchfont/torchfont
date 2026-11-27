@@ -37,7 +37,7 @@ CodepointDataset(
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     codepoints=[0x41, 0x42],
     patterns="ofl/*/*.ttf",
 )
@@ -76,7 +76,7 @@ GlyphIdDataset(
 from torchfont.datasets import GlyphIdDataset
 
 dataset = GlyphIdDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns="ofl/*/*.ttf",
 )
 ```
@@ -106,7 +106,7 @@ dataset = GlyphIdDataset(
 グリフだけを残します。
 
 ```python
-dataset = GlyphIdDataset(root="data/google/fonts", max_length=128)
+dataset = GlyphIdDataset(root="third_party/google/fonts", max_length=128)
 ```
 
 条件を満たすグリフが 1 つも残らないフェイスは、他のフィルターと同様に除外されます。

@@ -155,16 +155,16 @@ description = "Run the Python test suite"
 depends = ["build"]
 run = "uv run --locked --no-sync pytest tests"
 
-[tasks.data-sync]
-description = "Synchronize the repository data submodules"
+[tasks.submodule-sync]
+description = "Synchronize the repository submodules"
 run = [
   "git submodule sync",
   "git submodule update --init --checkout --force --depth 1",
   "git submodule foreach 'git clean -fd'",
 ]
 
-[tasks.data-update]
-description = "Update the repository data submodules"
+[tasks.submodule-update]
+description = "Update the repository submodules"
 run = [
   "git submodule sync",
   "git submodule update --remote --checkout --force --depth 1",
@@ -173,7 +173,7 @@ run = [
 
 [tasks.test-google-fonts]
 description = "Run tests against the Google Fonts checkout"
-depends = ["build", "data-sync"]
+depends = ["build", "submodule-sync"]
 run = "uv run --locked --no-sync pytest tests/google_fonts --google-fonts -s"
 
 [tasks.docs-build]

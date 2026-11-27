@@ -5,7 +5,7 @@ Point `CodepointDataset` at a local font directory:
 ```python
 from torchfont.datasets import CodepointDataset
 
-dataset = CodepointDataset(root="data/google/fonts")
+dataset = CodepointDataset(root="third_party/google/fonts")
 
 print(len(dataset))
 print(len(dataset.font_classes))
@@ -21,7 +21,7 @@ Every face contributes one element per supported codepoint.
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -37,7 +37,7 @@ Use integer Unicode codepoints:
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     codepoints=range(0x41, 0x5B),
 )
 ```
@@ -51,7 +51,7 @@ not contain any requested outline glyph are omitted.
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     max_length=128,
 )
 ```
@@ -67,7 +67,7 @@ every glyph a face draws with `GlyphIdDataset` instead:
 ```python
 from torchfont.datasets import GlyphIdDataset
 
-dataset = GlyphIdDataset(root="data/google/fonts")
+dataset = GlyphIdDataset(root="third_party/google/fonts")
 
 print(len(dataset))
 print(len(dataset.font_classes))
@@ -85,14 +85,14 @@ Raw samples are deterministic. Load default locations for evaluation:
 ```python
 from torchfont.transforms import LoadGlyph
 
-dataset = CodepointDataset(root="data/google/fonts", transform=LoadGlyph())
+dataset = CodepointDataset(root="third_party/google/fonts", transform=LoadGlyph())
 ```
 
 Draw one location per access for training:
 
 ```python
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     transform=LoadGlyph(location="random"),
 )
 ```

@@ -9,7 +9,7 @@ from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 dataset = CodepointDataset(
-    root="data/fonts",
+    root="third_party/fonts",
     patterns=("**/*.ttc", "**/*.otc"),
     transform=LoadGlyph(),
 )
@@ -31,7 +31,7 @@ from torchfont import FontRef, GlyphRef
 from torchfont.transforms import LoadGlyph
 
 ref = GlyphRef(
-    font=FontRef("data/fonts/example.ttc", face_index=2),
+    font=FontRef("third_party/fonts/example.ttc", face_index=2),
     glyph_id=36,
 )
 outline = LoadGlyph()(ref)

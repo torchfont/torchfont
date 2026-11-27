@@ -11,7 +11,7 @@ from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 evaluation = CodepointDataset(
-    root="data/fonts",
+    root="third_party/fonts",
     patterns=("**/*.ttf", "**/*.otf", "**/*.ttc", "**/*.otc"),
     transform=LoadGlyph(),
 )
@@ -23,7 +23,7 @@ augmentation without creating separate files for the instances:
 
 ```python
 training = CodepointDataset(
-    root="data/fonts",
+    root="third_party/fonts",
     transform=LoadGlyph(location="random"),
 )
 

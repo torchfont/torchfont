@@ -9,7 +9,7 @@ from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -66,7 +66,7 @@ from torchfont.transforms import LoadGlyph
 from torchfont import ElementType
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -106,7 +106,7 @@ from torchfont.datasets import CodepointDataset
 from torchfont.transforms import LoadGlyph
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -158,7 +158,7 @@ positions have no semantic meaning.
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",
@@ -188,7 +188,7 @@ corresponding character. Run the following code to check the value:
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",

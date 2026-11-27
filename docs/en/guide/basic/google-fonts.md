@@ -20,5 +20,5 @@ Clone Google Fonts into the path used by the examples in this guide. `--depth 1`
 fetches only the latest commit to keep the download size small.
 
 ```bash
-git clone --depth 1 https://github.com/google/fonts.git data/google/fonts
+git clone --depth 1 https://github.com/google/fonts.git third_party/google/fonts
 ```

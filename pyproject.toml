@@ -79,7 +79,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 unsafe-fixes = true
-exclude = ["data"]
+exclude = ["third_party"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -94,11 +94,11 @@ ignore = ["COM812", "CPY001", "D203", "D213", "EXE002"]
 "tests/**/*.py" = ["D", "PLR2004", "S101"]
 
 [tool.maturin]
-exclude = ["data/**"]
+exclude = ["third_party/**"]
 module-name = "torchfont._torchfont"
 
 [tool.ty.rules]
 invalid-method-override = "ignore"
 
 [tool.ty.src]
-exclude = ["data"]
+exclude = ["third_party"]

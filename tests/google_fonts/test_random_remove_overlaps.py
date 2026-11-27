@@ -13,7 +13,7 @@ from torchfont.transforms import functional as _functional
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_FONTS_ROOT = Path("data/google/fonts")
+GOOGLE_FONTS_ROOT = Path("third_party/google/fonts")
 
 MAX_FAILURE_RATE = 0.001
 MIN_CHANGE_RATE = 0.1

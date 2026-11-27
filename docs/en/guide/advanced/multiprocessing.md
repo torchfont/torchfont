@@ -42,7 +42,7 @@ def collate_fn(samples: list[CodepointData[Outline]]):
 
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns=(
         "apache/*/*.ttf",
         "ofl/*/*.ttf",

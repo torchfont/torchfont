@@ -37,7 +37,7 @@ CodepointDataset(
 from torchfont.datasets import CodepointDataset
 
 dataset = CodepointDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     codepoints=[0x41, 0x42],
     patterns="ofl/*/*.ttf",
 )
@@ -77,7 +77,7 @@ GlyphIdDataset(
 from torchfont.datasets import GlyphIdDataset
 
 dataset = GlyphIdDataset(
-    root="data/google/fonts",
+    root="third_party/google/fonts",
     patterns="ofl/*/*.ttf",
 )
 ```
@@ -109,7 +109,7 @@ Both datasets take `max_length`. It keeps only glyphs whose outline is at most
 that many elements long.
 
 ```python
-dataset = GlyphIdDataset(root="data/google/fonts", max_length=128)
+dataset = GlyphIdDataset(root="third_party/google/fonts", max_length=128)
 ```
 
 Faces left without a fitting glyph are omitted, as they are for the other
